@@ -62,7 +62,8 @@
       var request = {
         origin: new google.maps.LatLng(60.023539414725356,30.283663272857666), //точка старта
         destination: new google.maps.LatLng(59.79530896374892,30.410317182540894), //точка финиша
-        travelMode: 'DRIVING' //режим прокладки маршрута
+        travelMode: 'DRIVING', //режим прокладки маршрута
+
       };
 
       directionsService.route(request, function(response, status) {
@@ -71,6 +72,13 @@
         }
       });
 
+      var directionsOptions = {
+        polylineOptions: {
+          strokeColor: 'linear-gradient(to top, red 0%, green 100%)'
+        }
+      };
+
+      directionsDisplay = new google.maps.DirectionsRenderer(directionsOptions);
       directionsDisplay.setMap(this.map);
     },
   }
