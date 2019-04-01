@@ -57,7 +57,6 @@
     methods: {
 
       displaySuggestions(predictions, status) {
-
         if (!predictions) return;
 
         var that = this,
@@ -71,12 +70,14 @@
 
           var request = {
             placeId: prediction.place_id,
-            fields: ['name', 'formatted_address', 'place_id', 'geometry']
+            id: prediction.id,
+
           };
 
           // Определяем координаты, записываем их в объект
           placeService.getDetails(request, function (place, status) {
             if (status == google.maps.places.PlacesServiceStatus.OK) {
+
 
               let lat = place.geometry.location.lat(),
                 lng = place.geometry.location.lng();
@@ -109,7 +110,8 @@
           service.getQueryPredictions({
             input: myInput,
             componentRestrictions: {country: 'ru'},
-          }, that.displaySuggestions);
+          }, that.displaySuggestions
+          );
 
           parent.classList.add('active')
 

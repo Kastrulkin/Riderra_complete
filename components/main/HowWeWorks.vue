@@ -1,5 +1,5 @@
 <template>
-  <section class="site-section">
+  <section class="site-section" id="howWorks">
     <div class="container">
       <div class="row">
         <div class="col-sm-6">
@@ -11,7 +11,7 @@
       <div class="row">
         <div v-swiper:mySwiper="swiperData" class="main-slider col-lg-12" ref="mySlider">
           <div class="swiper-wrapper ">
-            <div class="swiper-slide main-slider__item"
+            <div class="swiper-slide main-slider__item" :class="slide.class"
                  :style="{ backgroundColor: slide.backgroundColor}"
                  v-for="(slide, i) in slides"
                  :key="i">
@@ -25,12 +25,24 @@
             </div>
           </div>
           <div class="swiper-pagination"></div>
+          <div class="swiper-button-prev swiper-arrow">
+            <svg width="8" height="13" viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M7.73994 11.3273C8.11145 11.736 8.08133 12.3684 7.67267 12.7399C7.26402 13.1114 6.63157 13.0813 6.26006 12.6727L7.73994 11.3273ZM2 6.5L1.26006 7.17267L0.648539 6.5L1.26006 5.82733L2 6.5ZM6.26006 0.327326C6.63157 -0.0813307 7.26402 -0.111448 7.67267 0.260059C8.08133 0.631566 8.11145 1.26401 7.73994 1.67267L6.26006 0.327326ZM6.26006 12.6727L1.26006 7.17267L2.73994 5.82733L7.73994 11.3273L6.26006 12.6727ZM1.26006 5.82733L6.26006 0.327326L7.73994 1.67267L2.73994 7.17267L1.26006 5.82733Z"/>
+            </svg>
+
+          </div>
+          <div class="swiper-button-next swiper-arrow">
+            <svg width="8" height="13" viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M7.73994 11.3273C8.11145 11.736 8.08133 12.3684 7.67267 12.7399C7.26402 13.1114 6.63157 13.0813 6.26006 12.6727L7.73994 11.3273ZM2 6.5L1.26006 7.17267L0.648539 6.5L1.26006 5.82733L2 6.5ZM6.26006 0.327326C6.63157 -0.0813307 7.26402 -0.111448 7.67267 0.260059C8.08133 0.631566 8.11145 1.26401 7.73994 1.67267L6.26006 0.327326ZM6.26006 12.6727L1.26006 7.17267L2.73994 5.82733L7.73994 11.3273L6.26006 12.6727ZM1.26006 5.82733L6.26006 0.327326L7.73994 1.67267L2.73994 7.17267L1.26006 5.82733Z"/>
+            </svg>
+          </div>
         </div>
       </div>
     </div>
   </section>
 </template>
-
 
 
 <script>
@@ -43,6 +55,10 @@
           slidesPerView: 1,
           speed: 400,
           effect: 'fade',
+          navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+          },
           pagination: {
             el: '.swiper-pagination',
             clickable: true,
@@ -53,17 +69,20 @@
             src: '/img/slide1.png',
             title: 'Безопасно и надежно',
             desc: 'Каждый водитель проходит через индивидуальное собеседование при трудоустройстве. Минимальный стаж — 5 лет.',
-            backgroundColor: '#291737'
+            backgroundColor: '#291737',
           }, {
-            src: '/img/slide1.png',
-            title: 'Безопасно и надежно',
-            desc: 'Каждый водитель проходит через индивидуальное собеседование при трудоустройстве. Минимальный стаж — 5 лет.',
-            backgroundColor: '#cecece'
+            src: '/img/slide2.png',
+            title: 'Пунктуальность',
+            desc: 'Приедем заранее, ориентируясь на&nbsp;указанное вами время или сроки рейса. При необходимости вы&nbsp;сможете связаться с&nbsp;водителем напрямую.',
+            backgroundColor: '#B0137F',
+            class: 'punctuality'
+
           }, {
-            src: '/img/slide1.png',
-            title: 'Безопасно и надежно',
-            desc: 'Каждый водитель проходит через индивидуальное собеседование при трудоустройстве. Минимальный стаж — 5 лет.',
-            backgroundColor: 'blue'
+            src: '/img/slide3.png',
+            title: 'Вежливость и&nbsp;знание языков',
+            desc: 'Наши водители вежливы и&nbsp;владеют английским языком. Встретят вас с&nbsp;табличкой в&nbsp;аэропорту или на&nbsp;вокзале, помогут с&nbsp;багажом. Подождут бесплатно, если рейс задержат.',
+            backgroundColor: '#F31880',
+            class: 'knowledges'
           },
 
         ]
@@ -90,17 +109,17 @@
     .main-slider {
 
       &__img {
-        transform: translate3d(0, -50%, 0);
+        transform: translate3d(0, 0, 0) !important;
         opacity: 1;
       }
 
       &__title {
-        transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0) !important;
         opacity: 1;
       }
 
       &__desc {
-        transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0) !important;
         opacity: 1;
       }
     }
@@ -112,6 +131,7 @@
   }
 
   .main-slider {
+    overflow: visible;
 
     &__item {
       min-height: 430px;
@@ -141,9 +161,9 @@
       display: block;
       width: auto;
       position: absolute;
-      top: 50%;
+      bottom: 0;
       max-height: 100%;
-      transform: translate3d(-10%, -50%, 0);
+      transform: translate3d(-10%, 00, 0);
       transition: 300ms all 600ms;
       opacity: 0;
     }
@@ -173,10 +193,89 @@
     }
   }
 
-  @media all and (max-width: 767px){
-    .main-slider{
+  .punctuality {
+
+    .main-slider {
+
+      &__img {
+        right: 0;
+        transform: translate3d(10%, -50%, 0);
+
+      }
+
+      &__caption {
+        left: 80px;
+      }
+
+      &__title,
+      &__desc {
+        transform: translate3d(-40px, 0, 0);
+      }
+
+    }
+
+  }
+
+  .knowledges {
+
+    .main-slider {
+
+      &__caption:after {
+        background: linear-gradient(180deg, rgba(255, 80, 41, 0.224) 0%, rgba(255, 143, 196, 0.7) 52.49%, rgba(227, 155, 244, 0.7) 64.64%);;
+      }
+    }
+  }
+
+  @media all and (max-width: 1024px) {
+
+    .main-slider {
+      width: 90%;
+
+      &__item {
+        min-height: 250px;
+      }
+
+      &__caption {
+        width: 40%;
+      }
+    }
+  }
+
+  @media all and (max-width: 767px) {
+    .main-slider {
+      width: 100%;
       padding-left: 0;
       padding-right: 0;
+
+      &__caption{
+        right: 20px;
+      }
+    }
+
+    .knowledges{
+
+
+      .main-slider {
+
+        &__caption{
+          width: 50%;
+        }
+      }
+    }
+    .swiper-slide-active.knowledges{
+
+      .main-slider{
+
+        &__img{
+          transform: translate3d(20%, 0%, 0) !important;
+        }
+
+        &__caption{
+          left: 20px;
+        }
+      }
+
+
     }
   }
 </style>

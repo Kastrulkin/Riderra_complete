@@ -30,7 +30,8 @@
           </label>
         </div>
         <div class="form__item">
-          <input class="form__button button" type="submit" value="Отправить">
+          <!--<input class="form__button button" type="submit" value="Отправить">-->
+          <nuxt-link class="form__button button" to="/payment">Отправить</nuxt-link>
         </div>
       </div>
     </form>
@@ -132,6 +133,7 @@
 
     &__button{
       height: 60px;
+      text-align: center;
     }
 
     &__input{
@@ -206,7 +208,7 @@
     }
   }
 
-  @media all and (max-width: 991px){
+  @media all and (max-width: 1024px){
     .policy{
       font-size: 12px;
     }
@@ -219,6 +221,7 @@
 
       &__button{
         height: 50px;
+        line-height: 50px;
       }
     }
   }

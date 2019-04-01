@@ -2,7 +2,7 @@
   <div>
     <nuxt-child></nuxt-child>
     <main-section></main-section>
-    <h1><nuxt-link to="/transport">фыв</nuxt-link></h1>
+    <!--<h1><nuxt-link to="/transport">фыв</nuxt-link></h1>-->
 
     <section-first></section-first>
     <section-cities></section-cities>

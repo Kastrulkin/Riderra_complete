@@ -44,9 +44,11 @@
 
       <div class="payment__content">
         <div class="by-cash">
-          <div  class="form__item policy"><label  class="policy__label"><input
-             type="checkbox" checked="checked" class="policy__checkbox"> <span>Подтверждаю <a
-             href="#" class="policy__link">условия перевозки</a> и <a href="#" class="policy__link">политики конфиценциальности</a></span></label>
+          <div  class="form__item policy">
+            <label class="policy__label">
+              <input type="checkbox" checked="checked" class="policy__checkbox"> <span>Подтверждаю <a
+             href="#" class="policy__link">условия перевозки</a> и <a href="#" class="policy__link">политики конфиценциальности</a></span>
+            </label>
           </div>
           <input type="submit" value="Забронировать" class="form__button button">
         </div>
@@ -107,6 +109,18 @@
       overflow: hidden;
     }
 
+    &__icon{
+      &--cash {
+        width: 29px;
+        height: 28px;
+      }
+
+      &--card {
+        width: 34px;
+        height: 31px;
+      }
+    }
+
     &__item {
       padding: 30px 40px 30px 90px;
       color: #000;
@@ -141,15 +155,7 @@
         .payment__icon {
           fill: #fff;
 
-          &--cash {
-            width: 29px;
-            height: 28px;
-          }
 
-          &--card {
-            width: 34px;
-            height: 31px;
-          }
         }
       }
     }
@@ -237,7 +243,7 @@
 
   @media (max-width: 1024px) {
     .car-type {
-      padding-left: 100px;
+      padding-left: 150px;
 
       &__title {
         font-size: 16px;
@@ -248,7 +254,7 @@
       }
 
       &__figure {
-        height: 60%;
+        height: 70%;
         width: 70%;
       }
     }
@@ -284,7 +290,14 @@
     }
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 991px) {
+    .car-type{
+      padding-left: 100px;
+    }
+  }
+
+
+    @media (max-width: 767px) {
     .payment {
 
       &__container {

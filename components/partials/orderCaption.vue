@@ -1,9 +1,9 @@
 <template>
   <div class="container">
     <div class="tabs">
-      <a href="#" class="tabs__link">Откуда и куда</a>
-      <a href="#" class="tabs__link active">Транспорт</a>
-      <a href="#" class="tabs__link disabled">Оплата</a>
+      <nuxt-link to="/" class="tabs__link">Откуда и куда</nuxt-link>
+      <nuxt-link to="/transport" class="tabs__link active">Транспорт</nuxt-link>
+      <nuxt-link to="/payment" class="tabs__link">Оплата</nuxt-link>
     </div>
     <h2 class="h2 transport__title" v-html="data.title"></h2>
   </div>

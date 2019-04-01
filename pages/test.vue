@@ -1,134 +1,17 @@
 <template>
-  <label class="wrap">
-    <input id="searchTextField" name="from" @input="initService" type="text" size=100 placeholder="testing"
-           ref="acInput">
-    <div id="result" ref="result" class="result-list" v-show="cityList">
-      <li v-for="(item, i) in results" :key="i" @mouseenter="placeHover(item)" @click="insertValue(item)">
-        {{item.description}}
-      </li>
-    </div>
-    <div id="map" class="map" ref="mapRef"></div>
-  </label>
+  <div class="wrap">
+    <dropdown></dropdown>
+  </div>
 </template>
 
 <script>
-
+  import dropdown from '~/components/form/baggageDropdown.vue'
   export default {
-    data() {
-      return {
-        value: '',
-        results: [],
-        map: {},
-        cityList: false,
-      }
-    },
-    computed: {},
-    watch: {
-      value: function (oldVal, newVal) {
-        if (newVal === '') {
-          this.cityList = false;
-        }
-      }
+    components: {
+      dropdown
     },
 
-    mounted() {
-      this.map = new google.maps.Map(
-        this.$refs.mapRef, {
-          center: {lat: -33.866, lng: 151.196},
-          zoom: 15
-        });
-    },
-    methods: {
-      displaySuggestions(predictions, status) {
 
-        var that = this,
-          placeService = new google.maps.places.PlacesService(this.map);
-
-        if (status != google.maps.places.PlacesServiceStatus.OK) {
-          return;
-        }
-
-        predictions.forEach(prediction => {
-
-          var request = {
-            placeId: prediction.place_id,
-            fields: ['name', 'formatted_address', 'place_id', 'geometry']
-          };
-
-          // console.log(prediction)
-          // Определяем координаты, записываем их в объект
-          placeService.getDetails(request, function (place, status) {
-            if (status == google.maps.places.PlacesServiceStatus.OK) {
-
-              let lat = place.geometry.location.lat(),
-                lng = place.geometry.location.lng();
-
-              prediction['location'] = {lat, lng}
-            }
-          })
-        });
-
-        that.results = predictions;
-        // console.log(that.results)
-
-      },
-      initService() {
-        var that = this,
-            service = new google.maps.places.AutocompleteService(),
-            myInput = that.$refs.acInput.value;
-
-        clearTimeout(loadingTimer);
-
-        var loadingTimer = setTimeout(function () {
-          if (myInput.length) {
-
-            // Поиск мест
-            service.getQueryPredictions({
-              input: myInput,
-              componentRestrictions: {country: 'ru'},
-            }, that.displaySuggestions);
-          }
-        }, 500);
-
-        this.cityList = true;
-
-      },
-      placeHover(item) {
-        // this.map.clearMarkers();
-
-        var marker = new google.maps.Marker({
-          map: this.map,
-          position: item.location
-        });
-
-        // console.log(item)
-
-        this.map.setCenter(item.location)
-      },
-      insertValue(item) {
-        let that = this;
-
-        this.$refs.acInput.value = item.description;
-
-
-        setTimeout(() => {
-          that.cityList = false;
-
-        }, 200)
-
-        console.log(this.$refs.acInput.value)
-      },
-      onFocus() {
-        this.cityList = true;
-
-        if (!this.$refs.acInput.length) {
-          this.results = [];
-        }
-      },
-      onBlur() {
-        this.cityList = false;
-      }
-    }
   }
 </script>
 

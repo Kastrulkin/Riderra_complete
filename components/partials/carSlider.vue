@@ -1,7 +1,7 @@
 <template>
   <div v-swiper:mySwiper="swiperData" class="cars" :class="{'transport-cars': data.type === 'transport'}" ref="mySlider">
     <div class="swiper-wrapper ">
-      <div class="swiper-slide cars__item"
+      <nuxt-link to="/elite" class="swiper-slide cars__item"
            :style="{ backgroundColor: slide.color}"
            v-for="(slide, i) in cars"
            :key="i"
@@ -21,7 +21,7 @@
             <div class="cars__button white-button">Выбрать</div>
           </figcaption>
         </figure>
-      </div>
+      </nuxt-link>
     </div>
     <div class="swiper-pagination"></div>
   </div>
@@ -127,6 +127,12 @@
         display: block;
         max-width: 131px;
         margin-top: 0;
+        height: 62px;
+
+        &:hover{
+          color: #000;
+          background: #fff;
+        }
       }
 
       &__caption{
@@ -206,10 +212,13 @@
       position: relative;
       overflow: hidden;
       transition: all 250ms;
+      text-decoration: none;
 
       &:hover,
       &:focus {
         box-shadow: 0 20px 90px 3px rgba(112, 34, 131, .8);
+        text-decoration: none;
+        outline: none;
 
       }
     }
@@ -224,7 +233,7 @@
     &__img {
       background-size: cover;
       background-repeat: no-repeat;
-      background-position: 130% 0;
+      background-position: 115% 0;
 
       width: 100%;
       height: 70%;
@@ -243,7 +252,7 @@
 
 
 
-  @media all and (max-width: 991px) {
+  @media all and (max-width: 1024px) {
     .cars {
 
       &__item {
@@ -255,6 +264,80 @@
         width: 80%;
       }
     }
+
+    .transport-cars{
+
+      .cars{
+
+        &__item{
+          padding-top: 55px;
+          min-height: 345px;
+          height: auto;
+          max-height: inherit;
+          top: 0;
+
+         /* &:hover{
+            height: 365px;
+            .cars__desc{
+              height: auto;
+              margin: 10px 0 20px;
+              opacity: 1;
+
+            }
+
+            .cars-price{
+              padding-top: 40px;
+            }
+          }*/
+        }
+
+        &__desc{
+          margin: 0;
+          opacity: 0;
+          height: 0;
+          position: absolute;
+          bottom: 110px;
+          transition: all 250ms;
+        }
+
+        &__button{
+          height: 50px;
+          line-height: 50px;
+          max-width: 100%;
+        }
+
+        &__img{
+          height: 50%;
+        }
+      }
+
+      .cars-price{
+        width: 100%;
+        font-size: 22px;
+        display: flex;
+        justify-content: space-between;
+        flex-direction: row;
+        align-items: center;
+        padding-right: 20px;
+        margin-bottom: 12px;
+
+        &__current{
+          order: 1;
+
+        }
+
+        &__prev{
+          font-size: 12px;
+          position: relative;
+          transform: translateY(0);
+          order: 2;
+        }
+      }
+    }
+
+
+
+
   }
 
   @media all and (max-width: 767px) {

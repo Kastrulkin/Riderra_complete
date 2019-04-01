@@ -168,6 +168,7 @@
       right: 64px;
       background: url(/img/close.svg) center no-repeat;
       cursor: pointer;
+      z-index: 20;
     }
 
     &__content {

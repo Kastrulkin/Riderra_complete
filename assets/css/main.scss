@@ -2,6 +2,11 @@
 body{
   font-family: 'Montserrat', sans-serif;
   font-size: 16px;
+  /*width: 100%;
+  height: 100vh;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;*/
 }
 
 .vdp-datepicker__calendar{
@@ -187,6 +192,8 @@ input[type="tel"]{
   transition: box-shadow 300ms;
   cursor: pointer;
   height: 60px;
+  line-height: 60px;
+  text-decoration: none;
 
 
   &:hover{
@@ -286,6 +293,88 @@ input[type="tel"]{
   transition: all 250ms ease-in-out;
 }
 
+.swiper-arrow{
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background-image: none;
+  transition: 150ms all;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  left: -50px;
+  padding-right: 3px;
+  outline: none;
+
+  svg{
+    fill: #2F80ED;
+    transition: 150ms all;
+
+  }
+
+  &:hover{
+    background: #2F80ED;
+
+    svg{
+      fill: #fff;
+    }
+  }
+}
+
+.swiper-button-next{
+  left: initial;
+  right: -50px;
+  padding-left: 3px;
+  padding-right: 0;
+
+  svg {
+    transform: rotate(180deg);
+  }
+}
+
+.dropdown .v-select{
+  color: #000;
+  font-family: 'Montserrat';
+
+  .dropdown-menu{
+    width: 80px !important;
+    max-width: 100% !important;
+    min-width: 100%;
+
+  }
+
+  li{
+    margin: 0;
+  }
+
+  li > a{
+    padding: 5px;
+    text-decoration: none;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .selected-tag{
+    margin: 0;
+    padding-left: 10px;
+  }
+
+}
+.dropdown .v-select .dropdown-toggle .clear{
+  display: none;
+}
+
+.dropdown .v-select .dropdown-toggle{
+  height: 100%;
+}
+
+.dropdown .v-select .open-indicator:before {
+  border-color: #2F80ED;
+  border-width: 2px 2px 0 0;
+  height: 8px;
+  width: 8px;
+}
+
 
 @media all and (max-width: 991px){
   body{
@@ -321,7 +410,15 @@ input[type="tel"]{
     &--sm{
       padding-top: 100px;
     }
+  }
 
+  .swiper-arrow{
+    left: -29px;
+
+  }
+  .swiper-button-next{
+    left: initial;
+    right: -29px;
 
   }
 }
@@ -359,5 +456,19 @@ input[type="tel"]{
   .policy__checbox{
     margin-top: 2px;
   }
+
+  .swiper-arrow{
+    display: none;
+  }
 }
 
+.page-enter-active, .page-leave-active {
+  transition-property: opacity;
+  transition-duration: .3s;
+  opacity: 1;
+}
+
+.page-enter, .page-leave-to {
+  opacity: 0;
+
+}

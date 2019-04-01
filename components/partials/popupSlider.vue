@@ -193,6 +193,7 @@
       top: 50%;
       position: relative;
       transform: translate3d(0, 0, 0);
+      filter: blur(3px);
 
     }
 

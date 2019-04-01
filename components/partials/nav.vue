@@ -1,5 +1,6 @@
 <template>
-  <header class="container header">
+  <header class=" header">
+    <div class="header__container container">
     <div class="logo">
       <nuxt-link to="/" class="logo__link">
         <svg class="logo__img" width="108" height="23" viewBox="0 0 108 23">
@@ -8,9 +9,9 @@
       </nuxt-link>
     </div>
     <nav class="nav-list">
-      <nuxt-link to="/test" class="nav-list__item">Как мы работаем</nuxt-link>
-      <a href="#" class="nav-list__item">Автопарк</a>
-      <a href="#" class="nav-list__item">Отзывы</a>
+      <nuxt-link to="/"  class="nav-list__item" @click="scrollTo('#howWorks')">Как мы работаем</nuxt-link>
+      <nuxt-link to="#" class="nav-list__item">Автопарк</nuxt-link>
+      <nuxt-link to="#" class="nav-list__item">Отзывы</nuxt-link>
     </nav>
     <div class="header__right">
       <a href="tel:88009543212" class="header__tel">8-800-954-32-12</a>
@@ -20,6 +21,7 @@
       <span class="menu-toggle__line menu-toggle__line--first"></span>
       <span class="menu-toggle__line menu-toggle__line--second"></span>
       <span class="menu-toggle__line menu-toggle__line--third"></span>
+    </div>
     </div>
   </header>
 </template>
@@ -35,6 +37,12 @@
         return this.$store.getters.getMenu;
       }
     },
+
+    data(){
+      return {
+        navList: ['Как мы работаем', 'Автопарк', 'Отзывы']
+      }
+    },
     methods:{
       menuToggle(){
         if(!this.menu){
@@ -46,13 +54,11 @@
           this.$store.commit('toggleMenu', false)
 
         }
-      }
-    },
-    data(){
-      return {
+      },
+      scrollTo(id){
 
       }
-    }
+    },
   }
 </script>
 
@@ -74,9 +80,7 @@
   }
 
   .header{
-    display: flex;
-    align-items: center;
-    padding: 54px 15px;
+
     /*position: fixed;*/
     position: absolute;
     z-index: 50;
@@ -85,6 +89,14 @@
     right: 0;
     color: #fff;
     font-weight: 300;
+    padding: 54px 15px;
+
+
+    &__container{
+      display: flex;
+      align-items: center;
+    }
+
 
 
     &__tel{

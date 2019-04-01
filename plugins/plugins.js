@@ -6,6 +6,9 @@ import VueAwesomeSwiper from 'vue-awesome-swiper/dist/ssr'
 
 import moment from 'moment'
 import VueMoment from 'vue-moment'
+import vSelect from 'vue-select'
+import VueScrollTo from 'vue-scrollto'
+
 
 // import VueGoogleAutocomplete from 'vue-google-autocomplete'
 // import {GmapMarker} from 'vue2-google-maps/src/components/marker'
@@ -25,4 +28,18 @@ Vue.use(VueAwesomeSwiper);
 // Vue.use(VueGoogleAutocomplete);
 
 Vue.use(VueMoment, moment);
+Vue.component('v-select', vSelect)
 
+Vue.use(VueScrollTo, {
+  container: "body",
+  duration: 500,
+  easing: "ease",
+  offset: 0,
+  force: true,
+  // cancelable: true,
+  onStart: false,
+  onDone: false,
+  onCancel: false,
+  x: false,
+  y: true
+})

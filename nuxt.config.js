@@ -23,6 +23,7 @@ module.exports = {
   ** Customize the progress bar color
   */
   modules: [
+    'vue-scrollto/nuxt',
     ['nuxt-google-maps-module', {
       key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
     }],

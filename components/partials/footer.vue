@@ -152,7 +152,8 @@
     }
   }
 
-  @media all and (max-width: 991px) {
+  @media all and (max-width: 1024px) {
+
     .footer {
       font-size: 10px;
 
@@ -166,7 +167,7 @@
       }
 
       &__col {
-        text-align: center;
+        text-align: left;
       }
     }
 
