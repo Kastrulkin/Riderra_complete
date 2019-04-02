@@ -7,14 +7,12 @@ import VueAwesomeSwiper from 'vue-awesome-swiper/dist/ssr'
 import moment from 'moment'
 import VueMoment from 'vue-moment'
 import vSelect from 'vue-select'
-import VueScrollTo from 'vue-scrollto'
+import vueScrollto from 'vue-scrollto'
+import Vuebar from 'vuebar';
 
 
-// import VueGoogleAutocomplete from 'vue-google-autocomplete'
-// import {GmapMarker} from 'vue2-google-maps/src/components/marker'
 
-// Vue.component('GmapMarker', GmapMarker)
-
+// Maps (map key from Serenity)
 Vue.use(VueGoogleMaps, {
   load: {
     key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
@@ -23,14 +21,22 @@ Vue.use(VueGoogleMaps, {
   }
 });
 
+
+// Datepicker
 Vue.use(datepicker);
+
+// Swiper
 Vue.use(VueAwesomeSwiper);
-// Vue.use(VueGoogleAutocomplete);
 
+// moment js
 Vue.use(VueMoment, moment);
-Vue.component('v-select', vSelect)
 
-Vue.use(VueScrollTo, {
+// Vue Select
+Vue.component('v-select', vSelect);
+
+
+// ScrollTo
+Vue.use(vueScrollto, {
   container: "body",
   duration: 500,
   easing: "ease",
@@ -42,4 +48,7 @@ Vue.use(VueScrollTo, {
   onCancel: false,
   x: false,
   y: true
-})
+});
+
+// Scroll Bar
+Vue.use(Vuebar);

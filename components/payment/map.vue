@@ -88,15 +88,15 @@
   .wrap {
     width: 100%;
     margin-top: 145px;
-    height: 600px;
     position: relative;
     overflow: hidden;
   }
 
   .map {
     width: 100%;
-    height: 100%;
+    height: 600px;
     position: relative;
+
 
   }
 
@@ -174,6 +174,47 @@
   @media (max-width: 1024px){
     .order{
       font-size: 12px;
+    }
+  }
+
+  @media (max-width: 667px) {
+    .map-shadow{
+      display: none;
+    }
+
+    .details{
+      width: 100%;
+      position: relative;
+      left: 0;
+      top: initial;
+      padding: 0 0 20px 0;
+      box-shadow: none;
+
+
+      &__close{
+        position: relative;
+        top: 0;
+        left: 0;
+        margin-left: 25px;
+        margin-top: 18px;
+        margin-bottom: 25px;
+      }
+
+      &__title{
+        width: 100%;
+        line-height: 50px;
+        border-top: 1px solid #D8D8E6;
+        border-bottom: 1px solid #D8D8E6;
+        padding-left: 25px;
+        padding-right: 25px;
+        font-size: 16px;
+
+      }
+    }
+
+    .order{
+      padding-left: 25px;
+      padding-right: 25px;
     }
   }
 </style>

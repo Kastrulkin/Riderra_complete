@@ -43,14 +43,59 @@
       </div>
 
       <div class="payment__content">
-        <div class="by-cash">
-          <div  class="form__item policy">
+        <div class="cash-payment" v-if="cash">
+          <div class="form__item policy">
             <label class="policy__label">
               <input type="checkbox" checked="checked" class="policy__checkbox"> <span>Подтверждаю <a
-             href="#" class="policy__link">условия перевозки</a> и <a href="#" class="policy__link">политики конфиценциальности</a></span>
+              href="#" class="policy__link">условия перевозки</a> и <a href="#" class="policy__link">политики конфиценциальности</a></span>
             </label>
           </div>
           <input type="submit" value="Забронировать" class="form__button button">
+        </div>
+        <div class="card-payment requisites">
+          <div class="card">
+            <form action="" class="card-form">
+              <div class="card-form__field">
+                <masked-input mask="1111 1111 1111 1111" class="card-form__input" type="text" name="number"
+                              placeholder="Номер карты"/>
+
+              </div>
+              <div class="card-form__field field-date">
+                <input class="card-form__input field-date__input" type="text" name="month" placeholder="ММ">
+                <span class="field-date__separator"></span>
+                <input class="card-form__input field-date__input" type="text" name="year" placeholder="ГГ">
+              </div>
+              <div class="card-form__field">
+                <input class="card-form__input" type="text" name="name" placeholder="Имя как на карте латиницей">
+              </div>
+              <label class="card-form__field field-cvc">
+                <masked-input mask="111" class="card-form__input field-cvc__input" type="text" name="cvc" placeholder="CVC"/>
+                <span class="field-cvc__label">Проверочный код<br>с&nbsp;оборотной стороны карты</span>
+
+              </label>
+
+            </form>
+            <div class="backface">
+              <div class="backface__izoline"></div>
+              <div class="backface__banks"></div>
+            </div>
+
+
+          </div>
+          <div class="form__item policy">
+            <label class="policy__label">
+              <input type="checkbox" checked="checked" class="policy__checkbox"> <span>Сохранить данные карты для упрощения дальнейших покупок.</span>
+            </label>
+          </div>
+          <div class="form__item policy">
+            <label class="policy__label">
+              <input type="checkbox" checked="checked" class="policy__checkbox"> <span>Подтверждаю <a
+              href="#" class="policy__link">условия перевозки</a></span>
+            </label>
+          </div>
+          <input type="submit" value="Забронировать" class="payment__submit button">
+
+
         </div>
       </div>
     </div>
@@ -64,11 +109,14 @@
 <script>
   import orderCaption from '~/components/partials/orderCaption.vue'
   import myMap from '~/components/payment/map.vue'
+  import MaskedInput from 'vue-masked-input'
+
 
   export default {
-    components: {orderCaption, myMap},
+    components: {orderCaption, myMap, MaskedInput},
     data() {
       return {
+        cash: false,
         formData: {
           type: 'transport'
         },
@@ -89,10 +137,113 @@
 </script>
 
 <style scoped lang="scss">
+
+  .policy {
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0px 3.79789px 12.6596px rgba(19, 19, 19, 0.29);
+    padding: 36px;
+    max-width: 475px;
+    position: relative;
+    margin-bottom: 120px;
+    width: 70%;
+  }
+
+  .backface {
+    position: absolute;
+    left: 42%;
+
+    top: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    transform: translate3d(0%, 54px, 0);
+    background: linear-gradient(90.69deg, #FF017A 36.45%, #702283 105.02%), #A2167F;
+
+    &__izoline {
+      height: 76px;
+      width: 100%;
+      background: #000;
+      position: relative;
+      top: 40px;
+    }
+  }
+
+  .field-cvc {
+    display: flex;
+    position: absolute;
+    right: -34%;
+    max-width: 83px;
+    bottom: 36px;
+
+    &__label{
+      display: none;
+      padding-left: 10px;
+    }
+  }
+
+  .card-form {
+
+    &__input {
+      border-radius: 5px;
+      border: 1px solid #D8D8E6;
+      font-size: 16px;
+      height: 56px;
+    }
+
+    &__field {
+
+      & + & {
+        margin-top: 20px;
+      }
+    }
+  }
+
+  .field-date {
+    display: flex;
+
+    &__input {
+      width: 83px;
+    }
+
+    &__separator {
+      position: relative;
+      /*overflow: hidden;*/
+      margin: 0 13px;
+      width: 14px;
+      display: block;
+      flex-shrink: 0;
+
+      &:before {
+        content: '';
+        position: relative;
+        display: block;
+        width: 2px;
+        background: #7D7D7D;
+        transform-origin: center 0;
+        height: 60%;
+        left: 50%;
+        top: 50%;
+        transform: skew(-20deg) translate3d(-50%, -50%, 0);
+      }
+    }
+  }
+
   .payment {
 
-    &__content{
+    &__submit {
+      margin-top: 40px;
+    }
+
+    &__content {
       margin-top: 30px;
+      width: calc(67% - 30px);
+      margin-left: auto;
     }
 
     &__container {
@@ -109,7 +260,7 @@
       overflow: hidden;
     }
 
-    &__icon{
+    &__icon {
       &--cash {
         width: 29px;
         height: 28px;
@@ -154,7 +305,6 @@
 
         .payment__icon {
           fill: #fff;
-
 
         }
       }
@@ -242,6 +392,7 @@
   }
 
   @media (max-width: 1024px) {
+
     .car-type {
       padding-left: 150px;
 
@@ -288,17 +439,67 @@
         }
       }
     }
+
+    .card {
+      max-width: 300px;
+      padding: 25px 25px 25px 20px;
+    }
+
+    .card-form {
+
+      &__input {
+        height: 36px;
+        font-size: 14px;
+        padding: 10px;
+      }
+    }
+
+    .field-cvc {
+      width: 52px;
+      bottom: 25px;
+      right: -24%;
+    }
+
+    .field-date {
+
+      &__input {
+        width: 56px;
+      }
+
+      &__separator {
+        width: 8px;
+        margin: 0 6px;
+
+        &:before {
+          width: 1px;
+        }
+      }
+    }
+
+    .backface {
+      transform: translate3d(0%, 34px, 0);
+      left: 30%;
+
+      &__izoline {
+        height: 48px;
+      }
+    }
+
   }
 
   @media (max-width: 991px) {
-    .car-type{
+    .car-type {
       padding-left: 100px;
     }
   }
 
-
-    @media (max-width: 767px) {
+  @media (max-width: 767px) {
     .payment {
+
+      &__content{
+        width: 60%;
+        margin-right: auto;
+      }
 
       &__container {
         flex-wrap: wrap;
@@ -312,7 +513,7 @@
       }
 
       &__item {
-        width: 100%;
+        width: 50%;
         padding-right: 17%;
         padding-bottom: 20px;
 
@@ -341,6 +542,54 @@
       }
     }
 
+  }
+
+  .card{
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 40px;
+
+  }
+
+  .backface{
+    display: none;
+  }
+
+  .field-cvc{
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    align-items: center;
+    left: 0;
+    bottom: initial;
+
+    &__input{
+      max-width: 80px;
+    }
+
+    &__label{
+      display: inline-block;
+    }
+  }
+
+  @media (max-width: 480px){
+
+    .payment{
+
+      &__content{
+        width: 100%;
+        margin-top: 60px;
+      }
+
+      &__item{
+        width: 100%;
+      }
+    }
+
+    .card{
+      padding: 0;
+      box-shadow: none;
+    }
   }
 
 

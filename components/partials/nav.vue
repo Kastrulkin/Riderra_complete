@@ -9,7 +9,7 @@
       </nuxt-link>
     </div>
     <nav class="nav-list">
-      <nuxt-link to="/"  class="nav-list__item" @click="scrollTo('#howWorks')">Как мы работаем</nuxt-link>
+      <a href="#howWorks"  class="nav-list__item" @click.prevent="scrollTo('#howWorks')"> Как мы работаем</a>
       <nuxt-link to="#" class="nav-list__item">Автопарк</nuxt-link>
       <nuxt-link to="#" class="nav-list__item">Отзывы</nuxt-link>
     </nav>
@@ -55,7 +55,12 @@
 
         }
       },
-      scrollTo(id){
+      scrollTo(ident){
+        if(process.browser){
+          var el = document.querySelector(ident);
+          console.log(el)
+          window.scrollTo({ top: el.offsetTop, behavior: 'smooth' })
+        }
 
       }
     },
@@ -204,6 +209,13 @@
   }
 
   @media all and (max-width: 767px){
+
+    .logo{
+
+      &__img{
+        max-width: 96px;
+      }
+    }
     .header{
       padding-top: 25px;
       padding-bottom: 25px;
@@ -216,5 +228,15 @@
     .menu-toggle{
       display: flex;
     }
+
+    .inner-page{
+
+      .header{
+        padding-top: 17px;
+        padding-bottom: 17px;
+      }
+    }
   }
+
+
 </style>

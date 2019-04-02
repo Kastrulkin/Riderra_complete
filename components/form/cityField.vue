@@ -3,13 +3,16 @@
     <input class="prebooking__input" type="text" :name="data.name" :placeholder="data.placeholder"
            autocomplete="off"
            ref="acInput" @input="initService" @blur="onBlur">
-    <div class="dropdown dropdown-cities">
-      <ul class="points-list">
+    <div class="dropdown dropdown-cities" >
+      <div v-bar>
+      <!--<ul class="points-list"  >-->
+      <ul class="points-list"  >
         <li :data-addr="JSON.stringify(item.location)" v-for="(item, i) in results" :key="i"
             @mouseenter="placeHover(item)" @click="insertValue(item)">
           {{item.description}}
         </li>
       </ul>
+      </div>
       <div class="map" ref="mapRef"></div>
     </div>
   </div>
@@ -86,6 +89,8 @@
             }
           })
         });
+        if(predictions) that.$refs.acInput.closest('.prebooking__field').classList.add('active');
+
 
         that.results = predictions;
 
@@ -110,10 +115,8 @@
           service.getQueryPredictions({
             input: myInput,
             componentRestrictions: {country: 'ru'},
-          }, that.displaySuggestions
-          );
+          }, that.displaySuggestions);
 
-          parent.classList.add('active')
 
         }, 500);
 
@@ -171,15 +174,25 @@
     padding: 0;
     opacity: 0;
     pointer-events: none;
+    padding-bottom: 15px;
+    padding-top: 12px;
+
 
     .map {
       width: 189px;
       height: 189px;
       background: #cecece;
-      margin-top: 12px;
       margin-right: 15px;
-      margin-left: auto;
+      margin-left: 15px;
+
       flex: 0 0 auto;
+    }
+  }
+
+  @media (max-width: 1024px){
+    .dropdown-cities{
+      top: calc(100% - 4px);
+
     }
   }
 

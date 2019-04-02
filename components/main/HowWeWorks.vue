@@ -41,6 +41,8 @@
         </div>
       </div>
     </div>
+    <nuxt-link to="/"  class="nav-list__item" v-scroll-to="'#howWorks'">Как мы работаем</nuxt-link>
+
   </section>
 </template>
 

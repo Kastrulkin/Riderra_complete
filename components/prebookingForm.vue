@@ -1,23 +1,27 @@
 <template>
   <form class="prebooking" action="">
-    <!--<span><span>{{ date | moment("from", "now", true) }}</span></span>-->
     <!--<calendar></calendar>-->
     <div class="prebooking__wrap">
       <div class="prebooking__row">
         <city-field v-for="(item,i) in placeInputs" :data="item" :key="i"></city-field>
         <div class="prebooking__field date-field">
-          <div class="date-field__item active">
-            <span class="date">01.04</span>
-            <span class="week-day">Пн</span>
-          </div>
-          <div class="date-field__item">
-            <span class="date">02.04</span>
-            <span class="week-day">Вт</span>
-          </div>
-          <div class="date-field__item">
-            <span class="date">03.04</span>
-            <span class="week-day">Ср</span>
-          </div>
+          <input class="date-field__input" id="date_field_1" :value="today" type="radio" name="day_start[]">
+          <label for="date_field_1" class="date-field__item" @click="radioValue()">
+            <span class="date">{{ moment(today).format("DD.MM") }}</span>
+            <span class="week-day">{{ moment(today).format('dddd') }}</span>
+            <!--<span class="week-day">{{ moment(today).format('HH:mm') }}</span>-->
+          </label>
+          <input class="date-field__input" id="date_field_2" :value="tomorrow" type="radio" name="day_start[]" checked>
+          <label for="date_field_2" class="date-field__item">
+            <span class="date">{{ tomorrow.format("DD.MM") }}</span>
+            <span class="week-day">{{ tomorrow.format('dddd') }}</span>
+          </label>
+          <input class="date-field__input" id="date_field_3" :value="afterTomorrow" type="radio" name="day_start[]">
+          <label for="date_field_3" class="date-field__item">
+            <span class="date">{{ afterTomorrow.format("DD.MM") }}</span>
+            <span class="week-day">{{ afterTomorrow.format("dddd") }}</span>
+            <input class="date-field__input" type="radio" name="day_start[]">
+          </label>
           <div class="date-field__item date-field__item--calendar">
             <svg width="26" height="26" viewBox="0 0 26 26">
               <use xlink:href="/sprite.svg#calendar"></use>
@@ -32,11 +36,7 @@
             <use xlink:href="/sprite.svg#clock"></use>
           </svg>
           <ul class="dropdown time-field__dropdown">
-            <li>22:00</li>
-            <li>22:00</li>
-            <li>22:00</li>
-            <li>22:00</li>
-            <li>22:00</li>
+            <li v-for="(el, i) in time" :key="i">{{ el }}</li>
           </ul>
         </label>
           <label class="prebooking__field baggage-field" ref="baggageField" :class="{active: baggageFocus}">
@@ -69,7 +69,10 @@
   import cityField from '~/components/form/cityField.vue'
   import baggageDropdown from '~/components/form/baggageDropdown.vue'
 
-  var moment = require('moment');
+  const moment = require('moment');
+  moment.updateLocale('ru', {
+    weekdays: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб' ]
+  });
 
   export default {
     components: {
@@ -78,6 +81,22 @@
     computed: {
       pointFrom(){
         return this.$store.getters.getPointFrom;
+      },
+      tomorrow: {
+        get: () => {
+          return moment(new Date()).add(1,'days');
+        },
+        set: (newValue) => {
+          console.log(newValue)
+        }
+      },
+      afterTomorrow(){
+        return moment(this.today).add(2,'days');
+      }
+    },
+    filters:{
+      moment: function (date) {
+        return moment(date).format('MMMM Do YYYY, h:mm:ss a');
       }
     },
     data() {
@@ -85,9 +104,9 @@
         moment: moment,
         value: '',
         results: [],
-        map: {},
-        date: new Date(),
-        prevDate: '',
+        map: null,
+        today: new Date(),
+        time: [],
         currentTime: null,
         baggageFocus: false,
         placeInputs: [
@@ -103,21 +122,34 @@
       }
     },
     methods: {
-      updateCurrentTime() {
-        this.currentTime = moment(new Date()).add(-1, 'days');
 
-        console.log(this.currentTime)
-      },
       baggageIn() {
         this.baggageFocus = true;
       },
       baggageOut() {
         this.baggageFocus = false;
+      },
+      momentDay() {
+        return moment();
+      },
+      radioValue(){
+
+
 
       }
     },
     mounted() {
-      this.updateCurrentTime()
+      const startTime = '00:00';
+      const durationInMinutes = '15';
+      var endTime = moment(startTime, 'HH:mm').add(durationInMinutes, 'minutes').format('HH:mm');
+
+      for(let i = 0; i < 94; i++){
+        this.time.push(endTime)
+        endTime = moment(endTime, 'HH:mm').add(durationInMinutes, 'minutes').format('HH:mm');
+
+        console.log(endTime)
+
+      }
     }
 
 
@@ -208,18 +240,14 @@
       border-radius: 5px;
     }
   }
-
   .points-list {
-    overflow-y: scroll;
-    direction: rtl;
-    padding: 12px 15px 15px 9px;
-
+    margin: 0;
     li {
       padding: 20px 35px 20px 10px;
       line-height: 1.5;
       direction: rtl;
       text-align: left;
-      margin: 0;
+      margin: 0 0 0 9px;
 
       &:hover {
         background: #2F80ED;
@@ -235,6 +263,10 @@
   .text-field {
     width: 100%;
     max-width: 252px;
+
+    &.active{
+      z-index: 5;
+    }
 
     &:first-child input{
       border-radius: 5px 0 0 5px;
@@ -270,9 +302,8 @@
     width: 100%;
     max-width: 280px;
     border-radius: 0 5px 5px 0;
-    flex-shrink: 0;
     border: none;
-    z-index: 1;
+    z-index: 0;
 
 
     .baggage__input {
@@ -319,6 +350,18 @@
     display: flex;
     background: #fff;
 
+    &__input{
+      display: none;
+    }
+
+    &__input:checked + .date-field__item{
+        background: #2F80ED;
+        .date,
+        .week-day {
+          color: #fff;
+        }
+    }
+
     &__item {
       width: 60px;
       height: 100%;
@@ -326,10 +369,7 @@
       padding-left: 12px;
       padding-top: 8px;
       cursor: pointer;
-
-      & + & {
-        margin-left: 10px;
-      }
+      margin-right: 10px;
 
       .date {
         font-size: 12px;
@@ -354,7 +394,8 @@
       }
 
       &--calendar {
-        margin-left: 12px;
+        margin-left: 2px;
+        margin-right: 0;
         padding: 0;
         display: flex;
         align-items: center;
@@ -411,6 +452,8 @@
 
     .dropdown-cities{
       left: 0;
+      top: calc(100% - 50px);
+
     }
 
     .race-field{
@@ -418,11 +461,23 @@
       max-width: 50%;
 
     }
+
     .date-field{
       min-width: 33%;
       flex: 0 1 auto;
+      justify-content: center;
+
       &__item{
         width: 50px;
+        min-width: 50px;
+        padding-left: 8px;
+        padding-top: 6px;
+
+        &--calendar{
+          padding: 0;
+          width: auto;
+          min-width: initial;
+        }
 
         .date{
           margin-bottom: 2px;
@@ -431,6 +486,8 @@
     }
   }
   @media all and (max-width: 767px) {
+
+
     .prebooking{
 
       &__row{
@@ -443,6 +500,11 @@
       flex: 1 0 auto;
       margin-bottom: 30px;
       border: none;
+      z-index: 0;
+
+      &.active{
+        z-index: 2;
+      }
 
       &:first-child{
         input{

@@ -8,7 +8,7 @@
           <span class="form__item-label">Имя</span>
         </div>
         <div class="form__item">
-          <input class="form__input" type="tel" name="phone[]" placeholder="Телефон, например +84 567-66-77">
+          <masked-input mask="\+\7 (111) 111-11-11" class="form__input" type="tel" name="phone[]" placeholder="Телефон, например +84 567-66-77"  />
           <span class="form__item-label">Телефон</span>
         </div>
         <div class="form__sub-button js-slice-row" @click="remove(item)">Удалить</div>
@@ -39,8 +39,13 @@
 </template>
 
 <script>
+  import MaskedInput from 'vue-masked-input'
+
   export default {
     props: ['data'],
+    components: {
+      MaskedInput
+    },
     data(){
       return {
         fields: [

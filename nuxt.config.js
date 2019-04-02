@@ -32,6 +32,7 @@ module.exports = {
     key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
   },
   loading: { color: '#3B8070' },
+
   plugins: [
     {src: '~/plugins/plugins.js', ssr: false},
 

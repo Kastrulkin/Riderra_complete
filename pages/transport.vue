@@ -17,6 +17,7 @@
   import orderCaption from '~/components/partials/orderCaption.vue'
 
   export default {
+    scrollToTop: true,
     components: {formFeedback, cars, orderCaption},
     data() {
       return {

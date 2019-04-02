@@ -83,12 +83,21 @@
 
   @media (max-width: 767px){
     .tabs{
+      margin-top: 90px;
+      margin-bottom: 60px;
 
       &__link{
 
         & + &{
           margin-left: 30px;
         }
+      }
+    }
+
+    .transport{
+
+      &__title{
+        margin-bottom: 25px;
       }
     }
   }

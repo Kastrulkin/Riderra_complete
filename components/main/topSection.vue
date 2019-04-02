@@ -1,13 +1,19 @@
 <template>
   <section class="main-section ">
+    <div class="main-section__video">
+      <video loop="" muted="" autoplay="" playsinline=""
+             poster="/img/main_bg.jpg" class="main-section__bg-video">
+        <source src="/video/main-video.mp4" type="video/mp4">
+      </video>
+    </div>
 
     <div class="main-section__content container">
       <div class="row">
         <div class="col-xs-12">
-        <h1 class="h2 main-section__title">
-          Трансфер повышенного уровня комфорта по&nbsp;всему миру
-        </h1>
-        <prebooking></prebooking>
+          <h1 class="h2 main-section__title">
+            Трансфер повышенного уровня комфорта по&nbsp;всему миру
+          </h1>
+          <prebooking></prebooking>
         </div>
 
       </div>
@@ -23,10 +29,8 @@
     components: {
       prebooking
     },
-    data(){
-      return {
-
-      }
+    data() {
+      return {}
     }
   }
 </script>
@@ -51,12 +55,29 @@
       width: 60%;
       margin-bottom: 60px;
     }
+
+    &__video{
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    &__bg-video{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
   }
 
-  @media all and (max-width: 767px){
-    .main-section{
+  @media all and (max-width: 767px) {
+    .main-section {
 
-      &__title{
+      &__title {
         width: 75%;
         margin-bottom: 25px;
       }
