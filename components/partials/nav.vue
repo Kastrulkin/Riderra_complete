@@ -9,9 +9,9 @@
       </nuxt-link>
     </div>
     <nav class="nav-list">
-      <a href="#howWorks"  class="nav-list__item" @click.prevent="scrollTo('#howWorks')"> Как мы работаем</a>
-      <nuxt-link to="#" class="nav-list__item">Автопарк</nuxt-link>
-      <nuxt-link to="#" class="nav-list__item">Отзывы</nuxt-link>
+      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')"> Как мы работаем</nuxt-link>
+      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">Автопарк</nuxt-link>
+      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#reviews')">Отзывы</nuxt-link>
     </nav>
     <div class="header__right">
       <a href="tel:88009543212" class="header__tel">8-800-954-32-12</a>
@@ -40,12 +40,13 @@
 
     data(){
       return {
+        mobileMenu: false,
         navList: ['Как мы работаем', 'Автопарк', 'Отзывы']
       }
     },
     methods:{
       menuToggle(){
-        if(!this.menu){
+        /*if(!this.menu){
           this.$refs.burger.classList.add('active');
           this.$store.commit('toggleMenu', true)
 
@@ -53,13 +54,24 @@
           this.$refs.burger.classList.remove('active');
           this.$store.commit('toggleMenu', false)
 
-        }
+        }*/
+
+        this.$refs.burger.classList.toggle('active');
+        this.mobileMenu = !this.mobileMenu;
+        this.$store.commit('toggleMenu', this.mobileMenu)
+
+        console.log(this.mobileMenu)
+
+
       },
       scrollTo(ident){
         if(process.browser){
-          var el = document.querySelector(ident);
-          console.log(el)
-          window.scrollTo({ top: el.offsetTop, behavior: 'smooth' })
+          var el = document.querySelector(`${ident}`);
+          if(!el) return;
+          setTimeout(function(){
+            el.scrollIntoView({block: "start", behavior: "smooth"});
+          }, 100);
+
         }
 
       }
@@ -100,6 +112,8 @@
     &__container{
       display: flex;
       align-items: center;
+      margin: 0 auto;
+      padding: 0;
     }
 
 

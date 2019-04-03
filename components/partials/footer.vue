@@ -108,6 +108,7 @@
     padding-bottom: 54px;
     color: #000;
     font-size: 14px;
+    position: relative;
 
     &__copyright {
       color: #7D7D7D;
@@ -122,7 +123,21 @@
     &__top {
       display: flex;
       flex-wrap: wrap;
-      padding-top: 40px;
+      padding-top: 50px;
+
+      &:before{
+        content: '';
+        display: block;
+        width: 100%;
+        max-width: 1166px;
+        height: 1px;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #D8D8E6;
+
+      }
     }
 
     &__bottom {
@@ -150,6 +165,10 @@
     .phone {
       font-size: 16px;
     }
+  }
+
+  .payment-page .footer__top:before{
+    content: none;
   }
 
   @media all and (max-width: 1024px) {
@@ -217,6 +236,13 @@
   @media all and (max-width: 767px) {
 
     .footer {
+
+      &__top{
+
+        &:before{
+          width: 90%;
+        }
+      }
 
       &__bottom{
         padding-top: 0;

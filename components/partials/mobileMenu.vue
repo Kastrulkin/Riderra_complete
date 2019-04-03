@@ -103,7 +103,6 @@
   .slide-leave-to, .slide-enter{
     transform: translate3d(0, -100%, 0);
   }
-
   .list-enter-active, .list-leave-active {
     transition: all 1s;
   }

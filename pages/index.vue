@@ -46,11 +46,9 @@ export default {
 <style scoped lang="scss">
 
   .site-section--pf{
-    margin-bottom: 40px;
 
     .container{
       padding-bottom: 230px;
-      border-bottom: 1px solid #D8D8E6;
     }
   }
 

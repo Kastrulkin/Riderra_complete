@@ -2,14 +2,18 @@
   <div v-swiper:mySwiper="swiperData" class="cars" :class="{'transport-cars': data.type === 'transport'}" ref="mySlider">
     <div class="swiper-wrapper ">
       <nuxt-link to="/elite" class="swiper-slide cars__item"
-           :style="{ backgroundColor: slide.color}"
+           :style="{ backgroundColor: slide.color, color: slide.color}"
            v-for="(slide, i) in cars"
            :key="i"
             @click="chooseCar(slide)">
         <figure class="cars__inner">
           <!--<img :src="slide.src" class="cars__img">-->
-          <div class="cars__img"
-               :style="{ backgroundImage: 'url(' + slide.src + ')'}"></div>
+          <!--<div class="cars__img"
+               :style="{ backgroundImage: 'url(' + slide.src + ')'}"></div>-->
+
+          <div class="cars__figure">
+            <img :src="slide.src" alt="" class="cars__img">
+          </div>
           <figcaption class="cars__caption">
             <div class="cars__title h3" ref="swiperTitle" v-html="slide.title"></div>
             <p class="cars__desc" ref="swiperDesc" v-html="slide.desc"></p>
@@ -18,7 +22,7 @@
               <div class="cars-price__current">{{ slide.price }}</div>
               <div class="cars-price__prev">{{ slide.prevPrice }}</div>
             </div>
-            <div class="cars__button white-button">Выбрать</div>
+            <nuxt-link to="/payment" class="cars__button white-button">Выбрать</nuxt-link>
           </figcaption>
         </figure>
       </nuxt-link>
@@ -114,6 +118,8 @@
 <style scoped lang="scss">
 
   .transport-cars{
+    margin-top: 70px;
+    margin-bottom: 200px;
 
     .cars{
 
@@ -191,13 +197,18 @@
     .swiper-slide {
       opacity: 0;
       transform: translate3d(10%, 0, 0);
-      transition: 350ms all;
+      transition: transform 250ms, opacity 250ms;
     }
     .swiper-slide-active,
     .swiper-slide-next,
     .swiper-slide-next + .swiper-slide {
       opacity: 1;
       transform: translate3d(0, 0, 0);
+
+      &:hover{
+        transform: translate3d(0, -10px, 0);
+
+      }
     }
 
     &.swiper-container {
@@ -205,9 +216,8 @@
     }
 
     &__item {
-      padding: 20px 0 30px;
+      padding: 45px 0 40px;
       border-radius: 5px;
-      height: 450px;
       color: #fff;
       position: relative;
       overflow: hidden;
@@ -216,9 +226,16 @@
 
       &:hover,
       &:focus {
-        box-shadow: 0 20px 90px 3px rgba(112, 34, 131, .8);
+        transform: translate3d(0,-10px,0);
+
+        /*box-shadow: 0 20px 90px 3px rgba(112, 34, 131, .8);*/
+        box-shadow: 0 20px 90px 3px;
         text-decoration: none;
         outline: none;
+
+        .cars__img{
+          //transform: translate3d(-35%,0,0);
+        }
 
       }
     }
@@ -227,21 +244,30 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 100%;
+    }
+
+    &__figure{
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 50px;
     }
 
     &__img {
-      background-size: cover;
+      /*background-size: cover;
       background-repeat: no-repeat;
       background-position: 115% 0;
-
       width: 100%;
-      height: 70%;
+      height: 70%;*/
+      max-width: 140%;
+      position: relative;
+      transform: translate3d(-40%, 0, 0);
+      transition: transform 250ms;
 
     }
 
     &__caption {
       padding: 0 20px;
+      color: #fff;
     }
 
     &__desc {
@@ -256,8 +282,13 @@
     .cars {
 
       &__item {
-        height: 280px;
+        padding: 30px 0;
       }
+
+      &__figure{
+        margin-bottom: 25px;
+      }
+
 
       &__desc {
         font-size: 12px;
@@ -266,14 +297,13 @@
     }
 
     .transport-cars{
+      margin-top: 60px;
+      margin-bottom: 100px;
 
       .cars{
 
         &__item{
           padding-top: 55px;
-          min-height: 345px;
-          height: auto;
-          max-height: inherit;
           top: 0;
 
          /* &:hover{
@@ -306,9 +336,6 @@
           max-width: 100%;
         }
 
-        &__img{
-          height: 50%;
-        }
       }
 
       .cars-price{
@@ -342,11 +369,21 @@
 
   @media all and (max-width: 767px) {
     .cars{
+      padding-bottom: 0;
 
       &__item{
         width: 80%;
-        height: 290px;
+        transition: all 0s;
       }
+
+      .swiper-pagination{
+        display: none;
+      }
+    }
+
+    .transport-cars{
+      margin-top: 30px;
+      margin-bottom: 90px;
     }
   }
 </style>

@@ -16,7 +16,6 @@ module.exports = {
     link: [
       { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
       { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&amp;subset=cyrillic-ext' }
-
     ]
   },
   /*
@@ -41,8 +40,10 @@ module.exports = {
     {src: '~/assets/css/swiper.css', lang: 'css'},
     {src: '~/assets/css/main.scss', lang: 'sass'},
     {src: '~/assets/css/base.scss', lang: 'sass'},
+    {src: '~/assets/css/payment.scss', lang: 'sass'},
 
-],
+
+  ],
 
 /*
 ** Build configuration

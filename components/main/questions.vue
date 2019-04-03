@@ -8,7 +8,8 @@
           </h2>
         </div>
         <div class="col-sm-6 col-xs-12">
-          <p>Возникли проблемы? Служба поддержки и автопарк работают 24/7. Позвоните на горячую линию и мы поможем вам в любое время.
+          <p>Возникли проблемы? Служба поддержки и автопарк работают 24/7. Позвоните на горячую линию и мы поможем вам в
+            любое время.
           </p>
         </div>
       </div>
@@ -17,20 +18,27 @@
 </template>
 
 <style scoped lang="scss">
-  .questions{
+  .questions {
     padding-top: 50px;
     margin-bottom: 120px;
 
-    .h2{
+    .h2 {
       margin-bottom: 30px;
     }
   }
 
-  @media all and (max-width: 767px){
+  @media (max-width: 1024px) {
+
     .questions{
+      margin-bottom: 95px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .questions {
       margin-bottom: 45px;
 
-      p{
+      p {
         font-size: 13px;
       }
     }

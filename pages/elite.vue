@@ -2,7 +2,12 @@
   <div class="modal">
     <div class="modal__inner">
       <div class="car-class__header">
-        <nuxt-link to="/" class="car-class__close"></nuxt-link>
+        <nuxt-link to="/" class="car-class__close">
+          <svg viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <line x1="1.29447" y1="0.587365" x2="23.2945" y2="22.5874" stroke="white"/>
+            <line y1="-0.5" x2="31.1127" y2="-0.5" transform="matrix(0.708057 -0.706156 0.708057 0.706156 0.940918 22.9409)" stroke="white"/>
+          </svg>
+        </nuxt-link>
         <slider></slider>
           <div class="description container">
             <div class="description__title">{{ currentCar.title }}</div>
@@ -155,7 +160,6 @@
 
     &__header {
       height: 100vh;
-      min-height: 600px;
       background: #702283;
       position: relative;
     }
@@ -166,9 +170,14 @@
       position: fixed;
       top: 64px;
       right: 64px;
-      background: url(/img/close.svg) center no-repeat;
+      /*background: url(/img/close.svg) center no-repeat;*/
       cursor: pointer;
       z-index: 20;
+      padding: 14px;
+
+      svg{
+        max-width: 100%;
+      }
     }
 
     &__content {
@@ -200,6 +209,76 @@
       width: 100%;
       max-width: 100%;
       border-radius: 5px;
+
+    }
+  }
+
+  @media (max-width: 1024px){
+
+    .description{
+
+      &__title{
+        font-size: 26px;
+      }
+
+      &__text{
+        font-size: 14px;
+      }
+
+      &__price{
+        font-size: 26px;
+      }
+
+    }
+  }
+
+  @media (max-width: 767px) {
+
+    .car-class{
+
+      &__header{
+        min-height: 480px;
+        overflow: hidden;
+      }
+
+      &__close{
+        top: 10px;
+        right: 10px;
+        padding: 15px;
+      }
+
+      &__descr{
+        padding-bottom: 80px;
+      }
+
+      &__content{
+        padding-bottom: 70px;
+      }
+    }
+
+    .description{
+      width: 90%;
+      padding: 0;
+      flex-wrap: wrap;
+
+      &__title{
+        font-size: 18px;
+        width: 50%;
+      }
+
+      &__text{
+        font-size: 12px;
+        width: 50%;
+        margin: 0;
+
+      }
+
+      &__price{
+        font-size: 18px;
+        width: 50%;
+        margin-left: auto;
+        margin-top: 20px;
+      }
 
     }
   }

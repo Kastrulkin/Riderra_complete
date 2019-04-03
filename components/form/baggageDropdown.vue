@@ -1,5 +1,5 @@
 <template>
-  <div class="dropdown dropdown-cities">
+  <div class="dropdown dropdown-cities baggage-field__dropdown">
     <div class="dropdown-cities__row field" v-for="(item, i) in fields" :key="i">
       <div class="field__icon" v-bind:style="{ 'background-image': 'url(' + item.icon + ')' }"></div>
       <div class="field__title" v-html="item.title"></div>
@@ -29,8 +29,7 @@
           <v-select class="field__select mySelect"
                     :allowEmpty="false"
                     :searchable="false"
-                    v-model="fields[4].myVal"
-                    :options="fields[4].list"
+                    :options="hours"
           >
           </v-select>
           <p class="subtitle">до 13:00</p>
@@ -49,6 +48,7 @@
     data() {
       return {
         hourlyRental: false,
+        hours: [0,1,2,3,4,5,6,7,8,9,10,11,12],
         fields: [
           {
             data: 'iterate',
@@ -165,6 +165,7 @@
 
       &.disabled{
         opacity: .5;
+        pointer-events: none;
 
         .subtitle{
           display: none;
@@ -248,6 +249,46 @@
       font-size: 16px;
       color: #000;
       margin-left: auto;
+    }
+  }
+
+  @media (max-width: 480px){
+    .baggage-field{
+      width: 100%;
+
+      &__dropdown{
+        width: 100%;
+        max-width: 100%;
+        padding: 20px 10px;
+      }
+    }
+
+    .field{
+
+      &__title{
+        font-size: 12px;
+      }
+
+      &__iterate{
+        height: 20px;
+        width: 20px;
+        line-height: 20px;
+
+        &--minus{
+          line-height: 19px;
+        }
+      }
+
+      &__input{
+        font-size: 14px;
+      }
+
+      &__select{
+        width: 67px;
+        height: 26px;
+        font-size: 13px;
+      }
+
     }
   }
 </style>

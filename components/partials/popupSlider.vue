@@ -47,6 +47,13 @@
           speed: 600,
           autoHeight: false,
           height: '100vh',
+          breakpoints:{
+            767:{
+              slidesPerView: 1,
+              centeredSlides: false,
+
+            }
+          }
         }
 
 
@@ -58,7 +65,7 @@
         self.cars.forEach((item, index) => {
 
           if (item === self.currentCar){
-            self.$refs.mySlider.swiper.slideTo(index);
+            // self.$refs.mySlider.swiper.slideTo(index);
 
           }
 
@@ -123,8 +130,6 @@
 </script>
 
 <style scoped lang="scss">
-
-
 
   .modal-cars{
     position: relative;
@@ -238,6 +243,27 @@
       /*width: 50%;*/
     }
 
+  }
+
+  @media (max-width: 1024px){
+    .modal-cars{
+
+    }
+  }
+
+  @media (max-width: 767px){
+
+    .modal-cars{
+      min-height: 100%;
+
+      &__item{
+        filter: blur(0);
+      }
+
+      &__figure{
+        width: 110vw;
+      }
+    }
   }
 
 

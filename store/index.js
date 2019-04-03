@@ -49,6 +49,17 @@ const createStore = () => {
           models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
 
         },
+        {
+          name: 'luxury',
+          src: '/img/cars/lux.png',
+          color: '#702283',
+          subColor: '#C01984',
+          title: 'Люкс',
+          desc: 'Багаж для 3 человек 3 места',
+          price: 15000,
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
+
+        },
       ],
       points: {
         from: null,

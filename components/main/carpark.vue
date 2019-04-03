@@ -1,5 +1,5 @@
 <template>
-  <section class="site-section site-section--sm">
+  <section class="site-section site-section--sm" id="park">
     <div class="container">
       <div class="row">
         <div class="col-sm-6">

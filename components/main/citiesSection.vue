@@ -10,10 +10,20 @@
       </div>
     </div>
     <div class="cities">
-      <img src="/img/cities.jpg" alt="">
+      <gallery></gallery>
     </div>
   </section>
 </template>
+
+<script>
+  import gallery from '~/components/partials/gallery.vue'
+
+  export default {
+    components: {
+      gallery
+    }
+  }
+</script>
 
 <style scoped lang="scss">
   .cities{

@@ -154,14 +154,14 @@ input{
   }
 }
 
-input[type="text"],
+/*input,
 input[type="tel"]{
   padding: 14px 16px;
   font-size: 16px;
 
 
 
-}
+}*/
 
 .site-section{
   padding-top: 120px;
@@ -204,6 +204,13 @@ input[type="tel"]{
 
 .pac-container{
   //display: none !important;
+}
+
+.site-section{
+
+  .policy__label{
+    align-items: center;
+  }
 }
 .policy{
   display: flex;
@@ -375,6 +382,10 @@ input[type="tel"]{
   width: 8px;
 }
 
+input::placeholder{
+  font-size: inherit;
+}
+
 // Scroll Bar
 .vuebar-element {
   height: 250px;
@@ -393,6 +404,12 @@ input[type="tel"]{
   max-height: 100%;
   border-radius: 15px;
 
+}
+
+.time-field .vb > .vb-dragger{
+  left: initial;
+  right: 4px;
+  min-height: 62px;
 }
 
 .vb > .vb-dragger > .vb-dragger-styler {
@@ -436,18 +453,11 @@ input[type="tel"]{
   background-color: rgba(48, 121, 244,.5);
 }
 
-@media all and (max-width: 991px){
+@media all and (max-width: 1024px){
   body{
     font-size: 12px;
   }
 
-  input{
-    font-size: 14px;
-
-    &::placeholder{
-      font-size: 14px;
-    }
-  }
   .h2{
     font-size: 26px;
   }
@@ -464,7 +474,8 @@ input[type="tel"]{
     }
 
     &--pf{
-      margin-bottom: 40px;
+      margin-bottom: 0;
+      padding-top: 0;
     }
 
     &--sm{
@@ -502,6 +513,11 @@ input[type="tel"]{
 
     &--sm{
       padding-top: 80px;
+    }
+
+    &--pf{
+      padding-top: 0;
+      margin-bottom: 0;
     }
   }
 

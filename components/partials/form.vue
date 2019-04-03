@@ -22,7 +22,7 @@
           <!--<span class="form__item-label">Комментарий</span>-->
         </div>
       </div>
-      <div class="form__row">
+      <div class="form__row submit-row">
         <div class="form__item policy">
           <label class="policy__label">
             <input class="policy__checkbox" type="checkbox" checked>
@@ -99,12 +99,20 @@
 
   .transport-form{
 
+    .submit-row{
+      display: none;
+    }
+
+    .js-form-row{
+      padding-bottom: 30px;
+    }
+
     .form{
 
       &__row{
-        padding-bottom: 30px;
         margin-bottom: 40px;
       }
+
     }
 
     .js-slice-row{
@@ -146,6 +154,8 @@
       position: relative;
       transition: box-shadow 150ms;
       height: 56px;
+      font-size: 16px;
+      padding: 5px 16px;
 
       &:focus{
         box-shadow: 0 0 0 2px #2F80ED;
@@ -222,6 +232,8 @@
 
       &__input{
         height: 46px;
+        font-size: 14px;
+        padding: 5px 12px;
       }
 
       &__button{
@@ -231,6 +243,10 @@
     }
   }
   @media all and (max-width: 767px){
+
+    .form__item + .form__item .form__input {
+      border-radius: 5px;
+    }
     .form{
 
       &__sub-button{
@@ -239,6 +255,7 @@
 
       &__input{
         height: 40px;
+        border-radius: 5px;
       }
 
 
