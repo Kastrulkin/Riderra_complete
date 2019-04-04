@@ -5,6 +5,7 @@ const createStore = () => {
   return new Vuex.Store({
 
     state: {
+      popup: false,
       menu: false,
       current:{
         name: 'economy',
@@ -73,6 +74,9 @@ const createStore = () => {
       },
       getPointFrom: state => {
         return state.points.from
+      },
+      getCurrentCar: state => {
+        return state.current;
       }
     },
     mutations: {
@@ -89,7 +93,10 @@ const createStore = () => {
         state.current = payload;
       },
       sliderChangeCar(state, payload){
-        state.current = state.cars[payload]
+        state.current = state.cars[payload];
+      },
+      showPopup(state, payload){
+        state.popup = payload;
       }
     }
   });

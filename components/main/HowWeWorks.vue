@@ -128,7 +128,7 @@
   }
 
   .swiper-slide {
-    transition: 300ms all;
+    /*transition: 300ms all;*/
   }
 
   .main-slider {
@@ -164,8 +164,7 @@
       position: absolute;
       bottom: 0;
       max-height: 100%;
-      transform: translate3d(-10%, 00, 0);
-      transition: 300ms all 600ms;
+      /*transition: 300ms all 600ms;*/
       opacity: 0;
     }
 
@@ -180,16 +179,14 @@
     &__title {
       font-weight: 800;
       margin-bottom: 20px;
-      transition: 300ms all 900ms;
+      /*transition: 300ms all 900ms;*/
       opacity: 0;
-      transform: translate3d(40px, 0, 0);
 
     }
 
     &__desc {
-      transform: translate3d(40px, 0, 0);
 
-      transition: 300ms all 1200ms;
+      /*transition: 300ms all 1200ms;*/
       opacity: 0;
     }
   }
@@ -200,7 +197,7 @@
 
       &__img {
         right: 0;
-        transform: translate3d(10%, -50%, 0);
+        //transform: translate3d(10%, -50%, 0);
 
       }
 
@@ -210,7 +207,7 @@
 
       &__title,
       &__desc {
-        transform: translate3d(-40px, 0, 0);
+        //transform: translate3d(-40px, 0, 0);
       }
 
     }

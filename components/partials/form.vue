@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <form action="" class="form" :class="{'transport-form': data.type === 'transport'}">
+    <form action="" class="form" :class="data.class">
       <div class="form__row js-form-row" v-for="(item, index) in fields" :key="index" >
 
         <div class="form__item" :id="index">
@@ -139,6 +139,13 @@
     }
   }
 
+  .car-form{
+
+    .submit-row{
+      display: flex;
+    }
+  }
+
 
 
 
@@ -220,6 +227,13 @@
     .form__input:not(:placeholder-shown) + .form__item-label{
       opacity: 1;
       transform: translate3d(0, -100%, 0);
+    }
+  }
+
+  .form{
+
+    .policy__label{
+      align-items: center;
     }
   }
 

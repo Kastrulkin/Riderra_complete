@@ -1,6 +1,5 @@
 <template>
   <div>
-    <nuxt-child></nuxt-child>
     <main-section></main-section>
     <!--<h1><nuxt-link to="/transport">фыв</nuxt-link></h1>-->
 

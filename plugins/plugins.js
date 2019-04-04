@@ -9,6 +9,9 @@ import VueMoment from 'vue-moment'
 import vSelect from 'vue-select'
 import vueScrollto from 'vue-scrollto'
 import Vuebar from 'vuebar';
+import ClickOutside from 'vue-click-outside'
+
+import DatePicker2 from 'vue2-datepicker'
 
 
 
@@ -24,6 +27,7 @@ Vue.use(VueGoogleMaps, {
 
 // Datepicker
 Vue.use(datepicker);
+Vue.use(DatePicker2);
 
 // Swiper
 Vue.use(VueAwesomeSwiper);
@@ -52,3 +56,21 @@ Vue.use(vueScrollto, {
 
 // Scroll Bar
 Vue.use(Vuebar);
+
+Vue.use(ClickOutside);
+
+Vue.directive('click-outside', {
+  bind: function (el, binding, vnode) {
+    el.clickOutsideEvent = function (event) {
+      // here I check that click was outside the el and his childrens
+      if (!(el == event.target || el.contains(event.target))) {
+        // and if it did, call method provided in attribute value
+        vnode.context[binding.expression](event);
+      }
+    };
+    document.body.addEventListener('click', el.clickOutsideEvent)
+  },
+  unbind: function (el) {
+    document.body.removeEventListener('click', el.clickOutsideEvent)
+  },
+});

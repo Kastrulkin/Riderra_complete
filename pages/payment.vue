@@ -87,7 +87,7 @@
       return {
         cash: false,
         formData: {
-          type: 'transport'
+          class: 'transport-form'
         },
         captionData: {
           title: 'Выберите способ оплаты'

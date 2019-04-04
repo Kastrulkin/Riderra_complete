@@ -42,6 +42,10 @@
       transition: 350ms all;
       height: auto;
       align-self: stretch;
+
+      &:hover{
+        transform: translate3d(0, -10px, 0) !important;
+      }
     }
     .swiper-slide-active,
     .swiper-slide-next,

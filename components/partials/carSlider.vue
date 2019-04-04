@@ -1,11 +1,11 @@
 <template>
   <div v-swiper:mySwiper="swiperData" class="cars" :class="{'transport-cars': data.type === 'transport'}" ref="mySlider">
     <div class="swiper-wrapper ">
-      <nuxt-link to="/elite" class="swiper-slide cars__item"
+      <div class="swiper-slide cars__item"
            :style="{ backgroundColor: slide.color, color: slide.color}"
            v-for="(slide, i) in cars"
            :key="i"
-            @click="chooseCar(slide)">
+            @click.capture="chooseCar(slide)">
         <figure class="cars__inner">
           <!--<img :src="slide.src" class="cars__img">-->
           <!--<div class="cars__img"
@@ -22,10 +22,10 @@
               <div class="cars-price__current">{{ slide.price }}</div>
               <div class="cars-price__prev">{{ slide.prevPrice }}</div>
             </div>
-            <nuxt-link to="/payment" class="cars__button white-button">Выбрать</nuxt-link>
+            <nuxt-link to="/payment" class="cars__button white-button" ref="chooseButton">Выбрать</nuxt-link>
           </figcaption>
         </figure>
-      </nuxt-link>
+      </div>
     </div>
     <div class="swiper-pagination"></div>
   </div>
@@ -101,21 +101,28 @@
     methods:{
       chooseCar(current){
 
-        this.$store.commit('currentCar', current);
+        if(event.target.classList.contains('white-button')){
+          return ;
+        }
 
-        // console.log(current)
+        this.$store.commit('currentCar', current);
+        this.$store.commit('showPopup', true);
+
+
+
 
       }
     },
     mounted() {
-      const that = this;
-      that.$refs.mySlider.swiper.on('slideChange', function () {
-        console.log(this)
-      });
+
     }
   }
 </script>
 <style scoped lang="scss">
+
+  .page-leave-active .cars__img{
+    display: none;
+  }
 
   .transport-cars{
     margin-top: 70px;
@@ -151,6 +158,12 @@
         width: 100%;
         margin-bottom: 30px;
       }
+
+      &__item{
+        padding-top: 65px;
+      }
+
+
     }
 
     .cars-price{
@@ -197,7 +210,7 @@
     .swiper-slide {
       opacity: 0;
       transform: translate3d(10%, 0, 0);
-      transition: transform 250ms, opacity 250ms;
+      transition: transform 250ms, opacity 250ms, box-shadow 250ms;
     }
     .swiper-slide-active,
     .swiper-slide-next,
@@ -221,8 +234,9 @@
       color: #fff;
       position: relative;
       overflow: hidden;
-      transition: all 250ms;
+      transition: transform 250ms, box-shadow 250ms;
       text-decoration: none;
+      cursor: pointer;
 
       &:hover,
       &:focus {
@@ -253,15 +267,9 @@
     }
 
     &__img {
-      /*background-size: cover;
-      background-repeat: no-repeat;
-      background-position: 115% 0;
-      width: 100%;
-      height: 70%;*/
       max-width: 140%;
       position: relative;
       transform: translate3d(-40%, 0, 0);
-      transition: transform 250ms;
 
     }
 

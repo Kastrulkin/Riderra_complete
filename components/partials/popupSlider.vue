@@ -36,7 +36,7 @@
     computed: {
       ...mapState(['cars', 'current']),
       currentCar(){
-        return this.$store.state.current;
+        return this.$store.getters.getCurrentCar;
       },
     },
     data(){
@@ -62,10 +62,12 @@
     methods:{
       swiperInit(){
         let self = this;
+
         self.cars.forEach((item, index) => {
 
           if (item === self.currentCar){
-            // self.$refs.mySlider.swiper.slideTo(index);
+            self.$refs.mySlider.swiper.slideTo(index);
+            console.log(index)
 
           }
 
@@ -74,11 +76,9 @@
     },
     mounted(){
 
-
-
       var that = this;
-      this.$store.commit('currentCar', this.cars[1]);
 
+      // this.$store.commit('currentCar', this.cars[1]);
 
       this.swiperInit();
 
@@ -115,10 +115,8 @@
 
 
 
-
-
       window.addEventListener('resize', function(){
-        that.$refs.mySlider.swiper.reInit();
+        // that.$refs.mySlider.swiper.reInit();
       })
 
       // this.mySwiper.slideTo(i);
@@ -194,10 +192,10 @@
       align-items: flex-start;
       width: 30%;
       padding: 0 40px;
-      transition: all 250ms linear;
+      transition: transform 250ms, width 250ms;
       top: 50%;
       position: relative;
-      transform: translate3d(0, 0, 0);
+      transform: translate3d(25%, 0, 0);
       filter: blur(3px);
 
     }
@@ -220,14 +218,14 @@
     justify-content: center;
   }
   .swiper-slide-prev{
-    //transform: translate3d(50%, 10%, 0);
+    transform: translate3d(50%, 10%, 0);
   }
 
   .swiper-slide-next{
-    //transform: translate3d(-50%, 10%, 0);
+    transform: translate3d(50%, 10%, 0);
 
     & + .swiper-slide{
-      /*transform: translate3d(100%, 10%, 0);*/
+      transform: translate3d(100%, 10%, 0);
 
     }
   }
@@ -236,17 +234,25 @@
     max-width: none;
     width: 60%;
     //transform: translate3d(-25%, 0, 0);
-    transform: translate3d(0, 0, 0);
+    /*transform: translate3d(0, 0, 0);*/
     filter: blur(0);
 
-    .modal-cars__item-inner{
-      /*width: 50%;*/
-    }
 
   }
 
   @media (max-width: 1024px){
+    .swiper-slide-next{
+      transform: translate3d(20%, 10%, 0);
+    }
+    .swiper-slide-active{
+      width: 80%;
+      transform: translate3d(12%, 0, 0);
+    }
     .modal-cars{
+
+      &__figure{
+        width: 55%;
+      }
 
     }
   }
@@ -263,6 +269,19 @@
       &__figure{
         width: 110vw;
       }
+    }
+
+    .swiper-wrapper{
+      justify-content: initial;
+    }
+
+    .swiper-slide-active,
+    .swiper-slide-next,
+    .swiper-slide-next + .swiper-slide,
+    .swiper-slide-prev{
+      width: 100%;
+      transform: translate3d(0, 0, 0);
+
     }
   }
 

@@ -30,9 +30,10 @@
                     :allowEmpty="false"
                     :searchable="false"
                     :options="hours"
+                    v-model="selectedHour"
           >
           </v-select>
-          <p class="subtitle">до 13:00</p>
+          <p class="subtitle">{{`До ${selectedHour}`}}</p>
 
         </div>
 
@@ -48,6 +49,7 @@
     data() {
       return {
         hourlyRental: false,
+        selectedHour: 0,
         hours: [0,1,2,3,4,5,6,7,8,9,10,11,12],
         fields: [
           {

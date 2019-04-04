@@ -9,17 +9,11 @@
           </svg>
         </nuxt-link>
         <slider></slider>
-          <div class="description container">
-            <transition name="fade" mode="out-in">
-              <div class="description__title" :key="currentCar.title">{{ currentCar.title }}</div>
-            </transition>
-            <transition name="fade" mode="out-in">
-              <div class="description__text" :key="currentCar.models">{{ currentCar.models }}</div>
-            </transition>
-            <transition name="fade" mode="out-in">
-              <div class="description__price" :key="currentCar.price">{{ currentCar.price }} ₽</div>
-            </transition>
-          </div>
+        <div class="description container">
+          <div class="description__title">{{ currentCar.title }}</div>
+          <div class="description__text">{{ currentCar.models }}</div>
+          <div class="description__price">{{ currentCar.price }} ₽</div>
+        </div>
       </div>
       <div class="car-class__content">
         <div class="container">
@@ -68,10 +62,9 @@
 <script>
   import formFeedback from '~/components/partials/form.vue'
   import slider from '~/components/partials/popupSlider.vue'
-  import calendar from '~/components/partials/calendar.vue'
 
   export default {
-    components: {formFeedback, slider,calendar},
+    components: {formFeedback, slider},
     computed: {
       currentCar() {
         return this.$store.state.current;
@@ -80,7 +73,7 @@
     data() {
       return {
         formData: {
-          class: 'transport-form car-form'
+          type: 'transport'
         },
         swiperData: {
           slidesPerView: 'auto',
@@ -110,19 +103,6 @@
 </script>
 <style scoped lang="scss">
 
-  .fade-enter-active, .fade-leave-active {
-    transition:  all 150ms;
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  .fade-enter, .fade-leave-to /* .list-leave-active до версии 2.1.8 */
-  {
-    opacity: 0;
-    transform: translate3d(0, 10px, 0);
-
-  }
-
   .description {
     max-width: 100%;
     display: flex;
@@ -132,10 +112,6 @@
     bottom: 55px;
     left: 50%;
     transform: translate3d(-50%, 0, 0);
-
-    &__container{
-      width: 100%;
-    }
 
     &__title {
       font-size: 36px;

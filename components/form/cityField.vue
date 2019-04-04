@@ -175,6 +175,9 @@
     pointer-events: none;
     padding-bottom: 15px;
     padding-top: 12px;
+    transform: translate3d(0, 10px, 0);
+    transition: transform 150ms, opacity 150ms;
+
 
 
     .map {
@@ -191,6 +194,21 @@
   @media (max-width: 1024px){
     .dropdown-cities{
       top: calc(100% - 4px);
+    }
+
+    .text-field{
+
+      &:nth-child(2).active{
+
+        .dropdown-cities{
+          left: -100%;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 667px){
+    .dropdown-cities{
 
     }
   }

@@ -2,24 +2,24 @@
   <div class="modal">
     <div class="modal__inner">
       <div class="car-class__header">
-        <nuxt-link to="/" class="car-class__close">
+        <div class="car-class__close" @click="hidePopup">
           <svg viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
             <line x1="1.29447" y1="0.587365" x2="23.2945" y2="22.5874" stroke="white"/>
             <line y1="-0.5" x2="31.1127" y2="-0.5" transform="matrix(0.708057 -0.706156 0.708057 0.706156 0.940918 22.9409)" stroke="white"/>
           </svg>
-        </nuxt-link>
+        </div>
         <slider></slider>
-          <div class="description container">
-            <transition name="fade" mode="out-in">
-              <div class="description__title" :key="currentCar.title">{{ currentCar.title }}</div>
-            </transition>
-            <transition name="fade" mode="out-in">
-              <div class="description__text" :key="currentCar.models">{{ currentCar.models }}</div>
-            </transition>
-            <transition name="fade" mode="out-in">
-              <div class="description__price" :key="currentCar.price">{{ currentCar.price }} ₽</div>
-            </transition>
-          </div>
+        <div class="description container">
+          <transition name="fade" mode="out-in">
+            <div class="description__title" :key="currentCar.title">{{ currentCar.title }}</div>
+          </transition>
+          <transition name="fade" mode="out-in">
+            <div class="description__text" :key="currentCar.models">{{ currentCar.models }}</div>
+          </transition>
+          <transition name="fade" mode="out-in">
+            <div class="description__price" :key="currentCar.price">{{ currentCar.price }} ₽</div>
+          </transition>
+        </div>
       </div>
       <div class="car-class__content">
         <div class="container">
@@ -77,6 +77,11 @@
         return this.$store.state.current;
       }
     },
+    methods:{
+      hidePopup(){
+        this.$store.commit('showPopup', false);
+      }
+    },
     data() {
       return {
         formData: {
@@ -119,7 +124,7 @@
   .fade-enter, .fade-leave-to /* .list-leave-active до версии 2.1.8 */
   {
     opacity: 0;
-    transform: translate3d(0, 10px, 0);
+    transform: translate3d(0, 0, 0);
 
   }
 
@@ -166,6 +171,7 @@
     bottom: 0;
     left: 0;
     right: 0;
+    width: 100%;
     min-height: 100vh;
     z-index: 100;
     overflow-y: scroll;

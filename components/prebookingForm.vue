@@ -4,7 +4,7 @@
     <div class="prebooking__wrap">
       <div class="prebooking__row">
         <city-field v-for="(item,i) in placeInputs" :data="item" :key="i"></city-field>
-        <div class="prebooking__field date-field">
+        <div class="prebooking__field date-field" >
           <input class="date-field__input" id="date_field_1" :value="today" type="radio" name="day_start[]">
           <label for="date_field_1" class="date-field__item" @click="radioValue()">
             <span class="date">{{ moment(today).format("DD.MM") }}</span>
@@ -22,15 +22,18 @@
             <span class="week-day">{{ afterTomorrow.format("dddd") }}</span>
             <input class="date-field__input" type="radio" name="day_start[]">
           </label>
-          <div class="date-field__item date-field__item--calendar">
-            <svg width="26" height="26" viewBox="0 0 26 26">
+
+          <!--Date field-->
+          <div for="datepick" class="date-field__item date-field__item--calendar" ref="dateField"  >
+            <datepicker @selected="calendarSelect" :language="calendar.lang" ref="datepick" v-model="today" id="datepick"></datepicker>
+            <svg width="26" height="26" viewBox="0 0 26 26" @click.capture="showCalendar">
               <use xlink:href="/sprite.svg#calendar"></use>
             </svg>
-
           </div>
-
         </div>
-        <label class="prebooking__field time-field" ref="timeField" @focus="timeFocus" @blur="timeBlur" @click="timeFocus">
+
+        <!--Time field-->
+        <label class="prebooking__field time-field" ref="timeField" @focus="timeFocus" v-click-outside="timeBlur" @click="timeFocus">
           <masked-input mask="11:11" type="text" class="prebooking__input time-field__input" placeholder="22:00" v-model="myTime"
                  />
           <svg class="time-field__icon" width="26" height="26" viewBox="0 0 26 26" fill="none">
@@ -44,20 +47,22 @@
             </div>
           </div>
         </label>
+
+        <!--Baggage field-->
         <label class="prebooking__field baggage-field" ref="baggageField" :class="{active: baggageFocus}">
           <svg class="baggage-field__icon" width="11" height="7" viewBox="0 0 11 7" fill="none"
                xmlns="http://www.w3.org/2000/svg">
             <use xlink:href="/sprite.svg#arrow"></use>
           </svg>
           <input class="baggage__input prebooking__input" type="text" name="baggage"
-                 placeholder="Для 1-2 пассажиров с багажом" readonly>
+                 placeholder="Для 1-2 пассажиров с багажом" readonly @click="baggageIn" v-click-outside="baggageOut">
           <transition name="dropdown" mode="out-in">
             <baggage-dropdown></baggage-dropdown>
           </transition>
         </label>
 
         <div class="prebooking__field race-field" v-show="pointFrom">
-          <input class="race-field__input" type="text" name="race"
+          <input class="race-field__input prebooking__input" type="text" name="race"
                  placeholder="Номер рейса/поезда/корабля (необязательно)">
         </div>
         <nuxt-link to="/transport" class="button prebooking__submit">Заказать</nuxt-link>
@@ -76,6 +81,10 @@
   import cityField from '~/components/form/cityField.vue'
   import baggageDropdown from '~/components/form/baggageDropdown.vue'
   import MaskedInput from 'vue-masked-input'
+  import Datepicker from "vuejs-datepicker/dist/vuejs-datepicker.esm.js";
+  import {ru} from 'vuejs-datepicker/dist/locale'
+
+
 
 
   const moment = require('moment');
@@ -85,19 +94,14 @@
 
   export default {
     components: {
-      calendar, cityField, baggageDropdown, MaskedInput
+      calendar, cityField, baggageDropdown, MaskedInput, Datepicker
     },
     computed: {
       pointFrom() {
         return this.$store.getters.getPointFrom;
       },
-      tomorrow: {
-        get: () => {
-          return moment(new Date()).add(1, 'days');
-        },
-        set: (newValue) => {
-          console.log(newValue)
-        }
+      tomorrow(){
+        return moment(this.today).add(1, 'days');
       },
       afterTomorrow() {
         return moment(this.today).add(2, 'days');
@@ -110,6 +114,9 @@
     },
     data() {
       return {
+        calendar:{
+          lang: ru
+        },
         moment: moment,
         myTime: '17:00',
         value: '',
@@ -132,12 +139,28 @@
       }
     },
     methods: {
+      showCalendar(){
 
+          this.$refs.dateField.classList.add('active');
+          this.$refs.datepick.showCalendar();
+
+
+      },
+      closeCalendar(){
+        this.$refs.dateField.classList.remove('active');
+
+      },
+      calendarSelect(date){
+        console.log(date);
+        this.today = date;
+        // this.$refs.datepick.close()
+        this.$refs.dateField.classList.remove('active');
+      },
       baggageIn() {
-        this.baggageFocus = true;
+        this.$refs.baggageField.classList.add('active');
       },
       baggageOut() {
-        this.baggageFocus = false;
+        this.$refs.baggageField.classList.remove('active');
       },
       momentDay() {
         return moment();
@@ -149,13 +172,10 @@
         console.log(time)
 
         this.myTime = time;
-
         this.timeBlur();
 
       },
-      setTimeHandle() {
 
-      },
       timeFocus() {
         this.$refs.timeField.classList.add('active')
       },
@@ -165,7 +185,10 @@
         setTimeout(function () {
           that.$refs.timeField.classList.remove('active')
           that.$refs.timeField.querySelector('.time-field__input').blur();
-        }, 200)
+        }, 100)
+      },
+      clickOutside(){
+        console.log('asd')
       }
 
 
@@ -248,9 +271,7 @@
     border-radius: 0px 0px 5px 5px;
     padding: 12px 15px 15px 9px;
     max-width: 100%;
-    /*opacity: 0;*/
-    //transform: translate3d(0, -10px, 0);
-    /*transition: all 250ms;*/
+    /*transition: all 150ms;*/
   }
 
   .dropdown-cities {
@@ -313,6 +334,7 @@
 
     &.active{
       z-index: 2;
+
       .time-field__dropdown {
         opacity: 1;
         pointer-events: all;
@@ -376,6 +398,19 @@
     border: none;
     z-index: 1;
 
+    &.active{
+
+      .dropdown-cities {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .baggage__input{
+        box-shadow: 0 0 0 2px #2F80ED;
+        z-index: 3;
+      }
+    }
+
     .baggage__input {
       font-size: 12px;
       padding-right: 50px;
@@ -388,7 +423,7 @@
       }
     }
 
-    .baggage__input:focus {
+    /*.baggage__input:focus {
       box-shadow: 0 0 0 2px #2F80ED;
       z-index: 2;
     }
@@ -396,7 +431,7 @@
       opacity: 1;
       pointer-events: all;
 
-    }
+    }*/
 
     .dropdown-cities:hover {
       opacity: 1;
@@ -420,8 +455,15 @@
     display: flex;
     background: #fff;
 
-    &__input {
+    &__input{
       display: none;
+    }
+
+    #datepick {
+      opacity: 0;
+      pointer-events: none;
+      display: none;
+
     }
 
     &__input:checked + .date-field__item {
@@ -440,17 +482,44 @@
       padding-top: 8px;
       cursor: pointer;
       margin-right: 10px;
+      flex: 0 0 auto;
+      transition: background 100ms;
+
+
+      .vdp-datepicker{
+        position: absolute;
+        left: 0;
+        top: 0;
+        pointer-events: none;
+        transform: translate3d(0, 10px, 0);
+        opacity: 0;
+        transition: transform 150ms, opacity 150ms;
+      }
+
+      &.active{
+        z-index: 2;
+
+        .vdp-datepicker{
+          opacity: 1;
+          pointer-events: all;
+          transform: translate3d(0, 0, 0);
+        }
+      }
 
       .date {
         font-size: 12px;
         color: #4C4C4C;
         display: block;
         margin-bottom: 6px;
+        transition: color 100ms;
+
       }
 
       .week-day {
         font-size: 8px;
         display: block;
+        transition: color 100ms;
+
       }
 
       &.active,
@@ -471,7 +540,10 @@
         align-items: center;
         justify-content: center;
         width: auto;
+        z-index: 1;
 
+
+        &.active,
         &:hover {
           background: transparent;
         }
@@ -616,7 +688,6 @@
       &__item {
         width: 50px;
         padding: 5px 5px 5px 7px;
-        margin: 0;
 
         &--calendar {
           padding: 0;
@@ -649,6 +720,12 @@
       position: relative;
       margin-top: 30px;
       width: 100%;
+    }
+  }
+
+  @media (max-width: 320px){
+    .date-field__item{
+      margin: 0;
     }
   }
 </style>

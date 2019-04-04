@@ -1,5 +1,5 @@
 <template>
-  <div class="wrapper js-wrapper"></div>
+  <div class="gallery-wrapper js-wrapper"></div>
 </template>
 
 <script>
@@ -113,9 +113,9 @@
 </script>
 
 <style>
-  .wrapper {
+  .gallery-wrapper {
     width: 100%;
-    height: 33.333333vw;
+    height: 30vw;
     box-sizing: border-box;
     position: relative;
   }
