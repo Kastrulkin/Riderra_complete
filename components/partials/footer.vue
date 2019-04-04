@@ -7,12 +7,12 @@
         </svg>
       </div>
       <ul class="footer__col col-xs-12 col-sm-3 ">
-        <li><a href="" class="links-list__">Условия перевозки</a></li>
-        <li><a href="">Политика конфиденциальности</a></li>
+        <li><a href="" class="footer__link">Условия перевозки</a></li>
+        <li><a href="" class="footer__link">Политика конфиденциальности</a></li>
       </ul>
       <ul class="footer__col footer__col--contacts col-xs-12 col-sm-3 col-md-push-1">
-        <li><a href="tel:88009543212" class="phone">8-800-954-32-12</a></li>
-        <li><a href="mailto:mail@riderra.ru">mail@riderra.ru</a></li>
+        <li><a class="footer__link phone" href="tel:88009543212">8-800-954-32-12</a></li>
+        <li><a class="footer__link" href="mailto:mail@riderra.ru">mail@riderra.ru</a></li>
       </ul>
 
       <div class="col-sm-3 col-xs-12 ">
@@ -95,13 +95,30 @@
       justify-content: center;
       width: 35px;
       height: 35px;
+      border: 1px solid #c4c4c4;
       border-radius: 50%;
-      border: 1px solid #C4C4C4;
+      transition: 150ms border-color;
+
 
       & + & {
         margin-left: 15px;
       }
+
+      svg{
+        fill: #c4c4c4;
+        transition: 150ms all;
+      }
+
+      &:hover{
+        border-color: #b4b4b4;
+
+        svg{
+          fill: #b4b4b4;
+        }
+      }
     }
+
+
   }
 
   .footer {
@@ -109,6 +126,15 @@
     color: #000;
     font-size: 14px;
     position: relative;
+
+    &__link{
+      color: #000;
+      transition: 150ms color;
+
+      &:hover{
+        color: #707070;
+      }
+    }
 
     &__copyright {
       color: #7D7D7D;

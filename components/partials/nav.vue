@@ -138,6 +138,12 @@
       padding: 0 16px;
       text-decoration: none;
       font-weight: 800;
+      transition: all 250ms;
+
+      &:hover{
+        color: #000;
+        background: #fff;
+      }
     }
   }
 
