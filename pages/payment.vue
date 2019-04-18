@@ -1,6 +1,6 @@
 <template>
-  <div class="payment">
-    <order-caption :data="captionData"></order-caption>
+  <div class="payment inner-page__wrap">
+    <!--<order-caption :data="captionData"></order-caption>-->
     <div class="container">
       <div class=" payment__container">
         <div class="car-type">
@@ -12,35 +12,6 @@
           <div class="car-type__price">15 000 ₽</div>
         </div>
         <div class="payment__wrap">
-          <!--<div class="payment__item active">
-            <svg class="payment__icon payment__icon&#45;&#45;cash" width="100%" height="100%" viewBox="0 0 30 28" fill="none"
-                 xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M7.1925 5.32995L18.8207 2.15595L18.2049 0.911243C17.802 0.102183 16.8193 -0.231922 16.0103 0.17097L5.60059 5.32995H7.1925Z"/>
-              <path
-                d="M22.4298 2.24756C22.2857 2.24756 22.1416 2.26721 21.9975 2.30652L19.2657 3.05334L10.9229 5.32985H20.3925H24.5196L24.0087 3.45623C23.8121 2.72579 23.1505 2.24756 22.4298 2.24756Z"/>
-              <path
-                d="M26.2266 6.47656H25.8532H25.3455H24.8377H20.9628H6.72398H4.85692H3.28466H2.99314H2.01702C1.49949 6.47656 1.03764 6.71568 0.736287 7.09237C0.598714 7.26597 0.493896 7.46578 0.434936 7.68524C0.398905 7.82281 0.375977 7.96694 0.375977 8.11433V8.31087V10.1779V26.3624C0.375977 27.2665 1.1097 28.0002 2.01375 28.0002H26.2233C27.1274 28.0002 27.8611 27.2665 27.8611 26.3624V21.793H18.1425C16.6063 21.793 15.3583 20.545 15.3583 19.0088V17.5086V17.0009V16.4932V15.3664C15.3583 14.613 15.6596 13.9285 16.1477 13.4273C16.5801 12.9818 17.1599 12.6804 17.8084 12.6051C17.9165 12.592 18.0279 12.5855 18.1393 12.5855H26.4984H27.0062H27.5139H27.8611V8.11433C27.8643 7.21028 27.1306 6.47656 26.2266 6.47656Z"/>
-              <path
-                d="M29.0109 14.1507C28.8471 14.0001 28.6539 13.8854 28.4377 13.8101C28.2706 13.7544 28.0938 13.7217 27.9071 13.7217H27.8645H27.8317H27.324H25.493H18.1427C17.2386 13.7217 16.5049 14.4554 16.5049 15.3595V16.175V16.6827V17.1904V19.0051C16.5049 19.9092 17.2386 20.6429 18.1427 20.6429H27.8645H27.9071C28.0938 20.6429 28.2706 20.6101 28.4377 20.5544C28.6539 20.4824 28.8471 20.3645 29.0109 20.2138C29.3385 19.9157 29.5448 19.4833 29.5448 19.0051V15.3595C29.5448 14.8812 29.3385 14.4488 29.0109 14.1507ZM21.5623 17.5082C21.5623 17.9602 21.1955 18.3271 20.7434 18.3271H20.1997C19.7477 18.3271 19.3808 17.9602 19.3808 17.5082V16.9644C19.3808 16.7024 19.502 16.4698 19.6953 16.3224C19.8361 16.2143 20.0097 16.1456 20.1997 16.1456H20.3373H20.7434C21.1955 16.1456 21.5623 16.5124 21.5623 16.9644V17.5082Z"/>
-            </svg>
-
-            <div class="payment__title">Наличные</div>
-            <div class="payment__descr">Вы&nbsp;сможете расплатиться с&nbsp;водителем в&nbsp;конце поездки.</div>
-          </div>
-          <div class="payment__item" name="payCard" @click="toggleTab(name)">
-            <svg class="payment__icon payment__icon&#45;&#45;card" width="35" height="31" viewBox="0 0 35 31" fill="none"
-                 xmlns="http://www.w3.org/2000/svg">
-              <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M27.6532 8.20772C28.119 8.41755 27.9734 9.11217 27.4566 9.11217L10.1632 9.1194C7.84142 9.1194 5.95632 10.9934 5.95632 13.3016V19.3288C5.95632 19.828 5.43228 20.1609 4.97374 19.9583L1.30544 18.3809C0.191849 17.8889 -0.30308 16.5937 0.191849 15.4939L6.56043 1.29776C7.05536 0.190721 8.35819 -0.301297 9.4645 0.190721L27.6532 8.20772ZM10.1562 11.0806H32.2169C33.447 11.0806 34.4441 12.0719 34.4441 13.2947V28.7788C34.4441 30.0016 33.447 30.9929 32.2169 30.9929L10.1562 31.0001C8.92614 31.0001 7.929 30.0089 7.929 28.7861V13.2947C7.929 12.0719 8.92614 11.0806 10.1562 11.0806ZM10.7603 28.1927L31.6201 28.1855V20.7763H10.7603V28.1927ZM10.7603 16.2107H31.6201V13.888H10.7603V16.2107Z"
-              />
-            </svg>
-
-            <div class="payment__title">Онлайн</div>
-            <div class="payment__descr">Картой, Qiwi кошелек, Сбербанк, Вебмани, Биткоины, Эппл пей.</div>
-          </div>-->
-          <!--<tab v-for="(tab, i) in tabs" :key="i" :data="tab" @click="toggleTab()"></tab>-->
-
           <div class="payment__item" :class="{active: currentTab === tab}" v-for="(tab, i) in tabs" :key="i" @click="toggleTab(tab)">
             <svg class="payment__icon" :class="tab.class" width="100%" height="100%" viewBox="0 0 30 28" fill="none"
                  xmlns="http://www.w3.org/2000/svg">
@@ -65,7 +36,12 @@
           <component :is="currentTab.name"></component>
         </transition>
       </div>
+
+
     </div>
+    <form-feedback :data="formData"></form-feedback>
+
+
     <my-map></my-map>
 
 
@@ -79,15 +55,17 @@
   import cash from '~/components/payment/cash.vue'
   import card from '~/components/payment/card.vue'
   import MaskedInput from 'vue-masked-input'
+  import formFeedback from '~/components/partials/form.vue'
+
 
 
   export default {
-    components: {orderCaption, myMap, MaskedInput, cash, card},
+    components: {orderCaption, myMap, MaskedInput, cash, card, formFeedback},
     data() {
       return {
         cash: false,
         formData: {
-          class: 'transport-form'
+          // class: 'transport-form'
         },
         captionData: {
           title: 'Выберите способ оплаты'
@@ -105,7 +83,7 @@
             desc: 'Картой, Qiwi кошелек, Сбербанк, Вебмани, Биткоины, Эппл пей.',
             name: 'card'
           },
-        ]
+        ],
       }
     },
     head() {
@@ -128,7 +106,9 @@
 </script>
 
 <style lang="scss" scoped>
+  .payment{
 
+  }
 
 
 

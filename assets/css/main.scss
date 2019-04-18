@@ -236,6 +236,13 @@ input[type="tel"]{
   }
 }
 
+.inner-page{
+
+  &__wrap{
+    padding-top: 125px;
+  }
+}
+
 .pac-container {
   //display: none !important;
 }

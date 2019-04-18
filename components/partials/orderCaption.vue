@@ -1,5 +1,5 @@
 <template>
-  <div class="container">
+  <div class="container tabs-container">
     <div class="tabs">
       <!--<nuxt-link to="/" class="tabs__link">Откуда и куда</nuxt-link>
       <nuxt-link to="/transport" class="tabs__link active">Транспорт</nuxt-link>
@@ -9,7 +9,7 @@
         {{item.title}}
       </nuxt-link>
     </div>
-    <h2 class="h2 transport__title" v-html="data.title"></h2>
+    <!--<h2 class="h2 transport__title" v-html="data.title"></h2>-->
   </div>
 </template>
 
@@ -51,8 +51,8 @@
   .tabs {
     display: flex;
     justify-content: center;
-    margin-top: 124px;
-    margin-bottom: 85px;
+    /*margin-top: 124px;*/
+    /*margin-bottom: 85px;*/
 
     &__link {
       position: relative;

@@ -1,7 +1,6 @@
 <template>
   <div class="transport inner-page__wrap">
-    <order-caption :data="captionData"></order-caption>
-    <form-feedback :data="formData"></form-feedback>
+    <!--<order-caption :data="captionData"></order-caption>-->
 
     <div class="container">
       <cars :data="carsData"></cars>

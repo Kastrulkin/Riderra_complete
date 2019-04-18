@@ -27,7 +27,7 @@
         <div class="backface__banks"></div>
       </div>
     </div>
-    <div class="form__item policy">
+    <!--<div class="form__item policy">
       <label class="policy__label">
         <input type="checkbox" checked="checked" class="policy__checkbox"> <span>Сохранить данные карты для упрощения дальнейших покупок.</span>
       </label>
@@ -38,7 +38,7 @@
         href="#" class="policy__link">условия перевозки</a></span>
       </label>
     </div>
-    <input type="submit" value="Забронировать" class="payment__submit button">
+    <input type="submit" value="Забронировать" class="payment__submit button">-->
   </div>
 </template>
 
