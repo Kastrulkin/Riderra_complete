@@ -1,6 +1,6 @@
 <template>
-  <div class="modal">
-    <div class="modal__inner">
+  <div class="modal" v-scroll-lock="true">
+    <div class="modal__inner" >
       <div class="car-class__header">
         <div class="car-class__close" @click="hidePopup">
           <svg viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -17,7 +17,7 @@
             <div class="description__text" :key="currentCar.models">{{ currentCar.models }}</div>
           </transition>
           <transition name="fade" mode="out-in">
-            <div class="description__price" :key="currentCar.price">{{ currentCar.price }} ₽</div>
+            <div class="description__price" :key="currentCar.price">{{ currentCar.price | toUSD }} ₽</div>
           </transition>
         </div>
       </div>
@@ -59,9 +59,7 @@
         <form-feedback :data="formData"></form-feedback>
       </div>
     </div>
-
   </div>
-
 </template>
 
 
@@ -75,6 +73,11 @@
     computed: {
       currentCar() {
         return this.$store.state.current;
+      }
+    },
+    filters: {
+      toUSD (value) {
+        return String(value).replace(/(\d)(?=(\d{3})+([^\d]|$))/g, '$1 ');
       }
     },
     methods:{
@@ -115,11 +118,13 @@
 </script>
 <style scoped lang="scss">
 
+
   .fade-enter-active, .fade-leave-active {
     transition:  all 150ms;
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
+
 
   .fade-enter, .fade-leave-to /* .list-leave-active до версии 2.1.8 */
   {

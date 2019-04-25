@@ -9,18 +9,139 @@ body {
   overflow: hidden;*/
 }
 
+// Calendar
+.mx-datepicker {
+  position: absolute !important;
+  right: 10px;
+  height: 50px;
+  top: 0;
+  width: 30px !important;
+  cursor: pointer;
+
+  .mx-input {
+    position: absolute;
+    top: 0;
+    opacity: 0;
+    cursor: pointer;
+
+  }
+  .mx-input-append, .mx-clear-wrapper {
+    display: none !important;
+  }
+
+  .mx-datepicker-popup {
+    top: 0 !important;
+    left: 0 !important;
+    transform: translateX(-226px);
+  }
+}
+
+.mx-calendar {
+  width: 362px;
+  border: none;
+  font-family: 'Montserrat' !important;
+
+  .mx-icon-next-month,
+  .mx-icon-last-month {
+    color: #2F80ED;
+    font-size: 35px;
+    font-weight: 100;
+
+  }
+
+  tr {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .mx-panel-date,
+  .mx-panel-date {
+    td, th {
+      display: inline-flex;
+      width: 36px !important;
+      height: 36px !important;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+      font-weight: 300;
+      font-size: 16px;
+    }
+
+    th {
+      font-size: 14px;
+    }
+  }
+
+  .mx-calendar-header {
+    font-size: 16px;
+    color: #000;
+  }
+
+  .cell.today {
+    color: #908E94;
+    background: #E1E1E1;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  .cell.last-month {
+    color: #908E94;
+  }
+}
+
+.mx-datepicker-popup {
+  border: none !important;
+}
+
+.mx-icon-next-year,
+.mx-icon-last-year {
+  display: none;
+}
+
+.mx-panel.mx-panel-year,
+.mx-panel.mx-panel-month {
+  .cell {
+    border-radius: 0;
+  }
+}
+
+.mx-calendar-content {
+  width: 100% !important;
+  padding-top: 10px;
+  height: auto !important;
+
+  .cell {
+    border-radius: 50%;
+    color: #2F80ED;
+    width: 36px;
+    height: 36px;
+
+    &:hover {
+      background: #2F80ED !important;
+      color: #fff;
+
+    }
+  }
+}
+
+// old
+
 .vdp-datepicker__calendar header .prev,
-.vdp-datepicker__calendar header .next{
+.vdp-datepicker__calendar header .next {
   text-indent: -999999;
   background: url(/img/c_arrow.svg) center no-repeat !important;
-  &:after{
+  &:after {
     content: none !important;
   }
 }
-.vdp-datepicker__calendar header .next{
+
+.vdp-datepicker__calendar header .next {
   transform-origin: center;
   transform: rotate(180deg);
 }
+
 .vdp-datepicker__calendar {
   max-width: calc(100vw - 30px);
   font-family: 'Montserrat', sans-serif;
@@ -46,7 +167,7 @@ body {
     line-height: 36px;*/
   }
 
-  .cell.month.selected{
+  .cell.month.selected {
     background: #2F80ED;
   }
 
@@ -61,10 +182,12 @@ body {
     color: #908E94;
   }
 }
-.vdp-datepicker__calendar .cell.selected:hover{
+
+.vdp-datepicker__calendar .cell.selected:hover {
   background: #2F80ED !important;
 
 }
+
 .vdp-datepicker__calendar .cell:not(.blank):not(.disabled).day:hover, .vdp-datepicker__calendar .cell:not(.blank):not(.disabled).month:hover, .vdp-datepicker__calendar .cell:not(.blank):not(.disabled).year:hover {
   //background:  #2F80ED;
   border: 1px solid #2F80ED !important;
@@ -199,7 +322,7 @@ input[type="tel"]{
 .site-section {
   padding-top: 120px;
 
-  &--pf{
+  &--pf {
     padding-top: 0;
   }
 
@@ -231,14 +354,15 @@ input[type="tel"]{
   text-decoration: none;
 
   &:hover {
-    box-shadow: 0 12px 34px 0px #EE057B;
-
+    -webkit-appearance: none;
+    -webkit-box-shadow: 0px 12px 35px 6px #EE057B;
+    box-shadow: 0px 12px 35px 6px #EE057B;
   }
 }
 
-.inner-page{
+.inner-page {
 
-  &__wrap{
+  &__wrap {
     padding-top: 125px;
   }
 }
@@ -410,16 +534,16 @@ input[type="tel"]{
     position: absolute;
     left: 0;
   }
-  .vs__selected-options{
+  .vs__selected-options {
     width: 100%;
     z-index: 1;
   }
 
-  .vs__actions{
+  .vs__actions {
     position: absolute;
     right: 0;
     top: 50%;
-    transform: translate3d(0,-50%,0);
+    transform: translate3d(0, -50%, 0);
     pointer-events: none;
   }
 
@@ -560,6 +684,10 @@ input::placeholder {
 
 @media all and (max-width: 767px) {
 
+  .mx-calendar{
+    display: none;
+  }
+
   .h2 {
     font-size: 18px;
   }
@@ -599,6 +727,13 @@ input::placeholder {
 
   .swiper-arrow {
     display: none;
+  }
+
+  .inner-page {
+
+    &__wrap {
+      padding-top: 155px;
+    }
   }
 }
 

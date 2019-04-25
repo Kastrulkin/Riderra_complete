@@ -1,6 +1,6 @@
 <template>
   <transition name="slide">
-    <div class="mobile-menu" v-if="menu">
+    <div class="mobile-menu" v-if="menu" v-scroll-lock="menu">
       <div class="mobile-menu__wrap container">
         <a class="mobile-menu__tel" href="tel:88009543212">8-800-954-32-12</a>
         <nav class="nav">
@@ -53,6 +53,7 @@
       height: 100%;
       overflow-y: scroll;
       padding-top: 85px;
+      padding-bottom: 200px;
     }
 
     &__tel {

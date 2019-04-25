@@ -62,7 +62,8 @@
     data(){
       return {
         mobileMenu: false,
-        navList: ['Как мы работаем', 'Автопарк', 'Отзывы']
+        navList: ['Как мы работаем', 'Автопарк', 'Отзывы'],
+        ua: ''
       }
     },
     methods:{
@@ -97,6 +98,19 @@
 
       }
     },
+    mounted(){
+      var ua = navigator.userAgent.toLowerCase();
+      if (ua.indexOf('safari') != -1 && ua.indexOf('chrome') === -1) {
+        this.ua = 'safari'
+      }
+    },
+    head() {
+      return {
+        bodyAttrs: {
+          class: this.ua
+        },
+      }
+    },
   }
 </script>
 
@@ -117,17 +131,11 @@
       padding-bottom: 25px;
 
       &__tel{
-        display: none;
+        color: #2F80ED;
       }
 
       &__signin{
-        border-color: #2F80ED;
-        color: #2F80ED;
-
-        &:hover{
-          background: #2F80ED;
-          color: #fff;
-        }
+        display: none;
       }
     }
 
@@ -151,8 +159,13 @@
           display: block;
         }
       }
+    }
 
+    .menu-toggle{
 
+      &__line{
+        background: #000;
+      }
     }
   }
   .no-nav{
@@ -176,7 +189,6 @@
       display: flex;
       align-items: center;
       margin: 0 auto;
-      padding: 0;
     }
 
     &__tel{
@@ -189,6 +201,7 @@
       margin-left: auto;
       display: flex;
       align-items: center;
+      flex-shrink: 0;
     }
 
     &__signin{
@@ -280,12 +293,34 @@
       margin-right: 42px;
       text-decoration: none;
       font-size: 16px;
+      position: relative;
+
+      &:after{
+        content: '';
+        display: block;
+        height: 1px;
+        background: #fff;
+        width: 0;
+        bottom: -7px;
+        position: absolute;
+        transition: 250ms width;
+      }
+
+      &:hover{
+
+        &:after{
+          width: 100%;
+
+        }
+
+
+      }
     }
   }
 
 
 
-  @media all and (max-width: 1024px){
+  @media (max-width: 1024px){
     .header{
       padding-top: 30px;
       padding-bottom: 30px;
@@ -296,7 +331,7 @@
     }
   }
 
-  @media all and (max-width: 767px){
+  @media (max-width: 767px){
 
     .logo{
 
@@ -323,7 +358,15 @@
         padding-top: 17px;
         padding-bottom: 17px;
       }
+
+      .tabs{
+        position: absolute;
+        top: 50%;
+        left: 5%;
+        transform: translateX(-50%);
+      }
     }
+
   }
 
 

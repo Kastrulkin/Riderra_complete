@@ -71,6 +71,7 @@
             title: 'Безопасно и надежно',
             desc: 'Каждый водитель проходит через индивидуальное собеседование при трудоустройстве. Минимальный стаж — 5 лет.',
             backgroundColor: '#291737',
+            class: 'safety'
           }, {
             src: '/img/slide2.png',
             title: 'Пунктуальность',
@@ -110,7 +111,7 @@
     .main-slider {
 
       &__img {
-        transform: translate3d(0, 0, 0) !important;
+        transform: translate3d(0, 0, 0);
         opacity: 1;
       }
 
@@ -133,11 +134,13 @@
 
   .main-slider {
     overflow: visible;
+    z-index: 0;
 
     &__item {
       min-height: 430px;
       overflow: hidden;
       color: #fff;
+      height: auto;
     }
 
     &__inner {
@@ -221,6 +224,11 @@
       &__caption:after {
         background: linear-gradient(180deg, rgba(255, 80, 41, 0.224) 0%, rgba(255, 143, 196, 0.7) 52.49%, rgba(227, 155, 244, 0.7) 64.64%);;
       }
+
+      &__img{
+        left: 5%;
+        bottom: 10px;
+      }
     }
   }
 
@@ -245,8 +253,78 @@
       padding-left: 0;
       padding-right: 0;
 
-      &__caption{
-        right: 20px;
+      &__inner {
+        &:after {
+          width: 80%;
+          opacity: 0.2;
+          left: 65%;
+        }
+      }
+
+      &__caption {
+        position: relative;
+        top: 0;
+        left: 0;
+        transform: translate3d(0, 0, 0);
+      }
+
+      &__item {
+        position: relative;
+      }
+
+      &__img {
+        position: relative;
+      }
+    }
+
+    .safety {
+
+      .main-slider {
+
+        &__inner {
+          display: flex;
+          flex-direction: column;
+          padding-top: 45px;
+        }
+
+        &__caption {
+          order: 1;
+          width: 90%;
+          margin: 0 auto;
+          padding-right: 30%;
+        }
+
+        &__img {
+          order: 2;
+          position: relative;
+          transform: translate3d(-10%, 15%, 0)
+        }
+      }
+    }
+
+    .punctuality {
+
+      .main-slider {
+
+        &__inner {
+          display: flex;
+          flex-direction: column;
+        }
+
+        &__img {
+          width: 90%;
+          margin-left: auto;
+        }
+
+        &__caption {
+          order: 1;
+          width: 90%;
+          margin: 0 auto;
+          padding-right: 30%;
+          left: 0;
+          padding-bottom: 40px;
+          margin-top: auto;
+        }
       }
     }
 
@@ -256,24 +334,19 @@
       .main-slider {
 
         &__caption{
-          width: 50%;
+          width: 90%;
+          margin: 0 auto;
+          padding-right: 20%;
+          left: 0;
+          padding-bottom: 40px;
+          margin-top: auto;
         }
-      }
-    }
-    .swiper-slide-active.knowledges{
-
-      .main-slider{
 
         &__img{
-          transform: translate3d(20%, 0%, 0) !important;
-        }
-
-        &__caption{
-          left: 20px;
+          max-width: 90%;
+          margin-top: -90px;
         }
       }
-
-
     }
   }
 </style>

@@ -1,21 +1,19 @@
 import Vue from 'vue'
 import * as VueGoogleMaps from 'vue2-google-maps'
-
-import datepicker from 'vuejs-datepicker';
+// import Datepicker from 'vuejs-datepicker';
 import VueAwesomeSwiper from 'vue-awesome-swiper/dist/ssr'
-
 import moment from 'moment'
 import VueMoment from 'vue-moment'
 import vSelect from 'vue-select'
 import vueScrollto from 'vue-scrollto'
 import Vuebar from 'vuebar';
 import ClickOutside from 'vue-click-outside'
+import DatePicker from 'vue2-datepicker'
+import VueScrollactive from 'vue-scrollactive'
+import VScrollLock from 'v-scroll-lock'
 
-import DatePicker2 from 'vue2-datepicker'
 
-
-
-// Maps (map key from Serenity)
+// Maps ( + our map key)
 Vue.use(VueGoogleMaps, {
   load: {
     key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
@@ -26,8 +24,8 @@ Vue.use(VueGoogleMaps, {
 
 
 // Datepicker
-Vue.use(datepicker);
-Vue.use(DatePicker2);
+Vue.use(DatePicker);
+// Vue.use(DatePicker2);
 
 // Swiper
 Vue.use(VueAwesomeSwiper);
@@ -54,8 +52,17 @@ Vue.use(vueScrollto, {
   y: true
 });
 
+
+// SCROLLACTIVE
+
+Vue.use(VueScrollactive);
+
+Vue.use(VScrollLock);
+
 // Scroll Bar
 Vue.use(Vuebar);
+
+// Click outside event
 
 Vue.use(ClickOutside);
 

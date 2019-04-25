@@ -1,5 +1,7 @@
 <template>
-  <form class="prebooking" action="">
+
+  <form class="prebooking" action="" ref="form">
+
     <!--<calendar></calendar>-->
     <div class="prebooking__wrap">
       <div class="prebooking__row">
@@ -9,7 +11,6 @@
           <label for="date_field_1" class="date-field__item" @click="radioValue()">
             <span class="date">{{ moment(today).format("DD.MM") }}</span>
             <span class="week-day">{{ moment(today).format('dddd') }}</span>
-            <!--<span class="week-day">{{ moment(today).format('HH:mm') }}</span>-->
           </label>
           <input class="date-field__input" id="date_field_2" :value="tomorrow" type="radio" name="day_start[]" checked>
           <label for="date_field_2" class="date-field__item">
@@ -24,17 +25,23 @@
           </label>
 
           <!--Date field-->
-          <div for="datepick" class="date-field__item date-field__item--calendar" ref="dateField"  >
-            <datepicker @selected="calendarSelect" :language="calendar.lang" ref="datepick" v-model="today" id="datepick"></datepicker>
-            <svg width="26" height="26" viewBox="0 0 26 26" @click.capture="showCalendar">
+          <label class="date-field__item date-field__item--calendar calendar" ref="dateField"  >
+            <!--<datepicker @selected="calendarSelect" :language="calendar.lang" ref="datepick" v-model="today" id="datepick"></datepicker>-->
+            <no-ssr>
+              <date-picker :lang="lang" ref="datepick" v-model="today" clearable="false"></date-picker>
+            </no-ssr>
+            <input class="calendar__input" v-model="today" type="date" name="start_time_date">
+            <!--<svg width="26" height="26" viewBox="0 0 26 26" @click.capture="showCalendar">-->
+            <svg width="26" height="26" viewBox="0 0 26 26" >
               <use xlink:href="/sprite.svg#calendar"></use>
             </svg>
-          </div>
+          </label>
         </div>
 
         <!--Time field-->
-        <label class="prebooking__field time-field" ref="timeField" @focus="timeFocus" v-click-outside="timeBlur" @click="timeFocus">
-          <masked-input mask="11:11" type="text" class="prebooking__input time-field__input" placeholder="22:00" v-model="myTime"
+        <div class="prebooking__field time-field" ref="timeField" @click="timeFocus" v-click-outside="timeBlur">
+          <masked-input mask="11:11" type="text" class="prebooking__input time-field__input" placeholder="22:00"
+                        v-model="myTime" @input="timeInput"
                  />
           <svg class="time-field__icon" width="26" height="26" viewBox="0 0 26 26" fill="none">
             <use xlink:href="/sprite.svg#clock"></use>
@@ -46,7 +53,7 @@
               </ul>
             </div>
           </div>
-        </label>
+        </div>
 
         <!--Baggage field-->
         <label class="prebooking__field baggage-field" ref="baggageField" :class="{active: baggageFocus}">
@@ -65,7 +72,8 @@
           <input class="race-field__input prebooking__input" type="text" name="race"
                  placeholder="Номер рейса/поезда/корабля (необязательно)">
         </div>
-        <nuxt-link to="/transport" class="button prebooking__submit">Заказать</nuxt-link>
+        <!--<nuxt-link to="/transport" class="button prebooking__submit" @click.prevent="sendForm">Заказать</nuxt-link>-->
+        <div @click.capture="sendForm">Заказать</div>
 
 
       </div>
@@ -81,8 +89,10 @@
   import cityField from '~/components/form/cityField.vue'
   import baggageDropdown from '~/components/form/baggageDropdown.vue'
   import MaskedInput from 'vue-masked-input'
-  import Datepicker from "vuejs-datepicker/dist/vuejs-datepicker.esm.js";
-  import {ru} from 'vuejs-datepicker/dist/locale'
+  import datePicker from 'vue2-datepicker';
+
+  /*import Datepicker from "vuejs-datepicker/dist/vuejs-datepicker.esm.js";
+  import {ru} from 'vuejs-datepicker/dist/locale'*/
 
 
 
@@ -94,7 +104,7 @@
 
   export default {
     components: {
-      calendar, cityField, baggageDropdown, MaskedInput, Datepicker
+      calendar, cityField, baggageDropdown, MaskedInput, datePicker
     },
     computed: {
       pointFrom() {
@@ -115,8 +125,9 @@
     data() {
       return {
         calendar:{
-          lang: ru
+          lang: 'ru'
         },
+        lang: 'ru',
         moment: moment,
         myTime: '17:00',
         value: '',
@@ -135,10 +146,32 @@
             name: 'toPoint',
             placeholder: 'Куда',
           }
-        ]
+        ],
+        formData: null
       }
     },
     methods: {
+      sendForm(){
+        let form = this.$refs.form,
+          formData = new FormData(form),
+          dataList = {};
+
+        formData.forEach((value, key) => {
+          dataList[key] = value;
+          console.log(dataList[key])
+
+
+
+        });
+
+        // this.formData = dataList;
+
+        console.log(dataList)
+
+
+
+
+      },
       showCalendar(){
 
           this.$refs.dateField.classList.add('active');
@@ -157,7 +190,7 @@
         this.$refs.dateField.classList.remove('active');
       },
       baggageIn() {
-        this.$refs.baggageField.classList.add('active');
+        this.$refs.baggageField.classList.toggle('active');
       },
       baggageOut() {
         this.$refs.baggageField.classList.remove('active');
@@ -175,9 +208,11 @@
         this.timeBlur();
 
       },
-
       timeFocus() {
         this.$refs.timeField.classList.add('active')
+      },
+      timeInput(){
+        this.$refs.timeField.classList.remove('active')
       },
       timeBlur() {
         const that = this;
@@ -335,12 +370,19 @@
     &.active{
       z-index: 2;
 
-      .time-field__dropdown {
-        opacity: 1;
-        pointer-events: all;
-        transform: translate3d(0, 0, 0);
+      .time-field{
 
+        &__dropdown {
+          pointer-events: all;
+          opacity: 1;
+        }
+
+        &__input{
+          box-shadow: 0 0 0 2px #2F80ED;
+          z-index: 3;
+        }
       }
+
     }
 
 
@@ -351,6 +393,10 @@
     &__input {
       padding-left: 18px;
       background: #fff;
+
+      &:focus{
+        box-shadow: none;
+      }
 
     }
 
@@ -373,8 +419,7 @@
       padding: 0 0 0 18px;
       opacity: 0;
       pointer-events: none;
-      transition: 150ms all 100ms;
-      transform: translate3d(0, 5px, 0);
+
 
       li {
 
@@ -454,6 +499,7 @@
     padding: 3px 14px;
     display: flex;
     background: #fff;
+    z-index: 2;
 
     &__input{
       display: none;
@@ -551,6 +597,14 @@
     }
   }
 
+  .calendar{
+
+    &__input{
+      display: none;
+    }
+  }
+
+
   @media all and (max-width: 1024px) {
 
     .prebooking {
@@ -634,12 +688,31 @@
 
   @media all and (max-width: 767px) {
 
+    .calendar{
+
+      &__input{
+        -webkit-appearance: none;
+        border: none;
+        color: #ffffff;
+        font-size: 0;
+        display: block;
+        width: 30px;
+        height: 100%;
+        position: absolute;
+        z-index: -1;
+        opacity: 0;
+      }
+    }
+
     .prebooking {
 
       &__row {
         flex-wrap: wrap;
       }
     }
+
+
+
     .text-field {
       width: 100%;
       max-width: 100%;
@@ -649,7 +722,7 @@
       z-index: 0;
 
       &.active {
-        z-index: 2;
+        z-index: 3;
       }
 
       &:first-child {
@@ -684,6 +757,7 @@
       max-width: 70%;
       border-radius: 5px 0 0 5px;
       padding: 3px;
+      justify-content: flex-start;
 
       &__item {
         width: 50px;
@@ -725,7 +799,7 @@
 
   @media (max-width: 320px){
     .date-field__item{
-      margin: 0;
+      margin-right: 3px;
     }
   }
 </style>

@@ -17,7 +17,7 @@
               <div class="description__text" :key="currentCar.models">{{ currentCar.models }}</div>
             </transition>
             <transition name="fade" mode="out-in">
-              <div class="description__price" :key="currentCar.price">{{ currentCar.price }} ₽</div>
+              <div class="description__price" :key="currentCar.price">{{ toUSD | currentCar.price }} ₽</div>
             </transition>
           </div>
       </div>
@@ -75,6 +75,11 @@
     computed: {
       currentCar() {
         return this.$store.state.current;
+      }
+    },
+    filters: {
+      toUSD (value) {
+        return String(value).replace(/(\d)(?=(\d{3})+([^\d]|$))/g, '$1 ');
       }
     },
     data() {

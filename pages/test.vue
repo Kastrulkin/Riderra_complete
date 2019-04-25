@@ -1,15 +1,39 @@
 <template>
   <div class="wrap">
-    <dropdown></dropdown>
+    <button>click me!</button>
+    <date-picker v-model="value" :lang="lang" @input="change" >
+      <calendar-icon></calendar-icon>
+    </date-picker>
   </div>
 </template>
 
 <script>
   import dropdown from '~/components/form/baggageDropdown.vue'
+  import DatePicker from 'vue2-datepicker'
   export default {
     components: {
-      dropdown
+      dropdown, DatePicker
     },
+    data(){
+      return {
+        /*lang: {
+          days: ['asd', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+          months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          pickers: ['next 7 days', 'next 30 days', 'previous 7 days', 'previous 30 days'],
+          placeholder: {
+            date: 'Select Date',
+            dateRange: 'Select Date Range'
+          },
+        },*/
+        lang: 'ru'
+
+      }
+    },
+    methods: {
+      change(val){
+        console.log(val)
+      }
+    }
 
 
   }

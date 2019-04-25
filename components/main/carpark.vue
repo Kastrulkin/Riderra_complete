@@ -24,8 +24,6 @@
         carsData:{
           type: 'park'
         }
-
-
       }
     }
   }

@@ -19,8 +19,8 @@
             <p class="cars__desc" ref="swiperDesc" v-html="slide.desc"></p>
 
             <div class="cars-price">
-              <div class="cars-price__current">{{ slide.price }}</div>
-              <div class="cars-price__prev">{{ slide.prevPrice }}</div>
+              <div class="cars-price__current">{{ slide.price | toUSD }} ₽</div>
+              <div class="cars-price__prev" v-if="slide.prevPrice">{{ slide.prevPrice | toUSD}} ₽</div>
             </div>
             <nuxt-link to="/payment" class="cars__button white-button" ref="chooseButton">Выбрать</nuxt-link>
           </figcaption>
@@ -38,6 +38,11 @@
   export default {
     computed: mapState(['cars']),
     props: ['data'],
+    filters: {
+      toUSD (value) {
+        return String(value).replace(/(\d)(?=(\d{3})+([^\d]|$))/g, '$1 ');
+      }
+    },
     data() {
       return {
         swiperData: {
@@ -53,49 +58,7 @@
               slidesPerView: 'auto',
             }
           }
-        },
-        slides: [
-          {
-            src: '/img/cars/comfort_class.png',
-            title: 'Комфорт-класс',
-            desc: 'Багаж для 3&nbsp;человек 3&nbsp;места',
-            backgroundColor: '#E5006D'
-          }, {
-            src: '/img/cars/bussines_class.png',
-            title: 'Бизнес-класс',
-            desc: 'Багаж для 3&nbsp;человек 3&nbsp;места',
-            backgroundColor: '#C80D7D'
-          }, {
-            src: '/img/cars/first_class.png',
-            title: '1 класс',
-            desc: 'Багаж для 3&nbsp;человек 3&nbsp;места',
-            backgroundColor: '#702283'
-          }, {
-            src: '/img/cars/first_class.png',
-            title: '1 класс',
-            desc: 'Багаж для 3&nbsp;человек 3&nbsp;места',
-            backgroundColor: '#702283'
-          },
-          {
-            src: '/img/cars/first_class.png',
-            title: '1 класс',
-            desc: 'Багаж для 3&nbsp;человек 3&nbsp;места',
-            backgroundColor: '#702283'
-          },
-          {
-            src: '/img/cars/first_class.png',
-            title: '1 класс',
-            desc: 'Багаж для 3&nbsp;человек 3&nbsp;места',
-            backgroundColor: '#702283'
-          },
-          {
-            src: '/img/cars/first_class.png',
-            title: '1 класс',
-            desc: 'Багаж для 3&nbsp;человек 3&nbsp;места',
-            backgroundColor: '#702283'
-          },
-
-        ]
+        }
       }
     },
     methods:{

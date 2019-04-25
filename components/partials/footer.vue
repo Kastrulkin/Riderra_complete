@@ -48,7 +48,7 @@
 
       </div>
       <div class="col-sm-4 col-xs-12 col-sm-push-1 made-by">
-        <span>Сделано в&nbsp;</span><a href="https://serenity.agency/">
+        <span>Сделано в&nbsp;&nbsp;</span><a href="https://serenity.agency/">
         <svg class="made-by__logo" width="104" height="28" viewBox="0 0 104 28" fill="none"
              xmlns="http://www.w3.org/2000/svg">
           <use xlink:href="/sprite.svg#serenity"></use>

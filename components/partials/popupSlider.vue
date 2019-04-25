@@ -39,6 +39,7 @@
         return this.$store.getters.getCurrentCar;
       },
     },
+
     data(){
       return {
         swiperData:{
@@ -47,6 +48,7 @@
           speed: 600,
           autoHeight: false,
           height: '100vh',
+          spaceBetween: 100,
           breakpoints:{
             767:{
               slidesPerView: 1,
@@ -129,11 +131,28 @@
 
 <style scoped lang="scss">
 
+  .fade-enter-active {
+
+    .modal-cars__swiper{
+      opacity: 0;
+    }
+  }
+
+  .fade-leave-active{
+    transition: none;
+
+  }
+
   .modal-cars{
     position: relative;
     height: 100%;
     overflow: hidden;
     min-height: 600px;
+
+    &__swiper{
+      transition: 550ms opacity 100ms;
+      opacity: 1;
+    }
 
     &__figure{
       position: absolute;
@@ -190,13 +209,13 @@
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      width: 30%;
+      width: 60%;
       padding: 0 40px;
       transition: transform 250ms, width 250ms;
       top: 50%;
       position: relative;
-      transform: translate3d(25%, 0, 0);
-      filter: blur(3px);
+      transform: translate3d(0, 0, 0);
+      filter: blur(2px);
 
     }
 
@@ -215,17 +234,17 @@
   }
   .swiper-wrapper{
     position: relative;
-    justify-content: center;
+    /*justify-content: center;*/
   }
   .swiper-slide-prev{
-    transform: translate3d(50%, 10%, 0);
+    /*transform: translate3d(50%, 10%, 0);*/
   }
 
   .swiper-slide-next{
-    transform: translate3d(50%, 10%, 0);
+    /*transform: translate3d(50%, 10%, 0);*/
 
     & + .swiper-slide{
-      transform: translate3d(100%, 10%, 0);
+      /*transform: translate3d(100%, 10%, 0);*/
 
     }
   }

@@ -12,7 +12,7 @@
         <div class="description container">
           <div class="description__title">{{ currentCar.title }}</div>
           <div class="description__text">{{ currentCar.models }}</div>
-          <div class="description__price">{{ currentCar.price }} ₽</div>
+          <div class="description__price">{{ currentCar.price | toUSD }} ₽</div>
         </div>
       </div>
       <div class="car-class__content">
@@ -68,6 +68,11 @@
     computed: {
       currentCar() {
         return this.$store.state.current;
+      }
+    },
+    filters: {
+      toUSD (value) {
+        return String(value).replace(/(\d)(?=(\d{3})+([^\d]|$))/g, '$1 ');
       }
     },
     data() {

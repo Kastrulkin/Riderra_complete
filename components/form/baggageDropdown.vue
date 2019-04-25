@@ -6,7 +6,7 @@
 
       <div class="field__usage-box" v-if="item.data === 'iterate'">
         <div class="field__iterate field__iterate--minus" :class="{disabled: item.myVal == 0 }" @click="iterateBack(item, i)">&ndash;</div>
-        <input class="field__input" type="text" v-model.number="item.myVal" readonly>
+        <input class="field__input" type="text" :name="item.name" v-model.number="item.myVal" readonly>
         <div class="field__iterate field__iterate--plus" @click="iterateForward(item, i)">&#43;</div>
       </div>
 
@@ -14,6 +14,7 @@
                 :allowEmpty="false"
                 :searchable="false"
                 v-model="item.myVal"
+                :name="item.name"
                 :options="item.list"
                 v-if="item.data === 'list'">
       </v-select>
@@ -56,31 +57,38 @@
             data: 'iterate',
             title: 'Пассажиры',
             icon: '/img/baggage/passenger.svg',
-            myVal: 0
+            myVal: 0,
+            name: 'passangers'
 
           }, {
             data: 'iterate',
             title: 'Багаж',
             icon: '/img/baggage/baggage.svg',
-            myVal: 0
+            myVal: 0,
+            name: 'baggage'
+
 
           }, {
             data: 'iterate',
             title: 'Животные',
             icon: '/img/baggage/pet.svg',
-            myVal: 0
+            myVal: 0,
+            name: 'pets'
           }, {
             data: 'list',
             title: 'Детские кресла 3-6 лет (15-25 кг) ',
             icon: '/img/baggage/kid.svg',
             myVal: '0',
-            list: ['0',1,2]
+            list: ['0',1,2],
+            name: 'kid_seats_3_6'
           }, {
             data: 'list',
             title: 'Детские кресла 6-12 лет (22-36 кг) ',
             icon: '/img/baggage/kid.svg',
             myVal: '0',
-            list: ['0', 1, 2 ]
+            list: ['0', 1, 2 ],
+            name: 'kid_seats_6_12'
+
           }
         ]
       }

@@ -2,7 +2,7 @@
   <div class="prebooking__field text-field">
     <input class="prebooking__input" type="text" :name="data.name" :placeholder="data.placeholder"
            autocomplete="off"
-           ref="acInput" @input="initService" @blur="onBlur">
+           ref="acInput" @input="initService" v-click-outside="blur">
     <div class="dropdown dropdown-cities" >
       <div v-bar>
         <ul class="points-list"  >
@@ -141,17 +141,10 @@
         this.$store.commit(`${inputName}Update`, item);   // Передаем данные выбранных точек в $store
         wrap.classList.remove('active');  // Закрываем окно выборки адресов
       },
-      onFocus() {
-        this.cityList = true;
-
-        if (!this.$refs.acInput.length) {
-          this.results = [];
-        }
-      },
-      onBlur() {
+      blur() {
         setTimeout(() => {
           this.$el.classList.remove('active')
-        }, 500)
+        }, 100)
       }
     }
   }
@@ -175,10 +168,6 @@
     pointer-events: none;
     padding-bottom: 15px;
     padding-top: 12px;
-    transform: translate3d(0, 10px, 0);
-    transition: transform 150ms, opacity 150ms;
-
-
 
     .map {
       width: 189px;
@@ -209,7 +198,25 @@
 
   @media (max-width: 667px){
     .dropdown-cities{
+      flex-direction: column;
+      width: 100%;
+      height: auto;
+      padding-bottom: 0;
+      overflow: hidden;
 
+      .map{
+        width: 100%;
+        margin-top: 20px;
+        margin: 20px 0 0 0;
+      }
+    }
+
+    .points-list{
+      max-height: 210px;
+    }
+
+    .text-field:nth-child(2).active .dropdown-cities{
+      left: 0;
     }
   }
 
