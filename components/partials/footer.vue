@@ -18,12 +18,12 @@
       <div class="col-sm-3 col-xs-12 ">
         <div class="socials">
           <a href="#" class="socials__link">
-            <svg width="20" height="21" viewBox="0 0 20 21" fill="none">
+            <svg width="21" height="21" viewBox="0 0 20 21" fill="none">
               <use xlink:href="/sprite.svg#insta"></use>
             </svg>
           </a>
           <a href="#" class="socials__link">
-            <svg width="21" height="12" viewBox="0 0 21 12">
+            <svg width="21" height="13" viewBox="0 0 21 12">
               <use xlink:href="/sprite.svg#vk"></use>
             </svg>
           </a>

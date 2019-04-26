@@ -139,7 +139,7 @@
     align-items: flex-start;
     color: #fff;
     position: absolute;
-    bottom: 55px;
+    bottom: 150px;
     left: 50%;
     transform: translate3d(-50%, 0, 0);
 
@@ -197,6 +197,8 @@
       height: 100vh;
       background: #702283;
       position: relative;
+      min-height: 600px;
+      max-height: 800px;
     }
     &__close {
       display: block;
@@ -209,6 +211,13 @@
       cursor: pointer;
       z-index: 20;
       padding: 14px;
+      background: #2F80ED;
+      border-radius: 50%;
+      transition: background-color 150ms;
+
+      &:hover{
+        background: #619EF1;
+      }
 
       svg{
         max-width: 100%;
@@ -251,6 +260,7 @@
   @media (max-width: 1024px){
 
     .description{
+      bottom: 90px;
 
       &__title{
         font-size: 26px;
@@ -265,6 +275,13 @@
       }
 
     }
+
+    .car-class{
+
+      &__header{
+        height: 600px;
+      }
+    }
   }
 
   @media (max-width: 767px) {
@@ -274,12 +291,16 @@
       &__header{
         min-height: 480px;
         overflow: hidden;
+        height: 100vh;
       }
 
       &__close{
-        top: 10px;
-        right: 10px;
+        top: 25px;
+        right: 25px;
         padding: 15px;
+        width: 38px;
+        height: 38px;
+        padding: 10px;
       }
 
       &__descr{
@@ -289,12 +310,15 @@
       &__content{
         padding-bottom: 70px;
       }
+
+
     }
 
     .description{
       width: 90%;
       padding: 0;
-      flex-wrap: wrap;
+      flex-direction: column;
+      bottom: 60px;
 
       &__title{
         font-size: 18px;
@@ -303,7 +327,7 @@
 
       &__text{
         font-size: 12px;
-        width: 50%;
+        width: 70%;
         margin: 0;
 
       }
@@ -311,7 +335,7 @@
       &__price{
         font-size: 18px;
         width: 50%;
-        margin-left: auto;
+        margin-left: 0;
         margin-top: 20px;
       }
 

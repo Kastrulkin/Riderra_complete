@@ -342,6 +342,8 @@
     .header{
       padding-top: 25px;
       padding-bottom: 25px;
+      padding-left: 0;
+      padding-right: 0;
 
       &__right{
         display: none;

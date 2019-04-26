@@ -43,9 +43,6 @@
       height: auto;
       align-self: stretch;
 
-      &:hover{
-        transform: translate3d(0, -10px, 0) !important;
-      }
     }
     .swiper-slide-active,
     .swiper-slide-next,
@@ -62,6 +59,10 @@
       min-height: 100%;
       height: 100%;
       display: flex;
+
+      &:hover {
+        transform: translate3d(0, -10px, 0);
+      }
     }
 
     &__inner {
@@ -72,10 +73,9 @@
       background: #fff;
       transition: all 250ms;
 
-      &:hover{
+      &:hover {
         box-shadow: 0px 19px 30px rgba(178, 178, 178, 0.6);
       }
-
 
     }
 
@@ -98,32 +98,32 @@
     }
   }
 
-  @media all and (max-width: 991px) {
+  @media all and (max-width: 1024px) {
 
     .reviews {
 
-      &__title {
-        font-size: 14px;
+      &__item {
+        transform: translate3d(0, 0, 0);
       }
 
       &__title {
         font-size: 12px;
       }
 
-      &__inner{
+      &__inner {
         padding: 30px 17px;
       }
 
-      &__desc{
+      &__desc {
         width: 100%;
       }
     }
   }
 
   @media all and (max-width: 767px) {
-    .reviews{
+    .reviews {
 
-      &__item{
+      &__item {
         width: 80%;
       }
     }

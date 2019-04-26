@@ -50,10 +50,10 @@
 
     &__wrap {
       display: block;
-      height: 100%;
+      min-height: 100%;
       overflow-y: scroll;
       padding-top: 85px;
-      padding-bottom: 200px;
+      padding-bottom: 150px;
     }
 
     &__tel {

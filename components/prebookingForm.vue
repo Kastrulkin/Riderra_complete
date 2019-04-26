@@ -72,8 +72,8 @@
           <input class="race-field__input prebooking__input" type="text" name="race"
                  placeholder="Номер рейса/поезда/корабля (необязательно)">
         </div>
-        <!--<nuxt-link to="/transport" class="button prebooking__submit" @click.prevent="sendForm">Заказать</nuxt-link>-->
-        <div @click.capture="sendForm">Заказать</div>
+        <nuxt-link to="/transport" class="button prebooking__submit" @click.native="sendForm">Заказать</nuxt-link>
+        <!--<div @click.capture="sendForm">Заказать</div>-->
 
 
       </div>
@@ -273,6 +273,8 @@
       z-index: 2;
       padding: 12px 16px;
 
+
+
       &:focus {
         box-shadow: 0 0 0 2px #2F80ED;
         z-index: 3;
@@ -293,11 +295,19 @@
       height: 56px;
       position: relative;
 
-      &.active .dropdown-cities {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-        pointer-events: all;
+      &.active {
+        .dropdown-cities {
+          opacity: 1;
+          transform: translate3d(0, 0, 0);
+          pointer-events: all;
+        }
+
+        &__input {
+          box-shadow: 0 0 0 2px #2F80ED;
+          z-index: 3;
+        }
       }
+
     }
   }
 
@@ -699,7 +709,6 @@
         width: 30px;
         height: 100%;
         position: absolute;
-        z-index: -1;
         opacity: 0;
       }
     }

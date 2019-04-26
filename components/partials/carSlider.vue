@@ -181,10 +181,6 @@
       opacity: 1;
       transform: translate3d(0, 0, 0);
 
-      &:hover{
-        transform: translate3d(0, -10px, 0);
-
-      }
     }
 
     &.swiper-container {
@@ -204,16 +200,9 @@
       &:hover,
       &:focus {
         transform: translate3d(0,-10px,0);
-
-        /*box-shadow: 0 20px 90px 3px rgba(112, 34, 131, .8);*/
         box-shadow: 0 20px 90px 3px;
         text-decoration: none;
         outline: none;
-
-        .cars__img{
-          //transform: translate3d(-35%,0,0);
-        }
-
       }
     }
 
@@ -254,6 +243,11 @@
 
       &__item {
         padding: 30px 0;
+
+        &:focus,
+        &:hover{
+          transform: translate3d(0,0,0);
+        }
       }
 
       &__figure{

@@ -400,6 +400,7 @@ input[type="tel"]{
     height: 18px;
     margin-right: 7px;
     cursor: pointer;
+    background: transparent;
 
     &:before {
       content: "";
@@ -506,6 +507,20 @@ input[type="tel"]{
   }
 }
 
+.modal-cars{
+
+  &__swiper{
+
+    .swiper-pagination-bullet{
+      background: #fff;
+    }
+
+    .swiper-pagination-bullet-active{
+      border: 1px solid #fff;
+      background: transparent;
+    }
+  }
+}
 .dropdown .v-select {
   color: #000;
   font-family: 'Montserrat';

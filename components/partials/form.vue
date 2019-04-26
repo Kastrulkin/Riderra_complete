@@ -31,7 +31,7 @@
         </div>
         <div class="form__item">
           <!--<input class="form__button button" type="submit" value="Отправить">-->
-          <nuxt-link class="form__button button" to="/payment">Отправить</nuxt-link>
+          <nuxt-link class="form__button button" to="/payment" @click.native="closePopup">Отправить</nuxt-link>
         </div>
       </div>
     </form>
@@ -46,6 +46,8 @@
     components: {
       MaskedInput
     },
+    computed: {
+    },
     data(){
       return {
         fields: [
@@ -59,15 +61,18 @@
     methods:{
       clone(index){
         // this.fields.splice(index, 0, this.fields[index])
-        console.log(this.fields)
+        // console.log(this.fields)
         this.fields.push({
           name: '',
           phone: ''
         });
       },
       remove(index){
-        console.log(index)
+        // console.log(index)
         this.fields.splice(index, 1);
+      },
+      closePopup(){
+        this.$store.commit('showPopup', false);
       }
     }
   }
@@ -289,6 +294,10 @@
       &__button{
         height: 50px;
         line-height: 50px;
+      }
+
+      &__item-label{
+        display: none;
       }
     }
   }
