@@ -180,6 +180,10 @@
       display: none;
     }
 
+    .inner-page .menu-toggle__line{
+      background: #fff;
+    }
+
     .logo{
 
       &__img{
