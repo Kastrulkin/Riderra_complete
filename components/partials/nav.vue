@@ -1,5 +1,5 @@
 <template>
-  <header class=" header">
+  <header class="header" :class="{'menu-open': menu}">
     <div class="header__container container">
     <div class="logo">
       <nuxt-link to="/" class="logo__link">
@@ -172,6 +172,26 @@
 
     .header{
       display: none;
+    }
+  }
+
+  .menu-open.header{
+    .tabs-container{
+      display: none;
+    }
+
+    .logo{
+
+      &__img{
+
+        &--sub{
+          display: none;
+        }
+
+        &--main{
+          display: block;
+        }
+      }
     }
   }
 

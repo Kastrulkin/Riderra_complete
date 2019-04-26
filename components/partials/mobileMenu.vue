@@ -34,7 +34,7 @@
 <style scoped lang="scss">
   .mobile-menu {
     width: 100%;
-    height: 100%;
+    height: 100vh;
     position: fixed;
     top: 0;
     left: 0;
@@ -43,6 +43,9 @@
     z-index: 30;
     display: block;
     -webkit-overflow-scrolling: touch;
+    overflow-y: scroll;
+
+    
 
     a {
       text-decoration: none;
