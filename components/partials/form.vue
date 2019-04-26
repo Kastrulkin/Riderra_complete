@@ -184,10 +184,7 @@
       margin-bottom: 20px;
       position: relative;
 
-
     }
-
-
 
     &__item{
       width: 50%;
@@ -221,9 +218,9 @@
       pointer-events: none;
       position: absolute;
       top: -10px;
+      left: 0;
       transform: translate3d(0, -50%, 0);
       transition: all 150ms;
-
       font-size: 14px;
       color: #7D7D7D;
       font-weight: normal;

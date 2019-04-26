@@ -28,7 +28,7 @@
           <label class="date-field__item date-field__item--calendar calendar" ref="dateField"  >
             <!--<datepicker @selected="calendarSelect" :language="calendar.lang" ref="datepick" v-model="today" id="datepick"></datepicker>-->
             <no-ssr>
-              <date-picker :lang="lang" ref="datepick" v-model="today" clearable="false"></date-picker>
+              <date-picker :lang="lang" ref="datepick" v-model="today" :clearable="false"></date-picker>
             </no-ssr>
             <input class="calendar__input" v-model="today" type="date" name="start_time_date">
             <!--<svg width="26" height="26" viewBox="0 0 26 26" @click.capture="showCalendar">-->

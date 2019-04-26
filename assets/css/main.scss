@@ -658,8 +658,9 @@ input::placeholder {
 
 @media all and (max-width: 1024px) {
   .mx-datepicker{
-    display: none;
+    display: none !important;
   }
+  
   body {
     font-size: 12px;
   }
