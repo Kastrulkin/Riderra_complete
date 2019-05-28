@@ -2,7 +2,6 @@
 
   <form class="prebooking" action="" ref="form">
 
-    <!--<calendar></calendar>-->
     <div class="prebooking__wrap">
       <div class="prebooking__row">
         <city-field v-for="(item,i) in placeInputs" :data="item" :key="i"></city-field>
@@ -40,7 +39,7 @@
 
         <!--Time field-->
         <div class="prebooking__field time-field" ref="timeField" @click="timeFocus" v-click-outside="timeBlur">
-          <masked-input mask="11:11" type="text" class="prebooking__input time-field__input" placeholder="22:00"
+          <masked-input mask="11:11" type="text" name="time" class="prebooking__input time-field__input" placeholder="22:00"
                         v-model="myTime" @input="timeInput"
                  />
           <svg class="time-field__icon" width="26" height="26" viewBox="0 0 26 26" fill="none">
@@ -56,30 +55,32 @@
         </div>
 
         <!--Baggage field-->
-        <label class="prebooking__field baggage-field" ref="baggageField" :class="{active: baggageFocus}">
+        <div class="prebooking__field baggage-field" ref="baggageField" :class="{active: baggageFocus}">
           <svg class="baggage-field__icon" width="11" height="7" viewBox="0 0 11 7" fill="none"
                xmlns="http://www.w3.org/2000/svg">
             <use xlink:href="/sprite.svg#arrow"></use>
           </svg>
           <input class="baggage__input prebooking__input" type="text" name="baggage"
-                 placeholder="Для 1-2 пассажиров с багажом" readonly @click="baggageIn" v-click-outside="baggageOut">
-          <transition name="dropdown" mode="out-in">
+                 placeholder="Для 1-2 пассажиров с багажом" readonly @click.self="baggageIn($event)" v-click-outside="baggageOut">
+          <transition name="fade">
             <baggage-dropdown></baggage-dropdown>
           </transition>
-        </label>
+        </div>
 
         <div class="prebooking__field race-field" v-show="pointFrom">
           <input class="race-field__input prebooking__input" type="text" name="race"
                  placeholder="Номер рейса/поезда/корабля (необязательно)">
         </div>
-        <nuxt-link to="/transport" class="button prebooking__submit" @click.native="sendForm">Заказать</nuxt-link>
-        <!--<div @click.capture="sendForm">Заказать</div>-->
+        <div class="prebooking__submit" @click.capture="sendForm($event)">
+          <nuxt-link to="/transport" class="button" :class="{disabled: !submitActive}" >Заказать</nuxt-link>
+        </div>
+
+        <!--<div @click="sendForm">Заказать</div>-->
 
 
       </div>
 
     </div>
-
   </form>
 </template>
 
@@ -108,14 +109,69 @@
     },
     computed: {
       pointFrom() {
-        return this.$store.getters.getPointFrom;
+        return this.$store.state.points.from;
+      },
+      pointTo(){
+        return this.$store.state.points.to;
+      },
+      points(){
+        return this.$store.getters.getPoints;
       },
       tomorrow(){
         return moment(this.today).add(1, 'days');
       },
       afterTomorrow() {
         return moment(this.today).add(2, 'days');
-      }
+      },
+      distanceLimit(){
+        let that = this;
+        if(this.pointFrom){
+          let myCoords = {
+            to: {
+              lat: this.points.to.location.lat,
+              lng: this.points.to.location.lng
+            },
+            from: {
+              lat: this.points.from.location.lat,
+              lng: this.points.from.location.lng
+            }
+          };
+
+          var directionsService = new google.maps.DirectionsService();
+          var directionsDisplay = new google.maps.DirectionsRenderer();
+
+          var request = {
+            origin: new google.maps.LatLng(myCoords.from.lat, myCoords.from.lng),
+            destination: new google.maps.LatLng(myCoords.to.lat, myCoords.to.lng),
+            travelMode: 'DRIVING',
+
+          };
+
+          directionsService.route(request, function (response, status) {
+            if (status == google.maps.DirectionsStatus.OK) {
+
+              var route = response.routes[0].legs[0];
+
+
+              directionsDisplay.setDirections(response);
+
+              var distance = route.distance.value / 1000;
+
+              that.$store.commit('setDistance', distance);
+
+
+            }
+          });
+
+        }
+
+        return (this.$store.getters.getDistance <= 200);
+      },
+      submitActive(){
+        return (this.pointTo && this.pointFrom && this.distanceLimit)
+      },
+
+
     },
     filters: {
       moment: function (date) {
@@ -139,35 +195,38 @@
         baggageFocus: false,
         placeInputs: [
           {
-            name: 'fromPoint',
+            name: 'from',
             placeholder: 'Откуда',
           },
           {
-            name: 'toPoint',
+            name: 'to',
             placeholder: 'Куда',
           }
         ],
         formData: null
       }
     },
+
     methods: {
-      sendForm(){
-        let form = this.$refs.form,
+      sendForm(event){
+
+        let that = this,
+          form = this.$refs.form,
           formData = new FormData(form),
           dataList = {};
 
         formData.forEach((value, key) => {
           dataList[key] = value;
-          console.log(dataList[key])
-
-
-
+          // console.log(dataList[key])
         });
+        this.formData = dataList;
+        this.$store.commit('setFormData', dataList);
 
-        // this.formData = dataList;
+        console.log(this.$store.state.points.to)
 
-        console.log(dataList)
-
+        localStorage.setItem('formData', JSON.stringify(dataList));
+        localStorage.setItem('from', JSON.stringify(this.pointFrom));
+        localStorage.setItem('to', JSON.stringify(this.pointTo));
 
 
 
@@ -184,16 +243,22 @@
 
       },
       calendarSelect(date){
-        console.log(date);
         this.today = date;
         // this.$refs.datepick.close()
         this.$refs.dateField.classList.remove('active');
       },
-      baggageIn() {
+      baggageIn(event) {
+        if(event.target.closest('.dropdown')) return;
+
         this.$refs.baggageField.classList.toggle('active');
+
+        // console.log(event)
       },
-      baggageOut() {
+      baggageOut(event) {
+        if(event.target.closest('.dropdown')) return;
         this.$refs.baggageField.classList.remove('active');
+
+        // console.log(event)
       },
       momentDay() {
         return moment();
@@ -202,7 +267,6 @@
 
       },
       setTime(time) {
-        console.log(time)
 
         this.myTime = time;
         this.timeBlur();
@@ -461,8 +525,13 @@
       }
 
       .baggage__input{
-        box-shadow: 0 0 0 2px #2F80ED;
+        box-shadow: 0 0 0 2px #2F80ED !important;
         z-index: 3;
+      }
+
+      .baggage-field__icon{
+        transform: translate3d(0, -50%, 0) rotateX(180deg);
+
       }
     }
 
@@ -476,17 +545,11 @@
       &::placeholder {
         font-size: 12px;
       }
-    }
 
-    /*.baggage__input:focus {
-      box-shadow: 0 0 0 2px #2F80ED;
-      z-index: 2;
+      &:focus{
+        box-shadow: none;
+      }
     }
-    .baggage__input:focus + .dropdown-cities {
-      opacity: 1;
-      pointer-events: all;
-
-    }*/
 
     .dropdown-cities:hover {
       opacity: 1;
@@ -497,11 +560,11 @@
     &__icon {
       position: absolute;
       top: 50%;
-      transform: translate3d(0, -50%, 0);
+      transform: translate3d(0, -50%, 0) rotateX(0);
       right: 22px;
       z-index: 5;
-      transform-origin: top center;
-      transition: all 150ms;
+      transform-origin: center;
+      transition: all 150ms ease;
     }
   }
 
@@ -810,5 +873,8 @@
     .date-field__item{
       margin-right: 3px;
     }
+  }
+  .disabled{
+    pointer-events: none;
   }
 </style>

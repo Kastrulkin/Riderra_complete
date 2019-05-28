@@ -1,5 +1,5 @@
 <template>
-  <div class="dropdown dropdown-cities baggage-field__dropdown">
+  <div class="dropdown dropdown-cities baggage-field__dropdown" ref="dropdown">
     <div class="dropdown-cities__row field" v-for="(item, i) in fields" :key="i">
       <div class="field__icon" v-bind:style="{ 'background-image': 'url(' + item.icon + ')' }"></div>
       <div class="field__title" v-html="item.title"></div>
@@ -10,16 +10,19 @@
         <div class="field__iterate field__iterate--plus" @click="iterateForward(item, i)">&#43;</div>
       </div>
 
-      <v-select id="mySelect" class="field__select"
-                :allowEmpty="false"
-                :searchable="false"
-                v-model="item.myVal"
-                :name="item.name"
-                :options="item.list"
-                v-if="item.data === 'list'">
-      </v-select>
+      <b-select class="field__select"
+                v-if="item.data === 'list'"
+                :data="item" :key="i"
+                :data-name="i" @click.native.stop="showDropdown($event)" v-click-outside.stop="hideDropdown" v-on:hide="hideDropdown">
+      </b-select>
     </div>
-
+    <div class="field">
+      <select name="number" id="">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
     <div class="field ">
       <div  class="field__rental policy ">
         <label class="policy__label field__title">
@@ -27,13 +30,14 @@
           <p class="subtitle">После 15 часов поездки будет смена водителя.</p>
         </label>
         <div class="field__wrap" :class="{disabled: !hourlyRental}">
-          <v-select class="field__select mySelect"
-                    :allowEmpty="false"
-                    :searchable="false"
-                    :options="hours"
-                    v-model="selectedHour"
-          >
-          </v-select>
+
+          <!--<b-select class="field__select mySelect"
+                  :data="hours">
+          </b-select>-->
+          <b-select class="field__select"
+                    :data="hours"
+                    @click.native.stop="showDropdown($event)" v-click-outside.stop="hideDropdown" v-on:hide="hideDropdown">
+          </b-select>
           <p class="subtitle">{{`До ${selectedHour}`}}</p>
 
         </div>
@@ -46,12 +50,19 @@
 
 
 <script>
+  import bSelect from '~/components/form/baggageSelect.vue'
   export default {
+    components: {
+      bSelect
+    },
     data() {
       return {
         hourlyRental: false,
         selectedHour: 0,
-        hours: [0,1,2,3,4,5,6,7,8,9,10,11,12],
+        hours: {
+          list: [0,1,2,3,4,5,6,7,8,9,10,11,12],
+
+        },
         fields: [
           {
             data: 'iterate',
@@ -94,10 +105,31 @@
       }
     },
     methods:{
+      showDropdown(event){
+        this.hideDropdown();
+
+        if(event.target.classList.contains('dropdown__item')){
+          return;
+        }
+
+        event.currentTarget.classList.toggle('active')
+        console.log('emit show')
+
+      },
+      hideDropdown(event){
+        let that = this,
+            selects = this.$refs.dropdown.querySelectorAll('.select');
+
+        selects.forEach(function(item){
+          item.classList.remove('active')
+        })
+        console.log('emit hide')
+
+      },
       iterateBack(field, i){
         if(this.fields[i].myVal === 0) return;
         this.fields[i].myVal--;
-        console.log(this.fields)
+        // console.log(this.fields)
       },
       iterateForward(field, i){
         if(this.fields[i].myVal >= 4) return;

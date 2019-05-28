@@ -87,7 +87,6 @@
 
           if (item === self.currentCar) {
             self.$refs.mySlider.swiper.slideTo(index);
-            console.log(index)
 
           }
 

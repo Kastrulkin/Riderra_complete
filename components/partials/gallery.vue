@@ -73,7 +73,7 @@
         appendNewImg();
 
         if (currentImg % 10 == 0){
-          console.log(wrap.querySelectorAll('.item-disabled'));
+          // console.log(wrap.querySelectorAll('.item-disabled'));
           wrap.querySelectorAll('.item-disabled').forEach(el => el.remove());
         }
 

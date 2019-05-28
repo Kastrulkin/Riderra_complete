@@ -116,7 +116,7 @@
   }
 
   &__content {
-    margin-top: 30px;
+    margin-top: 60px;
     width: calc(67% - 30px);
     margin-left: auto;
   }
@@ -245,7 +245,10 @@
     height: 80%;
     width: 75%;
     position: absolute;
-    background: url(/img/cars/econom.png) center right no-repeat / cover;
+    -webkit-background-size: cover;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center right;
     transform: translate3d(-50%, -50%, 0);
     left: 0;
     top: 50%;

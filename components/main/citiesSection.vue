@@ -10,7 +10,7 @@
       </div>
     </div>
     <div class="cities">
-      <gallery></gallery>
+      <!--<gallery></gallery>-->
     </div>
   </section>
 </template>

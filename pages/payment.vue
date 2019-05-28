@@ -4,12 +4,11 @@
     <div class="container">
       <div class=" payment__container">
         <div class="car-type">
-
-          <div class="car-type__figure"></div>
+          <div class="car-type__figure" :style="{ backgroundImage: 'url(' + currentCar.src + ')'}"></div>
           <div class="car-type__title">
-            Люкс
+            {{currentCar.title}}
           </div>
-          <div class="car-type__price">15 000 ₽</div>
+          <div class="car-type__price">{{currentCar.price | toUSD}}&nbsp;₽</div>
         </div>
         <div class="payment__wrap">
           <div class="payment__item" :class="{active: currentTab === tab}" v-for="(tab, i) in tabs" :key="i" @click="toggleTab(tab)">
@@ -36,14 +35,9 @@
           <component :is="currentTab.name"></component>
         </transition>
       </div>
-
-
     </div>
     <form-feedback :data="formData"></form-feedback>
-
-
     <my-map></my-map>
-
 
   </div>
 </template>
@@ -61,6 +55,16 @@
 
   export default {
     components: {orderCaption, myMap, MaskedInput, cash, card, formFeedback},
+    computed: {
+      currentCar(){
+        return this.$store.state.current;
+      }
+    },
+    filters: {
+      toUSD (value) {
+        return String(value).replace(/(\d)(?=(\d{3})+([^\d]|$))/g, '$1 ');
+      }
+    },
     data() {
       return {
         cash: false,
@@ -100,6 +104,11 @@
       toggleTab(name) {
         this.currentTab = name;
       }
+    },
+
+    mounted(){
+
+
     }
 
   }

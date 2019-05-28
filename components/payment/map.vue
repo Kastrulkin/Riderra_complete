@@ -11,26 +11,61 @@
         </svg>
 
       </div>
-      <div class="order" ref="order">
-        <div class="details__close">Изменить</div>
-        <div class="order__row">
-          <div class="order__title">Откуда</div>
-          <div class="order__desc">
-            test
-          </div>
+      <div class="details__order order">
+      <div class="details__close" @click="showData">Изменить</div>
+      <div class="order__row" >
+        <div class="order__title">Откуда</div>
+        <div class="order__desc">
+          {{ points.from.description }}
         </div>
-        <div class="order__row">
-          <div class="order__title">Куда</div>
-          <div class="order__desc">
-            test
-          </div>
-        </div>
+      </div>
 
-        <div class="order__row">
-          <div class="order__wishes">
-            Client wishes
-          </div>
+      <div class="order__row">
+        <div class="order__title">Куда</div>
+        <div class="order__desc">
+          {{ points.to.description }}
+
         </div>
+      </div>
+      <div class="order__row">
+        <div class="order__title">Дата</div>
+        <div class="order__desc">
+          {{ myData.date }}
+
+        </div>
+      </div>
+      <div class="order__row">
+        <div class="order__title">Время</div>
+        <div class="order__desc">
+          {{ myData.time }}
+
+        </div>
+      </div>
+      <div class="order__row">
+        <div class="order__title">Тариф</div>
+        <div class="order__desc">
+          {{ currentCar.title }}
+
+        </div>
+      </div>
+      <div class="order__row">
+        <div class="order__title">Багаж</div>
+        <div class="order__desc">
+          {{ myData.baggage }}
+        </div>
+      </div>
+      <div class="order__row">
+        <div class="order__title">Детское кресло</div>
+        <div class="order__desc">
+          {{ points.to.description }}
+        </div>
+      </div>
+
+      <div class="order__row">
+        <div class="order__wishes">
+          Client wishes
+        </div>
+      </div>
       </div>
     </div>
 
@@ -40,21 +75,49 @@
 
 <script>
   export default {
+    computed: {
+      currentCar() {
+        return this.$store.state.current;
+      },
+      points() {
+        return this.$store.state.points;
+      },
+      pointTo() {
+        return this.$store.state.points.to;
+      },
+      myData() {
+        return this.$store.state.formData;
+      }
+    },
     data() {
       return {
         map: null
       }
     },
     methods: {
+      showData() {
+        console.log(this.myData)
+      },
       toggleOrder() {
         this.$refs.order.classList.toggle('active')
       }
     },
     mounted() {
-      var that = this;
+
+      let that = this,
+          myCoords = {
+            to: {
+              lat: this.points.to.location.lat,
+              lng: this.points.to.location.lng
+            },
+            from: {
+              lat: this.points.from.location.lat,
+              lng: this.points.from.location.lng
+            }
+
+          };
       this.map = new google.maps.Map(
         this.$refs.mapRef, {
-          center: {lat: 60.023539414725356, lng: 30.283663272857666},
           zoom: 15,
           mapTypeControl: false,
           disableDefaultUI: true
@@ -64,21 +127,27 @@
       var directionsDisplay = new google.maps.DirectionsRenderer();
 
       var request = {
-        origin: new google.maps.LatLng(60.023539414725356, 30.283663272857666), //точка старта
-        destination: new google.maps.LatLng(59.79530896374892, 30.410317182540894), //точка финиша
-        travelMode: 'DRIVING', //режим прокладки маршрута
+        origin: new google.maps.LatLng(myCoords.from.lat, myCoords.from.lng),
+        destination: new google.maps.LatLng(myCoords.to.lat, myCoords.to.lng),
+        travelMode: 'DRIVING',
 
       };
 
+      // Прокладка маршрута
       directionsService.route(request, function (response, status) {
         if (status == google.maps.DirectionsStatus.OK) {
 
           var route = response.routes[0].legs[0];
 
+          // Добавляем маркеры
           createMarker(route.start_location, icon.start);
           createMarker(route.end_location, icon.end);
 
           directionsDisplay.setDirections(response);
+
+          var distance = route.distance.value / 1000;
+          that.$store.commit('setDistance', distance);
+
 
         }
       });

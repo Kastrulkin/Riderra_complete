@@ -58,7 +58,13 @@
         return this.$store.getters.getMenu;
       }
     },
-
+    head() {
+      return {
+        bodyAttrs: {
+          class: this.ua
+        },
+      }
+    },
     data(){
       return {
         mobileMenu: false,
@@ -82,7 +88,7 @@
         this.mobileMenu = !this.mobileMenu;
         this.$store.commit('toggleMenu', this.mobileMenu)
 
-        console.log(this.mobileMenu)
+        // console.log(this.mobileMenu)
 
 
       },
@@ -98,19 +104,40 @@
 
       }
     },
+    beforeMount(){
+      // Данные в localStorage
+
+      if( localStorage.getItem('currentCar') ){
+
+        let car = JSON.parse(localStorage.getItem('currentCar'));
+
+        let empty = { a : 'asd'}
+        this.$store.commit('setCar', car);
+        // this.$store.commit('setCar', empty);
+        // console.log(car)
+        // console.log(this.currentCar)
+      }
+
+      if(localStorage.getItem('formData')){
+        let formData = JSON.parse(localStorage.getItem('formData')),
+          pointFrom = JSON.parse(localStorage.getItem('from')),
+          pointTo = JSON.parse(localStorage.getItem('to'));
+
+        this.$store.commit('setData', formData);
+        this.$store.commit('fromPointUpdate', pointFrom);
+        this.$store.commit('toPointUpdate', pointTo);
+
+      }
+    },
     mounted(){
       var ua = navigator.userAgent.toLowerCase();
       if (ua.indexOf('safari') != -1 && ua.indexOf('chrome') === -1) {
         this.ua = 'safari'
       }
+
+
     },
-    head() {
-      return {
-        bodyAttrs: {
-          class: this.ua
-        },
-      }
-    },
+
   }
 </script>
 

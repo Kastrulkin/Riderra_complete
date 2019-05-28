@@ -26,6 +26,11 @@
     components: {
       calendar
     },
+    computed:{
+      points(){
+        return this.$store.getters.getPoints;
+      }
+    },
     data() {
       return {
         value: '',
@@ -55,6 +60,22 @@
           mapTypeControl: false,
           disableDefaultUI: true
         });
+
+      var input  = this.$refs.acInput;
+
+      if(this.$store.state.points.to && this.$store.state.points.from){
+        input.value = (input.name === 'to') ? (this.$store.state.points.to.description || '') : (this.$store.state.points.from.description || '');
+      }
+
+      if(localStorage.getItem('formData')){
+        let formData = JSON.parse(localStorage.getItem('formData'));
+
+        this.$store.commit('setData', formData);
+
+      }
+      /*if(this.$store.state.points.to && this.$store.state.points.from){
+        console.log('asd')
+      }*/
     },
     methods: {
 
@@ -62,7 +83,10 @@
         if (!predictions) return;
 
         var that = this,
-          placeService = new google.maps.places.PlacesService(this.map);
+          placeService = new google.maps.places.PlacesService(this.map),
+          country = '',
+          countryItem = '';
+
 
         if (status != google.maps.places.PlacesServiceStatus.OK) {
           return;
@@ -76,10 +100,21 @@
 
           };
 
-          // Определяем координаты, записываем их в объект
+          // Определяем координаты, записываем в объект
           placeService.getDetails(request, function (place, status) {
             if (status == google.maps.places.PlacesServiceStatus.OK) {
 
+              let arr = place.adr_address.split(', ');
+
+              arr.forEach((item) => {
+                if(item.includes('country-name')){
+                  countryItem = item;
+                }
+                // console.log(item)
+              });
+
+              country = countryItem.substring(countryItem.indexOf('>') + 1 , countryItem.lastIndexOf('</span'));
+              that.$store.commit('setCountry', country);
 
               let lat = place.geometry.location.lat(),
                 lng = place.geometry.location.lng();
@@ -90,8 +125,9 @@
         });
         if(predictions) that.$refs.acInput.closest('.prebooking__field').classList.add('active');
 
-
         that.results = predictions;
+
+        // console.log(that.$store.state.country)
 
       },
 
@@ -138,7 +174,7 @@
           inputName = input.name;
 
         input.value = item.description;   // Передаем значение в инпут
-        this.$store.commit(`${inputName}Update`, item);   // Передаем данные выбранных точек в $store
+        this.$store.commit(`${inputName}PointUpdate`, item);   // Передаем данные выбранных точек в $store
         wrap.classList.remove('active');  // Закрываем окно выборки адресов
       },
       blur() {
@@ -146,7 +182,8 @@
           this.$el.classList.remove('active')
         }, 100)
       }
-    }
+    },
+
   }
 </script>
 

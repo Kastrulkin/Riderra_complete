@@ -42,7 +42,7 @@
       }
     },
     mounted(){
-      console.log(google)
+      // console.log(google)
     }
 
   }

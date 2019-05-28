@@ -7,7 +7,8 @@ const createStore = () => {
     state: {
       popup: false,
       menu: false,
-      current:{
+      country: '',
+      current: {
         name: 'economy',
         src: '/img/cars/econom.png',
         color: '#E5006D',
@@ -16,6 +17,52 @@ const createStore = () => {
         desc: 'Багаж для 3 человек 3 места',
         price: 5000,
         models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
+      },
+      distance: '',
+      tarifs:{
+        'economy':{
+          'Россия': 1,
+          'Белоруссия': 1,
+          'Украина': 1,
+          'Казахстан': 1,
+          'Узбекистан': 1,
+          'Таджикистан': 1,
+          'Киргизия': 1,
+          'Хельсинки': 2,
+          'Стокгольм': 2,
+          'Рига': 2,
+          'Таллин': 2,
+          'Вильнюс': 2
+        },
+        'business':{
+          'Россия': 2,
+          'Белоруссия': 2,
+          'Украина': 2,
+          'Казахстан': 2,
+          'Узбекистан': 2,
+          'Таджикистан': 2,
+          'Киргизия': 2,
+          'Хельсинки': 4,
+          'Стокгольм': 4,
+          'Рига': 4,
+          'Таллин': 4,
+          'Вильнюс': 4
+        },
+        'luxury':{
+          'Россия': 2,
+          'Белоруссия': 2,
+          'Украина': 2,
+          'Казахстан': 2,
+          'Узбекистан': 2,
+          'Таджикистан': 2,
+          'Киргизия': 2,
+          'Хельсинки': 4,
+          'Стокгольм': 4,
+          'Рига': 4,
+          'Таллин': 4,
+          'Вильнюс': 4
+        },
+
       },
       cars: [
         {
@@ -66,17 +113,21 @@ const createStore = () => {
         from: null,
         to: null
       },
+      formData: null
 
     },
     getters: {
       getMenu: state => {
         return state.menu
       },
-      getPointFrom: state => {
-        return state.points.from
+      getPoints: state => {
+        return state.points
       },
       getCurrentCar: state => {
         return state.current;
+      },
+      getDistance: state => {
+        return state.distance;
       }
     },
     mutations: {
@@ -90,13 +141,29 @@ const createStore = () => {
         state.points.to = payload;
       },
       currentCar(state, payload) {
-        state.current = payload;
+        state.current = state.cars[payload];
       },
       sliderChangeCar(state, payload){
         state.current = state.cars[payload];
       },
       showPopup(state, payload){
         state.popup = payload;
+      },
+      setCountry(state, payload){
+        state.country = payload;
+      },
+      setFormData(state, payload){
+        state.formData = payload;
+      },
+      setDistance(state, payload){
+        state.distance = payload;
+      },
+      setCar(state, payload){
+        state.current = payload;
+      },
+      setData(state, payload){
+        state.formData = payload;
+
       }
     }
   });

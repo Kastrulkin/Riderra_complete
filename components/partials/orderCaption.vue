@@ -38,7 +38,7 @@
       changeTab(item) {
         this.current = item;
 
-        console.log(this.current === item)
+        // console.log(this.current === item)
       }
     },
     mounted(){

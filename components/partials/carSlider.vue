@@ -5,7 +5,8 @@
            :style="{ backgroundColor: slide.color, color: slide.color}"
            v-for="(slide, i) in cars"
            :key="i"
-            @click.capture="chooseCar(slide)">
+           @click="showPopup(i)"
+            >
         <figure class="cars__inner">
           <!--<img :src="slide.src" class="cars__img">-->
           <!--<div class="cars__img"
@@ -22,7 +23,9 @@
               <div class="cars-price__current">{{ slide.price | toUSD }} ₽</div>
               <div class="cars-price__prev" v-if="slide.prevPrice">{{ slide.prevPrice | toUSD}} ₽</div>
             </div>
-            <nuxt-link to="/payment" class="cars__button white-button" ref="chooseButton">Выбрать</nuxt-link>
+            <div @click.self="chooseCar(i)" class="cars__button" ref="chooseButton">
+              <nuxt-link to="/payment" class="cars__button-link white-button">Выбрать</nuxt-link>
+            </div>
           </figcaption>
         </figure>
       </div>
@@ -62,19 +65,36 @@
       }
     },
     methods:{
-      chooseCar(current){
-
+      showPopup(current){
         if(event.target.classList.contains('white-button')){
+          this.setCurrent(current)
           return ;
         }
-
-        this.$store.commit('currentCar', current);
+        this.setCurrent(current)
         this.$store.commit('showPopup', true);
 
+
+      },
+      setCurrent(current){
+        let that = this;
+        this.$store.commit('currentCar', current);
+        localStorage.setItem('currentCar', JSON.stringify(that.$store.state.current))
+      },
+      chooseCar(current){
+
+        // console.log('chooooose')
+        let that = this;
+        this.$store.commit('showPopup', false);
+
+        this.setCurrent(current)
+        // this.$store.commit('showPopup', true);
+
+          // console.log(this.$store.state.current)
 
 
 
       }
+
     },
     mounted() {
 
@@ -104,7 +124,13 @@
         max-width: 131px;
         margin-top: 0;
         height: 62px;
+        width: 100%;
 
+
+      }
+
+      &__button-link{
+        margin-top: 0;
         &:hover{
           color: #000;
           background: #fff;
@@ -168,6 +194,14 @@
 
     &__button{
       display: none;
+    }
+
+    &__button-link{
+      text-decoration: none;
+
+      &:hover{
+        text-decoration: none;
+      }
     }
 
     .swiper-slide {

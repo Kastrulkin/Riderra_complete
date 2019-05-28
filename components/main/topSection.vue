@@ -47,10 +47,6 @@
     align-items: center;
     position: relative;
 
-    &__content {
-
-    }
-
     &__title {
       color: #fff;
       width: 60%;
@@ -65,6 +61,7 @@
       bottom: 0;
       width: 100%;
       height: 100%;
+      overflow: hidden;
 
       &:before{
         content: '';

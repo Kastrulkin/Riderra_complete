@@ -24,7 +24,7 @@
       <div class="car-class__content">
         <div class="container">
           <div v-swiper:mySwiper="swiperData" class="slider" ref="mySlider">
-            <div class="swiper-wrapper ">
+            <div class="swiper-wrapper">
               <div class="swiper-slide slider__item"
                    v-for="(slide, i) in slides"
                    :key="i">
@@ -53,10 +53,13 @@
                 красного&nbsp;&mdash;
                 пино-нуар.
               </p>
+              <button class="button">Заказать</button>
+
             </div>
           </div>
         </div>
-        <form-feedback :data="formData"></form-feedback>
+        <!--<form-feedback :data="formData"></form-feedback>-->
+
       </div>
     </div>
   </div>
@@ -69,7 +72,7 @@
   import calendar from '~/components/partials/calendar.vue'
 
   export default {
-    components: {formFeedback, slider,calendar},
+    components: {formFeedback, slider, calendar},
     computed: {
       currentCar() {
         return this.$store.state.current;
@@ -197,7 +200,7 @@
       height: 100vh;
       background: #702283;
       position: relative;
-      min-height: 600px;
+      min-height: 650px;
       max-height: 800px;
     }
     &__close {
