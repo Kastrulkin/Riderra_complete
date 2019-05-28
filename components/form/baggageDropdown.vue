@@ -57,13 +57,13 @@
         return this.$store.state.media;
       },
       choosenTime(){
-        return this.$store.state.time;
+        return this.$store.getters.getTime;
       }
     },
     data() {
       return {
         hourlyRental: false,
-        selectedHour: '',
+        selectedHour: this.choosenTime,
         hours: {
           list: [0,1,2,3,4,5,6,7,8,9,10,11,12],
 
@@ -146,7 +146,11 @@
         var dt = new Date(),
             minutes, hour, min;
 
-        dt.setHours( 17, 0 );
+
+        let choosen = this.choosenTime.split(':');
+        let myHour = choosen[0]
+
+        dt.setHours( choosen[0], choosen[1] );
         hour = dt.setHours( dt.getHours() + val );
 
         minutes = (dt.getMinutes() < 10) ? `0${dt.getMinutes()}` : dt.getMinutes();

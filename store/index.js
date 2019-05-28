@@ -125,6 +125,9 @@ const createStore = () => {
       getPoints: state => {
         return state.points
       },
+      getTime: state => {
+        return state.time
+      },
       getCurrentCar: state => {
         return state.current;
       },

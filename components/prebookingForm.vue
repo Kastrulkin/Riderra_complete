@@ -53,8 +53,8 @@
             </div>
           </div>
 
-          <select name="time" class="time-field__select" v-model="myTime">
-            <option :value="el" v-for="(el, i) in time" :key="i">{{el}}</option>
+          <select name="time" class="time-field__select" v-model="myTime" @change="setTime(myTime)">
+            <option :value="myTime" v-for="(myTime, i) in time" :key="i"  >{{myTime}}</option>
           </select>
         </div>
 
@@ -280,6 +280,7 @@
 
 
         this.$store.commit('setTime', time)
+
 
       },
       timeFocus() {

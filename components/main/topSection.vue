@@ -2,7 +2,7 @@
   <section class="main-section ">
     <div class="main-section__video">
       <video loop="" muted="" autoplay="" playsinline=""
-             poster="/img/main_bg.jpg" class="main-section__bg-video">
+             poster="/img/main_bg.jpg" class="main-section__bg-video" ref="video">
         <source src="/video/main-video.mp4" type="video/mp4">
       </video>
     </div>
@@ -29,8 +29,18 @@
     components: {
       prebooking
     },
+    computed: {
+      media(){
+        return this.$store.state.media;
+      },
+    },
     data() {
       return {}
+    },
+    mounted() {
+      if(this.media === 'mobile'){
+        this.$refs.video.pause();
+      }
     }
   }
 </script>
@@ -53,7 +63,7 @@
       margin-bottom: 60px;
     }
 
-    &__video{
+    &__video {
       position: absolute;
       left: 0;
       right: 0;
@@ -63,7 +73,7 @@
       height: 100%;
       overflow: hidden;
 
-      &:before{
+      &:before {
         content: '';
         position: absolute;
         width: 100%;
@@ -72,7 +82,7 @@
         opacity: .4;
       }
 
-      &:after{
+      &:after {
         content: '';
         position: absolute;
         left: 0;
@@ -85,7 +95,7 @@
       }
     }
 
-    &__bg-video{
+    &__bg-video {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -95,17 +105,16 @@
 
   @media all and (max-width: 1024px) {
 
-    .main-section{
+    .main-section {
 
-      &__video:after{
+      &__video:after {
         transform: matrix(0.59, 0.96, -0.66, 0.63, 0, 0) translate3d(-160%, -30%, 0);
 
       }
     }
   }
 
-
-    @media all and (max-width: 767px) {
+  @media all and (max-width: 767px) {
     .main-section {
 
       &__title {
