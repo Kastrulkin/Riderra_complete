@@ -9,6 +9,7 @@ const createStore = () => {
       popup: false,
       menu: false,
       country: '',
+      time: '',
       current: {
         name: 'economy',
         src: '/img/cars/econom.png',
@@ -132,11 +133,14 @@ const createStore = () => {
       }
     },
     mutations: {
-      setQuery(state, pageName) {
-        state.media = pageName
+      setQuery(state, payload) {
+        state.media = payload
       },
-      toggleMenu(state, pageName) {
-        state.menu = pageName
+      setTime(state, payload) {
+        state.time = payload
+      },
+      toggleMenu(state, payload) {
+        state.menu = payload
       },
       fromPointUpdate(state, payload) {
         state.points.from = payload;

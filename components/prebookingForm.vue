@@ -24,7 +24,7 @@
           </label>
 
           <!--Date field-->
-          <label class="date-field__item date-field__item--calendar calendar" ref="dateField"  >
+          <label class="date-field__item date-field__item--calendar calendar" ref="dateField" >
             <!--<datepicker @selected="calendarSelect" :language="calendar.lang" ref="datepick" v-model="today" id="datepick"></datepicker>-->
             <no-ssr>
               <date-picker :lang="lang" ref="datepick" v-model="today" :clearable="false"></date-picker>
@@ -52,6 +52,10 @@
               </ul>
             </div>
           </div>
+
+          <select name="time" class="time-field__select" v-model="myTime">
+            <option :value="el" v-for="(el, i) in time" :key="i">{{el}}</option>
+          </select>
         </div>
 
         <!--Baggage field-->
@@ -108,6 +112,9 @@
       calendar, cityField, baggageDropdown, MaskedInput, datePicker
     },
     computed: {
+      media(){
+        return this.$store.state.media;
+      },
       pointFrom() {
         return this.$store.state.points.from;
       },
@@ -271,14 +278,22 @@
         this.myTime = time;
         this.timeBlur();
 
+
+        this.$store.commit('setTime', time)
+
       },
       timeFocus() {
+        if(this.media !== 'laptop') return;
+
         this.$refs.timeField.classList.add('active')
       },
       timeInput(){
+        if(this.media !== 'laptop') return;
         this.$refs.timeField.classList.remove('active')
       },
       timeBlur() {
+        if(this.media !== 'laptop') return;
+
         const that = this;
 
         setTimeout(function () {
@@ -300,9 +315,10 @@
       for (let i = 0; i < 94; i++) {
         this.time.push(endTime)
         endTime = moment(endTime, 'HH:mm').add(durationInMinutes, 'minutes').format('HH:mm');
-
-
       }
+
+      this.$store.commit('setTime', this.myTime)
+
     }
 
 
@@ -440,6 +456,17 @@
     position: relative;
     font-size: 18px;
     z-index: 1;
+
+    &__select{
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 10;
+      opacity: 0;
+      display: none;
+    }
 
     &.active{
       z-index: 2;
@@ -716,6 +743,10 @@
     .time-field {
       border-right: none;
       min-width: 105px;
+
+      &__select{
+        display: block;
+      }
 
       input {
         border-radius: 0 5px 5px 0;

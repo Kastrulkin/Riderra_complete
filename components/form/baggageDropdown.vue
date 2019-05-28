@@ -23,17 +23,21 @@
           <p class="subtitle">После 15 часов поездки будет смена водителя.</p>
         </label>
         <div class="field__wrap" :class="{disabled: !hourlyRental}">
-
-          <!--<b-select class="field__select mySelect"
-                  :data="hours">
-          </b-select>-->
           <b-select class="field__select"
                     :data="hours"
-                    @click.native.stop="showDropdown($event)" v-click-outside.stop="hideDropdown" v-on:hide="hideDropdown">
+                    @click.native.stop="showDropdown($event)" v-click-outside.stop="hideDropdown" v-on:hide="hideDropdown" ref="hoursInput" v-on:hourschange="setHours">
           </b-select>
-          <p class="subtitle">{{`До ${selectedHour}`}}</p>
-
+          <p class="subtitle" >{{`До ${selectedHour}`}}</p>
         </div>
+      </div>
+    </div>
+    <div class="field ">
+      <div  class="field__rental policy ">
+        <label class="policy__label field__title wide">
+          <input name="return_route" type="checkbox" class="policy__checkbox"><span>Потребуется обратный маршрут</span>
+          <p class="subtitle">Детали согласует оператор по телефону.</p>
+        </label>
+
 
       </div>
 
@@ -51,12 +55,15 @@
     computed:{
       media(){
         return this.$store.state.media;
+      },
+      choosenTime(){
+        return this.$store.state.time;
       }
     },
     data() {
       return {
         hourlyRental: false,
-        selectedHour: 0,
+        selectedHour: '',
         hours: {
           list: [0,1,2,3,4,5,6,7,8,9,10,11,12],
 
@@ -115,7 +122,6 @@
         }
 
         event.currentTarget.classList.toggle('active')
-        console.log('emit show')
 
       },
       hideDropdown(event){
@@ -125,7 +131,6 @@
         selects.forEach(function(item){
           item.classList.remove('active')
         })
-        console.log('emit hide')
 
       },
       iterateBack(field, i){
@@ -136,8 +141,23 @@
       iterateForward(field, i){
         if(this.fields[i].myVal >= 4) return;
         this.fields[i].myVal++;
-
       },
+      setHours(val){
+        var dt = new Date(),
+            minutes, hour, min;
+
+        dt.setHours( 17, 0 );
+        hour = dt.setHours( dt.getHours() + val );
+
+        minutes = (dt.getMinutes() < 10) ? `0${dt.getMinutes()}` : dt.getMinutes();
+        this.selectedHour = `${dt.getHours()}:${minutes}`;
+
+      }
+
+    },
+    mounted(){
+
+      this.setHours(0)
     }
   }
 </script>
@@ -165,6 +185,10 @@
         flex-wrap: wrap;
         max-width: 170px;
         padding-top: 3px;
+
+        &.wide{
+          max-width: 100%;
+        }
       }
 
       span{
@@ -238,6 +262,8 @@
       font-size: 14px;
       color: #000;
       max-width: 130px;
+
+
     }
 
     &__usage-box {

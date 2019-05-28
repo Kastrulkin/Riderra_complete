@@ -27,6 +27,14 @@
         oldTarget: ''
       }
     },
+    watch: {
+      value(ov, nv){
+        this.$emit('hourschange', ov)
+
+        // console.log(ov)
+
+      }
+    },
     methods: {
 
       setValue(a) {
@@ -34,6 +42,9 @@
 
         // закрываем dropdown
         this.$emit('hide');
+
+        this.$emit('hourschange', a)
+
       },
 
     },
