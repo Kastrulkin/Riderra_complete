@@ -73,6 +73,9 @@
       }
     },
     methods:{
+      mediaQuery() {
+        this.$store.commit('setQuery', window.innerWidth < 667 ? 'mobile' : ((window.innerWidth > 667 && window.innerWidth < 1023) ? 'tablet' : 'laptop'))
+      },
       menuToggle(){
         /*if(!this.menu){
           this.$refs.burger.classList.add('active');
@@ -130,6 +133,9 @@
       }
     },
     mounted(){
+
+      this.mediaQuery();
+      
       var ua = navigator.userAgent.toLowerCase();
       if (ua.indexOf('safari') != -1 && ua.indexOf('chrome') === -1) {
         this.ua = 'safari'

@@ -5,7 +5,7 @@
            ref="acInput" @input="initService" v-click-outside="blur">
     <div class="dropdown dropdown-cities" >
       <div v-bar>
-        <ul class="points-list"  >
+        <ul class="points-list">
           <li :data-addr="JSON.stringify(item.location)" v-for="(item, i) in results" :key="i"
               @mouseenter="placeHover(item)" @click="insertValue(item)">
             {{item.description}}

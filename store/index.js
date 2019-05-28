@@ -5,6 +5,7 @@ const createStore = () => {
   return new Vuex.Store({
 
     state: {
+      media: '',
       popup: false,
       menu: false,
       country: '',
@@ -131,6 +132,9 @@ const createStore = () => {
       }
     },
     mutations: {
+      setQuery(state, pageName) {
+        state.media = pageName
+      },
       toggleMenu(state, pageName) {
         state.menu = pageName
       },

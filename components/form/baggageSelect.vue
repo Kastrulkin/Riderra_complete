@@ -1,5 +1,5 @@
 <template>
-  <div class="select"  >
+  <div class="select">
     <div class="select__label">
       <input class="select__input" type="text" readonly v-model="value" :name="data.name">
       <i class="select__icon"></i>
@@ -8,6 +8,10 @@
         <li class="dropdown__item" v-for="(item,i) in data.list"  :key="i" @click="setValue(item)">{{item}}</li>
       </ul>
       </transition>
+
+      <select :name="data.name" class="select__item"  v-model="value">
+        <option :value="item" v-for="(item,i) in data.list" :key="i">{{item}}</option>
+      </select>
     </div>
   </div>
 </template>
@@ -47,6 +51,15 @@
     border: 1px solid rgba(60, 60, 60, .26);
     border-radius: 4px;
     width: 100%;
+
+    &__item{
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: none;
+    }
 
     &.active {
 
@@ -135,6 +148,16 @@
     }
 
 
+  }
+
+  @media (max-width: 1024px){
+    .select{
+
+      &__item{
+        display: block;
+        opacity: 0;
+      }
+    }
   }
 
 </style>

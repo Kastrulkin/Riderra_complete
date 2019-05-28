@@ -16,13 +16,6 @@
                 :data-name="i" @click.native.stop="showDropdown($event)" v-click-outside.stop="hideDropdown" v-on:hide="hideDropdown">
       </b-select>
     </div>
-    <div class="field">
-      <select name="number" id="">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-      </select>
-    </div>
     <div class="field ">
       <div  class="field__rental policy ">
         <label class="policy__label field__title">
@@ -54,6 +47,11 @@
   export default {
     components: {
       bSelect
+    },
+    computed:{
+      media(){
+        return this.$store.state.media;
+      }
     },
     data() {
       return {
@@ -107,6 +105,10 @@
     methods:{
       showDropdown(event){
         this.hideDropdown();
+
+        if(this.media !== 'laptop'){
+          return;
+        }
 
         if(event.target.classList.contains('dropdown__item')){
           return;
