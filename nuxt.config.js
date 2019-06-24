@@ -12,8 +12,8 @@ module.exports = {
     meta: [
       { charset: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1, user-scalable=no'},
-    ], meta: [
-      { name: 'verify-paysera', content: '786155b65babe25bf1107c05564237de'},
+      { name: 'verify-paysera', content: '4fb0d06e04f9c7483027d4d5562e04aa'},
+
     ],
     link: [
       { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
