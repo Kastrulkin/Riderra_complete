@@ -60,10 +60,15 @@
         return this.$store.getters.getTime;
       }
     },
+    watch: {
+      choosenTime(ov,nv){
+        this.setHours(0);
+      }
+    },
     data() {
       return {
         hourlyRental: false,
-        selectedHour: this.choosenTime,
+        selectedHour: '17:00',
         hours: {
           list: [0,1,2,3,4,5,6,7,8,9,10,11,12],
 
@@ -148,7 +153,7 @@
 
 
         let choosen = this.choosenTime.split(':');
-        let myHour = choosen[0]
+        let myHour = choosen[0];
 
         dt.setHours( choosen[0], choosen[1] );
         hour = dt.setHours( dt.getHours() + val );
@@ -160,8 +165,9 @@
 
     },
     mounted(){
+      // this.$store.commit('setTime', '17:00')
+      this.setHours(0);
 
-      this.setHours(0)
     }
   }
 </script>

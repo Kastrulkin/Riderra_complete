@@ -19,6 +19,11 @@
 <script>
   export default {
     props: ['data'],
+    computed:{
+      choosenTime(){
+        return this.$store.getters.getTime;
+      }
+    },
     data() {
       return {
         active: false,
@@ -30,10 +35,7 @@
     watch: {
       value(ov, nv){
         this.$emit('hourschange', ov)
-
-        // console.log(ov)
-
-      }
+      },
     },
     methods: {
 

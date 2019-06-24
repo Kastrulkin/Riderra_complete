@@ -229,7 +229,6 @@
         this.formData = dataList;
         this.$store.commit('setFormData', dataList);
 
-        console.log(this.$store.state.points.to)
 
         localStorage.setItem('formData', JSON.stringify(dataList));
         localStorage.setItem('from', JSON.stringify(this.pointFrom));
@@ -302,10 +301,12 @@
           that.$refs.timeField.querySelector('.time-field__input').blur();
         }, 100)
       },
-      clickOutside(){
-        console.log('asd')
-      }
 
+
+
+    },
+    beforeMount(){
+      this.$store.commit('setTime', this.myTime)
 
     },
     mounted() {
@@ -318,7 +319,6 @@
         endTime = moment(endTime, 'HH:mm').add(durationInMinutes, 'minutes').format('HH:mm');
       }
 
-      this.$store.commit('setTime', this.myTime)
 
     }
 
