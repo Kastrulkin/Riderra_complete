@@ -25,6 +25,7 @@
 
       </nuxt-link>
     </div>
+      <language :data="langData"></language>
     <nav class="nav-list">
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')"> Как мы работаем</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">Автопарк</nuxt-link>
@@ -47,11 +48,12 @@
 <script>
 
   import tabsNav from '~/components/partials/orderCaption.vue'
+  import language from '~/components/partials/language.vue'
 
 
   export default {
     components: {
-      tabsNav
+      tabsNav,language
     },
     computed:{
       menu(){
@@ -69,7 +71,10 @@
       return {
         mobileMenu: false,
         navList: ['Как мы работаем', 'Автопарк', 'Отзывы'],
-        ua: ''
+        ua: '',
+        langData: {
+          class: ''
+        }
       }
     },
     methods:{
@@ -135,7 +140,7 @@
     mounted(){
 
       this.mediaQuery();
-      
+
       var ua = navigator.userAgent.toLowerCase();
       if (ua.indexOf('safari') != -1 && ua.indexOf('chrome') === -1) {
         this.ua = 'safari'

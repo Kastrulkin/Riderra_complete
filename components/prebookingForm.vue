@@ -1,11 +1,9 @@
 <template>
-
-  <form class="prebooking" action="" ref="form">
-
+  <form class="prebooking" ref="form">
     <div class="prebooking__wrap">
       <div class="prebooking__row">
-        <city-field v-for="(item,i) in placeInputs" :data="item" :key="i"></city-field>
-        <div class="prebooking__field date-field" >
+        <city-field v-for="(item,i) in placeInputs" :data="item" :key="i" :ref="item.name"></city-field>
+        <div class="prebooking__field date-field">
           <input class="date-field__input" id="date_field_1" :value="today" type="radio" name="day_start[]">
           <label for="date_field_1" class="date-field__item" @click="radioValue()">
             <span class="date">{{ moment(today).format("DD.MM") }}</span>
@@ -24,14 +22,12 @@
           </label>
 
           <!--Date field-->
-          <label class="date-field__item date-field__item--calendar calendar" ref="dateField" >
-            <!--<datepicker @selected="calendarSelect" :language="calendar.lang" ref="datepick" v-model="today" id="datepick"></datepicker>-->
+          <label class="date-field__item date-field__item--calendar calendar" ref="dateField">
             <no-ssr>
               <date-picker :lang="lang" ref="datepick" v-model="today" :clearable="false"></date-picker>
             </no-ssr>
             <input class="calendar__input" v-model="today" type="date" name="start_time_date">
-            <!--<svg width="26" height="26" viewBox="0 0 26 26" @click.capture="showCalendar">-->
-            <svg width="26" height="26" viewBox="0 0 26 26" >
+            <svg width="26" height="26" viewBox="0 0 26 26">
               <use xlink:href="/sprite.svg#calendar"></use>
             </svg>
           </label>
@@ -39,9 +35,10 @@
 
         <!--Time field-->
         <div class="prebooking__field time-field" ref="timeField" @click="timeFocus" v-click-outside="timeBlur">
-          <masked-input mask="11:11" type="text" name="time" class="prebooking__input time-field__input" placeholder="22:00"
+          <masked-input mask="11:11" type="text" name="time" class="prebooking__input time-field__input"
+                        placeholder="22:00"
                         v-model="myTime" @input="timeInput"
-                 />
+          />
           <svg class="time-field__icon" width="26" height="26" viewBox="0 0 26 26" fill="none">
             <use xlink:href="/sprite.svg#clock"></use>
           </svg>
@@ -52,9 +49,8 @@
               </ul>
             </div>
           </div>
-
           <select name="time" class="time-field__select" v-model="myTime" @change="setTime(myTime)">
-            <option :value="myTime" v-for="(myTime, i) in time" :key="i"  >{{myTime}}</option>
+            <option :value="myTime" v-for="(myTime, i) in time" :key="i">{{myTime}}</option>
           </select>
         </div>
 
@@ -65,25 +61,20 @@
             <use xlink:href="/sprite.svg#arrow"></use>
           </svg>
           <input class="baggage__input prebooking__input" type="text" name="baggage"
-                 placeholder="Для 1-2 пассажиров с багажом" readonly @click.self="baggageIn($event)" v-click-outside="baggageOut">
+                 placeholder="Для 1-2 пассажиров с багажом" readonly @click.self="baggageIn($event)"
+                 v-click-outside="baggageOut">
           <transition name="fade">
             <baggage-dropdown></baggage-dropdown>
           </transition>
         </div>
-
         <div class="prebooking__field race-field" v-show="pointFrom">
           <input class="race-field__input prebooking__input" type="text" name="race"
                  placeholder="Номер рейса/поезда/корабля (необязательно)">
         </div>
         <div class="prebooking__submit" @click.capture="sendForm($event)">
-          <nuxt-link to="/transport" class="button" :class="{disabled: !submitActive}" >Заказать</nuxt-link>
+          <nuxt-link to="/transport" class="button" :class="{disabled: !submitActive}">Заказать</nuxt-link>
         </div>
-
-        <!--<div @click="sendForm">Заказать</div>-->
-
-
       </div>
-
     </div>
   </form>
 </template>
@@ -96,12 +87,6 @@
   import MaskedInput from 'vue-masked-input'
   import datePicker from 'vue2-datepicker';
 
-  /*import Datepicker from "vuejs-datepicker/dist/vuejs-datepicker.esm.js";
-  import {ru} from 'vuejs-datepicker/dist/locale'*/
-
-
-
-
   const moment = require('moment');
   moment.updateLocale('ru', {
     weekdays: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
@@ -112,27 +97,27 @@
       calendar, cityField, baggageDropdown, MaskedInput, datePicker
     },
     computed: {
-      media(){
+      media() {
         return this.$store.state.media;
       },
       pointFrom() {
         return this.$store.state.points.from;
       },
-      pointTo(){
+      pointTo() {
         return this.$store.state.points.to;
       },
-      points(){
+      points() {
         return this.$store.getters.getPoints;
       },
-      tomorrow(){
+      tomorrow() {
         return moment(this.today).add(1, 'days');
       },
       afterTomorrow() {
         return moment(this.today).add(2, 'days');
       },
-      distanceLimit(){
+      distanceLimit() {
         let that = this;
-        if(this.pointFrom){
+        if (this.pointFrom) {
           let myCoords = {
             to: {
               lat: this.points.to.location.lat,
@@ -159,14 +144,11 @@
 
               var route = response.routes[0].legs[0];
 
-
               directionsDisplay.setDirections(response);
 
               var distance = route.distance.value / 1000;
 
               that.$store.commit('setDistance', distance);
-
-
             }
           });
 
@@ -174,11 +156,9 @@
 
         return (this.$store.getters.getDistance <= 200);
       },
-      submitActive(){
+      submitActive() {
         return (this.pointTo && this.pointFrom && this.distanceLimit)
       },
-
-
     },
     filters: {
       moment: function (date) {
@@ -187,7 +167,7 @@
     },
     data() {
       return {
-        calendar:{
+        calendar: {
           lang: 'ru'
         },
         lang: 'ru',
@@ -215,7 +195,11 @@
     },
 
     methods: {
-      sendForm(event){
+      sendForm(event) {
+
+        if(!this.pointFrom){
+          this.$refs.from.$el.classList.add('error')
+        }
 
         let that = this,
           form = this.$refs.form,
@@ -224,44 +208,50 @@
 
         formData.forEach((value, key) => {
           dataList[key] = value;
-          // console.log(dataList[key])
         });
         this.formData = dataList;
         this.$store.commit('setFormData', dataList);
-
 
         localStorage.setItem('formData', JSON.stringify(dataList));
         localStorage.setItem('from', JSON.stringify(this.pointFrom));
         localStorage.setItem('to', JSON.stringify(this.pointTo));
 
-
-
-      },
-      showCalendar(){
-
-          this.$refs.dateField.classList.add('active');
-          this.$refs.datepick.showCalendar();
-
+        this.expireStorage();
 
       },
-      closeCalendar(){
+      expireStorage() {
+        var limit = 3 * 3600 * 1000,
+          localStorageInitTime = localStorage.getItem('localStorageInitTime');
+
+        if (localStorageInitTime === null) {
+          localStorage.setItem('localStorageInitTime', +new Date());
+        } else if (+new Date() - localStorageInitTime > limit) {
+          localStorage.clear();
+        }
+      },
+
+      showCalendar() {
+        this.$refs.dateField.classList.add('active');
+        this.$refs.datepick.showCalendar();
+      },
+      closeCalendar() {
         this.$refs.dateField.classList.remove('active');
 
       },
-      calendarSelect(date){
+      calendarSelect(date) {
         this.today = date;
         // this.$refs.datepick.close()
         this.$refs.dateField.classList.remove('active');
       },
       baggageIn(event) {
-        if(event.target.closest('.dropdown')) return;
+        if (event.target.closest('.dropdown')) return;
 
         this.$refs.baggageField.classList.toggle('active');
 
         // console.log(event)
       },
       baggageOut(event) {
-        if(event.target.closest('.dropdown')) return;
+        if (event.target.closest('.dropdown')) return;
         this.$refs.baggageField.classList.remove('active');
 
         // console.log(event)
@@ -273,29 +263,21 @@
 
       },
       setTime(time) {
-
         this.myTime = time;
         this.timeBlur();
-
-
         this.$store.commit('setTime', time)
-
-
       },
       timeFocus() {
-        if(this.media !== 'laptop') return;
-
+        if (this.media !== 'laptop') return;
         this.$refs.timeField.classList.add('active')
       },
-      timeInput(){
-        if(this.media !== 'laptop') return;
+      timeInput() {
+        if (this.media !== 'laptop') return;
         this.$refs.timeField.classList.remove('active')
       },
       timeBlur() {
-        if(this.media !== 'laptop') return;
-
+        if (this.media !== 'laptop') return;
         const that = this;
-
         setTimeout(function () {
           that.$refs.timeField.classList.remove('active')
           that.$refs.timeField.querySelector('.time-field__input').blur();
@@ -303,13 +285,12 @@
       },
 
 
-
     },
-    beforeMount(){
+    beforeMount() {
       this.$store.commit('setTime', this.myTime)
-
     },
     mounted() {
+
       const startTime = '00:00';
       const durationInMinutes = '15';
       var endTime = moment(startTime, 'HH:mm').add(durationInMinutes, 'minutes').format('HH:mm');
@@ -319,10 +300,9 @@
         endTime = moment(endTime, 'HH:mm').add(durationInMinutes, 'minutes').format('HH:mm');
       }
 
+      this.expireStorage();
 
     }
-
-
   }
 </script>
 
@@ -353,8 +333,6 @@
       position: relative;
       z-index: 2;
       padding: 12px 16px;
-
-
 
       &:focus {
         box-shadow: 0 0 0 2px #2F80ED;
@@ -458,7 +436,7 @@
     font-size: 18px;
     z-index: 1;
 
-    &__select{
+    &__select {
       width: 100%;
       height: 100%;
       position: absolute;
@@ -469,24 +447,23 @@
       display: none;
     }
 
-    &.active{
+    &.active {
       z-index: 2;
 
-      .time-field{
+      .time-field {
 
         &__dropdown {
           pointer-events: all;
           opacity: 1;
         }
 
-        &__input{
+        &__input {
           box-shadow: 0 0 0 2px #2F80ED;
           z-index: 3;
         }
       }
 
     }
-
 
     &__inner {
       height: 100%;
@@ -496,7 +473,7 @@
       padding-left: 18px;
       background: #fff;
 
-      &:focus{
+      &:focus {
         box-shadow: none;
       }
 
@@ -522,7 +499,6 @@
       opacity: 0;
       pointer-events: none;
 
-
       li {
 
         &:first-child {
@@ -545,19 +521,19 @@
     border: none;
     z-index: 1;
 
-    &.active{
+    &.active {
 
       .dropdown-cities {
         opacity: 1;
         pointer-events: all;
       }
 
-      .baggage__input{
+      .baggage__input {
         box-shadow: 0 0 0 2px #2F80ED !important;
         z-index: 3;
       }
 
-      .baggage-field__icon{
+      .baggage-field__icon {
         transform: translate3d(0, -50%, 0) rotateX(180deg);
 
       }
@@ -574,7 +550,7 @@
         font-size: 12px;
       }
 
-      &:focus{
+      &:focus {
         box-shadow: none;
       }
     }
@@ -602,7 +578,7 @@
     background: #fff;
     z-index: 2;
 
-    &__input{
+    &__input {
       display: none;
     }
 
@@ -632,8 +608,7 @@
       flex: 0 0 auto;
       transition: background 100ms;
 
-
-      .vdp-datepicker{
+      .vdp-datepicker {
         position: absolute;
         left: 0;
         top: 0;
@@ -643,10 +618,10 @@
         transition: transform 150ms, opacity 150ms;
       }
 
-      &.active{
+      &.active {
         z-index: 2;
 
-        .vdp-datepicker{
+        .vdp-datepicker {
           opacity: 1;
           pointer-events: all;
           transform: translate3d(0, 0, 0);
@@ -689,7 +664,6 @@
         width: auto;
         z-index: 1;
 
-
         &.active,
         &:hover {
           background: transparent;
@@ -698,13 +672,12 @@
     }
   }
 
-  .calendar{
+  .calendar {
 
-    &__input{
+    &__input {
       display: none;
     }
   }
-
 
   @media all and (max-width: 1024px) {
 
@@ -745,7 +718,7 @@
       border-right: none;
       min-width: 105px;
 
-      &__select{
+      &__select {
         display: block;
       }
 
@@ -793,9 +766,9 @@
 
   @media all and (max-width: 767px) {
 
-    .calendar{
+    .calendar {
 
-      &__input{
+      &__input {
         -webkit-appearance: none;
         border: none;
         color: #ffffff;
@@ -814,8 +787,6 @@
         flex-wrap: wrap;
       }
     }
-
-
 
     .text-field {
       width: 100%;
@@ -901,12 +872,13 @@
     }
   }
 
-  @media (max-width: 320px){
-    .date-field__item{
+  @media (max-width: 320px) {
+    .date-field__item {
       margin-right: 3px;
     }
   }
-  .disabled{
+
+  .disabled {
     pointer-events: none;
   }
 </style>

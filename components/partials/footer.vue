@@ -1,10 +1,15 @@
 <template>
   <footer class="footer container">
     <div class="row footer__top">
-      <div class="footer__logo col-sm-3 col-xs-12">
+      <div class="col-sm-3 col-xs-12">
+      <div class="footer__logo ">
         <svg width="108" height="23" viewBox="0 0 108 23" class="logo__img">
           <use xlink:href="/sprite.svg#logo"></use>
         </svg>
+
+        <language :data="langData"></language>
+
+      </div>
       </div>
       <ul class="footer__col col-xs-12 col-sm-3 ">
         <li><a href="" class="footer__link">Условия перевозки</a></li>
@@ -59,6 +64,22 @@
   </footer>
 </template>
 
+<script>
+  import language from '~/components/partials/language.vue'
+
+  export default {
+    components:{
+      language
+    },
+    data(){
+      return {
+        langData: {
+          class: 'blue'
+        }
+      }
+    }
+  }
+</script>
 <style lang="scss" scoped>
 
   .money-operators {
@@ -184,9 +205,15 @@
       text-decoration: none;
     }
 
-    &__logo svg {
-      fill: #000;
+    &__logo{
+
+      display: flex;
+      align-items: flex-end;
+      svg {
+        fill: #000;
+      }
     }
+
 
     .phone {
       font-size: 16px;
@@ -208,7 +235,8 @@
       }
 
       &__logo {
-        text-align: center;
+        justify-content: center;
+
       }
 
       &__col {

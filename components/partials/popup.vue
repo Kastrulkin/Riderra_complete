@@ -53,12 +53,15 @@
                 красного&nbsp;&mdash;
                 пино-нуар.
               </p>
-              <button class="button">Заказать</button>
+              <!--<button class="button modal__button" @click.self="chooseCar">Заказать</button>-->
+
+              <div class="modal__button" @click="leavePage" ref="chooseButton">
+                <nuxt-link to="/payment" class="button">Выбрать</nuxt-link>
+              </div>
 
             </div>
           </div>
         </div>
-        <!--<form-feedback :data="formData"></form-feedback>-->
 
       </div>
     </div>
@@ -72,7 +75,9 @@
   import calendar from '~/components/partials/calendar.vue'
 
   export default {
-    components: {formFeedback, slider, calendar},
+    components: {
+      formFeedback, slider, calendar
+    },
     computed: {
       currentCar() {
         return this.$store.state.current;
@@ -85,6 +90,9 @@
     },
     methods:{
       hidePopup(){
+        this.$store.commit('showPopup', false);
+      },
+      leavePage(){
         this.$store.commit('showPopup', false);
       }
     },
@@ -186,6 +194,11 @@
     -webkit-overflow-scrolling: touch;
     background: #702283;
 
+    &__button{
+      width: 100%;
+      margin-top: 40px;
+    }
+
     &__inner {
       min-height: 100%;
       width: 100%;
@@ -236,7 +249,6 @@
 
     &__descr {
       padding-top: 130px;
-      padding-bottom: 150px;
 
       .h2 {
         max-width: 60%;
