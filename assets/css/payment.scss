@@ -4,6 +4,15 @@
   transform: translate3d(0, 0, 0);
 }
 
+input, textarea {
+  font: inherit;
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
 .fade-enter, .fade-leave-to /* .list-leave-active до версии 2.1.8 */
 {
   opacity: 0;
