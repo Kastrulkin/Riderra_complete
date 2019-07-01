@@ -1,8 +1,10 @@
 <template>
-  <div class="prebooking__field text-field">
+  <div class="prebooking__field text-field" :class="{'distance-error': (data.distanceError && distance > 200)}">
     <input class="prebooking__input" type="text" :name="data.name" :placeholder="data.placeholder"
            autocomplete="off"
            ref="acInput" @input="initService" v-click-outside="blur">
+    <div class="prebooking__error">{{data.errorMsg}}</div>
+    <div class="prebooking__distance-error" v-if="data.distanceError">{{data.distanceError}}</div>
     <div class="dropdown dropdown-cities" >
       <div v-bar>
         <ul class="points-list">
@@ -29,8 +31,12 @@
     computed:{
       points(){
         return this.$store.getters.getPoints;
+      },
+      distance(){
+        return this.$store.getters.getDistance;
       }
     },
+
     data() {
       return {
         value: '',
@@ -41,7 +47,7 @@
           date: new Date(),
           language: 'ru',
         },
-        loadingTimer: null
+        loadingTimer: null,
       }
     },
     watch: {
@@ -49,8 +55,11 @@
         if (newVal === '') {
           this.cityList = false;
         }
-      }
+      },
+      distance: function (old, newval) {
+      },
     },
+
 
     mounted() {
       this.map = new google.maps.Map(
@@ -137,7 +146,8 @@
           myInput = that.$refs.acInput.value,
           parent = that.$refs.acInput.closest('.prebooking__field');
 
-
+        parent.classList.remove('error')
+        parent.classList.remove('distance-error')
         clearTimeout(that.loadingTimer);
 
         that.loadingTimer = setTimeout(function () {
@@ -189,6 +199,37 @@
 
 
 <style lang="scss" scoped>
+
+  .error{
+
+    .prebooking{
+
+      &__error{
+        opacity: 1;
+      }
+
+      &__input{
+        box-shadow: 0 0 0 2px #FF3495;
+        z-index: 3;
+      }
+    }
+
+  }
+
+  .distance-error{
+
+    .prebooking{
+
+      &__distance-error{
+        opacity: 1;
+      }
+
+      &__input{
+        box-shadow: 0 0 0 2px #FF3495;
+        z-index: 3;
+      }
+    }
+  }
 
   .dropdown-cities {
     position: absolute;

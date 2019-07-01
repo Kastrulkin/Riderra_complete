@@ -96,6 +96,12 @@
     components: {
       calendar, cityField, baggageDropdown, MaskedInput, datePicker
     },
+    watch:{
+      pointTo: function(){
+        console.log(this.distanceLimit)
+        this.distanceLimit;
+      }
+    },
     computed: {
       media() {
         return this.$store.state.media;
@@ -154,12 +160,14 @@
 
         }
 
+
         return (this.$store.getters.getDistance <= 200);
       },
       submitActive() {
         return (this.pointTo && this.pointFrom && this.distanceLimit)
       },
     },
+
     filters: {
       moment: function (date) {
         return moment(date).format('MMMM Do YYYY, h:mm:ss a');
@@ -184,10 +192,13 @@
           {
             name: 'from',
             placeholder: 'Откуда',
+            errorMsg: 'Не указано место отбытия'
           },
           {
             name: 'to',
             placeholder: 'Куда',
+            errorMsg: 'Не указано место прибытия',
+            distanceError: 'Превышена максимальная дальность поездки (200 км).'
           }
         ],
         formData: null
@@ -198,7 +209,11 @@
       sendForm(event) {
 
         if(!this.pointFrom){
-          this.$refs.from.$el.classList.add('error')
+          this.$refs.from[0].$el.classList.add('error')
+        }
+
+        if(!this.pointFrom){
+          this.$refs.to[0].$el.classList.add('error')
         }
 
         let that = this,
@@ -240,21 +255,17 @@
       },
       calendarSelect(date) {
         this.today = date;
-        // this.$refs.datepick.close()
         this.$refs.dateField.classList.remove('active');
       },
       baggageIn(event) {
         if (event.target.closest('.dropdown')) return;
 
         this.$refs.baggageField.classList.toggle('active');
-
-        // console.log(event)
       },
       baggageOut(event) {
         if (event.target.closest('.dropdown')) return;
         this.$refs.baggageField.classList.remove('active');
 
-        // console.log(event)
       },
       momentDay() {
         return moment();
@@ -324,6 +335,40 @@
 
   .prebooking {
     position: relative;
+
+    &__error, &__distance-error{
+      opacity: 0;
+      pointer-events: none;
+      width: calc(100% + 2px);
+      position: absolute;
+      top: calc(100% - 1px);
+      left: -1px;
+      background: #FF3495;
+      box-shadow: 0px 5px 12px rgba(0, 0, 0, 0.4);
+      border-radius: 0px 0px 5px 5px;
+      color: #fff;
+      padding: 12px 24px;
+      font-size: 12px;
+      text-align: center;
+      z-index: 10;
+
+      &:before{
+        content: '';
+        position: absolute;
+        display: block;
+        width: 0;
+        height: 0;
+        top: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-bottom: 10px #FF3495 solid;
+        border-left: 5px transparent solid;
+        border-right: 5px transparent solid;
+        z-index: 10;
+
+
+      }
+    }
 
     &__row {
       display: flex;

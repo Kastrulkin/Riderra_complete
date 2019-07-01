@@ -69,7 +69,7 @@
       return {
         cash: false,
         formData: {
-          // class: 'transport-form'
+          class: 'transaction'
         },
         captionData: {
           title: 'Выберите способ оплаты'

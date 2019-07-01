@@ -104,6 +104,7 @@
     },
     mounted() {
 
+
       let that = this,
           myCoords = {
             to: {
@@ -116,6 +117,9 @@
             }
 
           };
+
+      console.log(JSON.stringify(this.myData))
+
       this.map = new google.maps.Map(
         this.$refs.mapRef, {
           zoom: 15,

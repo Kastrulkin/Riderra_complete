@@ -58,7 +58,8 @@
     computed:{
       menu(){
         return this.$store.getters.getMenu;
-      }
+      },
+
     },
     head() {
       return {
@@ -203,6 +204,13 @@
 
       &__line{
         background: #000;
+      }
+
+      &.active{
+
+        .menu-toggle__line{
+          background: #fff;
+        }
       }
     }
   }
@@ -429,6 +437,8 @@
         left: 5%;
         transform: translateX(-50%);
       }
+
+
     }
 
   }

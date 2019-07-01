@@ -35,7 +35,7 @@ export default {
   data(){
     return {
       formData: {
-        type: 'feedback'
+        class: 'feedback'
       }
     }
   }

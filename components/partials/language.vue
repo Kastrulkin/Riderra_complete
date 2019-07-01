@@ -1,8 +1,8 @@
 <template>
   <div class="lang-select" :class="data.class">
     <div class="lang-select__wrap" v-click-outside="hideList">
-      <div class="lang-select__current" @click="toggleList">
-        {{current || languages[0].shortcut}}
+      <div class="lang-select__current" @click="toggleList" :class="{'active': state}">
+        {{media === 'mobile' ? (current ? current.country : languages[0].country) : (current ? current.shortcut : languages[0].shortcut)}}
         <svg class="lang-select__arrow" width="10" height="6" viewBox="0 0 13 8" fill="none"
              xmlns="http://www.w3.org/2000/svg">
           <path d="M1 1L6.5 6L12 1" stroke-width="2" stroke-linecap="round"/>
@@ -11,7 +11,7 @@
       <transition name="list-fade">
         <div class="lang-select__list" v-show="state">
           <div class="lang-select__list-item" v-for="(item, i) in languages" :key="i" @click="chooseLang(item)">
-            {{item.lang}}
+            {{item.country + '-' + item.lang}}
           </div>
         </div>
       </transition>
@@ -24,6 +24,11 @@
 <script>
   export default {
     props: ['data'],
+    computed:{
+      media() {
+        return this.$store.state.media;
+      },
+    },
     watch: {
       '$route.path': function (nv, ov) {
         this.state = false;
@@ -35,13 +40,18 @@
         languages: [
           {
             shortcut: 'Ru',
-            lang: 'Россия — русский'
+            lang: 'русский',
+            country: 'Россия'
           }, {
             shortcut: 'En',
-            lang: 'Germany — English'
+            lang: 'English',
+            country: 'Germany'
+
           }, {
             shortcut: 'Ch',
-            lang: '中国 — 中文'
+            lang: '中文',
+            country: '中国'
+
           }
         ],
         current: null
@@ -56,8 +66,7 @@
         this.state = false;
       },
       chooseLang(lang) {
-        console.log(lang)
-        this.current = lang.shortcut;
+        this.current = lang;
         this.state = false;
 
       }
@@ -71,9 +80,7 @@
     position: relative;
     cursor: pointer;
 
-    &__current{
-      white-space: nowrap;
-    }
+
 
     &__wrap{
       display: flex;
@@ -109,6 +116,21 @@
     &__arrow {
       margin-left: 4px;
       stroke: #fff;
+      display: inline-block;
+      transform-origin: center;
+      transition: all 250ms ease;
+
+    }
+
+    &__current{
+      white-space: nowrap;
+
+      &.active{
+
+        .lang-select__arrow{
+          transform: rotateX(180deg);
+        }
+      }
     }
 
     &.blue {
@@ -154,6 +176,48 @@
 
       &__current{
         font-size: 12px;
+      }
+    }
+  }
+
+  @media (max-width: 767px){
+    .lang-select{
+      display: none;
+    }
+
+    .mobile-menu{
+
+      .lang-select{
+        border: 1px solid #fff;
+        width: 100%;
+        display: block;
+        margin-left: 0;
+        margin-bottom: 30px;
+        border-radius: 5px;
+
+
+        &__wrap{
+          line-height: 40px;
+          color: #fff;
+          font-size: 14px;
+        }
+
+        &__list{
+          left: 0;
+          width: 100%;
+          top: calc(100% - 2px);
+          transition: all 100ms;
+        }
+
+        &__current{
+          width: 100%;
+          padding: 0 15px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+
+        }
       }
     }
   }

@@ -2,6 +2,7 @@
   <transition name="slide">
     <div class="mobile-menu" v-if="menu" v-scroll-lock="menu">
       <div class="mobile-menu__wrap container">
+        <language :data="langData"></language>
         <a class="mobile-menu__tel" href="tel:88009543212">8-800-954-32-12</a>
         <nav class="nav">
           <a class="nav__link" href="">Как мы работаем</a>
@@ -17,7 +18,12 @@
 </template>
 
 <script>
+  import language from '~/components/partials/language.vue'
+
   export default {
+    components:{
+      language
+    },
     computed: {
       menu() {
         return this.$store.getters.getMenu;
@@ -25,7 +31,9 @@
     },
     data() {
       return {
-
+        langData: {
+          class: ''
+        }
       }
     }
   }
@@ -45,7 +53,7 @@
     -webkit-overflow-scrolling: touch;
     overflow-y: scroll;
 
-    
+
 
     a {
       text-decoration: none;
@@ -96,6 +104,8 @@
       }
 
     }
+
+
   }
 
   .slide-enter-active{
