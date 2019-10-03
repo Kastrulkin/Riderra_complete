@@ -308,6 +308,10 @@
     .policy__label {
       align-items: center;
     }
+
+    &__item + &__item{
+      margin-left: -1px;
+    }
   }
 
   .safari {

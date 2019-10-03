@@ -222,6 +222,10 @@
   }
 
   .menu-open.header{
+    transform: none;
+    opacity: 1;
+    background: linear-gradient(90deg, #FF017A 36.45%, #702283 105.02%);
+
     .tabs-container{
       display: none;
     }

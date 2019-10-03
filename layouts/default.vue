@@ -26,10 +26,14 @@
       navigation, siteFooter, mobileMenu, popup
     },
     mounted(){
-      const sectionForm = document.querySelector('.main-section__content');
-      const header = document.querySelector('.header');
-      sectionForm.classList.add('active');
-      header.classList.add('active');
+
+      window.onload = function(){
+        const sectionForm = document.querySelector('.main-section__content');
+        const header = document.querySelector('.header');
+        sectionForm.classList.add('active');
+        header.classList.add('active');
+      };
+
     }
   }
 

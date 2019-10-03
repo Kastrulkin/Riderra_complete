@@ -243,6 +243,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    outline: none;
 
     .swiper-bullet-inner{
       display: block;
@@ -522,19 +523,23 @@ input[type="tel"]{
   }
 }
 
-.modal-cars{
-
-  &__swiper{
+.modal-cars__swiper{
 
     .swiper-pagination-bullet{
-      background: #fff;
+
+      .swiper-bullet-inner{
+        background: #fff;
+      }
     }
 
     .swiper-pagination-bullet-active{
-      border: 1px solid #fff;
-      background: transparent;
+
+      .swiper-bullet-inner{
+        border: 1px solid #fff;
+        background: transparent;
+      }
     }
-  }
+
 }
 .dropdown .v-select {
   color: #000;
