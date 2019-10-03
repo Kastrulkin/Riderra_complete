@@ -38,6 +38,7 @@
       return {}
     },
     mounted() {
+
       if(this.media === 'mobile'){
         this.$refs.video.pause();
       }
@@ -56,6 +57,17 @@
     display: flex;
     align-items: center;
     position: relative;
+
+    &__content{
+      opacity: 0;
+      transform: translate3d(0, 20%, 0);
+      transition: all 400ms ease 1250ms;
+
+      &.active{
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+    }
 
     &__title {
       color: #fff;

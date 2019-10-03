@@ -6,7 +6,6 @@
     <site-footer></site-footer>
     <transition name="fade" mode="out-in">
       <popup v-if="popupState"></popup>
-      <!--<popup></popup>-->
     </transition>
   </main>
 </template>
@@ -25,28 +24,19 @@
     },
     components: {
       navigation, siteFooter, mobileMenu, popup
+    },
+    mounted(){
+      const sectionForm = document.querySelector('.main-section__content');
+      const header = document.querySelector('.header');
+      sectionForm.classList.add('active');
+      header.classList.add('active');
     }
   }
 
-  /*Vue.directive('scroll', {
-    inserted: function(el, binding) {
-      let f = function(evt) {
-        if (binding.value(evt, el)) {
-          window.removeEventListener('scroll', f);
-        }
-      };
-      window.addEventListener('scroll', f);
-    },
-  });*/
+
 </script>
 <style>
 .wrapper{
-  /*overflow-x: hidden;
-  overflow-y: auto;
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  min-height: 100vh;*/
   overflow: hidden;
 }
 

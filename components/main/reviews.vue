@@ -61,7 +61,7 @@
       display: flex;
 
       &:hover {
-        transform: translate3d(0, -10px, 0);
+        transform: translate3d(0, -10px, 0) !important;
       }
     }
 
@@ -145,6 +145,9 @@
           pagination: {
             el: '.swiper-pagination',
             clickable: true,
+            renderBullet: function (index, className) {
+              return '<span class="' + className + '"><span class="swiper-bullet-inner"></span></span>';
+            },
           },
           breakpoints: {
             667: {

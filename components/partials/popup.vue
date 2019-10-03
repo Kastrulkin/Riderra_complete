@@ -108,6 +108,9 @@
           pagination: {
             el: '.swiper-pagination',
             clickable: true,
+            renderBullet: function (index, className) {
+              return '<span class="' + className + '"><span class="swiper-bullet-inner"></span></span>';
+            },
           }
         },
         slides: [
@@ -134,13 +137,28 @@
     transition:  all 150ms;
     opacity: 1;
     transform: translate3d(0, 0, 0);
+    visibility: visible;
+  }
+
+  .fade-leave-active{
+    transition-duration: 0ms;
+
+    .modal-cars__item{
+      opacity: 0;
+      transition-duration: 0ms;
+      visibility: hidden;
+
+
+    }
   }
 
 
   .fade-enter, .fade-leave-to /* .list-leave-active до версии 2.1.8 */
   {
+    visibility: hidden;
+
     opacity: 0;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 10%, 0);
 
   }
 

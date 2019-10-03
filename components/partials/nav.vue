@@ -254,6 +254,14 @@
     color: #fff;
     font-weight: 300;
     padding: 54px 15px;
+    opacity: 0;
+    transform: translate3d(0, -100%, 0);
+    transition: all 250ms ease 1000ms;
+
+    &.active{
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
 
     &__container{
       display: flex;
@@ -382,8 +390,6 @@
           width: 100%;
 
         }
-
-
       }
     }
   }

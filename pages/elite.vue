@@ -115,18 +115,8 @@
 </script>
 <style scoped lang="scss">
 
-  .fade-enter-active, .fade-leave-active {
-    transition:  all 150ms;
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
 
-  .fade-enter, .fade-leave-to /* .list-leave-active до версии 2.1.8 */
-  {
-    opacity: 0;
-    transform: translate3d(0, 10px, 0);
 
-  }
 
   .description {
     max-width: 100%;
