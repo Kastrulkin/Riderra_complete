@@ -12,7 +12,7 @@ module.exports = {
     meta: [
       { charset: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1, user-scalable=no'},
-      { name: 'verify-paysera', content: '4fb0d06e04f9c7483027d4d5562e04aa'},
+      { name: 'verify-paysera', content: '62146bc5c4017c962d28da066b8510c2'},
 
     ],
     link: [
@@ -24,11 +24,16 @@ module.exports = {
   ** Customize the progress bar color
   */
   modules: [
+    ['@nuxtjs/axios', {rejectUnauthorized: false}],
     'vue-scrollto/nuxt',
     ['nuxt-google-maps-module', {
       key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
     }],
   ],
+  axios: {
+    // proxyHeaders: false
+    rejectUnauthorized: false
+  },
   maps: {
     key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
   },

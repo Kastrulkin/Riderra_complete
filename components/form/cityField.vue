@@ -119,7 +119,6 @@
                 if(item.includes('country-name')){
                   countryItem = item;
                 }
-                // console.log(item)
               });
 
               country = countryItem.substring(countryItem.indexOf('>') + 1 , countryItem.lastIndexOf('</span'));

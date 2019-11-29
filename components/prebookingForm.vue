@@ -122,7 +122,7 @@
         return moment(this.today).add(2, 'days');
       },
       distanceLimit() {
-        let that = this;
+        const that = this;
         if (this.pointFrom) {
           let myCoords = {
             to: {
@@ -135,10 +135,10 @@
             }
           };
 
-          var directionsService = new google.maps.DirectionsService();
-          var directionsDisplay = new google.maps.DirectionsRenderer();
+          const directionsService = new google.maps.DirectionsService();
+          const directionsDisplay = new google.maps.DirectionsRenderer();
 
-          var request = {
+          const request = {
             origin: new google.maps.LatLng(myCoords.from.lat, myCoords.from.lng),
             destination: new google.maps.LatLng(myCoords.to.lat, myCoords.to.lng),
             travelMode: 'DRIVING',
@@ -148,18 +148,17 @@
           directionsService.route(request, function (response, status) {
             if (status == google.maps.DirectionsStatus.OK) {
 
-              var route = response.routes[0].legs[0];
+              let route = response.routes[0].legs[0];
 
               directionsDisplay.setDirections(response);
 
-              var distance = route.distance.value / 1000;
+              let distance = route.distance.value / 1000;
 
               that.$store.commit('setDistance', distance);
             }
           });
 
         }
-
 
         return (this.$store.getters.getDistance <= 200);
       },

@@ -1,15 +1,12 @@
 <template>
   <div>
-    <main-section></main-section>
-    <!--<h1><nuxt-link to="/transport">фыв</nuxt-link></h1>-->
-
-    <section-first></section-first>
+    <main-section :data="siteData"></main-section>
+    <work-section :data="siteData['whyWe']"></work-section>
     <section-cities></section-cities>
     <section-cars></section-cars>
     <reviews></reviews>
     <partners></partners>
     <questions></questions>
-
     <section class="site-section site-section--pf">
       <form-feedback :data="formData"></form-feedback>
     </section>
@@ -20,7 +17,7 @@
 <script>
 import maps from '~/components/maps.vue'
 import mainSection from '~/components/main/topSection.vue'
-import sectionFirst from '~/components/main/HowWeWorks.vue'
+import workSection from '~/components/main/HowWeWorks.vue'
 import sectionCities from '~/components/main/citiesSection.vue'
 import sectionCars from '~/components/main/carpark.vue'
 import reviews from '~/components/main/reviews.vue'
@@ -28,16 +25,39 @@ import partners from '~/components/main/partners.vue'
 import questions from '~/components/main/questions.vue'
 import formFeedback from '~/components/partials/form.vue'
 
+import {data} from '~/static/lang.js'
+
 export default {
   components: {
-    maps, mainSection, sectionFirst, sectionCities, sectionCars, reviews, partners, questions, formFeedback
+    maps, mainSection, workSection, sectionCities, sectionCars, reviews, partners, questions, formFeedback
+  },
+  computed: {
+    lang(){
+      return this.$store.state.language;
+    },
+    siteData(){
+      return this.data[this.lang];
+    }
   },
   data(){
     return {
+      data: data,
       formData: {
         class: 'feedback'
-      }
+      },
     }
+  },
+  methods:{
+    fetchData(){
+
+    }
+  },
+  beforeMount(){
+  },
+  mounted(){
+
+     console.log( this.data[this.lang]);
+
   }
 }
 </script>

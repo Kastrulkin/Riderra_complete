@@ -25,14 +25,25 @@
     components: {
       navigation, siteFooter, mobileMenu, popup
     },
-    mounted(){
+    data(){
+      return {
+        langs:['ru', 'en', 'de']
+      }
+    },
 
-      window.onload = function(){
-        const sectionForm = document.querySelector('.main-section__content');
-        const header = document.querySelector('.header');
-        sectionForm.classList.add('active');
-        header.classList.add('active');
-      };
+    methods:{
+
+    },
+    created(){
+      var userLang = window.navigator.language || window.navigator.userLanguage;
+
+      this.langs.forEach(el => {
+        userLang.indexOf(el) !== -1 ? this.$store.commit('setLang', el) : false;
+
+        // console.log(this.$store.state.language);
+      })
+    },
+    mounted(){
 
     }
   }

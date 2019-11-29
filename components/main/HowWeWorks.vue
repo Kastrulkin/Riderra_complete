@@ -4,7 +4,7 @@
       <div class="row">
         <div class="col-sm-6">
           <h2 class="h2 site-section__title">
-            Как мы работаем
+            {{ data.title }}
           </h2>
         </div>
       </div>
@@ -48,8 +48,9 @@
 
 <script>
 
+
   export default {
-    components: {},
+    props: ['data'],
     data() {
       return {
         swiperData: {

@@ -59,6 +59,9 @@
       menu(){
         return this.$store.getters.getMenu;
       },
+      navData(){
+        return this.$store.state.siteData;
+      }
 
     },
     head() {
@@ -72,6 +75,7 @@
       return {
         mobileMenu: false,
         navList: ['Как мы работаем', 'Автопарк', 'Отзывы'],
+        // navList: $store.state.siteData["ru"].nav,
         ua: '',
         langData: {
           class: ''
@@ -140,6 +144,7 @@
     },
     mounted(){
 
+
       this.mediaQuery();
 
       var ua = navigator.userAgent.toLowerCase();
@@ -165,7 +170,8 @@
     }
 
     .header{
-      /*background: linear-gradient(90deg,#FF017A 36.45%, #702283 105.02%), #702283;*/
+      opacity: 1;
+      transform: translate3d(0,0,0);
       padding-top: 25px;
       padding-bottom: 25px;
 
@@ -258,9 +264,11 @@
     color: #fff;
     font-weight: 300;
     padding: 54px 15px;
-    opacity: 0;
-    transform: translate3d(0, -100%, 0);
-    transition: all 250ms ease 1000ms;
+    /*opacity: 0;*/
+    transform: translate3d(0, -250%, 0);
+    transition: 400ms all ease 400ms;
+    will-change: transform, opacity;
+
 
     &.active{
       opacity: 1;
@@ -404,6 +412,8 @@
     .header{
       padding-top: 30px;
       padding-bottom: 30px;
+      opacity: 1;
+      transform: none;
     }
 
     .nav-list{

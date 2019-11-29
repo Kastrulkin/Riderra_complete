@@ -1,5 +1,5 @@
 <template>
-  <section class="site-section site-section--sm">
+  <section class="site-section site-section--sm" id="partners">
     <div class="container">
       <div class="row">
         <div class="col-sm-6">
@@ -54,7 +54,7 @@
     data() {
       return {
         swiperData: {
-          slidesPerView: 6,
+          slidesPerView: 5,
           speed: 400,
           spaceBetween: 90,
           height: 'auto',
@@ -88,10 +88,6 @@
             src: '/img/partners/microsoft.png',
           },{
             src: '/img/partners/hulu.png',
-          },{
-            src: '/img/partners/zipcar.png',
-          },{
-            src: '/img/partners/zipcar.png',
           },
 
         ]

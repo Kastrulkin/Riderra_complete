@@ -39,18 +39,18 @@
         state: false,
         languages: [
           {
-            shortcut: 'Ru',
+            shortcut: 'ru',
             lang: 'русский',
             country: 'Россия'
           }, {
-            shortcut: 'En',
-            lang: 'English',
-            country: 'Germany'
+            shortcut: 'en',
+            lang: 'english',
+            country: 'Europe'
 
           }, {
-            shortcut: 'Ch',
-            lang: '中文',
-            country: '中国'
+            shortcut: 'de',
+            lang: 'germany',
+            country: 'Germany'
 
           }
         ],
@@ -69,7 +69,10 @@
         this.current = lang;
         this.state = false;
 
+        this.$store.commit('setLang',lang.shortcut)
       }
+    },
+    mounted(){
     }
   }
 </script>

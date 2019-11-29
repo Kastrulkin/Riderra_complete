@@ -5,13 +5,10 @@
         <language :data="langData"></language>
         <a class="mobile-menu__tel" href="tel:88009543212">8-800-954-32-12</a>
         <nav class="nav">
-          <a class="nav__link" href="">Как мы работаем</a>
-          <a class="nav__link" href="">Автопарк</a>
-          <a class="nav__link" href="">Отзывы</a>
-          <a class="nav__link" href="">Условия перевозки</a>
-          <a class="nav__link" href="">Политика конфиденциальности</a>
+
+          <a class="nav__link" href="" v-for="(item,i) in navList" :key="i" @click.prevent="scrollTo(item.to)">{{item.title}}</a>
         </nav>
-        <a href="#" class="mobile-menu__signin">Войти</a>
+        <a href="#" class="mobile-menu__signin" >Войти</a>
       </div>
     </div>
   </transition>
@@ -29,11 +26,36 @@
         return this.$store.getters.getMenu;
       }
     },
+    methods:{
+      scrollTo(id){
+        const el = document.getElementById(id)
+        el.scrollIntoView({block: "start", inline: "nearest", behavior: "smooth"});
+        this.$store.commit('toggleMenu', false)
+      }
+    },
     data() {
       return {
         langData: {
           class: ''
-        }
+        },
+        navList:[
+          {
+            title: 'Как мы работаем',
+            to: 'howWorks'
+          },{
+            title: 'Автопарк',
+            to: 'park'
+          },{
+            title: 'Отзывы',
+            to: 'reviews'
+          },{
+            title: 'Условия перевозки',
+            to: ''
+          },{
+            title: 'Политика конфиденциальности',
+            to: ''
+          },
+        ]
       }
     }
   }

@@ -5,6 +5,8 @@ const createStore = () => {
   return new Vuex.Store({
 
     state: {
+      siteData: null,
+      language: 'ru',
       media: '',
       popup: false,
       menu: false,
@@ -174,7 +176,12 @@ const createStore = () => {
       },
       setData(state, payload){
         state.formData = payload;
-
+      },
+      setSiteData(state, payload){
+        state.siteData = payload;
+      },
+      setLang(state, payload){
+        state.language = payload;
       }
     }
   });

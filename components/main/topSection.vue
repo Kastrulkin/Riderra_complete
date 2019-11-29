@@ -11,7 +11,7 @@
       <div class="row">
         <div class="col-xs-12">
           <h1 class="h2 main-section__title">
-            Трансфер повышенного уровня комфорта по&nbsp;всему миру
+            {{  data["main"].title }}
           </h1>
           <prebooking></prebooking>
         </div>
@@ -26,6 +26,7 @@
 
 
   export default {
+    props: ['data'],
     components: {
       prebooking
     },
@@ -37,7 +38,21 @@
     data() {
       return {}
     },
+    watch: {
+      $route () {
+        console.log('route changed', this.$route)
+      }
+    },
+    methods:{
+      pageLoad(){
+        const sectionForm = document.querySelector('.main-section__content');
+        const header = document.querySelector('.header');
+        sectionForm.classList.add('active');
+        header.classList.add('active');
+      }
+    },
     mounted() {
+      this.pageLoad();
 
       if(this.media === 'mobile'){
         this.$refs.video.pause();
@@ -61,7 +76,7 @@
     &__content{
       opacity: 0;
       transform: translate3d(0, 20%, 0);
-      transition: all 400ms ease 1250ms;
+      transition: 400ms all ease;
 
       &.active{
         opacity: 1;
@@ -71,7 +86,6 @@
 
     &__title {
       color: #fff;
-      width: 60%;
       margin-bottom: 60px;
     }
 
