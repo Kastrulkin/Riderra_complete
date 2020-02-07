@@ -2,7 +2,8 @@
   <div class="lang-select" :class="data.class">
     <div class="lang-select__wrap" v-click-outside="hideList">
       <div class="lang-select__current" @click="toggleList" :class="{'active': state}">
-        {{media === 'mobile' ? (current ? current.country : languages[0].country) : (current ? current.shortcut : languages[0].shortcut)}}
+        {{media === 'mobile' ? (current ? current.country : languages[0].country) : (current ? current.shortcut :
+        languages[0].shortcut)}}
         <svg class="lang-select__arrow" width="10" height="6" viewBox="0 0 13 8" fill="none"
              xmlns="http://www.w3.org/2000/svg">
           <path d="M1 1L6.5 6L12 1" stroke-width="2" stroke-linecap="round"/>
@@ -22,59 +23,54 @@
 </template>
 
 <script>
-  export default {
-    props: ['data'],
-    computed:{
-      media() {
-        return this.$store.state.media;
-      },
-    },
-    watch: {
-      '$route.path': function (nv, ov) {
-        this.state = false;
-      }
-    },
-    data() {
-      return {
-        state: false,
-        languages: [
-          {
-            shortcut: 'ru',
-            lang: 'русский',
-            country: 'Россия'
-          }, {
-            shortcut: 'en',
-            lang: 'english',
-            country: 'Europe'
+	export default {
+		props: ['data'],
+		computed: {
+			media() {
+				return this.$store.state.media;
+			},
+		},
+		watch: {
+			'$route.path': function (nv, ov) {
+				this.state = false;
+			}
+		},
+		data() {
+			return {
+				state: false,
+				languages: [
+					{
+						shortcut: 'ru',
+						lang: 'русский',
+						country: 'Россия'
+					}, {
+						shortcut: 'en',
+						lang: 'english',
+						country: 'Europe'
 
-          }, {
-            shortcut: 'de',
-            lang: 'germany',
-            country: 'Germany'
+					}
+				],
+				current: null
 
-          }
-        ],
-        current: null
+			}
+		},
+		methods: {
+			toggleList() {
+				this.state = !this.state;
+			},
+			hideList() {
+				this.state = false;
+			},
+			chooseLang(lang) {
+				this.current = lang;
+				this.state = false;
 
-      }
-    },
-    methods: {
-      toggleList() {
-        this.state = !this.state;
-      },
-      hideList() {
-        this.state = false;
-      },
-      chooseLang(lang) {
-        this.current = lang;
-        this.state = false;
-
-        this.$store.commit('setLang',lang.shortcut)
-      }
-    },
-    mounted(){
-    }
-  }
+				this.$store.commit('setLang', lang.shortcut)
+			}
+		},
+		mounted() {
+		}
+	}
 </script>
 <style lang="scss" scoped>
 
@@ -83,9 +79,7 @@
     position: relative;
     cursor: pointer;
 
-
-
-    &__wrap{
+    &__wrap {
       display: flex;
       align-items: flex-end;
       margin-bottom: -2px;
@@ -125,12 +119,12 @@
 
     }
 
-    &__current{
+    &__current {
       white-space: nowrap;
 
-      &.active{
+      &.active {
 
-        .lang-select__arrow{
+        .lang-select__arrow {
           transform: rotateX(180deg);
         }
       }
@@ -145,9 +139,9 @@
     }
   }
 
-  .blue{
+  .blue {
 
-    .lang-select{
+    .lang-select {
 
       &__list {
         bottom: 100%;
@@ -175,22 +169,22 @@
 
   @media (max-width: 1024px) {
 
-    .lang-select{
+    .lang-select {
 
-      &__current{
+      &__current {
         font-size: 12px;
       }
     }
   }
 
-  @media (max-width: 767px){
-    .lang-select{
+  @media (max-width: 767px) {
+    .lang-select {
       display: none;
     }
 
-    .mobile-menu{
+    .mobile-menu {
 
-      .lang-select{
+      .lang-select {
         border: 1px solid #fff;
         width: 100%;
         display: block;
@@ -198,27 +192,25 @@
         margin-bottom: 30px;
         border-radius: 5px;
 
-
-        &__wrap{
+        &__wrap {
           line-height: 40px;
           color: #fff;
           font-size: 14px;
         }
 
-        &__list{
+        &__list {
           left: 0;
           width: 100%;
           top: calc(100% - 2px);
           transition: all 100ms;
         }
 
-        &__current{
+        &__current {
           width: 100%;
           padding: 0 15px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-
 
         }
       }

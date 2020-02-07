@@ -27,7 +27,7 @@
     </div>
       <language :data="langData"></language>
     <nav class="nav-list">
-      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')"> Как мы работаем</nuxt-link>
+      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework}}</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">Автопарк</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#reviews')">Отзывы</nuxt-link>
     </nav>
@@ -59,8 +59,11 @@
       menu(){
         return this.$store.getters.getMenu;
       },
-      navData(){
+      data(){
         return this.$store.state.siteData;
+      },
+      textData(){
+	      return this.$store.getters.textData
       }
 
     },
@@ -107,7 +110,7 @@
       },
       scrollTo(ident){
         if(process.browser){
-          var el = document.querySelector(`${ident}`);
+          let el = document.querySelector(`${ident}`);
           if(!el) return;
           setTimeout(function(){
             el.scrollIntoView({block: "start", behavior: "smooth"});

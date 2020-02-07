@@ -1,5 +1,5 @@
 export const data = {
-  "ru": {
+  ru: {
     "nav":[
       "Почему выбирают нас?", "Автопарк", "Отзывы"
     ],
@@ -81,9 +81,26 @@ export const data = {
         "models": "Setra, MAN, Golden Dragon или аналогичный",
         "description": "Профессиональный водитель встретит вас на вокзале или в аэропорту, поможет разместить багаж в багажном отделении и отвезёт вашу группу на торжество или в туристическую поездку."
       },
-    }
+    },
+	  howwework: "Как мы работаем",
+	  park: "Автопарк",
+	  feedback: "Отзывым",
+	  enter: "Войти",
+	  from: "Откуда",
+	  to: "Куда",
+	  sendOrder: "Заказать",
+	  flight: "Номер рейса/поезда/корабля (необязательно)",
+	  passengers: "Пассажиры",
+	  baggage: "Пассажиры",
+	  animals: "Пассажиры",
+	  children36: "Пассажиры",
+	  children612: "Пассажиры",
+	  hourly: "Почасовая аренда",
+	  driveChange: "После 15 часов поездки будет смена водителя.",
+	  returned: "Потребуется обратный маршрут",
+	  phoneConfirm: "Детали согласует оператор по телефону.",
   },
-  "en": {
+  en: {
     "nav": [
       "Why choose us?",
       "Автопарк",
@@ -167,93 +184,23 @@ export const data = {
         "models": "Setra, MAN, Golden Dragon or similar",
         "description": "A professional driver will meet you at the train station or airport, help you to place your luggage in the trunk and take your group to a celebration or a tourist trip."
       },
-
-
-    }
-  },
-
-  "de": {
-    "nav": [
-      "Как мы работаем",
-      "Автопарк",
-      "Отзывы"
-    ],
-    "main": {
-      "title": "Transfer mit Sorge um Sie. Auf der ganzen Welt."
-    },
-    "slider":[
-      {
-        "title": "Sicher und zuverlässig.",
-        "description": "Unsere Fahrer und Fahrzeuge entsprechen den höchsten Standards"
-      }, {
-        "title": "Pünktlichkeit und Professionalität.",
-        "description": "Unsere Mitarbeiter überprüfen sorgfältig alle Informationen auf Bestellung, verfolgen und reagieren auf änderungen. Unser Fahrer wird mit einem Schild mit Ihrem Namen treffen und Sie sicher und bequem zu Ihrem Ziel bringen"
-      }, {
-        "title": "Wir kümmern uns um unsere Kunden.",
-        "description": "Unsere Mitarbeiter stehen Ihnen 24/7 zur Verfügung und helfen Ihnen, jedes Problem zu lösen."
-      },
-    ],
-    "gallery":{
-      "title": "Riderra ist in 515 Städten in 30 Ländern weltweit verfügbar"
-    },
-    "reviews":{
-      "title": "Bewertung"
-    },
-    "partners":{
-      "title": "Unsere Partner"
-    },
-    "terms":{
-      "title": "Beförderungsbedingungen"
-    },
-    "privacy":{
-      "title": "Datenschutz"
-    },
-    "questions":{
-      "title": "Noch Fragen?",
-      "description": "Der Support ist 24/7 verfügbar. Rufen Sie die Hotline an und wir helfen Ihnen jederzeit."
-    },
-    "cars": {
-      "economy":{
-        "title": "Economy",
-        "models": "VW Jetta, BMW 3er, Skoda Octavia oder ähnliches",
-        "description": "Ein freundlicher Fahrer wird Sie mit Ihrem Namen auf dem Schild treffen und führt zum Auto. Guter Service mit günstigen Preisen kombiniert, ist es ideal für eine angenehme Reise)"
-      },
-      "comfort":{
-        "title": "Komfort ",
-        "models": "Toyota Camry, Ford Mondeo, Kia Optima oder ähnliches",
-        "description": "Der geräumige Innenraum und der große Kofferraum eines komfortablen Autos stehen Ihnen zur Verfügung, wenn Sie bequem Reisen möchten. Eine gute Option, wenn ein Kind mit Ihnen fährt"
-      },
-      "business":{
-        "title": "Business",
-        "models": "Mercedes E-Klasse, BMW 5er, Audi A6 oder ähnliches",
-        "description": "Ein höflicher und aufmerksamer Fahrer wird Sie mit Ihrem Namen auf dem Schild treffen, mit dem Gepäck helfen und Sie mit dem Business-class-Auto zu Ihrem Ziel bringen."
-      },
-      "s-class":{
-        "title": "Erste Klasse",
-        "models": "Mercedes S-Klasse, BMW 7er, Audi A8 oder ähnliches",
-        "description": "Erstklassiger Service ohne Kompromisse. Begeben Sie sich auf eine Reise mit dem Auto der Executive-Klasse. Die Bequemlichkeit der Reise in der Kabine eines Luxusautos."
-      },
-      "minivan":{
-        "title": "Minivan 7 Sitze",
-        "models": "Volkswagen Caravelle, Hyundai Grand Starex oder ähnliches",
-        "description": "Geräumige moderne Minivan eignet sich für die Reise von Freunden oder der ganzen Familie."
-      },
-      "businessvan":{
-        "title": "Minivan Business class",
-        "models": "Mercedes V-Klasse, Viano. Volkswagen Multivan oder ähnliches",
-        "description": "Nehmen Sie bitte einen Platz in der Kabine eines komfortablen und geräumigen Minivan. Ein aufmerksamer Fahrer wird Sie treffen, mit dem Gepäck helfen und sicher zu Ihrem Ziel bringen"
-      },
-      "minibus":{
-        "title": "Kleinbus 16-19 Sitze",
-        "models": "Mercedes Sprinter, Volkswagen Crafter oder ähnliches",
-        "description": "Wenn Sie in einer Gruppe Reisen, ist der Minibus perfekt für Sie. Unser Fahrer wird Sie abholen und bequem zu Ihrem Ziel bringen .\n"
-      },
-      "bus":{
-        "title": "Bus zu 52 Sitzplätzen",
-        "models": "Setra, MAN, Golden Dragon oder ähnliches",
-        "description": " Ein professioneller Fahrer wird Ihre Gruppe zu einer feier oder einem Ausflug fahren, Sie am Bahnhof oder am Flughafen treffen und Ihnen helfen, Ihr Gepäck im Gepäckraum zu platzieren."
-      },
-
+	    howwework: "How we work",
+	    park: "Автопарк",
+	    feedback: "Отзывым",
+	    enter: "Войти",
+	    from: "Откуда",
+	    to: "Куда",
+	    sendOrder: "Заказать",
+	    flight: "Номер рейса/поезда/корабля (необязательно)",
+	    passengers: "Пассажиры",
+	    baggage: "Пассажиры",
+	    animals: "Пассажиры",
+	    children36: "Пассажиры",
+	    children612: "Пассажиры",
+	    hourly: "Почасовая аренда",
+	    driveChange: "После 15 часов поездки будет смена водителя.",
+	    returned: "Потребуется обратный маршрут",
+	    phoneConfirm: "Детали согласует оператор по телефону.",
     }
   }
-};
+}

@@ -1,11 +1,12 @@
 import Vuex from 'vuex'
 
+import {data} from '~/static/lang.js'
 
 const createStore = () => {
   return new Vuex.Store({
 
     state: {
-      siteData: null,
+      siteData: data,
       language: 'ru',
       media: '',
       popup: false,
@@ -135,6 +136,9 @@ const createStore = () => {
       },
       getDistance: state => {
         return state.distance;
+      },
+	    textData: state => {
+        return state.siteData[state.language];
       }
     },
     mutations: {
