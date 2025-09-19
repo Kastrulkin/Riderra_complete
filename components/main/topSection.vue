@@ -10,10 +10,8 @@
     <div class="main-section__content container">
       <div class="row">
         <div class="col-xs-12">
-          <h1 class="h2 main-section__title">
-            {{  data["main"].title }}
-          </h1>
-          <prebooking></prebooking>
+          <h1 class="h2 main-section__title" v-html="data['main'].title"></h1>
+          <!-- booking widget теперь на главной, prebooking удален -->
         </div>
 
       </div>
@@ -22,13 +20,12 @@
 </template>
 
 <script>
-  import prebooking from '~/components/prebookingForm.vue'
+  // import prebooking from '~/components/prebookingForm.vue'
 
 
   export default {
     props: ['data'],
     components: {
-      prebooking
     },
     computed: {
       media(){
@@ -61,7 +58,7 @@
   }
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
   .main-section {
     height: 100vh;
     width: 100vw;
@@ -87,6 +84,20 @@
     &__title {
       color: #fff;
       margin-bottom: 60px;
+      
+      .subtitle {
+        font-size: 0.6em !important;
+        line-height: 1.4;
+        display: block;
+        margin-top: 10px;
+      }
+      
+      .subtitle-small {
+        font-size: 0.5em !important;
+        line-height: 1.4;
+        display: block;
+        margin-top: 8px;
+      }
     }
 
     &__video {
@@ -149,5 +160,20 @@
       }
 
     }
+  }
+
+  // Глобальные стили для классов в v-html
+  .subtitle {
+    font-size: 0.6em !important;
+    line-height: 1.4;
+    display: block;
+    margin-top: 10px;
+  }
+  
+  .subtitle-small {
+    font-size: 0.5em !important;
+    line-height: 1.4;
+    display: block;
+    margin-top: 8px;
   }
 </style>

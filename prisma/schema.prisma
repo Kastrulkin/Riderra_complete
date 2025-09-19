@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Request {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  name       String
+  email      String
+  phone      String
+  fromPoint  String
+  toPoint    String
+  date       DateTime?
+  passengers Int?
+  luggage    Int?
+  comment    String?
+  lang       String?
+}
+
+model Driver {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  name       String
+  email      String
+  phone      String
+  city       String
+  fixedFrom   String?
+  fixedTo     String?
+  fixedPrice  String?
+  fixedCurrency String?
+  pricePerKm  String?
+  comment     String?
+  lang        String?
+  fixedRoutesJson String?
+}
+
+

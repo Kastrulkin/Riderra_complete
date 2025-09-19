@@ -4,7 +4,7 @@ export const data = {
       "Почему выбирают нас?", "Автопарк", "Отзывы"
     ],
     "main":{
-      "title": "Трансфер с заботой о Вас. По всему миру."
+      "title": "<br>Трансфер с заботой о Вас. По всему миру.<br><br><span class='subtitle'>Вы можете оставить заявку водителям напрямую и с вами свяжутся желающие.<br><br>Либо доверить поиск проверенного водителя нам!</span>"
     },
     "slider":[
       {
@@ -110,7 +110,7 @@ export const data = {
       "title": "Why choose us?"
     },
     "main": {
-      "title": "Transfer with care for you. All over the world."
+      "title": "<br>Transfer with care for you. All over the world.<br><br><span class='subtitle'>Connect directly with local drivers and fleet operators.<br>No commission fees - book your airport transfer at the best rates.</span><br><span class='subtitle-small'>You could either send a request to the droiver or use our choice in the form below.</span>"
     },
     "slider":[
       {
@@ -125,7 +125,7 @@ export const data = {
       },
     ],
     "gallery":{
-      "title": "Riderra is available in 515 cities in 30 countries worldwide"
+      "title": "Riderra - 250 cities in 50 countries"
     },
     "reviews":{
       "title": "Reviews"
@@ -140,8 +140,8 @@ export const data = {
       "title": "Privacy statement"
     },
     "questions":{
-      "title": "Any questions?",
-      "description": "Support is available 24/7. Call the hotline and we will help you at any time."
+      "title": "Any other questions?",
+      "description": "Any problems? The support service and the fleet are available 24/7. Call the hotline and we will help you at any time."
     },
     "cars": {
       "economy":{
@@ -185,9 +185,9 @@ export const data = {
         "description": "A professional driver will meet you at the train station or airport, help you to place your luggage in the trunk and take your group to a celebration or a tourist trip."
       },
 	    howwework: "How we work",
-	    park: "Автопарк",
+	    park: "Cars",
 	    feedback: "Отзывым",
-	    enter: "Войти",
+	    enter: "Sign in",
 	    from: "Откуда",
 	    to: "Куда",
 	    sendOrder: "Заказать",

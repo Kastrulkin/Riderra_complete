@@ -1,0 +1,162 @@
+<template>
+  <div>
+    <section class="site-section site-section--pf drivers-section">
+      <div class="container">
+        <h1 class="h2 drivers-title">{{ t.title }}</h1>
+
+        <form class="form" @submit.prevent="submit">
+          <div class="form__row">
+            <label class="form__label">{{ t.name }}</label>
+            <input class="form__input" v-model="form.name" type="text" required />
+          </div>
+          <div class="form__row grid">
+            <div>
+              <label class="form__label">{{ t.email }}</label>
+              <input class="form__input" v-model="form.email" type="email" required />
+            </div>
+            <div>
+              <label class="form__label">{{ t.phone }}</label>
+              <input class="form__input" v-model="form.phone" type="tel" required />
+            </div>
+          </div>
+
+          <div class="form__row">
+            <label class="form__label">{{ t.city }}</label>
+            <input class="form__input" v-model="form.city" type="text" required />
+          </div>
+
+          <div class="routes">
+            <div class="routes__head">
+              <div class="routes__th">{{ t.fixedFrom }}</div>
+              <div class="routes__th">{{ t.fixedTo }}</div>
+              <div class="routes__th">{{ t.fixedPrice }}</div>
+              <div class="routes__th">{{ t.fixedCurrency }}</div>
+              <div class="routes__th"></div>
+            </div>
+            <div class="routes__row" v-for="(r, idx) in form.routes" :key="idx">
+              <input class="routes__input" v-model="r.from" />
+              <input class="routes__input" v-model="r.to" />
+              <input class="routes__input routes__input--sm" v-model="r.price" />
+              <input class="routes__input routes__input--sm" v-model="r.currency" />
+              <button type="button" class="btn btn--icon" @click="removeRoute(idx)" aria-label="remove">−</button>
+            </div>
+            <button class="btn btn--ghost" type="button" @click="addRoute">+ {{ t.addRoute }}</button>
+          </div>
+          <div class="form__row">
+            <label class="form__label">{{ t.routesPerKm }}</label>
+            <textarea class="form__input" v-model="form.perkm" rows="3" placeholder="1.2 €/km"></textarea>
+          </div>
+          <div class="form__row">
+            <label class="form__label">{{ t.comment }}</label>
+            <textarea class="form__input" v-model="form.comment" rows="4"></textarea>
+          </div>
+          <div class="form__actions">
+            <button class="btn" type="submit">{{ t.submit }}</button>
+            <button v-if="$supabase" class="btn btn--ghost" type="button" @click="saveToSupabase">{{ t.save }}</button>
+          </div>
+        </form>
+
+        <p v-if="sent" class="note">{{ t.note }}</p>
+      </div>
+    </section>
+  </div>
+</template>
+
+<script>
+export default {
+  computed: {
+    lang(){ return this.$store.state.language },
+    t(){
+      const dict = {
+        ru: {
+          title: 'Заявление на регистрацию перевозчика',
+          name: 'Ваше имя / компания', email: 'Email', phone: 'Телефон', city: 'Город / регион работы',
+          fixedFrom: 'Откуда (фиксированный маршрут)', fixedTo: 'Куда (фиксированный маршрут)', fixedPrice: 'Цена', fixedCurrency: 'Валюта', routesPerKm: 'Цена за километр', comment: 'Комментарий',
+          submit: 'Отправить данные', save: 'Сохранить в базе',
+          note: 'Мы открыли ваше почтовое приложение с подготовленным письмом. Просто отправьте его.'
+        },
+        en: {
+          title: 'Driver registration',
+          name: 'Your name / company', email: 'Email', phone: 'Phone', city: 'City / operating region',
+          fixedFrom: 'From (fixed route)', fixedTo: 'To (fixed route)', fixedPrice: 'Price', fixedCurrency: 'Currency', routesPerKm: 'Price per kilometer', comment: 'Comment',
+          submit: 'Send data', save: 'Save to DB',
+          note: 'We opened your mail app with a prepared email. Just send it.'
+        }
+      }
+      return dict[this.lang]
+    }
+  },
+  data(){
+    return {
+      sent: false,
+      form: { name: '', email: '', phone: '', city: '', routes: [{ from: '', to: '', price: '', currency: '' }], perkm: '', comment: '' }
+    }
+  },
+  methods: {
+    submit(){
+      const subject = encodeURIComponent(`[Riderra] ${this.lang==='ru'?'Регистрация водителя':'Driver registration'}`)
+      const body = encodeURIComponent(
+        `Name/Company: ${this.form.name}\nEmail: ${this.form.email}\nPhone: ${this.form.phone}\nCity: ${this.form.city}\nFixed routes: ${this.form.fixed}\nPer km: ${this.form.perkm}\nComment: ${this.form.comment}`
+      )
+      window.location.href = `mailto:info@riderra.com?subject=${subject}&body=${body}`
+      this.sent = true
+    },
+    async saveToSupabase(){
+      if(!this.$supabase){
+        await this.$axios.$post('/api/drivers', {
+          name: this.form.name, email: this.form.email, phone: this.form.phone,
+          city: this.form.city, pricePerKm: this.form.perkm,
+          fixedRoutesJson: JSON.stringify(this.form.routes),
+          comment: this.form.comment, lang: this.lang
+        })
+        this.sent = true; return
+      }
+      await this.$supabase.from('drivers').insert({
+        name: this.form.name, email: this.form.email, phone: this.form.phone,
+        city: this.form.city, price_per_km: this.form.perkm,
+        fixedRoutesJson: JSON.stringify(this.form.routes),
+        comment: this.form.comment, lang: this.lang
+      })
+      this.sent = true
+    }
+  ,
+    addRoute(){
+      this.form.routes.push({ from: '', to: '', price: '', currency: '' })
+    },
+    removeRoute(idx){
+      this.form.routes.splice(idx, 1)
+      if(this.form.routes.length === 0){
+        this.form.routes.push({ from: '', to: '', price: '', currency: '' })
+      }
+    }
+  }
+}
+</script>
+
+<style scoped lang="scss">
+.drivers-section { padding-top: 160px; padding-bottom: 40px; }
+.drivers-title { margin-bottom: 20px; }
+.form { max-width: 720px; }
+.form__row { margin-bottom: 16px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form__label { display:block; margin-bottom: 6px; font-size: 14px; }
+.form__input { width:100%; border:1px solid #D8D8E6; border-radius:6px; padding:10px 12px; font-size:14px; }
+.form__actions { margin-top: 20px; }
+.btn { background:#1F2E4D; color:#FFFFFF; border:0; border-radius:6px; line-height:48px; padding:0 22px; cursor:pointer; font-weight:600; font-size:16px; transition: background .2s ease; }
+.btn:hover { background:#19253E; }
+.btn--ghost { background: transparent; color:#1F2E4D; border:1px solid #1F2E4D; margin-left: 8px; }
+.btn--ghost:hover { background: rgba(31,46,77,0.08); }
+.routes { margin-top: 6px; margin-bottom: 10px; }
+.routes__head { display:grid; grid-template-columns: 2fr 2fr 1fr 1fr auto; gap: 8px; font-size:12px; color:#7D7D7D; margin-bottom: 6px; }
+.routes__th { }
+.routes__row { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+.routes__input { width: 100%; border:1px solid #D8D8E6; border-radius:6px; padding:8px 10px; }
+.routes__input--sm { max-width: 120px; }
+.btn--icon { width: 36px; height: 36px; border-radius: 18px; padding: 0; line-height: 36px; text-align: center; background: transparent; color:#2F80ED; border:1px solid #2F80ED; }
+@media (max-width: 767px){ .routes__row{ grid-template-columns: 1fr 1fr; } }
+.note { margin-top: 12px; color:#7D7D7D; }
+@media (max-width: 1024px){ .drivers-section{ padding-top: 130px; } }
+@media (max-width: 767px){ .drivers-section{ padding-top: 110px; } .grid{ grid-template-columns: 1fr; } }
+</style>
+
+

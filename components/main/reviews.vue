@@ -4,7 +4,8 @@
       <div class="row">
         <div class="col-sm-6">
           <h2 class="h2 site-section__title">
-            Отзывы
+            <span v-if="$store.state.language === 'ru'">Отзывы</span>
+            <span v-else>Reviews</span>
           </h2>
         </div>
       </div>

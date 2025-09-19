@@ -35,13 +35,14 @@
 
     },
     created(){
-      var userLang = window.navigator.language || window.navigator.userLanguage;
+      // Убираем автоматическое определение языка браузера
+      // var userLang = window.navigator.language || window.navigator.userLanguage;
 
-      this.langs.forEach(el => {
-        userLang.indexOf(el) !== -1 ? this.$store.commit('setLang', el) : false;
+      // this.langs.forEach(el => {
+      //   userLang.indexOf(el) !== -1 ? this.$store.commit('setLang', el) : false;
 
-        // console.log(this.$store.state.language);
-      })
+      //   // console.log(this.$store.state.language);
+      // })
     },
     mounted(){
 

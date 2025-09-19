@@ -8,7 +8,7 @@
 
           <a class="nav__link" href="" v-for="(item,i) in navList" :key="i" @click.prevent="scrollTo(item.to)">{{item.title}}</a>
         </nav>
-        <a href="#" class="mobile-menu__signin" >Войти</a>
+        <nuxt-link to="/account" class="mobile-menu__signin">{{$store.getters.textData.enter || 'Sign in'}}</nuxt-link>
       </div>
     </div>
   </transition>

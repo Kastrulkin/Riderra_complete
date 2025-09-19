@@ -8,7 +8,7 @@ module.exports = {
   },*/
   mode: 'spa',
   head: {
-    title: 'ridera',
+    title: 'riderra',
     meta: [
       { charset: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1, user-scalable=no'},
@@ -20,6 +20,13 @@ module.exports = {
       { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&amp;subset=cyrillic-ext' }
     ]
   },
+  env: {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY
+  },
+  serverMiddleware: [
+    '~/server/index.js'
+  ],
   /*
   ** Customize the progress bar color
   */
@@ -40,8 +47,8 @@ module.exports = {
   loading: { color: '#3B8070' },
 
   plugins: [
-    {src: '~/plugins/plugins.js', ssr: false},
-
+    { src: '~/plugins/supabase.js', mode: 'client' },
+    { src: '~/plugins/plugins.js', ssr: false }
   ],
   css: [
     {src: '~/assets/css/swiper.css', lang: 'css'},

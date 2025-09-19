@@ -1,5 +1,5 @@
 <template>
-  <header class="header" :class="{'menu-open': menu}">
+  <header class="header" :class="{'menu-open': menu, 'header--solid': !isHome, 'active': true}">
     <div class="header__container container">
     <div class="logo">
       <nuxt-link to="/" class="logo__link">
@@ -27,14 +27,15 @@
     </div>
       <language :data="langData"></language>
     <nav class="nav-list">
-      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework}}</nuxt-link>
-      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">Автопарк</nuxt-link>
-      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#reviews')">Отзывы</nuxt-link>
+      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework || 'How we work'}}</nuxt-link>
+      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">{{textData.park || 'Cars'}}</nuxt-link>
+      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#reviews')">{{textData.reviews ? textData.reviews.title : 'Reviews'}}</nuxt-link>
+      <nuxt-link to="/request" class="nav-list__item">{{$store.state.language === 'ru' ? 'Заявка' : 'Request'}}</nuxt-link>
+      <nuxt-link to="/drivers" class="nav-list__item">{{$store.state.language === 'ru' ? 'Перевозчикам' : 'Drivers'}}</nuxt-link>
     </nav>
     <tabs-nav></tabs-nav>
     <div class="header__right">
-      <a href="tel:88009543212" class="header__tel">8-800-954-32-12</a>
-      <a href="#" class="header__signin">Войти</a>
+      <nuxt-link to="/account" class="header__signin">{{textData.enter || 'Sign in'}}</nuxt-link>
     </div>
     <div class="menu-toggle" ref="burger" @click="menuToggle">
       <span class="menu-toggle__line menu-toggle__line--first"></span>
@@ -59,11 +60,17 @@
       menu(){
         return this.$store.getters.getMenu;
       },
+      isHome(){
+        return this.$route.path === '/'
+      },
       data(){
         return this.$store.state.siteData;
       },
       textData(){
-	      return this.$store.getters.textData
+	      const data = this.$store.getters.textData;
+	      console.log('textData.enter:', data.enter);
+	      console.log('language:', this.$store.state.language);
+	      return data;
       }
 
     },
@@ -155,6 +162,11 @@
         this.ua = 'safari'
       }
 
+      // Всегда показывать хедер на всех страницах
+      this.$nextTick(() => {
+        const header = this.$el.querySelector('.header');
+        if (header) header.classList.add('active');
+      })
 
     },
 
@@ -166,63 +178,7 @@
     display: none;
   }
 
-  .inner-page{
-
-    &__wrap{
-      padding-top: 125px;
-    }
-
-    .header{
-      opacity: 1;
-      transform: translate3d(0,0,0);
-      padding-top: 25px;
-      padding-bottom: 25px;
-
-      &__tel{
-        color: #2F80ED;
-      }
-
-      &__signin{
-        display: none;
-      }
-    }
-
-    .nav-list{
-      display: none;
-    }
-
-    .tabs-container{
-      display: block;
-    }
-
-
-    .logo{
-
-      &__img{
-
-        &--main{
-          display: none;
-        }
-        &--sub{
-          display: block;
-        }
-      }
-    }
-
-    .menu-toggle{
-
-      &__line{
-        background: #000;
-      }
-
-      &.active{
-
-        .menu-toggle__line{
-          background: #fff;
-        }
-      }
-    }
-  }
+  /* Удалена спец-логика для режима .inner-page, чтобы хедер был одинаков на всех страницах */
   .no-nav{
 
     .header{
@@ -312,6 +268,18 @@
         background: #fff;
       }
     }
+  }
+
+  /* Для внутренних страниц — светлый хедер на белом фоне */
+  .header--solid{
+    background: #fff;
+    color: #000;
+    box-shadow: 0 8px 24px rgba(0,0,0,.06);
+
+    .nav-list__item:after{ background: #000; }
+    .header__tel{ color: #2F80ED; }
+    .header__signin{ border-color:#000; color:#000; }
+    .logo svg{ fill:#000; }
   }
 
   .menu-toggle{

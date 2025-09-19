@@ -42,11 +42,11 @@
 					{
 						shortcut: 'ru',
 						lang: 'русский',
-						country: 'Россия'
+						country: 'русский'
 					}, {
 						shortcut: 'en',
 						lang: 'english',
-						country: 'Europe'
+						country: 'english'
 
 					}
 				],
