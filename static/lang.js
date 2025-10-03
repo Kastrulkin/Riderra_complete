@@ -1,21 +1,28 @@
 export const data = {
   ru: {
     "nav":[
-      "Почему выбирают нас?", "Автопарк", "Отзывы"
+      "Почему выбирают нас?", "Классы машин"
     ],
-    "main":{
-      "title": "<br>Трансфер с заботой о Вас. По всему миру.<br><br><span class='subtitle'>Вы можете оставить заявку водителям напрямую и с вами свяжутся желающие.<br><br>Либо доверить поиск проверенного водителя нам!</span>"
-    },
+        "main":{
+          "title": "Путешествуй<br><span style='color: #FFFFFF;'>с комфортом</span>",
+          "badge": "Новое поколение поездок",
+          "description": "Современная платформа для быстрого и удобного заказа поездок. Безопасно, надежно, доступно.",
+          "orderButton": "Заказать поездку",
+          "driverButton": "Стать перевозчиком",
+          "users": "Пользователей",
+          "trips": "Поездок",
+          "rating": "Рейтинг"
+        },
     "slider":[
       {
-        "title": "Безопасно и надёжно ",
-        "description": "Наши водители и автомобили соответствуют высочайшим стандартам."
+        "title": "Безопасно и надёжно",
+        "description": "Каждый водитель проходит через индивидуальное собеседование при трудоустройстве. Минимальный стаж — 5 лет."
       }, {
-        "title": "Пунктуальность и профессионализм.",
-        "description": "Наши специалисты тщательно проверяют всю информацию по заказу, отслеживают и реагируют на любые изменения. Наш водитель встретит с табличкой с Вашем именем, безопасно и комфортно доставит вас до места назначения."
+        "title": "Пунктуальность",
+        "description": "Приедем заранее, ориентируясь на указанное вами время или сроки рейса. При необходимости вы сможете связаться с водителем напрямую."
       }, {
-        "title": "Мы заботимся о своих клиентах.",
-        "description": "Наши специалисты отдела клиентской поддержки доступны 24/7 и помогут Вам решить любой вопрос."
+        "title": "Вежливость и знание языков",
+        "description": "Наши водители вежливы и владеют английским языком. Встретят вас с табличкой в аэропорту или на вокзале, помогут с багажом. Подождут бесплатно, если рейс задержат."
       },
     ],
     "gallery":{
@@ -83,7 +90,7 @@ export const data = {
       },
     },
 	  howwework: "Как мы работаем",
-	  park: "Автопарк",
+	  park: "Классы машин",
 	  feedback: "Отзывым",
 	  enter: "Войти",
 	  from: "Откуда",
@@ -99,29 +106,36 @@ export const data = {
 	  driveChange: "После 15 часов поездки будет смена водителя.",
 	  returned: "Потребуется обратный маршрут",
 	  phoneConfirm: "Детали согласует оператор по телефону.",
+	  orderTitle: "Сделайте заказ, мы всё организуем:",
   },
   en: {
     "nav": [
       "Why choose us?",
-      "Автопарк",
-      "Отзывы"
+      "Car Classes"
     ],
     "whyWe": {
       "title": "Why choose us?"
     },
-    "main": {
-      "title": "<br>Transfer with care for you. All over the world.<br><br><span class='subtitle'>Connect directly with local drivers and fleet operators.<br>No commission fees - book your airport transfer at the best rates.</span><br><span class='subtitle-small'>You could either send a request to the droiver or use our choice in the form below.</span>"
-    },
+        "main": {
+          "title": "Travel<br><span style='color: #FFFFFF;'>with comfort</span>",
+          "badge": "New generation of rides",
+          "description": "Modern platform for fast and convenient ride booking. Safe, reliable, accessible.",
+          "orderButton": "Order a ride",
+          "driverButton": "Become a carrier",
+          "users": "Users",
+          "trips": "Trips",
+          "rating": "Rating"
+        },
     "slider":[
       {
-        "title": "Safety and security.",
-        "description": "Our drivers and vehicles meet the highest standards."
+        "title": "Safe and reliable",
+        "description": "Every driver goes through an individual interview during employment. Minimum experience — 5 years."
       }, {
-        "title": "Punctuality and professionalism.",
-        "description": "Our specialists carefully check all the information on the booking, monitor and review any changes. Our driver will meet & greet you with a nameplate, you will be taken to your destination with safe comfort."
+        "title": "Punctuality",
+        "description": "We arrive early, focusing on your specified time or flight schedule. If necessary, you can contact the driver directly."
       }, {
-        "title": "We take care of our customers.",
-        "description": "Our customer support team is available 24/7 and will be able to help you with any matter."
+        "title": "Courtesy and language skills",
+        "description": "Our drivers are polite and speak English. They will meet you with a sign at the airport or train station, help with luggage. They will wait for free if the flight is delayed."
       },
     ],
     "gallery":{
@@ -186,21 +200,22 @@ export const data = {
       },
 	    howwework: "How we work",
 	    park: "Cars",
-	    feedback: "Отзывым",
+	    feedback: "Reviews",
 	    enter: "Sign in",
-	    from: "Откуда",
-	    to: "Куда",
-	    sendOrder: "Заказать",
-	    flight: "Номер рейса/поезда/корабля (необязательно)",
-	    passengers: "Пассажиры",
-	    baggage: "Пассажиры",
-	    animals: "Пассажиры",
-	    children36: "Пассажиры",
-	    children612: "Пассажиры",
-	    hourly: "Почасовая аренда",
-	    driveChange: "После 15 часов поездки будет смена водителя.",
-	    returned: "Потребуется обратный маршрут",
-	    phoneConfirm: "Детали согласует оператор по телефону.",
+	    from: "From",
+	    to: "To",
+	    sendOrder: "Order",
+	    flight: "Flight/train/ship number (optional)",
+	    passengers: "Passengers",
+	    baggage: "Baggage",
+	    animals: "Animals",
+	    children36: "Children 3-6",
+	    children612: "Children 6-12",
+	    hourly: "Hourly rental",
+	    driveChange: "Driver change after 15 hours of driving.",
+	    returned: "Return route required",
+	    phoneConfirm: "Details will be confirmed by operator by phone.",
+	    orderTitle: "Make an order, we will organize everything:",
     }
   }
 }

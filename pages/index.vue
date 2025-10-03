@@ -1,35 +1,22 @@
 <template>
   <div>
     <main-section :data="siteData"></main-section>
+    
     <section class="site-section site-section--pf">
       <div class="container">
         <div class="row">
           <div class="col-sm-6">
-            <h2 class="h2 site-section__title">Сделайте заказ, мы всё организуем:</h2>
+            <h2 class="h2 site-section__title">{{ $t('orderTitle') }}</h2>
           </div>
         </div>
-        <div class="widget">
+        <div class="widget" id="booking-widget">
           <iframe src="https://u3211.eto2.taxi/booking?site_key=7e3f3d3085b900d598bc40543d611575" id="eto-iframe-booking" allow="geolocation" width="100%" height="250" scrolling="no" frameborder="0" style="width:1px; min-width:100%; min-height:520px; border:0;"></iframe>
-        </div>
-        <div class="request-cta">
-          <div class="row">
-            <div class="col-sm-6">
-              <h2 class="h2 site-section__title">Либо:</h2>
-            </div>
-          </div>
-          <nuxt-link to="/request" class="btn btn--primary">Оставьте бесплатную заявку на перевозку</nuxt-link>
-          
-          <div class="request-info">
-            <p>Заявка с вашими данными будет отправлена перевозчикам из сети Riderra, в соответствующем городе. Те, кто заинтересуется, свяжется с вами и предложит условия. Пожалуйста, имейте ввиду, что это будет ваша договрённость, Riderra не несёт ответственности за действия отдельных лиц и не гарантирует выполнение договорённостей.</p>
-          </div>
         </div>
       </div>
     </section>
-    <work-section :data="siteData['whyWe']"></work-section>
+    <work-section :data="siteData"></work-section>
     <section-cities></section-cities>
     <section-cars></section-cars>
-    <reviews></reviews>
-    <partners></partners>
     <questions></questions>
   </div>
 
@@ -41,8 +28,6 @@ import mainSection from '~/components/main/topSection.vue'
 import workSection from '~/components/main/HowWeWorks.vue'
 import sectionCities from '~/components/main/citiesSection.vue'
 import sectionCars from '~/components/main/carpark.vue'
-import reviews from '~/components/main/reviews.vue'
-import partners from '~/components/main/partners.vue'
 import questions from '~/components/main/questions.vue'
 
 import {data} from '~/static/lang.js'
@@ -56,7 +41,7 @@ export default {
     }
   },
   components: {
-    maps, mainSection, workSection, sectionCities, sectionCars, reviews, partners, questions
+    maps, mainSection, workSection, sectionCities, sectionCars, questions
   },
   computed: {
     lang(){
@@ -124,27 +109,7 @@ export default {
     overflow: visible;
   }
 
-  .request-cta{
-    margin-top: 30px;
-    margin-bottom: 8px;
-  }
 
-
-  .request-info {
-    max-width: 1040px;
-    margin: 20px auto 0;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.08);
-    padding: 20px;
-  }
-
-  .request-info p {
-    margin: 0;
-    color: #666;
-    font-size: 14px;
-    line-height: 1.5;
-  }
 
   /* Высота виджета бронирования */
   #eto-iframe-booking{

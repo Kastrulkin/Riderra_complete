@@ -29,7 +29,6 @@
     <nav class="nav-list">
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework || 'How we work'}}</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">{{textData.park || 'Cars'}}</nuxt-link>
-      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#reviews')">{{textData.reviews ? textData.reviews.title : 'Reviews'}}</nuxt-link>
       <nuxt-link to="/request" class="nav-list__item">{{$store.state.language === 'ru' ? 'Заявка' : 'Request'}}</nuxt-link>
       <nuxt-link to="/drivers" class="nav-list__item">{{$store.state.language === 'ru' ? 'Перевозчикам' : 'Drivers'}}</nuxt-link>
     </nav>
@@ -61,15 +60,20 @@
         return this.$store.getters.getMenu;
       },
       isHome(){
-        return this.$route.path === '/'
+        return this.$route.path === '/';
       },
       data(){
         return this.$store.state.siteData;
       },
       textData(){
 	      const data = this.$store.getters.textData;
-	      console.log('textData.enter:', data.enter);
-	      console.log('language:', this.$store.state.language);
+	      if (!data) {
+	        return {
+	          howwework: 'How we work',
+	          park: 'Cars',
+	          enter: 'Sign in'
+	        };
+	      }
 	      return data;
       }
 
@@ -182,7 +186,7 @@
   .no-nav{
 
     .header{
-      display: none;
+      display: block !important;
     }
   }
 
@@ -215,16 +219,17 @@
   }
 
   .header{
-    position: absolute;
-    z-index: 50;
+    position: fixed;
+    z-index: 1000;
     top: 0;
     left: 0;
     right: 0;
     color: #fff;
     font-weight: 300;
     padding: 54px 15px;
-    /*opacity: 0;*/
-    transform: translate3d(0, -250%, 0);
+    background: transparent;
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
     transition: 400ms all ease 400ms;
     will-change: transform, opacity;
 
@@ -272,7 +277,7 @@
 
   /* Для внутренних страниц — светлый хедер на белом фоне */
   .header--solid{
-    background: #fff;
+    background: #fff !important;
     color: #000;
     box-shadow: 0 8px 24px rgba(0,0,0,.06);
 
@@ -280,6 +285,76 @@
     .header__tel{ color: #2F80ED; }
     .header__signin{ border-color:#000; color:#000; }
     .logo svg{ fill:#000; }
+  }
+
+  /* Принудительно прозрачный хедер для главной страницы */
+  .header:not(.header--solid) {
+    background: transparent !important;
+    color: #fff !important;
+    
+    .logo svg {
+      fill: #fff !important;
+    }
+    
+    .nav-list__item:after {
+      background: #fff !important;
+    }
+    
+    .header__signin {
+      border-color: #fff !important;
+      color: #fff !important;
+    }
+  }
+
+  /* Дополнительная проверка - если хедер на главной странице */
+  .header.active {
+    background: transparent !important;
+    color: #fff !important;
+    
+    .logo svg {
+      fill: #fff !important;
+    }
+    
+    .nav-list__item:after {
+      background: #fff !important;
+    }
+    
+    .header__signin {
+      border-color: #fff !important;
+      color: #fff !important;
+    }
+  }
+
+  /* Максимально специфичный селектор для главной страницы */
+  body .header:not(.header--solid).active {
+    background: transparent !important;
+    color: #fff !important;
+    
+    .logo svg {
+      fill: #fff !important;
+    }
+    
+    .nav-list__item:after {
+      background: #fff !important;
+    }
+    
+    .header__signin {
+      border-color: #fff !important;
+      color: #fff !important;
+    }
+  }
+
+  /* Принудительное отображение хедера */
+  .header {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translate3d(0, 0, 0) !important;
+    position: fixed !important;
+    z-index: 1000 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
   }
 
   .menu-toggle{

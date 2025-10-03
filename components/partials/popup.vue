@@ -16,9 +16,6 @@
           <transition name="fade" mode="out-in">
             <div class="description__text" :key="currentCar.models">{{ currentCar.models }}</div>
           </transition>
-          <transition name="fade" mode="out-in">
-            <div class="description__price" :key="currentCar.price">{{ currentCar.price | toUSD }} ₽</div>
-          </transition>
         </div>
       </div>
       <div class="car-class__content">
@@ -94,7 +91,18 @@
       },
       leavePage(){
         this.$store.commit('showPopup', false);
+      },
+      handleKeydown(event) {
+        if (event.key === 'Escape') {
+          this.hidePopup();
+        }
       }
+    },
+    mounted() {
+      document.addEventListener('keydown', this.handleKeydown);
+    },
+    beforeDestroy() {
+      document.removeEventListener('keydown', this.handleKeydown);
     },
     data() {
       return {

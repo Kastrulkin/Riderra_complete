@@ -19,10 +19,6 @@
             <div class="cars__title h3" ref="swiperTitle" v-html="slide.title"></div>
             <p class="cars__desc" ref="swiperDesc" v-html="slide.desc"></p>
 
-            <div class="cars-price">
-              <div class="cars-price__current">{{ slide.price | toUSD }} ₽</div>
-              <div class="cars-price__prev" v-if="slide.prevPrice">{{ slide.prevPrice | toUSD}} ₽</div>
-            </div>
             <div @click.self="chooseCar(i)" class="cars__button" ref="chooseButton">
               <nuxt-link to="/payment" class="cars__button-link white-button">Выбрать</nuxt-link>
             </div>

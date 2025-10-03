@@ -1,5 +1,10 @@
 <template>
   <div>
+    <navigation></navigation>
+    <div class="page-background">
+      <div class="page-background__gradient"></div>
+      <div class="page-background__overlay"></div>
+    </div>
     <section class="site-section site-section--pf drivers-section">
       <div class="container">
         <h1 class="h2 drivers-title">{{ t.title }}</h1>
@@ -63,7 +68,13 @@
 </template>
 
 <script>
+import navigation from '~/components/partials/nav.vue'
+
 export default {
+  layout: 'default',
+  components: {
+    navigation
+  },
   computed: {
     lang(){ return this.$store.state.language },
     t(){
@@ -134,29 +145,135 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.drivers-section { padding-top: 160px; padding-bottom: 40px; }
-.drivers-title { margin-bottom: 20px; }
+.drivers-section { 
+  padding-top: 160px; 
+  padding-bottom: 40px; 
+  position: relative;
+  z-index: 10;
+  color: #fff;
+}
+.drivers-title { 
+  margin-bottom: 20px; 
+  color: #fff;
+}
 .form { max-width: 720px; }
 .form__row { margin-bottom: 16px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form__label { display:block; margin-bottom: 6px; font-size: 14px; }
-.form__input { width:100%; border:1px solid #D8D8E6; border-radius:6px; padding:10px 12px; font-size:14px; }
+.form__label { 
+  display:block; 
+  margin-bottom: 6px; 
+  font-size: 14px; 
+  color: #fff;
+}
+.form__input { 
+  width:100%; 
+  border:1px solid rgba(255,255,255,0.3); 
+  border-radius:6px; 
+  padding:10px 12px; 
+  font-size:14px; 
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  backdrop-filter: blur(10px);
+}
+.form__input::placeholder {
+  color: rgba(255,255,255,0.7);
+}
 .form__actions { margin-top: 20px; }
 .btn { background:#1F2E4D; color:#FFFFFF; border:0; border-radius:6px; line-height:48px; padding:0 22px; cursor:pointer; font-weight:600; font-size:16px; transition: background .2s ease; }
 .btn:hover { background:#19253E; }
-.btn--ghost { background: transparent; color:#1F2E4D; border:1px solid #1F2E4D; margin-left: 8px; }
-.btn--ghost:hover { background: rgba(31,46,77,0.08); }
+.btn--ghost { 
+  background: transparent; 
+  color:#fff; 
+  border:1px solid #fff; 
+  margin-left: 8px; 
+}
+.btn--ghost:hover { 
+  background: rgba(255,255,255,0.1); 
+  color: #fff;
+}
 .routes { margin-top: 6px; margin-bottom: 10px; }
-.routes__head { display:grid; grid-template-columns: 2fr 2fr 1fr 1fr auto; gap: 8px; font-size:12px; color:#7D7D7D; margin-bottom: 6px; }
+.routes__head { 
+  display:grid; 
+  grid-template-columns: 2fr 2fr 1fr 1fr auto; 
+  gap: 8px; 
+  font-size:12px; 
+  color:rgba(255,255,255,0.7); 
+  margin-bottom: 6px; 
+}
 .routes__th { }
-.routes__row { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px; align-items: center; }
-.routes__input { width: 100%; border:1px solid #D8D8E6; border-radius:6px; padding:8px 10px; }
+.routes__row { 
+  display: grid; 
+  grid-template-columns: 2fr 2fr 1fr 1fr auto; 
+  gap: 8px; 
+  margin-bottom: 8px; 
+  align-items: center; 
+}
+.routes__input { 
+  width: 100%; 
+  border:1px solid rgba(255,255,255,0.3); 
+  border-radius:6px; 
+  padding:8px 10px; 
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  backdrop-filter: blur(10px);
+}
 .routes__input--sm { max-width: 120px; }
-.btn--icon { width: 36px; height: 36px; border-radius: 18px; padding: 0; line-height: 36px; text-align: center; background: transparent; color:#2F80ED; border:1px solid #2F80ED; }
+.btn--icon { 
+  width: 36px; 
+  height: 36px; 
+  border-radius: 18px; 
+  padding: 0; 
+  line-height: 36px; 
+  text-align: center; 
+  background: transparent; 
+  color:#fff; 
+  border:1px solid #fff; 
+}
 @media (max-width: 767px){ .routes__row{ grid-template-columns: 1fr 1fr; } }
-.note { margin-top: 12px; color:#7D7D7D; }
+.note { 
+  margin-top: 12px; 
+  color:rgba(255,255,255,0.7); 
+}
 @media (max-width: 1024px){ .drivers-section{ padding-top: 130px; } }
 @media (max-width: 767px){ .drivers-section{ padding-top: 110px; } .grid{ grid-template-columns: 1fr; } }
+
+/* Фон страницы как на главной */
+.page-background {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+
+.page-background__gradient {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%);
+  z-index: 1;
+}
+
+.page-background__overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  height: 200vh;
+  width: 35vh;
+  background: linear-gradient(180deg, rgba(255, 80, 41, 0.256) 0%, rgba(229, 0, 109, 0.8) 52.49%, rgba(112, 34, 131, 0.8) 64.64%);
+  filter: blur(100px);
+  transform: matrix(0.58, 1, -0.63, 0.64, 0, 0) translate3d(-120%, -40%, 0);
+  z-index: 3;
+}
 </style>
 
 

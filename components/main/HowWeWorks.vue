@@ -4,7 +4,7 @@
       <div class="row">
         <div class="col-sm-6">
           <h2 class="h2 site-section__title">
-            {{ data.title }}
+            {{ data.whyWe.title }}
           </h2>
         </div>
       </div>
@@ -68,43 +68,53 @@
               return '<span class="' + className + '"><span class="swiper-bullet-inner"></span></span>';
             },
           },
-        },
-        slides: [
+        }
+      }
+    },
+    computed: {
+      slides() {
+        if (!this.data || !this.data.slider || !Array.isArray(this.data.slider)) {
+          return []
+        }
+        
+        return [
           {
             src: '/img/slide1.png',
-            title: 'Безопасно и надежно',
-            desc: 'Каждый водитель проходит через индивидуальное собеседование при трудоустройстве. Минимальный стаж — 5 лет.',
+            title: this.data.slider[0]?.title || '',
+            desc: this.data.slider[0]?.description || '',
             backgroundColor: '#291737',
             class: 'safety'
           }, {
             src: '/img/slide2.png',
-            title: 'Пунктуальность',
-            desc: 'Приедем заранее, ориентируясь на&nbsp;указанное вами время или сроки рейса. При необходимости вы&nbsp;сможете связаться с&nbsp;водителем напрямую.',
+            title: this.data.slider[1]?.title || '',
+            desc: this.data.slider[1]?.description || '',
             backgroundColor: '#B0137F',
             class: 'punctuality'
-
           }, {
             src: '/img/slide3.png',
-            title: 'Вежливость и&nbsp;знание языков',
-            desc: 'Наши водители вежливы и&nbsp;владеют английским языком. Встретят вас с&nbsp;табличкой в&nbsp;аэропорту или на&nbsp;вокзале, помогут с&nbsp;багажом. Подождут бесплатно, если рейс задержат.',
+            title: this.data.slider[2]?.title || '',
+            desc: this.data.slider[2]?.description || '',
             backgroundColor: '#F31880',
             class: 'knowledges'
-          },
-
+          }
         ]
       }
     },
     mounted() {
-      this.$refs.mySlider.swiper.on('slideChange', function () {
-        console.log(this)
-        /*var currentIndex = this.activeIndex;
-        this.slides.forEach(function(val, currentIndex){
-          val.
-          this.slides[currentIndex].classList.addClass('active')
-        });
-        for(let i=0; i < this.slides; i++){
-          this.slides[i].classList.removeClass('active')
-        }*/
+      this.$nextTick(() => {
+        if (this.$refs.mySlider && this.$refs.mySlider.swiper) {
+          this.$refs.mySlider.swiper.on('slideChange', function () {
+            console.log(this)
+            /*var currentIndex = this.activeIndex;
+            this.slides.forEach(function(val, currentIndex){
+              val.
+              this.slides[currentIndex].classList.addClass('active')
+            });
+            for(let i=0; i < this.slides; i++){
+              this.slides[i].classList.removeClass('active')
+            }*/
+          });
+        }
       });
     }
   }

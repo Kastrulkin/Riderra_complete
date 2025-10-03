@@ -12,7 +12,7 @@
       <transition name="list-fade">
         <div class="lang-select__list" v-show="state">
           <div class="lang-select__list-item" v-for="(item, i) in languages" :key="i" @click="chooseLang(item)">
-            {{item.country + '-' + item.lang}}
+            {{item.country}}
           </div>
         </div>
       </transition>
@@ -47,7 +47,6 @@
 						shortcut: 'en',
 						lang: 'english',
 						country: 'english'
-
 					}
 				],
 				current: null

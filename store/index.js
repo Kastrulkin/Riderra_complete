@@ -21,7 +21,7 @@ const createStore = () => {
         title: 'Эконом',
         desc: 'Багаж для 3 человек 3 места',
         price: 5000,
-        models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
+        models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
       },
       distance: '',
       tarifs:{
@@ -78,7 +78,7 @@ const createStore = () => {
           title: 'Эконом',
           desc: 'Багаж для 3 человек 3 места',
           price: 5000,
-          models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
 
         }, {
           name: 'business',
@@ -89,7 +89,7 @@ const createStore = () => {
           desc: 'Багаж для 3 человек 3 места',
           price: 10000,
           prevPrice: 7000,
-          models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
 
         }, {
           name: 'luxury',
@@ -99,7 +99,7 @@ const createStore = () => {
           title: 'Люкс',
           desc: 'Багаж для 3 человек 3 места',
           price: 15000,
-          models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
 
         },
         {
@@ -110,7 +110,7 @@ const createStore = () => {
           title: 'Люкс',
           desc: 'Багаж для 3 человек 3 места',
           price: 15000,
-          models: 'Ford Focus, Hyndai Solaris, Opel Astra, Lada Largus.'
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
 
         },
       ],
