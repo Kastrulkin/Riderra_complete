@@ -6,7 +6,8 @@ module.exports = {
     port: 8000, // default: 3000
     host: '0.0.0.0', // default: localhost
   },*/
-  mode: 'spa',
+  ssr: false,
+  target: 'static',
   head: {
     title: 'riderra',
     meta: [
@@ -19,10 +20,6 @@ module.exports = {
       { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
       { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&amp;subset=cyrillic-ext' }
     ]
-  },
-  env: {
-    SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY
   },
   serverMiddleware: [
     '~/server/index.js'

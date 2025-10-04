@@ -121,13 +121,16 @@
             },
           }
         },
-        slides: [
-          {
-            src: '/img/slider/slide1.jpg'
-          }, {
-            src: '/img/slider/slide1.jpg'
-          }
-        ]
+        slides() {
+          const currentCar = this.currentCar;
+          return [
+            {
+              src: currentCar.interior1 || '/img/slider/slide1.jpg'
+            }, {
+              src: currentCar.interior2 || '/img/slider/slide1.jpg'
+            }
+          ];
+        }
       }
     },
     head() {

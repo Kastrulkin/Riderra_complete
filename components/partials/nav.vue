@@ -3,9 +3,7 @@
     <div class="header__container container">
     <div class="logo">
       <nuxt-link to="/" class="logo__link">
-        <svg class="logo__img logo__img--main" width="108" height="25" viewBox="0 0 108 25">
-          <use xlink:href="/sprite.svg#logo"></use>
-        </svg>
+        <div class="logo__text">riderra</div>
 
         <svg class="logo__img logo__img--sub" width="108" height="25" viewBox="0 0 108 25" fill="none" xmlns="http://www.w3.org/2000/svg">
           <g clip-path="url(#clip0)">
@@ -507,7 +505,22 @@
 
     }
 
-  }
+    }
+
+    .logo__text {
+      font-size: 24px;
+      font-weight: 700;
+      color: white;
+      text-decoration: none;
+      background: linear-gradient(135deg, #FF017A 0%, #702283 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo__text:hover {
+      text-decoration: none;
+    }
 
 
 </style>

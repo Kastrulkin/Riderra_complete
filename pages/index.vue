@@ -6,7 +6,7 @@
       <div class="container">
         <div class="row">
           <div class="col-sm-6">
-            <h2 class="h2 site-section__title">{{ $t('orderTitle') }}</h2>
+            <h2 class="h2 site-section__title">{{ $store.state.siteData[$store.state.language].orderTitle }}</h2>
           </div>
         </div>
         <div class="widget" id="booking-widget">

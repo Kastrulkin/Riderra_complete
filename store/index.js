@@ -71,48 +71,106 @@ const createStore = () => {
       },
       cars: [
         {
-          name: 'economy',
-          src: '/img/cars/econom.png',
+          name: 'standard',
+          src: '/img/cars/Stnadard.png',
+          interior1: '/img/cars/Standard interior 1.png',
+          interior2: '/img/cars/standard interior 2.png',
           color: '#E5006D',
           subColor: '#C01984',
-          title: 'Эконом',
+          title: 'Стандарт',
           desc: 'Багаж для 3 человек 3 места',
-          price: 5000,
           models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
-
         }, {
           name: 'business',
           src: '/img/cars/business.png',
+          interior1: '/img/cars/business interior 1.png',
+          interior2: '/img/cars/business interior 2.png',
           color: '#C80D7D',
           subColor: '#C01984',
           title: 'Бизнес',
           desc: 'Багаж для 3 человек 3 места',
-          price: 10000,
-          prevPrice: 7000,
           models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
-
         }, {
-          name: 'luxury',
-          src: '/img/cars/lux.png',
+          name: 'first',
+          src: '/img/cars/first.png',
+          interior1: '/img/cars/First interior 1.png',
+          interior2: '/img/cars/First interior 2.png',
           color: '#702283',
           subColor: '#C01984',
-          title: 'Люкс',
+          title: 'Первый',
           desc: 'Багаж для 3 человек 3 места',
-          price: 15000,
           models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
-
-        },
-        {
-          name: 'luxury',
-          src: '/img/cars/lux.png',
-          color: '#702283',
+        }, {
+          name: 'minivan',
+          src: '/img/cars/minivan.png',
+          interior1: '/img/cars/minivan interior 1.png',
+          interior2: '/img/cars/minivan interior 2.png',
+          color: '#8B008B',
           subColor: '#C01984',
-          title: 'Люкс',
+          title: 'Минивэн',
           desc: 'Багаж для 3 человек 3 места',
-          price: 15000,
           models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
-
-        },
+        }, {
+          name: 'mpv',
+          src: '/img/cars/mpv.png',
+          interior1: '/img/cars/mpv interior 1.jpg',
+          interior2: '/img/cars/mpv interior 2.jpg',
+          color: '#4B0082',
+          subColor: '#C01984',
+          title: 'MPV',
+          desc: 'Багаж для 3 человек 3 места',
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
+        }, {
+          name: 'suv_lux',
+          src: '/img/cars/SUV lux.png',
+          interior1: '/img/cars/SUV lux interior 1.jpg',
+          interior2: '/img/cars/SUV lux interior 2.jpg',
+          color: '#FF4500',
+          subColor: '#C01984',
+          title: 'SUV lux',
+          desc: 'Багаж для 3 человек 3 места',
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
+        }, {
+          name: 'business_van',
+          src: '/img/cars/businessvan.png',
+          interior1: '/img/cars/businessvan interior 1.png',
+          interior2: '/img/cars/businessvan interior 2.png',
+          color: '#DC143C',
+          subColor: '#C01984',
+          title: 'Бизнесвэн',
+          desc: 'Багаж для 3 человек 3 места',
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
+        }, {
+          name: 'bus',
+          src: '/img/cars/bus_new.png',
+          interior1: '/img/cars/Bus interior 1.png',
+          interior2: '/img/cars/Bus interior 2.png',
+          color: '#B22222',
+          subColor: '#C01984',
+          title: 'Автобус',
+          desc: 'Багаж для 3 человек 3 места',
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
+        }, {
+          name: 'minibus',
+          src: '/img/cars/minibus.png',
+          interior1: '/img/cars/Minibus interior 1.png',
+          interior2: '/img/cars/Minibus interior 2.png',
+          color: '#FF6347',
+          subColor: '#C01984',
+          title: 'Минибус',
+          desc: 'Багаж для 3 человек 3 места',
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
+        }, {
+          name: 'electric_standard',
+          src: '/img/cars/e-vehicle.png',
+          interior1: '/img/cars/e-vehicle interior 1.jpg',
+          interior2: '/img/cars/e-vehicle interior 2.jpg',
+          color: '#32CD32',
+          subColor: '#C01984',
+          title: 'Электрический стандарт',
+          desc: 'Багаж для 3 человек 3 места',
+          models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
+        }
       ],
       points: {
         from: null,
