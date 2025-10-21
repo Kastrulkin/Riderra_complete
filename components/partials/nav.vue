@@ -1,9 +1,9 @@
 <template>
-  <header class="header" :class="{'menu-open': menu, 'header--solid': !isHome, 'active': true}">
+  <header class="header" :class="{'menu-open': menu, 'header--solid': (!isHome || isScrolled), 'active': true}">
     <div class="header__container container">
     <div class="logo">
       <nuxt-link to="/" class="logo__link">
-        <div class="logo__text">riderra</div>
+        <img class="logo__img--main" src="/img/logo.svg" alt="riderra" />
 
         <svg class="logo__img logo__img--sub" width="108" height="25" viewBox="0 0 108 25" fill="none" xmlns="http://www.w3.org/2000/svg">
           <g clip-path="url(#clip0)">
@@ -32,7 +32,18 @@
     </nav>
     <tabs-nav></tabs-nav>
     <div class="header__right">
-      <nuxt-link to="/account" class="header__signin">{{textData.enter || 'Sign in'}}</nuxt-link>
+      <template v-if="$store.state.isAuthenticated">
+        <div class="user-menu">
+          <span class="user-name">{{ $store.state.user?.email }}</span>
+          <button @click="logout" class="logout-btn">{{ $store.state.language === 'ru' ? 'Выйти' : 'Logout' }}</button>
+        </div>
+      </template>
+      <template v-else>
+        <div class="auth-links">
+          <nuxt-link to="/login" class="header__signin">{{ $store.state.language === 'ru' ? 'Войти' : 'Sign in' }}</nuxt-link>
+          <nuxt-link to="/register" class="header__signup">{{ $store.state.language === 'ru' ? 'Регистрация' : 'Register' }}</nuxt-link>
+        </div>
+      </template>
     </div>
     <div class="menu-toggle" ref="burger" @click="menuToggle">
       <span class="menu-toggle__line menu-toggle__line--first"></span>
@@ -89,12 +100,16 @@
         navList: ['Как мы работаем', 'Автопарк', 'Отзывы'],
         // navList: $store.state.siteData["ru"].nav,
         ua: '',
+        isScrolled: false,
         langData: {
           class: ''
         }
       }
     },
     methods:{
+      onScroll(){
+        this.isScrolled = window.scrollY > 20;
+      },
       mediaQuery() {
         this.$store.commit('setQuery', window.innerWidth < 667 ? 'mobile' : ((window.innerWidth > 667 && window.innerWidth < 1023) ? 'tablet' : 'laptop'))
       },
@@ -127,6 +142,10 @@
 
         }
 
+      },
+      logout() {
+        this.$store.dispatch('logout')
+        this.$router.push('/')
       }
     },
     beforeMount(){
@@ -158,6 +177,7 @@
 
 
       this.mediaQuery();
+      window.addEventListener('scroll', this.onScroll, { passive: true });
 
       var ua = navigator.userAgent.toLowerCase();
       if (ua.indexOf('safari') != -1 && ua.indexOf('chrome') === -1) {
@@ -170,6 +190,9 @@
         if (header) header.classList.add('active');
       })
 
+    },
+    beforeDestroy(){
+      window.removeEventListener('scroll', this.onScroll);
     },
 
   }
@@ -224,7 +247,7 @@
     right: 0;
     color: #fff;
     font-weight: 300;
-    padding: 54px 15px;
+    padding: 20px 15px; /* меньше высота, чтобы не перекрывать контент при скролле */
     background: transparent;
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -285,7 +308,7 @@
     .logo svg{ fill:#000; }
   }
 
-  /* Принудительно прозрачный хедер для главной страницы */
+  /* Прозрачный для главной, но как только пошёл скролл — solid */
   .header:not(.header--solid) {
     background: transparent !important;
     color: #fff !important;
@@ -520,6 +543,73 @@
 
     .logo__text:hover {
       text-decoration: none;
+    }
+
+    .header__signin {
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.5);
+      }
+    }
+
+    .header__signup {
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      background: #007bff;
+      border-radius: 6px;
+      margin-left: 8px;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: #0056b3;
+      }
+    }
+
+    .auth-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      
+      .user-name {
+        color: rgba(255,255,255,0.8);
+        font-size: 14px;
+        font-weight: 500;
+      }
+      
+      .logout-btn {
+        background: transparent;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          background: rgba(255,255,255,0.1);
+          border-color: rgba(255,255,255,0.5);
+        }
+      }
     }
 
 

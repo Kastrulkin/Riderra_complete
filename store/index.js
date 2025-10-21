@@ -8,6 +8,8 @@ const createStore = () => {
     state: {
       siteData: data,
       language: 'ru',
+      user: null,
+      isAuthenticated: false,
       media: '',
       popup: false,
       menu: false,
@@ -112,7 +114,7 @@ const createStore = () => {
           models: 'Ford Focus, Hyndai Solaris, Opel Astra.'
         }, {
           name: 'mpv',
-          src: '/img/cars/mpv.png',
+          src: '/img/cars/mpv.webp',
           interior1: '/img/cars/mpv interior 1.jpg',
           interior2: '/img/cars/mpv interior 2.jpg',
           color: '#4B0082',
@@ -244,6 +246,91 @@ const createStore = () => {
       },
       setLang(state, payload){
         state.language = payload;
+      },
+      setUser(state, user) {
+        state.user = user;
+        state.isAuthenticated = !!user;
+      },
+      clearUser(state) {
+        state.user = null;
+        state.isAuthenticated = false;
+      }
+    },
+    actions: {
+      async login({ commit }, { email, password }) {
+        try {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+          })
+          
+          const data = await response.json()
+          
+          if (response.ok) {
+            localStorage.setItem('authToken', data.token)
+            localStorage.setItem('user', JSON.stringify(data.user))
+            commit('setUser', data.user)
+            return { success: true, user: data.user }
+          } else {
+            return { success: false, error: data.error }
+          }
+        } catch (error) {
+          console.error('Login error:', error)
+          return { success: false, error: 'Login failed' }
+        }
+      },
+      
+      async register({ commit }, userData) {
+        try {
+          const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+          })
+          
+          const data = await response.json()
+          
+          if (response.ok) {
+            localStorage.setItem('authToken', data.token)
+            localStorage.setItem('user', JSON.stringify(data.user))
+            commit('setUser', data.user)
+            return { success: true, user: data.user }
+          } else {
+            return { success: false, error: data.error }
+          }
+        } catch (error) {
+          console.error('Registration error:', error)
+          return { success: false, error: 'Registration failed' }
+        }
+      },
+      
+      logout({ commit }) {
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('user')
+        commit('clearUser')
+      },
+      
+      async checkAuth({ commit }) {
+        if (process.client) {
+          const token = localStorage.getItem('authToken')
+          const user = localStorage.getItem('user')
+          
+          if (token && user) {
+            try {
+              const userData = JSON.parse(user)
+              commit('setUser', userData)
+            } catch (error) {
+              console.error('Error parsing user data:', error)
+              localStorage.removeItem('authToken')
+              localStorage.removeItem('user')
+            }
+          }
+        }
       }
     }
   });

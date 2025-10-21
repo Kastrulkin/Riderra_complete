@@ -51,6 +51,15 @@
             <label class="form__label">{{ t.routesPerKm }}</label>
             <textarea class="form__input" v-model="form.perkm" rows="3" placeholder="1.2 €/km"></textarea>
           </div>
+          
+          <div class="form__row">
+            <label class="form__label">{{ t.commissionRate }}</label>
+            <div class="commission-input">
+              <input class="form__input" v-model="form.commissionRate" type="number" min="5" max="30" step="0.1" />
+              <span class="commission-suffix">%</span>
+            </div>
+            <small class="form__help">{{ t.commissionHelp }}</small>
+          </div>
           <div class="form__row">
             <label class="form__label">{{ t.comment }}</label>
             <textarea class="form__input" v-model="form.comment" rows="4"></textarea>
@@ -83,6 +92,7 @@ export default {
           title: 'Заявление на регистрацию перевозчика',
           name: 'Ваше имя / компания', email: 'Email', phone: 'Телефон', city: 'Город / регион работы',
           fixedFrom: 'Откуда (фиксированный маршрут)', fixedTo: 'Куда (фиксированный маршрут)', fixedPrice: 'Цена', fixedCurrency: 'Валюта', routesPerKm: 'Цена за километр', comment: 'Комментарий',
+          commissionRate: 'Комиссия, которую готовы платить', commissionHelp: 'Укажите процент комиссии от 5% до 30%. Чем ниже комиссия, тем больше заказов вы получите.',
           submit: 'Отправить данные', save: 'Сохранить в базе',
           note: 'Мы открыли ваше почтовое приложение с подготовленным письмом. Просто отправьте его.'
         },
@@ -90,6 +100,7 @@ export default {
           title: 'Driver registration',
           name: 'Your name / company', email: 'Email', phone: 'Phone', city: 'City / operating region',
           fixedFrom: 'From (fixed route)', fixedTo: 'To (fixed route)', fixedPrice: 'Price', fixedCurrency: 'Currency', routesPerKm: 'Price per kilometer', comment: 'Comment',
+          commissionRate: 'Commission rate you are willing to pay', commissionHelp: 'Specify commission percentage from 5% to 30%. Lower commission means more orders.',
           submit: 'Send data', save: 'Save to DB',
           note: 'We opened your mail app with a prepared email. Just send it.'
         }
@@ -100,14 +111,18 @@ export default {
   data(){
     return {
       sent: false,
-      form: { name: '', email: '', phone: '', city: '', routes: [{ from: '', to: '', price: '', currency: '' }], perkm: '', comment: '' }
+      form: { 
+        name: '', email: '', phone: '', city: '', 
+        routes: [{ from: '', to: '', price: '', currency: '' }], 
+        perkm: '', comment: '', commissionRate: 15.0 
+      }
     }
   },
   methods: {
     submit(){
       const subject = encodeURIComponent(`[Riderra] ${this.lang==='ru'?'Регистрация водителя':'Driver registration'}`)
       const body = encodeURIComponent(
-        `Name/Company: ${this.form.name}\nEmail: ${this.form.email}\nPhone: ${this.form.phone}\nCity: ${this.form.city}\nFixed routes: ${this.form.fixed}\nPer km: ${this.form.perkm}\nComment: ${this.form.comment}`
+        `Name/Company: ${this.form.name}\nEmail: ${this.form.email}\nPhone: ${this.form.phone}\nCity: ${this.form.city}\nFixed routes: ${this.form.fixed}\nPer km: ${this.form.perkm}\nCommission: ${this.form.commissionRate}%\nComment: ${this.form.comment}`
       )
       window.location.href = `mailto:info@riderra.com?subject=${subject}&body=${body}`
       this.sent = true
@@ -118,7 +133,8 @@ export default {
           name: this.form.name, email: this.form.email, phone: this.form.phone,
           city: this.form.city, pricePerKm: this.form.perkm,
           fixedRoutesJson: JSON.stringify(this.form.routes),
-          comment: this.form.comment, lang: this.lang
+          comment: this.form.comment, lang: this.lang,
+          commissionRate: parseFloat(this.form.commissionRate)
         })
         this.sent = true; return
       }
@@ -126,7 +142,8 @@ export default {
         name: this.form.name, email: this.form.email, phone: this.form.phone,
         city: this.form.city, price_per_km: this.form.perkm,
         fixedRoutesJson: JSON.stringify(this.form.routes),
-        comment: this.form.comment, lang: this.lang
+        comment: this.form.comment, lang: this.lang,
+        commissionRate: parseFloat(this.form.commissionRate)
       })
       this.sent = true
     }
@@ -228,6 +245,31 @@ export default {
   background: transparent; 
   color:#fff; 
   border:1px solid #fff; 
+}
+
+/* Стили для поля комиссии */
+.commission-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.commission-input .form__input {
+  max-width: 120px;
+}
+
+.commission-suffix {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.form__help {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  line-height: 1.4;
 }
 @media (max-width: 767px){ .routes__row{ grid-template-columns: 1fr 1fr; } }
 .note { 

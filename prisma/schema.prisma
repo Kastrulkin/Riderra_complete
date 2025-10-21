@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Пользователи системы (админы и водители)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Хешированный пароль
+  role      String   @default("driver") // admin, driver
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Связь с водителем (если роль = driver)
+  driver    Driver?
+  
+  @@map("users")
+}
+
 model Request {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
@@ -37,6 +53,78 @@ model Driver {
   comment     String?
   lang        String?
   fixedRoutesJson String?
+  
+  // Новые поля для системы комиссий
+  commissionRate    Float?   @default(15.0)  // Комиссия водителя (5-30%)
+  isActive         Boolean  @default(false)  // Активен ли водитель
+  verificationStatus String @default("pending") // pending, verified, rejected
+  rating           Float?   @default(5.0)   // Рейтинг водителя (1-5)
+  totalTrips       Int      @default(0)     // Количество поездок
+  totalReviews     Int      @default(0)     // Количество отзывов
+  avgRating        Float?   @default(5.0)   // Средний рейтинг из отзывов
+  updatedAt        DateTime @updatedAt
+  
+  // Связь с пользователем
+  userId     String?  @unique
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Связь с маршрутами
+  routes           DriverRoute[]
+  // Связь с заказами
+  orders           Order[]
+  // Связь с отзывами
+  reviews          Review[]
+}
+
+model DriverRoute {
+  id          String   @id @default(cuid())
+  driverId    String
+  driver      Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  fromPoint   String
+  toPoint     String
+  driverPrice Float    // Цена водителя
+  ourPrice    Float    // Наша целевая цена
+  currency    String   @default("EUR")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  fromPoint   String
+  toPoint     String
+  clientPrice Float    // Цена для клиента (от EasyTaxi)
+  driverPrice Float?   // Цена водителя
+  commission  Float?   // Комиссия платформы
+  driverId    String?  // ID назначенного водителя
+  driver      Driver?  @relation(fields: [driverId], references: [id])
+  status      String   @default("pending") // pending, assigned, accepted, completed, cancelled
+  vehicleType String   // Тип транспорта
+  passengers  Int?
+  luggage     Int?
+  comment     String?
+  lang        String?
+  updatedAt   DateTime @updatedAt
+  
+  // Связь с отзывами
+  reviews     Review[]
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driverId  String
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  rating    Int      // 1-5 звезд
+  comment   String?
+  clientName String? // Имя клиента (опционально)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([orderId]) // Один отзыв на заказ
 }
 
 

@@ -2,7 +2,7 @@
   <div class="modal" v-scroll-lock="true">
     <div class="modal__inner" >
       <div class="car-class__header">
-        <div class="car-class__close" @click="hidePopup">
+        <div class="car-class__close" @click.stop="hidePopup">
           <svg viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
             <line x1="1.29447" y1="0.587365" x2="23.2945" y2="22.5874" stroke="white"/>
             <line y1="-0.5" x2="31.1127" y2="-0.5" transform="matrix(0.708057 -0.706156 0.708057 0.706156 0.940918 22.9409)" stroke="white"/>
@@ -100,6 +100,15 @@
     },
     mounted() {
       document.addEventListener('keydown', this.handleKeydown);
+      // закрытие по клику вне контента
+      this.$nextTick(() => {
+        const modalRoot = this.$el;
+        modalRoot.addEventListener('click', (e) => {
+          if (e.target === modalRoot) {
+            this.hidePopup();
+          }
+        });
+      })
     },
     beforeDestroy() {
       document.removeEventListener('keydown', this.handleKeydown);
