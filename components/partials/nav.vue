@@ -36,8 +36,8 @@
       </template>
       <template v-else>
         <div class="auth-links">
-          <nuxt-link to="/client-login" class="header__signin">{{ $store.state.language === 'ru' ? 'Войти' : 'Sign in' }}</nuxt-link>
-          <nuxt-link to="/client-register" class="header__signup">{{ $store.state.language === 'ru' ? 'Регистрация' : 'Register' }}</nuxt-link>
+          <nuxt-link to="/login" class="header__signin">{{ $store.state.language === 'ru' ? 'Войти' : 'Sign in' }}</nuxt-link>
+          <nuxt-link to="/register" class="header__signup">{{ $store.state.language === 'ru' ? 'Регистрация' : 'Register' }}</nuxt-link>
         </div>
       </template>
     </div>
