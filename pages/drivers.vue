@@ -9,6 +9,18 @@
       <div class="container">
         <h1 class="h2 drivers-title">{{ t.title }}</h1>
 
+        <!-- Секция авторизации перевозчика -->
+        <div class="auth-section">
+          <div class="auth-card">
+            <h3 class="auth-title">{{ t.authTitle }}</h3>
+            <p class="auth-subtitle">{{ t.authSubtitle }}</p>
+            <div class="auth-actions">
+              <nuxt-link to="/login" class="btn btn--primary">{{ t.loginButton }}</nuxt-link>
+              <nuxt-link to="/register" class="btn btn--ghost">{{ t.registerButton }}</nuxt-link>
+            </div>
+          </div>
+        </div>
+
         <form class="form" @submit.prevent="submit">
           <div class="form__row">
             <label class="form__label">{{ t.name }}</label>
@@ -90,6 +102,10 @@ export default {
       const dict = {
         ru: {
           title: 'Заявление на регистрацию перевозчика',
+          authTitle: 'Авторизация перевозчика',
+          authSubtitle: 'Уже зарегистрированы? Войдите в свой кабинет для управления заказами и маршрутами.',
+          loginButton: 'Войти в кабинет',
+          registerButton: 'Регистрация',
           name: 'Ваше имя / компания', email: 'Email', phone: 'Телефон', city: 'Город / регион работы',
           fixedFrom: 'Откуда (фиксированный маршрут)', fixedTo: 'Куда (фиксированный маршрут)', fixedPrice: 'Цена', fixedCurrency: 'Валюта', routesPerKm: 'Цена за километр', comment: 'Комментарий',
           commissionRate: 'Комиссия, которую готовы платить', commissionHelp: 'Укажите процент комиссии от 5% до 30%. Чем ниже комиссия, тем больше заказов вы получите.',
@@ -98,6 +114,10 @@ export default {
         },
         en: {
           title: 'Driver registration',
+          authTitle: 'Driver Authorization',
+          authSubtitle: 'Already registered? Log in to your dashboard to manage orders and routes.',
+          loginButton: 'Login to Dashboard',
+          registerButton: 'Registration',
           name: 'Your name / company', email: 'Email', phone: 'Phone', city: 'City / operating region',
           fixedFrom: 'From (fixed route)', fixedTo: 'To (fixed route)', fixedPrice: 'Price', fixedCurrency: 'Currency', routesPerKm: 'Price per kilometer', comment: 'Comment',
           commissionRate: 'Commission rate you are willing to pay', commissionHelp: 'Specify commission percentage from 5% to 30%. Lower commission means more orders.',
@@ -171,6 +191,63 @@ export default {
 }
 .drivers-title { 
   margin-bottom: 20px; 
+  color: #fff;
+}
+
+/* Стили для секции авторизации */
+.auth-section {
+  margin-bottom: 40px;
+}
+
+.auth-card {
+  background: rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 32px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.auth-subtitle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.8);
+  margin-bottom: 24px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.auth-actions .btn {
+  min-width: 160px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn--primary {
+  background: #007bff;
+  color: #fff;
+  border: none;
+}
+
+.btn--primary:hover {
+  background: #0056b3;
   color: #fff;
 }
 .form { max-width: 720px; }
@@ -276,8 +353,28 @@ export default {
   margin-top: 12px; 
   color:rgba(255,255,255,0.7); 
 }
-@media (max-width: 1024px){ .drivers-section{ padding-top: 130px; } }
-@media (max-width: 767px){ .drivers-section{ padding-top: 110px; } .grid{ grid-template-columns: 1fr; } }
+@media (max-width: 1024px){ 
+  .drivers-section{ padding-top: 130px; } 
+  .auth-card {
+    padding: 24px;
+  }
+}
+@media (max-width: 767px){ 
+  .drivers-section{ padding-top: 110px; } 
+  .grid{ grid-template-columns: 1fr; } 
+  .auth-card {
+    padding: 20px;
+    margin: 0 16px;
+  }
+  .auth-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  .auth-actions .btn {
+    width: 100%;
+    max-width: 280px;
+  }
+}
 
 /* Фон страницы как на главной */
 .page-background {
