@@ -15,8 +15,7 @@
             <h3 class="auth-title">{{ t.authTitle }}</h3>
             <p class="auth-subtitle">{{ t.authSubtitle }}</p>
             <div class="auth-actions">
-              <nuxt-link to="/login" class="btn btn--primary">{{ t.loginButton }}</nuxt-link>
-              <nuxt-link to="/register" class="btn btn--ghost">{{ t.registerButton }}</nuxt-link>
+              <nuxt-link to="/driver-login" class="btn btn--primary">{{ t.loginButton }}</nuxt-link>
             </div>
           </div>
         </div>
@@ -109,7 +108,7 @@ export default {
           name: 'Ваше имя / компания', email: 'Email', phone: 'Телефон', city: 'Город / регион работы',
           fixedFrom: 'Откуда (фиксированный маршрут)', fixedTo: 'Куда (фиксированный маршрут)', fixedPrice: 'Цена', fixedCurrency: 'Валюта', routesPerKm: 'Цена за километр', comment: 'Комментарий',
           commissionRate: 'Комиссия, которую готовы платить', commissionHelp: 'Укажите процент комиссии от 5% до 30%. Чем ниже комиссия, тем больше заказов вы получите.',
-          submit: 'Отправить данные', save: 'Сохранить в базе',
+          submit: 'Регистрация', save: 'Сохранить в базе',
           note: 'Мы открыли ваше почтовое приложение с подготовленным письмом. Просто отправьте его.'
         },
         en: {
@@ -121,7 +120,7 @@ export default {
           name: 'Your name / company', email: 'Email', phone: 'Phone', city: 'City / operating region',
           fixedFrom: 'From (fixed route)', fixedTo: 'To (fixed route)', fixedPrice: 'Price', fixedCurrency: 'Currency', routesPerKm: 'Price per kilometer', comment: 'Comment',
           commissionRate: 'Commission rate you are willing to pay', commissionHelp: 'Specify commission percentage from 5% to 30%. Lower commission means more orders.',
-          submit: 'Send data', save: 'Save to DB',
+          submit: 'Registration', save: 'Save to DB',
           note: 'We opened your mail app with a prepared email. Just send it.'
         }
       }
@@ -367,8 +366,7 @@ export default {
     margin: 0 16px;
   }
   .auth-actions {
-    flex-direction: column;
-    align-items: center;
+    justify-content: center;
   }
   .auth-actions .btn {
     width: 100%;

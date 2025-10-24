@@ -36,8 +36,8 @@
       </template>
       <template v-else>
         <div class="auth-links">
-          <nuxt-link to="/login" class="header__signin">{{ $store.state.language === 'ru' ? 'Войти' : 'Sign in' }}</nuxt-link>
-          <nuxt-link to="/register" class="header__signup">{{ $store.state.language === 'ru' ? 'Регистрация' : 'Register' }}</nuxt-link>
+          <nuxt-link to="/client-login" class="header__signin">{{ $store.state.language === 'ru' ? 'Войти' : 'Sign in' }}</nuxt-link>
+          <nuxt-link to="/client-register" class="header__signup">{{ $store.state.language === 'ru' ? 'Регистрация' : 'Register' }}</nuxt-link>
         </div>
       </template>
     </div>
@@ -218,6 +218,20 @@
 
     .inner-page .menu-toggle__line{
       background: #fff;
+    }
+    
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 40px 0;
+    }
+    
+    .auth-links {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 20px;
     }
 
     .logo{
@@ -500,6 +514,23 @@
 
       &__right{
         display: none;
+      }
+      
+      .auth-links {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 20px;
+      }
+      
+      .header__signin,
+      .header__signup {
+        width: 100%;
+        text-align: center;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
       }
     }
 
