@@ -4,7 +4,7 @@
 # Проверьте: nginx -t
 # Перезагрузите: systemctl reload nginx
 
-# HTTP -> HTTPS редирект (если используете SSL)
+# HTTP -> HTTPS редирект
 server {
     listen 80;
     server_name riderra.com www.riderra.com;
@@ -16,14 +16,14 @@ server {
     listen 443 ssl http2;
     server_name riderra.com www.riderra.com;
 
-    # SSL сертификаты (замените на свои пути)
-    # ssl_certificate /etc/letsencrypt/live/riderra.com/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/riderra.com/privkey.pem;
-
-    # Если SSL не настроен, используйте только этот блок без редиректа выше:
-    # server {
-    #     listen 80;
-    #     server_name riderra.com www.riderra.com;
+    # SSL сертификаты (проверьте пути к вашим сертификатам)
+    ssl_certificate /etc/letsencrypt/live/riderra.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/riderra.com/privkey.pem;
+    
+    # SSL настройки безопасности
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
 
     # Проксирование на Nuxt сервер (порт 3000)
     location / {
@@ -50,4 +50,26 @@ server {
         add_header Cache-Control "public, immutable";
     }
 }
+
+# Если SSL не настроен, используйте этот блок вместо блоков выше:
+# server {
+#     listen 80;
+#     server_name riderra.com www.riderra.com;
+#
+#     location / {
+#         proxy_pass http://localhost:3000;
+#         proxy_http_version 1.1;
+#         proxy_set_header Upgrade $http_upgrade;
+#         proxy_set_header Connection 'upgrade';
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_cache_bypass $http_upgrade;
+#         
+#         proxy_connect_timeout 60s;
+#         proxy_send_timeout 60s;
+#         proxy_read_timeout 60s;
+#     }
+# }
 
