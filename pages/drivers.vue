@@ -1,14 +1,11 @@
 <template>
   <div>
-    <navigation></navigation>
     <div class="page-background">
       <div class="page-background__gradient"></div>
       <div class="page-background__overlay"></div>
     </div>
     <section class="site-section site-section--pf drivers-section">
       <div class="container">
-        <h1 class="h2 drivers-title">{{ t.title }}</h1>
-
         <!-- Секция авторизации перевозчика -->
         <div class="auth-section">
           <div class="auth-card">
@@ -19,6 +16,8 @@
             </div>
           </div>
         </div>
+
+        <h1 class="h2 drivers-title">{{ t.title }}</h1>
 
         <form class="form" @submit.prevent="submit">
           <div class="form__row">
@@ -88,13 +87,8 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
-
 export default {
   layout: 'default',
-  components: {
-    navigation
-  },
   computed: {
     lang(){ return this.$store.state.language },
     t(){
@@ -109,7 +103,7 @@ export default {
           fixedFrom: 'Откуда (фиксированный маршрут)', fixedTo: 'Куда (фиксированный маршрут)', fixedPrice: 'Цена', fixedCurrency: 'Валюта', routesPerKm: 'Цена за километр', comment: 'Комментарий',
           commissionRate: 'Комиссия, которую готовы платить', commissionHelp: 'Укажите процент комиссии от 5% до 30%. Чем ниже комиссия, тем больше заказов вы получите.',
           submit: 'Регистрация', save: 'Сохранить в базе',
-          note: 'Мы открыли ваше почтовое приложение с подготовленным письмом. Просто отправьте его.'
+          note: 'Спасибо! Ваша заявка отправлена. Мы свяжемся с вами в ближайшее время.'
         },
         en: {
           title: 'Driver registration',
@@ -121,7 +115,7 @@ export default {
           fixedFrom: 'From (fixed route)', fixedTo: 'To (fixed route)', fixedPrice: 'Price', fixedCurrency: 'Currency', routesPerKm: 'Price per kilometer', comment: 'Comment',
           commissionRate: 'Commission rate you are willing to pay', commissionHelp: 'Specify commission percentage from 5% to 30%. Lower commission means more orders.',
           submit: 'Registration', save: 'Save to DB',
-          note: 'We opened your mail app with a prepared email. Just send it.'
+          note: 'Thank you! Your application has been sent. We will contact you soon.'
         }
       }
       return dict[this.lang]
@@ -138,13 +132,38 @@ export default {
     }
   },
   methods: {
-    submit(){
-      const subject = encodeURIComponent(`[Riderra] ${this.lang==='ru'?'Регистрация водителя':'Driver registration'}`)
-      const body = encodeURIComponent(
-        `Name/Company: ${this.form.name}\nEmail: ${this.form.email}\nPhone: ${this.form.phone}\nCity: ${this.form.city}\nFixed routes: ${this.form.fixed}\nPer km: ${this.form.perkm}\nCommission: ${this.form.commissionRate}%\nComment: ${this.form.comment}`
-      )
-      window.location.href = `mailto:info@riderra.com?subject=${subject}&body=${body}`
+    async submit(){
+      try {
+        const response = await this.$axios.$post('/api/drivers', {
+          name: this.form.name,
+          email: this.form.email,
+          phone: this.form.phone,
+          city: this.form.city,
+          pricePerKm: this.form.perkm,
+          fixedRoutesJson: JSON.stringify(this.form.routes),
+          routes: this.form.routes,
+          comment: this.form.comment,
+          lang: this.lang,
+          commissionRate: parseFloat(this.form.commissionRate)
+        })
+        
+        if (response.success) {
       this.sent = true
+          // Очищаем форму после успешной отправки
+          this.form = {
+            name: '', email: '', phone: '', city: '',
+            routes: [{ from: '', to: '', price: '', currency: '' }],
+            perkm: '', comment: '', commissionRate: 15.0
+          }
+        }
+      } catch (error) {
+        console.error('Error submitting form:', error)
+        const errorMessage = error.response?.data?.message || error.message || 'Unknown error'
+        console.error('Error details:', errorMessage)
+        alert(this.lang === 'ru' 
+          ? `Ошибка при отправке заявки: ${errorMessage}. Попробуйте позже.` 
+          : `Error submitting form: ${errorMessage}. Please try again later.`)
+      }
     },
     async saveToSupabase(){
       if(!this.$supabase){
@@ -196,6 +215,8 @@ export default {
 /* Стили для секции авторизации */
 .auth-section {
   margin-bottom: 40px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .auth-card {
@@ -206,7 +227,7 @@ export default {
   border: 1px solid rgba(255,255,255,0.2);
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
   max-width: 500px;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .auth-title {
@@ -250,8 +271,8 @@ export default {
   color: #fff;
 }
 .form { max-width: 720px; }
-.form__row { margin-bottom: 16px; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form__row { margin-bottom: 24px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 .form__label { 
   display:block; 
   margin-bottom: 6px; 
@@ -361,6 +382,10 @@ export default {
 @media (max-width: 767px){ 
   .drivers-section{ padding-top: 110px; } 
   .grid{ grid-template-columns: 1fr; } 
+  .auth-section {
+    justify-content: center;
+  }
+  
   .auth-card {
     padding: 20px;
     margin: 0 16px;

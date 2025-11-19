@@ -90,7 +90,57 @@
           </div>
         </div>
         
-        <!-- Недавние заказы -->
+        <!-- Предустановленные маршруты -->
+        <div class="dashboard-section">
+          <h3>{{ t.fixedRates }}</h3>
+          <p class="section-subtitle">{{ t.fixedRatesSubtitle }}</p>
+          
+          <div class="fixed-rates-table-wrapper" v-if="cityRoutes.length > 0">
+            <table class="fixed-rates-table">
+              <thead>
+                <tr>
+                  <th>{{ t.country }}</th>
+                  <th>{{ t.from }}</th>
+                  <th>{{ t.to }}</th>
+                  <th>{{ t.vehicleType }}</th>
+                  <th>{{ t.passengers }}</th>
+                  <th>{{ t.distance }}</th>
+                  <th class="target-fare">{{ t.targetFare }}</th>
+                  <th>{{ t.yourBestPrice }}</th>
+                  <th>{{ t.currency }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="route in cityRoutes" :key="route.id">
+                  <td>{{ route.country }}</td>
+                  <td>{{ route.fromPoint }}</td>
+                  <td>{{ route.toPoint }}</td>
+                  <td>{{ route.vehicleType }}</td>
+                  <td>{{ route.passengers }}</td>
+                  <td>{{ route.distance }} km</td>
+                  <td class="target-fare">{{ route.targetFare }} {{ route.currency }}</td>
+                  <td>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      :value="route.bestPrice || ''" 
+                      @blur="updateBestPrice(route.id, $event.target.value)"
+                      class="best-price-input"
+                      :placeholder="t.enterPrice"
+                    />
+                  </td>
+                  <td>{{ route.currency }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div v-else class="empty-state">
+            <p>{{ t.noFixedRates }}</p>
+          </div>
+        </div>
+        
+        <!-- Выполненные заказы -->
         <div class="dashboard-section">
           <h3>{{ t.recentOrders }}</h3>
           <div class="orders-list" v-if="orders.length > 0">
@@ -177,8 +227,21 @@ export default {
           totalTrips: 'Поездок',
           status: 'Статус',
           routes: 'Мои маршруты',
-          recentOrders: 'Недавние заказы',
+          recentOrders: 'Выполненные заказы',
           reviews: 'Отзывы клиентов',
+          fixedRates: 'Предустановленные маршруты',
+          fixedRatesSubtitle: 'Целевые тарифы основаны на запросах',
+          country: 'Страна',
+          from: 'Откуда',
+          to: 'Куда',
+          vehicleType: 'Класс машины',
+          passengers: 'Пассажиры',
+          distance: 'Расстояние',
+          targetFare: 'Целевая стоимость',
+          yourBestPrice: 'Ваше лучшее предложение',
+          currency: 'Валюта',
+          enterPrice: 'Введите цену',
+          noFixedRates: 'Нет предустановленных маршрутов',
           edit: 'Изменить',
           addRoute: 'Добавить маршрут',
           noRoutes: 'У вас пока нет маршрутов',
@@ -211,8 +274,21 @@ export default {
           totalTrips: 'Trips',
           status: 'Status',
           routes: 'My Routes',
-          recentOrders: 'Recent Orders',
+          recentOrders: 'Completed Orders',
           reviews: 'Client Reviews',
+          fixedRates: 'Fixed Rates',
+          fixedRatesSubtitle: 'Target rates are based on the request from',
+          country: 'Country',
+          from: 'From',
+          to: 'To',
+          vehicleType: 'Vehicle type',
+          passengers: 'Pax',
+          distance: 'Distance, km',
+          targetFare: 'Target fare',
+          yourBestPrice: 'Your best price',
+          currency: 'Currency',
+          enterPrice: 'Enter price',
+          noFixedRates: 'No fixed rates available',
           edit: 'Edit',
           addRoute: 'Add Route',
           noRoutes: 'You have no routes yet',
@@ -253,6 +329,7 @@ export default {
       routes: [],
       orders: [],
       reviews: [],
+      cityRoutes: [],
       editCommission: false,
       addRoute: false,
       newCommissionRate: 15.0,
@@ -270,82 +347,204 @@ export default {
     await this.loadRoutes()
     await this.loadOrders()
     await this.loadReviews()
+    await this.loadCityRoutes()
   },
   methods: {
+    getAuthHeaders() {
+      const token = localStorage.getItem('authToken')
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    },
     async loadDriverData() {
-      // В реальном приложении здесь будет загрузка данных водителя
-      // Пока используем моковые данные
+      try {
+        const response = await fetch('/api/drivers/me', {
+          headers: this.getAuthHeaders()
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          this.driver = {
+            id: data.id,
+            commissionRate: data.commissionRate || 15.0,
+            rating: data.rating || 5.0,
+            totalTrips: data.totalTrips || 0,
+            verificationStatus: data.verificationStatus || 'pending'
+          }
+          this.newCommissionRate = this.driver.commissionRate
+        } else {
+          console.error('Failed to load driver data')
+        }
+      } catch (error) {
+        console.error('Error loading driver data:', error)
+      }
     },
     async loadRoutes() {
-      // В реальном приложении здесь будет загрузка маршрутов водителя
-      // Пока используем моковые данные
-      this.routes = [
-        {
-          id: '1',
-          fromPoint: 'Аэропорт Шереметьево',
-          toPoint: 'Центр Москвы',
-          driverPrice: 2000,
-          ourPrice: 2500,
-          currency: 'RUB'
-        },
-        {
-          id: '2',
-          fromPoint: 'Вокзал',
-          toPoint: 'Аэропорт',
-          driverPrice: 1800,
-          ourPrice: 2200,
-          currency: 'RUB'
+      try {
+        if (!this.driver.id) {
+          await this.loadDriverData()
         }
-      ]
+        
+        const response = await fetch(`/api/drivers/${this.driver.id}/routes`, {
+          headers: this.getAuthHeaders()
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          this.routes = data.map(route => ({
+            id: route.id,
+            fromPoint: route.fromPoint,
+            toPoint: route.toPoint,
+            driverPrice: route.driverPrice,
+            ourPrice: route.ourPrice,
+            currency: route.currency || 'EUR'
+          }))
+        } else {
+          console.error('Failed to load routes')
+        }
+      } catch (error) {
+        console.error('Error loading routes:', error)
+      }
     },
     async loadOrders() {
-      // В реальном приложении здесь будет загрузка заказов водителя
-      // Пока используем моковые данные
+      try {
+        const response = await fetch('/api/drivers/me/orders', {
+          headers: this.getAuthHeaders()
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          this.orders = data.map(order => ({
+            id: order.id,
+            fromPoint: order.fromPoint,
+            toPoint: order.toPoint,
+            clientPrice: order.clientPrice,
+            status: order.status
+          }))
+        } else {
+          console.error('Failed to load orders')
+        }
+      } catch (error) {
+        console.error('Error loading orders:', error)
+      }
     },
     async loadReviews() {
-      // В реальном приложении здесь будет загрузка отзывов водителя
-      // Пока используем моковые данные
-      this.reviews = [
-        {
-          id: '1',
-          rating: 5,
-          comment: 'Отличный водитель, очень вежливый и пунктуальный',
-          clientName: 'Анна Смирнова',
-          createdAt: new Date('2024-01-20')
-        },
-        {
-          id: '2',
-          rating: 4,
-          comment: 'Хорошая поездка, но немного опоздал',
-          clientName: 'Петр Иванов',
-          createdAt: new Date('2024-01-18')
+      try {
+        if (!this.driver.id) {
+          await this.loadDriverData()
         }
-      ]
+        
+        const response = await fetch(`/api/drivers/${this.driver.id}/reviews`, {
+          headers: this.getAuthHeaders()
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          this.reviews = data.map(review => ({
+            id: review.id,
+            rating: review.rating,
+            comment: review.comment,
+            clientName: review.clientName || 'Анонимный клиент',
+            createdAt: review.createdAt
+          }))
+        } else {
+          console.error('Failed to load reviews')
+        }
+      } catch (error) {
+        console.error('Error loading reviews:', error)
+      }
     },
     async saveCommission() {
-      // В реальном приложении здесь будет сохранение комиссии
-      this.driver.commissionRate = this.newCommissionRate
-      this.editCommission = false
+      try {
+        if (!this.driver.id) {
+          await this.loadDriverData()
+        }
+        
+        const response = await fetch('/api/drivers/me', {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            commissionRate: parseFloat(this.newCommissionRate)
+          })
+        })
+        
+        if (response.ok) {
+          this.driver.commissionRate = this.newCommissionRate
+          this.editCommission = false
+        } else {
+          alert(this.lang === 'ru' ? 'Ошибка при сохранении комиссии' : 'Error saving commission')
+        }
+      } catch (error) {
+        console.error('Error saving commission:', error)
+        alert(this.lang === 'ru' ? 'Ошибка при сохранении комиссии' : 'Error saving commission')
+      }
     },
     async saveRoute() {
-      // В реальном приложении здесь будет сохранение маршрута
-      this.routes.push({ ...this.newRoute, id: Date.now() })
-      this.addRoute = false
-      this.newRoute = {
-        fromPoint: '',
-        toPoint: '',
-        driverPrice: 0,
-        ourPrice: 0,
-        currency: 'EUR'
+      try {
+        if (!this.driver.id) {
+          await this.loadDriverData()
+        }
+        
+        const response = await fetch(`/api/drivers/${this.driver.id}/routes`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            fromPoint: this.newRoute.fromPoint,
+            toPoint: this.newRoute.toPoint,
+            driverPrice: parseFloat(this.newRoute.driverPrice),
+            ourPrice: parseFloat(this.newRoute.ourPrice),
+            currency: this.newRoute.currency
+          })
+        })
+        
+        if (response.ok) {
+          await this.loadRoutes() // Перезагружаем маршруты
+          this.addRoute = false
+          this.newRoute = {
+            fromPoint: '',
+            toPoint: '',
+            driverPrice: 0,
+            ourPrice: 0,
+            currency: 'EUR'
+          }
+        } else {
+          alert(this.lang === 'ru' ? 'Ошибка при сохранении маршрута' : 'Error saving route')
+        }
+      } catch (error) {
+        console.error('Error saving route:', error)
+        alert(this.lang === 'ru' ? 'Ошибка при сохранении маршрута' : 'Error saving route')
       }
     },
     editRoute(route) {
       // Логика редактирования маршрута
-      console.log('Edit route:', route)
+      this.newRoute = {
+        fromPoint: route.fromPoint,
+        toPoint: route.toPoint,
+        driverPrice: route.driverPrice,
+        ourPrice: route.ourPrice,
+        currency: route.currency
+      }
+      this.deleteRoute(route.id) // Удаляем старый
+      this.addRoute = true // Открываем форму для редактирования
     },
     async deleteRoute(routeId) {
-      // В реальном приложении здесь будет удаление маршрута
-      this.routes = this.routes.filter(r => r.id !== routeId)
+      try {
+        const response = await fetch(`/api/drivers/routes/${routeId}`, {
+          method: 'DELETE',
+          headers: this.getAuthHeaders()
+        })
+        
+        if (response.ok) {
+          this.routes = this.routes.filter(r => r.id !== routeId)
+        } else {
+          alert(this.lang === 'ru' ? 'Ошибка при удалении маршрута' : 'Error deleting route')
+        }
+      } catch (error) {
+        console.error('Error deleting route:', error)
+        // Временно удаляем из UI, даже если запрос не прошел
+        this.routes = this.routes.filter(r => r.id !== routeId)
+      }
     },
     getCompetitivenessClass(route) {
       const priceDiff = ((route.driverPrice - route.ourPrice) / route.ourPrice) * 100
@@ -361,6 +560,46 @@ export default {
     },
     formatDate(date) {
       return new Date(date).toLocaleDateString(this.lang === 'ru' ? 'ru-RU' : 'en-US')
+    },
+    async loadCityRoutes() {
+      try {
+        const response = await fetch('/api/drivers/me/city-routes', {
+          headers: this.getAuthHeaders()
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          this.cityRoutes = data
+        } else {
+          console.error('Failed to load city routes')
+        }
+      } catch (error) {
+        console.error('Error loading city routes:', error)
+      }
+    },
+    async updateBestPrice(routeId, bestPrice) {
+      try {
+        const response = await fetch(`/api/drivers/me/city-routes/${routeId}`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            bestPrice: bestPrice ? parseFloat(bestPrice) : null
+          })
+        })
+        
+        if (response.ok) {
+          // Обновляем локальные данные
+          const route = this.cityRoutes.find(r => r.id === routeId)
+          if (route) {
+            route.bestPrice = bestPrice ? parseFloat(bestPrice) : null
+          }
+        } else {
+          alert(this.lang === 'ru' ? 'Ошибка при сохранении цены' : 'Error saving price')
+        }
+      } catch (error) {
+        console.error('Error updating best price:', error)
+        alert(this.lang === 'ru' ? 'Ошибка при сохранении цены' : 'Error saving price')
+      }
     }
   }
 }
@@ -458,10 +697,103 @@ export default {
   h3 {
     font-size: 18px;
     color: #fff;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+  
+  .section-subtitle {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 20px;
+  }
+}
+
+/* Стили для таблицы предустановленных маршрутов */
+.fixed-rates-table-wrapper {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.fixed-rates-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  
+  thead {
+    background: rgba(255,255,255,0.1);
+    
+    th {
+      padding: 12px 8px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid rgba(255,255,255,0.2);
+      
+      &.target-fare {
+        background: rgba(76, 175, 80, 0.2);
+      }
+    }
+  }
+  
+  tbody {
+    tr {
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      transition: background 0.2s ease;
+      
+      &:hover {
+        background: rgba(255,255,255,0.05);
+      }
+      
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+    
+    td {
+      padding: 12px 8px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.9);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      
+      &:last-child {
+        border-right: none;
+      }
+      
+      &.target-fare {
+        background: rgba(76, 175, 80, 0.15);
+        font-weight: 600;
+        color: #4caf50;
+      }
+    }
+  }
+  
+  .best-price-input {
+    width: 100%;
+    max-width: 120px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    
+    &:focus {
+      outline: none;
+      border-color: #007bff;
+      background: rgba(255,255,255,0.15);
+    }
+    
+    &::placeholder {
+      color: rgba(255,255,255,0.5);
+    }
   }
 }
 
@@ -810,6 +1142,21 @@ export default {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+  
+  .fixed-rates-table-wrapper {
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .fixed-rates-table {
+    min-width: 800px;
+    
+    thead th,
+    tbody td {
+      padding: 8px 6px;
+      font-size: 12px;
+    }
   }
 }
 

@@ -8,7 +8,12 @@
     
     <section class="site-section site-section--pf admin-section">
       <div class="container">
-        <h1 class="h2 admin-title">{{ t.title }}</h1>
+        <div class="admin-header">
+          <h1 class="h2 admin-title">{{ t.title }}</h1>
+          <nuxt-link to="/admin-city-routes" class="btn btn--primary btn--link">
+            {{ t.manageRoutes }}
+          </nuxt-link>
+        </div>
         
         <!-- Фильтры -->
         <div class="admin-filters">
@@ -324,7 +329,8 @@ export default {
           rating: 'Рейтинг',
           clientName: 'Имя клиента',
           save: 'Сохранить',
-          cancel: 'Отмена'
+          cancel: 'Отмена',
+          manageRoutes: 'Управление маршрутами'
         },
         en: {
           title: 'Driver Management',
@@ -368,7 +374,8 @@ export default {
           rating: 'Rating',
           clientName: 'Client Name',
           save: 'Save',
-          cancel: 'Cancel'
+          cancel: 'Cancel',
+          manageRoutes: 'Manage Routes'
         }
       }
       return dict[this.lang]
@@ -562,9 +569,24 @@ export default {
   color: #fff;
 }
 
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  gap: 20px;
+}
+
 .admin-title { 
-  margin-bottom: 30px; 
+  margin: 0;
   color: #fff;
+  flex: 1;
+}
+
+.btn--link {
+  text-decoration: none;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .admin-filters {
@@ -741,31 +763,61 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal {
-  background: #1a1a1a;
-  border-radius: 12px;
-  padding: 24px;
+  background: linear-gradient(135deg, rgba(26, 35, 126, 0.95) 0%, rgba(13, 20, 33, 0.95) 50%, rgba(0, 0, 0, 0.95) 100%);
+  border-radius: 16px;
+  padding: 32px;
   max-width: 600px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: slideUp 0.3s ease;
   
   h3 {
     color: #fff;
-    margin-bottom: 20px;
-    font-size: 20px;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    text-align: center;
   }
   
   &.large-modal {
     max-width: 800px;
     max-height: 90vh;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 
@@ -889,22 +941,77 @@ export default {
   }
 }
 
+.form-group {
+  margin-bottom: 20px;
+  
+  label {
+    display: block;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  input,
+  textarea,
+  select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    
+    &:focus {
+      outline: none;
+      border-color: #007bff;
+      background: rgba(255,255,255,0.15);
+      box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+    }
+    
+    &::placeholder {
+      color: rgba(255,255,255,0.5);
+    }
+  }
+  
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+  }
+  
+  select {
+    cursor: pointer;
+    
+    option {
+      background: #1a1a1a;
+      color: #fff;
+    }
+  }
+}
+
 .rating-input {
   display: flex;
-  gap: 4px;
+  gap: 6px;
+  margin-top: 4px;
   
   .star {
     color: rgba(255,255,255,0.3);
-    font-size: 24px;
+    font-size: 28px;
     cursor: pointer;
-    transition: color 0.2s ease;
+    transition: all 0.2s ease;
     
     &.active {
       color: #ffd700;
+      transform: scale(1.1);
     }
     
     &:hover {
       color: #ffd700;
+      transform: scale(1.15);
     }
   }
 }
@@ -1042,6 +1149,12 @@ export default {
 @media (max-width: 767px) {
   .admin-section {
     padding-top: 110px;
+  }
+  
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
   }
   
   .admin-filters {

@@ -36,7 +36,8 @@ module.exports = {
   ],
   axios: {
     // proxyHeaders: false
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    baseURL: process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''
   },
   maps: {
     key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',

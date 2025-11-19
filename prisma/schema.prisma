@@ -74,6 +74,8 @@ model Driver {
   orders           Order[]
   // Связь с отзывами
   reviews          Review[]
+  // Связь с предустановленными маршрутами городов
+  cityRoutes       DriverCityRoute[]
 }
 
 model DriverRoute {
@@ -125,6 +127,43 @@ model Review {
   updatedAt DateTime @updatedAt
   
   @@unique([orderId]) // Один отзыв на заказ
+}
+
+// Предустановленные маршруты по городам (общие для всех водителей)
+model CityRoute {
+  id          String   @id @default(cuid())
+  country     String   // Страна
+  city        String   // Город
+  fromPoint   String   // Откуда
+  toPoint     String   // Куда
+  vehicleType String   // Класс машины
+  passengers  Int      // Количество пассажиров
+  distance    Float    // Расстояние в километрах
+  targetFare  Float    // Целевая стоимость
+  currency    String   @default("EUR") // Валюта
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Связь с индивидуальными ценами водителей
+  driverPrices DriverCityRoute[]
+  
+  @@map("city_routes")
+}
+
+// Индивидуальные цены водителей для предустановленных маршрутов
+model DriverCityRoute {
+  id          String   @id @default(cuid())
+  driverId    String
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  cityRouteId String
+  cityRoute   CityRoute @relation(fields: [cityRouteId], references: [id], onDelete: Cascade)
+  bestPrice   Float?   // Ваше лучшее предложение (может быть null, если водитель еще не указал)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([driverId, cityRouteId]) // Одна цена водителя на маршрут
+  @@map("driver_city_routes")
 }
 
 
