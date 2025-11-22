@@ -101,7 +101,7 @@ export default {
           registerButton: 'Регистрация',
           name: 'Ваше имя / компания', email: 'Email', phone: 'Телефон', city: 'Город / регион работы',
           fixedFrom: 'Откуда (фиксированный маршрут)', fixedTo: 'Куда (фиксированный маршрут)', fixedPrice: 'Цена', fixedCurrency: 'Валюта', routesPerKm: 'Цена за километр', comment: 'Комментарий',
-          commissionRate: 'Комиссия, которую готовы платить', commissionHelp: 'Укажите процент комиссии от 5% до 30%. Чем ниже комиссия, тем больше заказов вы получите.',
+          commissionRate: 'Комиссия, которую готовы платить', commissionHelp: 'Поставьте комиссию от 5%, сколько вы готовы платить сервису за заказы - чем выше, тем больше заказов будет',
           submit: 'Регистрация', save: 'Сохранить в базе',
           note: 'Спасибо! Ваша заявка отправлена. Мы свяжемся с вами в ближайшее время.'
         },
@@ -113,7 +113,7 @@ export default {
           registerButton: 'Registration',
           name: 'Your name / company', email: 'Email', phone: 'Phone', city: 'City / operating region',
           fixedFrom: 'From (fixed route)', fixedTo: 'To (fixed route)', fixedPrice: 'Price', fixedCurrency: 'Currency', routesPerKm: 'Price per kilometer', comment: 'Comment',
-          commissionRate: 'Commission rate you are willing to pay', commissionHelp: 'Specify commission percentage from 5% to 30%. Lower commission means more orders.',
+          commissionRate: 'Commission rate you are willing to pay', commissionHelp: 'Set commission from 5%, how much you are willing to pay the service for orders - the higher, the more orders you will get',
           submit: 'Registration', save: 'Save to DB',
           note: 'Thank you! Your application has been sent. We will contact you soon.'
         }
