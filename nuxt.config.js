@@ -2,10 +2,10 @@ module.exports = {
   /*
   ** Headers of the page
   */
-/*  server: {
-    port: 8000, // default: 3000
+  server: {
+    port: 3001, // используем порт 3001, так как 3000 занят
     host: '0.0.0.0', // default: localhost
-  },*/
+  },
   ssr: false,
   target: 'static',
   head: {
@@ -37,7 +37,7 @@ module.exports = {
   axios: {
     // proxyHeaders: false
     rejectUnauthorized: false,
-    baseURL: process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''
+    baseURL: process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : ''
   },
   maps: {
     key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
