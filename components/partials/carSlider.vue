@@ -20,7 +20,7 @@
             <p class="cars__desc" ref="swiperDesc" v-html="slide.desc"></p>
 
             <div @click.self="chooseCar(i)" class="cars__button" ref="chooseButton">
-              <nuxt-link to="/payment" class="cars__button-link white-button">Выбрать</nuxt-link>
+              <nuxt-link to="/transport" class="cars__button-link white-button">Выбрать</nuxt-link>
             </div>
           </figcaption>
         </figure>

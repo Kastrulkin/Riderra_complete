@@ -27,9 +27,6 @@
           {
             title: 'Транспорт',
             href: '/transport'
-          }, {
-            title: 'Оплата',
-            href: '/payment'
           }
         ]
       }

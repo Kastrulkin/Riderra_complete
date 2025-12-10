@@ -9,7 +9,7 @@ module.exports = {
   ssr: false,
   target: 'static',
   head: {
-    title: 'Riderra - the network of fleets',
+    title: 'Riderra - a network of fleets',
     meta: [
       { charset: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1, user-scalable=no'},
@@ -52,7 +52,6 @@ module.exports = {
     {src: '~/assets/css/swiper.css', lang: 'css'},
     {src: '~/assets/css/main.scss', lang: 'sass'},
     {src: '~/assets/css/base.scss', lang: 'sass'},
-    {src: '~/assets/css/payment.scss', lang: 'sass'},
 
 
   ],

@@ -2,8 +2,8 @@
   <div class="lang-select" :class="data.class">
     <div class="lang-select__wrap" v-click-outside="hideList">
       <div class="lang-select__current" @click="toggleList" :class="{'active': state}">
-        {{media === 'mobile' ? (current ? current.country : languages[0].country) : (current ? current.shortcut :
-        languages[0].shortcut)}}
+        <span class="lang-select__flag">{{current ? current.flag : languages[0].flag}}</span>
+        <span class="lang-select__name">{{media === 'mobile' ? (current ? current.country : languages[0].country) : (current ? current.name : languages[0].name)}}</span>
         <svg class="lang-select__arrow" width="10" height="6" viewBox="0 0 13 8" fill="none"
              xmlns="http://www.w3.org/2000/svg">
           <path d="M1 1L6.5 6L12 1" stroke-width="2" stroke-linecap="round"/>
@@ -11,8 +11,10 @@
       </div>
       <transition name="list-fade">
         <div class="lang-select__list" v-show="state">
-          <div class="lang-select__list-item" v-for="(item, i) in languages" :key="i" @click="chooseLang(item)">
-            {{item.country}}
+          <div class="lang-select__list-item" v-for="(item, i) in languages" :key="i" @click="chooseLang(item)" :class="{'active': current && current.shortcut === item.shortcut}">
+            <span class="lang-select__list-flag">{{item.flag}}</span>
+            <span class="lang-select__list-name">{{item.country}}</span>
+            <span v-if="current && current.shortcut === item.shortcut" class="lang-select__check">✓</span>
           </div>
         </div>
       </transition>
@@ -42,11 +44,57 @@
 					{
 						shortcut: 'ru',
 						lang: 'русский',
-						country: 'русский'
+						country: 'Русский',
+						name: 'Русский',
+						flag: '🇷🇺'
 					}, {
 						shortcut: 'en',
 						lang: 'english',
-						country: 'english'
+						country: 'English',
+						name: 'English',
+						flag: '🇬🇧'
+					}, {
+						shortcut: 'es',
+						lang: 'español',
+						country: 'Español',
+						name: 'Español',
+						flag: '🇪🇸'
+					}, {
+						shortcut: 'de',
+						lang: 'deutsch',
+						country: 'Deutsch',
+						name: 'Deutsch',
+						flag: '🇩🇪'
+					}, {
+						shortcut: 'fr',
+						lang: 'français',
+						country: 'Français',
+						name: 'Français',
+						flag: '🇫🇷'
+					}, {
+						shortcut: 'el',
+						lang: 'ελληνικά',
+						country: 'Ελληνικά',
+						name: 'Ελληνικά',
+						flag: '🇬🇷'
+					}, {
+						shortcut: 'th',
+						lang: 'ไทย',
+						country: 'ไทย',
+						name: 'ไทย',
+						flag: '🇹🇭'
+					}, {
+						shortcut: 'ar',
+						lang: 'العربية',
+						country: 'العربية',
+						name: 'العربية',
+						flag: '🇸🇦'
+					}, {
+						shortcut: 'ha',
+						lang: 'hausa',
+						country: 'Hausa',
+						name: 'Hausa',
+						flag: '🇳🇬'
 					}
 				],
 				current: null
@@ -97,16 +145,46 @@
     }
 
     &__list-item {
-      line-height: 60px;
+      display: flex;
+      align-items: center;
+      line-height: 40px;
       white-space: nowrap;
       transition: 150ms all ease;
       padding: 0 10px;
       border-radius: 5px;
+      gap: 8px;
 
       &:hover {
         background: #2F80ED;
         color: #fff;
       }
+
+      &.active {
+        background: rgba(47, 128, 237, 0.1);
+      }
+    }
+
+    &__flag {
+      font-size: 18px;
+      margin-right: 6px;
+    }
+
+    &__name {
+      display: inline-block;
+    }
+
+    &__list-flag {
+      font-size: 18px;
+    }
+
+    &__list-name {
+      flex: 1;
+    }
+
+    &__check {
+      color: #FF6B35;
+      font-weight: bold;
+      font-size: 16px;
     }
 
     &__arrow {
@@ -120,6 +198,9 @@
 
     &__current {
       white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
 
       &.active {
 

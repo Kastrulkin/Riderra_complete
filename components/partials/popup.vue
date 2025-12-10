@@ -53,7 +53,7 @@
               <!--<button class="button modal__button" @click.self="chooseCar">Заказать</button>-->
 
               <div class="modal__button" @click="leavePage" ref="chooseButton">
-                <nuxt-link to="/payment" class="button">Выбрать</nuxt-link>
+                <nuxt-link to="/transport" class="button">Выбрать</nuxt-link>
               </div>
 
             </div>
