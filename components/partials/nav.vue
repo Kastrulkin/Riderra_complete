@@ -28,6 +28,13 @@
     <div class="header__right">
       <template v-if="$store.state.isAuthenticated">
         <div class="user-menu">
+          <nuxt-link
+            v-if="$store.state.user?.role === 'admin' || ($store.state.user?.permissions || []).includes('crm.read')"
+            to="/admin-crm"
+            class="header__signin"
+          >
+            CRM
+          </nuxt-link>
           <span class="user-name">{{ $store.state.user?.email }}</span>
           <button @click="logout" class="logout-btn">{{ $store.state.language === 'ru' ? 'Выйти' : 'Logout' }}</button>
         </div>

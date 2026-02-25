@@ -31,7 +31,7 @@ module.exports = {
     ['@nuxtjs/axios', {rejectUnauthorized: false}],
     'vue-scrollto/nuxt',
     ['nuxt-google-maps-module', {
-      key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
+      key: process.env.GOOGLE_MAPS_API_KEY || '',
     }],
   ],
   axios: {
@@ -40,7 +40,7 @@ module.exports = {
     baseURL: process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : ''
   },
   maps: {
-    key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
+    key: process.env.GOOGLE_MAPS_API_KEY || '',
   },
   loading: { color: '#3B8070' },
 
@@ -75,4 +75,3 @@ module.exports = {
     }
   }
 }
-

@@ -16,7 +16,7 @@ import VScrollLock from 'v-scroll-lock'
 // Maps ( + our map key)
 Vue.use(VueGoogleMaps, {
   load: {
-    key: 'AIzaSyBf3Lh9cG-h6AjZlUPKyAFUxNhKbC7QKZs',
+    key: process.env.GOOGLE_MAPS_API_KEY || '',
     libraries: 'places, drawing',
     region: ['ru']
   }

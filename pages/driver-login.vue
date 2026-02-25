@@ -122,8 +122,11 @@ export default {
           localStorage.setItem('authToken', data.token)
           localStorage.setItem('user', JSON.stringify(data.user))
           
-          if (data.user.role === 'admin') {
+          const permissions = data.user.permissions || []
+          if (data.user.role === 'admin' || permissions.includes('admin.panel')) {
             this.$router.push('/admin-drivers')
+          } else if (permissions.includes('crm.read')) {
+            this.$router.push('/admin-crm')
           } else if (data.user.role === 'driver') {
             this.$router.push('/driver-dashboard')
           } else {
@@ -322,4 +325,3 @@ export default {
   z-index: 3;
 }
 </style>
-

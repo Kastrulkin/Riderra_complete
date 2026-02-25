@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -11,21 +11,24 @@ datasource db {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String   // Хешированный пароль
+  password  String // Хешированный пароль
   role      String   @default("driver") // admin, driver
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Связь с водителем (если роль = driver)
-  driver    Driver?
-  
+  driver        Driver?
+  roleLinks     UserRole[]
+  telegramLinks TelegramLink[]
+  opsTasks      OpsTask[] @relation("OpsTaskAssignee")
+
   @@map("users")
 }
 
 model Request {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
   name       String
   email      String
   phone      String
@@ -39,53 +42,58 @@ model Request {
 }
 
 model Driver {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  name       String
-  email      String
-  phone      String
-  city       String
-  fixedFrom   String?
-  fixedTo     String?
-  fixedPrice  String?
-  fixedCurrency String?
-  pricePerKm  String?
-  comment     String?
-  lang        String?
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  name            String
+  email           String
+  phone           String
+  city            String
+  fixedFrom       String?
+  fixedTo         String?
+  fixedPrice      String?
+  fixedCurrency   String?
+  pricePerKm      String?
+  comment         String?
+  lang            String?
   fixedRoutesJson String?
-  
+
   // Новые поля для системы комиссий
-  commissionRate    Float?   @default(15.0)  // Комиссия водителя (5-30%)
-  isActive         Boolean  @default(false)  // Активен ли водитель
-  verificationStatus String @default("pending") // pending, verified, rejected
-  rating           Float?   @default(5.0)   // Рейтинг водителя (1-5)
-  totalTrips       Int      @default(0)     // Количество поездок
-  totalReviews     Int      @default(0)     // Количество отзывов
-  avgRating        Float?   @default(5.0)   // Средний рейтинг из отзывов
-  updatedAt        DateTime @updatedAt
-  
+  commissionRate     Float?   @default(15.0) // Комиссия водителя (5-30%)
+  isActive           Boolean  @default(false) // Активен ли водитель
+  verificationStatus String   @default("pending") // pending, verified, rejected
+  rating             Float?   @default(5.0) // Рейтинг водителя (1-5)
+  totalTrips         Int      @default(0) // Количество поездок
+  totalReviews       Int      @default(0) // Количество отзывов
+  avgRating          Float?   @default(5.0) // Средний рейтинг из отзывов
+  kmRate             Float? // Стоимость за км (если есть)
+  hourlyRate         Float? // Почасовая ставка (если есть)
+  childSeatPrice     Float? // Стоимость детского кресла (если есть)
+  pricingCurrency    String? // Валюта тарифов
+  updatedAt          DateTime @updatedAt
+
   // Связь с пользователем
-  userId     String?  @unique
-  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Связь с маршрутами
-  routes           DriverRoute[]
+  routes         DriverRoute[]
   // Связь с заказами
-  orders           Order[]
+  orders         Order[]
   // Связь с отзывами
-  reviews          Review[]
+  reviews        Review[]
   // Связь с предустановленными маршрутами городов
-  cityRoutes       DriverCityRoute[]
+  cityRoutes     DriverCityRoute[]
+  unavailability DriverUnavailability[]
 }
 
 model DriverRoute {
   id          String   @id @default(cuid())
   driverId    String
-  driver      Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
   fromPoint   String
   toPoint     String
-  driverPrice Float    // Цена водителя
-  ourPrice    Float    // Наша целевая цена
+  driverPrice Float // Цена водителя
+  ourPrice    Float // Наша целевая цена
   currency    String   @default("EUR")
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -93,77 +101,399 @@ model DriverRoute {
 }
 
 model Order {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  source      String    @default("internal") // internal, easytaxi, google_sheet
+  externalKey String?   @unique // Уникальный ключ заказа во внешней системе
+  sourceRow   Int? // Номер строки в исходной таблице
+  pickupAt    DateTime? // Дата и время подачи
   fromPoint   String
   toPoint     String
-  clientPrice Float    // Цена для клиента (от EasyTaxi)
-  driverPrice Float?   // Цена водителя
-  commission  Float?   // Комиссия платформы
-  driverId    String?  // ID назначенного водителя
-  driver      Driver?  @relation(fields: [driverId], references: [id])
-  status      String   @default("pending") // pending, assigned, accepted, completed, cancelled
-  vehicleType String   // Тип транспорта
+  clientPrice Float // Цена для клиента (от EasyTaxi)
+  driverPrice Float? // Цена водителя
+  commission  Float? // Комиссия платформы
+  driverId    String? // ID назначенного водителя
+  driver      Driver?   @relation(fields: [driverId], references: [id])
+  status      String    @default("pending") // pending, assigned, accepted, completed, cancelled
+  vehicleType String // Тип транспорта
   passengers  Int?
   luggage     Int?
   comment     String?
   lang        String?
-  updatedAt   DateTime @updatedAt
-  
+  updatedAt   DateTime  @updatedAt
+
   // Связь с отзывами
-  reviews     Review[]
+  reviews       Review[]
+  sourceHistory OrderSourceSnapshot[]
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  driverId  String
-  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  rating    Int      // 1-5 звезд
-  comment   String?
+  id         String   @id @default(cuid())
+  orderId    String?
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  driverId   String
+  driver     Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  rating     Int // 1-5 звезд
+  comment    String?
   clientName String? // Имя клиента (опционально)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@unique([orderId]) // Один отзыв на заказ
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([orderId]) // Один отзыв на заказ (для admin-отзывов orderId = null)
 }
 
 // Предустановленные маршруты по городам (общие для всех водителей)
 model CityRoute {
   id          String   @id @default(cuid())
-  country     String   // Страна
-  city        String   // Город
-  fromPoint   String   // Откуда
-  toPoint     String   // Куда
-  vehicleType String   // Класс машины
-  passengers  Int      // Количество пассажиров
-  distance    Float    // Расстояние в километрах
-  targetFare  Float    // Целевая стоимость
+  country     String // Страна
+  city        String // Город
+  fromPoint   String // Откуда
+  toPoint     String // Куда
+  vehicleType String // Класс машины
+  passengers  Int // Количество пассажиров
+  distance    Float // Расстояние в километрах
+  targetFare  Float // Целевая стоимость
   currency    String   @default("EUR") // Валюта
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Связь с индивидуальными ценами водителей
   driverPrices DriverCityRoute[]
-  
+
   @@map("city_routes")
 }
 
 // Индивидуальные цены водителей для предустановленных маршрутов
 model DriverCityRoute {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   driverId    String
-  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
   cityRouteId String
   cityRoute   CityRoute @relation(fields: [cityRouteId], references: [id], onDelete: Cascade)
-  bestPrice   Float?   // Ваше лучшее предложение (может быть null, если водитель еще не указал)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  bestPrice   Float? // Ваше лучшее предложение (может быть null, если водитель еще не указал)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   @@unique([driverId, cityRouteId]) // Одна цена водителя на маршрут
   @@map("driver_city_routes")
 }
 
+model SheetSource {
+  id             String                @id @default(cuid())
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  name           String
+  monthLabel     String // Например 2025-01
+  googleSheetId  String
+  tabName        String                @default("таблица")
+  isActive       Boolean               @default(true)
+  syncEnabled    Boolean               @default(true)
+  lastSyncAt     DateTime?
+  lastSyncStatus String? // success, failed
+  lastSyncError  String?
+  snapshots      OrderSourceSnapshot[]
+}
 
+model OrderSourceSnapshot {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  orderId       String?
+  order         Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  sheetSourceId String
+  sheetSource   SheetSource @relation(fields: [sheetSourceId], references: [id], onDelete: Cascade)
+  sourceRow     Int
+  rowHash       String
+  rawPayload    String // JSON строка исходной строки
+
+  @@index([sheetSourceId, sourceRow])
+}
+
+model CrmCompany {
+  id           String              @id @default(cuid())
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  sourceSystem String              @default("planfix")
+  externalId   String
+  name         String
+  website      String?
+  phone        String?
+  email        String?
+  ownerName    String?
+  companyType  String?
+  extraInfo    String?
+  links        CrmCompanyContact[]
+  segments     CrmCompanySegment[]
+
+  @@unique([sourceSystem, externalId])
+}
+
+model CrmContact {
+  id           String              @id @default(cuid())
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  sourceSystem String              @default("planfix")
+  externalId   String
+  fullName     String
+  website      String?
+  phone        String?
+  email        String?
+  position     String?
+  ownerName    String?
+  links        CrmCompanyContact[]
+  segments     CrmContactSegment[]
+
+  @@unique([sourceSystem, externalId])
+}
+
+model CrmCompanyContact {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  companyId String
+  contactId String
+  source    String     @default("planfix")
+  matchType String? // external_id, company_name, contact_name
+  company   CrmCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact   CrmContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, contactId])
+  @@index([contactId])
+}
+
+model CrmCompanySegment {
+  id         String     @id @default(cuid())
+  createdAt  DateTime   @default(now())
+  companyId  String
+  segment    String
+  sourceFile String
+  company    CrmCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, segment])
+}
+
+model CrmContactSegment {
+  id         String     @id @default(cuid())
+  createdAt  DateTime   @default(now())
+  contactId  String
+  segment    String
+  sourceFile String
+  contact    CrmContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, segment])
+}
+
+model CustomerCompany {
+  id           String                   @id @default(cuid())
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  sourceSystem String                   @default("planfix")
+  externalId   String
+  name         String
+  website      String?
+  phone        String?
+  email        String?
+  ownerName    String?
+  companyType  String?
+  extraInfo    String?
+  links        CustomerCompanyContact[]
+  segments     CustomerCompanySegment[]
+
+  @@unique([sourceSystem, externalId])
+  @@index([name])
+}
+
+model CustomerContact {
+  id           String                   @id @default(cuid())
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  sourceSystem String                   @default("planfix")
+  externalId   String
+  fullName     String
+  website      String?
+  phone        String?
+  email        String?
+  position     String?
+  ownerName    String?
+  links        CustomerCompanyContact[]
+  segments     CustomerContactSegment[]
+
+  @@unique([sourceSystem, externalId])
+  @@index([fullName])
+  @@index([email])
+}
+
+model CustomerCompanyContact {
+  id        String          @id @default(cuid())
+  createdAt DateTime        @default(now())
+  companyId String
+  contactId String
+  source    String          @default("planfix")
+  matchType String?
+  company   CustomerCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact   CustomerContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, contactId])
+  @@index([contactId])
+}
+
+model CustomerCompanySegment {
+  id         String          @id @default(cuid())
+  createdAt  DateTime        @default(now())
+  companyId  String
+  segment    String
+  sourceFile String
+  company    CustomerCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, segment])
+  @@index([segment])
+}
+
+model CustomerContactSegment {
+  id         String          @id @default(cuid())
+  createdAt  DateTime        @default(now())
+  contactId  String
+  segment    String
+  sourceFile String
+  contact    CustomerContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, segment])
+  @@index([segment])
+}
+
+model CityPricing {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  country        String?
+  city           String
+  routeFrom      String?
+  routeTo        String?
+  vehicleType    String?
+  fixedPrice     Float?
+  pricePerKm     Float?
+  hourlyRate     Float?
+  childSeatPrice Float?
+  currency       String   @default("EUR")
+  isActive       Boolean  @default(true)
+  notes          String?
+  source         String   @default("manual")
+
+  @@index([city])
+  @@index([isActive])
+}
+
+model OpsEventDraft {
+  id                       String    @id @default(cuid())
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  chatId                   String
+  telegramUserId           String
+  messageText              String
+  parsedType               String // generic_important, driver_unavailable
+  payloadJson              String // JSON payload
+  status                   String    @default("pending") // pending, approved, rejected
+  reviewerUserId           String?
+  reviewerEmail            String?
+  reviewedAt               DateTime?
+  reviewComment            String?
+  promotedEventId          String?
+  promotedUnavailabilityId String?
+}
+
+model OpsEvent {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  type          String
+  payloadJson   String
+  sourceDraftId String?  @unique
+}
+
+model DriverUnavailability {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  driverId      String?
+  driver        Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverNameRaw String
+  startAt       DateTime
+  endAt         DateTime
+  reason        String?
+  status        String   @default("active") // active, cancelled
+  sourceDraftId String?  @unique
+
+  @@index([driverId, startAt, endAt])
+}
+
+model OpsTask {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  title          String
+  details        String?
+  type           String
+  status         String   @default("open") // open, in_progress, done, cancelled
+  priority       String   @default("normal") // low, normal, high, urgent
+  source         String   @default("telegram_private")
+  sourceRef      String?
+  dueAt          DateTime?
+  assignedUserId String?
+  assignedUser   User?    @relation("OpsTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  payloadJson    String?
+
+  @@index([status, dueAt])
+  @@index([assignedUserId, status])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  code        String           @unique
+  name        String
+  links       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id        String           @id @default(cuid())
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  code      String           @unique
+  name      String
+  roles     RolePermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  roleId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model TelegramLink {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  userId         String
+  telegramUserId String   @unique
+  telegramChatId String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, telegramUserId])
+  @@index([userId])
+}

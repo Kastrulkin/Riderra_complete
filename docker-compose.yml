@@ -1,16 +1,42 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "55432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-riderra}
+      - POSTGRES_USER=${POSTGRES_USER:-riderra}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-riderra_local_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   app:
     build: .
     ports:
       - "3000:3000"
+    depends_on:
+      - postgres
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:./data/prod.db
+      - DATABASE_URL=${DATABASE_URL:-postgresql://riderra:riderra_local_password@postgres:5432/riderra?schema=public}
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_SETUP_KEY=${ADMIN_SETUP_KEY}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - ADMIN_TOKEN=${ADMIN_TOKEN}
+      - EMAIL_TO=${EMAIL_TO}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
+
+volumes:
+  postgres_data:

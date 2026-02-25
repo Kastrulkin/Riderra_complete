@@ -5,7 +5,8 @@
         <h1 class="h2">Admin</h1>
 
         <div v-if="!authed" class="login">
-          <input class="login__input" v-model="token" placeholder="Admin token" type="password" />
+          <input class="login__input" v-model="email" placeholder="Admin email" type="email" />
+          <input class="login__input" v-model="password" placeholder="Password" type="password" />
           <button class="btn" @click="load">Login</button>
         </div>
 
@@ -38,15 +39,28 @@
 <script>
 export default {
   data(){
-    return { token: '', authed: false, requests: [], drivers: [] }
+    return { email: '', password: '', token: '', authed: false, requests: [], drivers: [] }
   },
   methods: {
+    authHeaders() {
+      return { Authorization: `Bearer ${this.token}` }
+    },
     async load(){
       try{
-        const headers = { 'x-admin-token': this.token }
+        const login = await this.$axios.$post('/api/auth/login', {
+          email: this.email,
+          password: this.password
+        })
+        if (!login || !login.token || !login.user || login.user.role !== 'admin') {
+          throw new Error('Unauthorized')
+        }
+        this.token = login.token
+        localStorage.setItem('authToken', this.token)
+        localStorage.setItem('user', JSON.stringify(login.user))
+
         const [reqs, drs] = await Promise.all([
-          this.$axios.$get('/api/admin/requests', { headers }),
-          this.$axios.$get('/api/admin/drivers', { headers })
+          this.$axios.$get('/api/admin/requests', { headers: this.authHeaders() }),
+          this.$axios.$get('/api/admin/drivers', { headers: this.authHeaders() })
         ])
         this.requests = reqs; this.drivers = drs; this.authed = true
       }catch(e){ alert('Unauthorized or error') }
@@ -68,5 +82,4 @@ export default {
   .table__row{ grid-template-columns: 1fr; }
 }
 </style>
-
 

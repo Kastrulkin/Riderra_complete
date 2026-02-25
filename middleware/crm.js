@@ -1,27 +1,23 @@
-export default function ({ store, redirect, route }) {
-  // Проверяем, есть ли токен в localStorage
+export default function ({ store, redirect }) {
   if (process.client) {
     const token = localStorage.getItem('authToken')
     const user = localStorage.getItem('user')
-    
+
     if (!token || !user) {
-      // Если нет токена, перенаправляем на страницу входа
       return redirect('/login')
     }
-    
+
     try {
       const userData = JSON.parse(user)
-      
       const permissions = userData.permissions || []
-      const canAccessAdmin = userData.role === 'admin' || permissions.includes('admin.panel')
+      const canReadCrm = userData.role === 'admin' || permissions.includes('crm.read')
 
-      if (!canAccessAdmin) {
+      if (!canReadCrm) {
         return redirect('/driver-dashboard')
       }
-      
+
       store.commit('setUser', userData)
     } catch (error) {
-      console.error('Error parsing user data:', error)
       localStorage.removeItem('authToken')
       localStorage.removeItem('user')
       return redirect('/login')
