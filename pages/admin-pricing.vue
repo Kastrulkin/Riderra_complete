@@ -129,5 +129,50 @@ export default {
 </script>
 
 <style scoped>
-.admin-section{padding-top:150px;color:#fff}.subtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.btn.active{background:#0ea5e9;color:#fff}.toolbar{display:flex;gap:10px;margin-bottom:12px}.hint{margin-bottom:10px;color:#b9dbff}.panel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:12px}.grid-head,.grid-row{display:grid;grid-template-columns:1fr 1.2fr 1fr .8fr .8fr .9fr .9fr;gap:10px;min-width:1100px;padding:9px 6px}.grid-head{font-weight:700;border-bottom:1px solid rgba(255,255,255,.2)}.grid-row{border-bottom:1px solid rgba(255,255,255,.08)}
+.admin-section {
+  padding-top: 150px;
+  color: #17233d;
+}
+.subtabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.btn.active {
+  background: #0ea5e9;
+  color: #fff;
+}
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.hint {
+  margin-bottom: 10px;
+  color: #4a628c;
+}
+.panel {
+  background: #fff;
+  border: 1px solid #d8d8e6;
+  border-radius: 12px;
+  padding: 12px;
+}
+.grid-head,
+.grid-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr .8fr .8fr .9fr .9fr;
+  gap: 10px;
+  min-width: 1100px;
+  padding: 9px 6px;
+}
+.grid-head {
+  font-weight: 700;
+  color: #1d2c4a;
+  border-bottom: 1px solid #e4e7f0;
+}
+.grid-row {
+  color: #2f3e60;
+  border-bottom: 1px solid #f0f2f7;
+}
 </style>
