@@ -2138,7 +2138,27 @@ app.put('/api/admin/crm/companies/:companyId', authenticateToken, requirePermiss
         data[field] = value === '' ? null : value
       }
     }
-    const updated = await prisma.customerCompany.update({ where: { id: companyId }, data })
+    const segments = Array.isArray(req.body.segments)
+      ? [...new Set(req.body.segments.map((x) => String(x || '').trim()).filter(Boolean))]
+      : null
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const company = await tx.customerCompany.update({ where: { id: companyId }, data })
+      if (segments !== null) {
+        await tx.customerCompanySegment.deleteMany({ where: { companyId } })
+        if (segments.length) {
+          await tx.customerCompanySegment.createMany({
+            data: segments.map((segment) => ({
+              companyId,
+              segment,
+              sourceFile: 'manual_ui'
+            })),
+            skipDuplicates: true
+          })
+        }
+      }
+      return company
+    })
     res.json(updated)
   } catch (error) {
     console.error('Error updating CRM company:', error)
@@ -2160,7 +2180,27 @@ app.put('/api/admin/crm/contacts/:contactId', authenticateToken, requirePermissi
         data[field] = value === '' ? null : value
       }
     }
-    const updated = await prisma.customerContact.update({ where: { id: contactId }, data })
+    const segments = Array.isArray(req.body.segments)
+      ? [...new Set(req.body.segments.map((x) => String(x || '').trim()).filter(Boolean))]
+      : null
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const contact = await tx.customerContact.update({ where: { id: contactId }, data })
+      if (segments !== null) {
+        await tx.customerContactSegment.deleteMany({ where: { contactId } })
+        if (segments.length) {
+          await tx.customerContactSegment.createMany({
+            data: segments.map((segment) => ({
+              contactId,
+              segment,
+              sourceFile: 'manual_ui'
+            })),
+            skipDuplicates: true
+          })
+        }
+      }
+      return contact
+    })
     res.json(updated)
   } catch (error) {
     console.error('Error updating CRM contact:', error)
@@ -2230,6 +2270,9 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
         suppliersCount: row.suppliers.length
       }))
       .sort((a, b) => {
+        const aUnknown = a.country === '—' && a.city === '—'
+        const bUnknown = b.country === '—' && b.city === '—'
+        if (aUnknown !== bUnknown) return aUnknown ? 1 : -1
         if (a.country === b.country) return a.city.localeCompare(b.city, 'ru')
         return a.country.localeCompare(b.country, 'ru')
       })

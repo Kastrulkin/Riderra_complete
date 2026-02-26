@@ -90,6 +90,20 @@
           <input v-model="form.cityPresence" class="input" placeholder="Города присутствия" />
           <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
+        <div class="segments-block">
+          <h4>Сегменты</h4>
+          <div class="segments-grid">
+            <label v-for="opt in segmentOptionsForDetails" :key="opt.value" class="segment-item">
+              <input
+                type="checkbox"
+                :value="opt.value"
+                :checked="isSegmentChecked(opt.value)"
+                @change="toggleSegment(opt.value, $event.target.checked)"
+              />
+              <span>{{ opt.label }}</span>
+            </label>
+          </div>
+        </div>
 
         <div v-if="detailsMode==='company'" class="links-block">
           <h4>Контакты компании</h4>
@@ -156,6 +170,33 @@ export default {
       }
       return map[code] || code
     },
+    segmentOptionsForDetails() {
+      const companySegments = [
+        'client_company',
+        'supplier_company',
+        'potential_client_company',
+        'potential_client_agent',
+        'potential_supplier'
+      ]
+      const contactSegments = [
+        'client_contact',
+        'supplier_contact',
+        'potential_client_contact',
+        'potential_supplier'
+      ]
+      const source = this.detailsMode === 'company' ? companySegments : contactSegments
+      return source.map((value) => ({ value, label: this.segmentLabel(value) }))
+    },
+    isSegmentChecked(value) {
+      const list = Array.isArray(this.form.segments) ? this.form.segments : []
+      return list.includes(value)
+    },
+    toggleSegment(value, checked) {
+      const list = new Set(Array.isArray(this.form.segments) ? this.form.segments : [])
+      if (checked) list.add(value)
+      else list.delete(value)
+      this.form = { ...this.form, segments: Array.from(list) }
+    },
     formatSegments(list) {
       return list.length ? list.map((s) => this.segmentLabel(s.segment)).join(', ') : '-'
     },
@@ -192,7 +233,8 @@ export default {
         telegramUrl: this.details.telegramUrl || '',
         countryPresence: this.details.countryPresence || '',
         cityPresence: this.details.cityPresence || '',
-        comment: this.details.comment || ''
+        comment: this.details.comment || '',
+        segments: (this.details.segments || []).map((s) => s.segment)
       }
     },
     async openContact(id) {
@@ -209,7 +251,8 @@ export default {
         telegramUrl: this.details.telegramUrl || '',
         countryPresence: this.details.countryPresence || '',
         cityPresence: this.details.cityPresence || '',
-        comment: this.details.comment || ''
+        comment: this.details.comment || '',
+        segments: (this.details.segments || []).map((s) => s.segment)
       }
     },
     async saveDetails() {
@@ -256,6 +299,9 @@ export default {
 .modal { width:min(900px,90vw); max-height:80vh; overflow:auto; background:#fff; border-radius:12px; padding:18px; }
 .card-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
 .textarea { min-height:90px; resize:vertical; }
+.segments-block { margin: 10px 0 12px; border-top: 1px solid #ececf4; padding-top: 10px; }
+.segments-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.segment-item { display:flex; align-items:center; gap:8px; font-size:14px; color:#2f3e60; }
 .links-block { margin:12px 0; border-top:1px solid #ececf4; padding-top:10px; }
 .linked-row { display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:8px; padding:6px 0; border-bottom:1px solid #f1f1f7; }
 .actions { display:flex; gap:10px; }
@@ -263,6 +309,7 @@ export default {
   .crm-filters { flex-direction:column; }
   .table__row { grid-template-columns: 1fr; }
   .card-grid { grid-template-columns:1fr; }
+  .segments-grid { grid-template-columns:1fr; }
   .linked-row { grid-template-columns:1fr; }
 }
 </style>
