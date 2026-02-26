@@ -16,6 +16,7 @@
 
         <div class="toolbar">
           <button class="btn btn--primary" @click="reloadAll">{{ t.refresh }}</button>
+          <button class="btn" @click="downloadEtaTemplate">{{ t.etaTemplate }}</button>
           <button v-if="tab==='conflicts'" class="btn btn--danger" @click="recalc">{{ t.recalc }}</button>
         </div>
 
@@ -67,10 +68,10 @@ export default {
     t () {
       return this.$store.state.language === 'ru'
         ? {
-            title: 'Прайс и контроль маржи', base: 'Продажа (базовый)', counterparty: 'Контрагенты', driver: 'Цены водителей', conflicts: 'Риски/расхождения', refresh: 'Обновить', recalc: 'Пересчитать риски', city: 'Город', route: 'Маршрут', sale: 'Цена продажи', perKm: 'За км', hourly: 'Почасовая', childSeat: 'Детское кресло', source: 'Источник', counterpartyName: 'Контрагент', markup: 'Наценка', status: 'Статус', name: 'Водитель', country: 'Страна', comment: 'Комментарий', issue: 'Проблема', driverCost: 'Цена водителя', margin: 'Маржа', severity: 'Критичность'
+            title: 'Прайс и контроль маржи', base: 'Продажа (базовый)', counterparty: 'Контрагенты', driver: 'Цены водителей', conflicts: 'Риски/расхождения', refresh: 'Обновить', etaTemplate: 'Шаблон для ETA', recalc: 'Пересчитать риски', city: 'Город', route: 'Маршрут', sale: 'Цена продажи', perKm: 'За км', hourly: 'Почасовая', childSeat: 'Детское кресло', source: 'Источник', counterpartyName: 'Контрагент', markup: 'Наценка', status: 'Статус', name: 'Водитель', country: 'Страна', comment: 'Комментарий', issue: 'Проблема', driverCost: 'Цена водителя', margin: 'Маржа', severity: 'Критичность'
           }
         : {
-            title: 'Pricing & Margin Control', base: 'Base Sell', counterparty: 'Counterparty', driver: 'Driver Prices', conflicts: 'Conflicts', refresh: 'Refresh', recalc: 'Recalculate', city: 'City', route: 'Route', sale: 'Sell price', perKm: 'Per km', hourly: 'Hourly', childSeat: 'Child seat', source: 'Source', counterpartyName: 'Counterparty', markup: 'Markup', status: 'Status', name: 'Driver', country: 'Country', comment: 'Comment', issue: 'Issue', driverCost: 'Driver cost', margin: 'Margin', severity: 'Severity'
+            title: 'Pricing & Margin Control', base: 'Base Sell', counterparty: 'Counterparty', driver: 'Driver Prices', conflicts: 'Conflicts', refresh: 'Refresh', etaTemplate: 'ETA Template', recalc: 'Recalculate', city: 'City', route: 'Route', sale: 'Sell price', perKm: 'Per km', hourly: 'Hourly', childSeat: 'Child seat', source: 'Source', counterpartyName: 'Counterparty', markup: 'Markup', status: 'Status', name: 'Driver', country: 'Country', comment: 'Comment', issue: 'Issue', driverCost: 'Driver cost', margin: 'Margin', severity: 'Severity'
           }
     }
   },
@@ -92,6 +93,19 @@ export default {
     async recalc () {
       await fetch('/api/admin/pricing/conflicts/recalculate', { method: 'POST', headers: this.headers() })
       await this.reloadAll()
+    },
+    async downloadEtaTemplate () {
+      const response = await fetch('/api/admin/pricing/export-eta-template', { headers: this.headers() })
+      if (!response.ok) return
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'ETA_Fixed_Price_template.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     }
   }
 }

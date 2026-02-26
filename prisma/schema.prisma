@@ -193,6 +193,7 @@ model SheetSource {
   monthLabel     String // Например 2025-01
   googleSheetId  String
   tabName        String                @default("таблица")
+  columnMapping  String? // JSON-словарь: canonicalField -> sheetHeader
   isActive       Boolean               @default(true)
   syncEnabled    Boolean               @default(true)
   lastSyncAt     DateTime?

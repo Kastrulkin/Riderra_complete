@@ -42,6 +42,7 @@
                 >
                   {{ syncingSheetId === s.id ? t.syncing : t.sync }}
                 </button>
+                <button class="btn btn--small" @click="openMapping(s)">{{ t.mapping }}</button>
                 <button class="btn btn--small" @click="toggleSheet(s)">{{ s.isActive ? t.deactivate : t.activate }}</button>
               </div>
             </div>
@@ -75,6 +76,22 @@
         </div>
       </div>
     </section>
+
+    <div v-if="mappingModal.open" class="modal-overlay" @click="closeMapping">
+      <div class="modal" @click.stop>
+        <h3>{{ t.mappingTitle }}: {{ mappingModal.sourceName }}</h3>
+        <div class="map-grid">
+          <div class="map-row" v-for="f in mappingFields" :key="f.key">
+            <div class="map-label">{{ f.label }}</div>
+            <input v-model="mapDraft[f.key]" class="input" :placeholder="f.placeholder" />
+          </div>
+        </div>
+        <div class="row-actions">
+          <button class="btn btn--primary" @click="saveMapping">{{ t.save }}</button>
+          <button class="btn" @click="closeMapping">{{ t.close }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -92,9 +109,33 @@ export default {
     staffDrafts: {},
     syncingSheetId: null,
     sheetNotice: { type: 'ok', text: '' },
-    staffNotice: { type: 'ok', text: '' }
+    staffNotice: { type: 'ok', text: '' },
+    mappingModal: { open: false, sourceId: '', sourceName: '' },
+    mapDraft: {
+      contractor: '', orderNumber: '', date: '', fromPoint: '', toPoint: '',
+      sum: '', driver: '', comment: '', internalOrderNumber: '', vehicleType: '',
+      status: '', passengers: '', luggage: '', lang: ''
+    }
   }),
   computed: {
+    mappingFields () {
+      return [
+        { key: 'contractor', label: 'Контрагент', placeholder: 'Контрагент' },
+        { key: 'orderNumber', label: 'Номер заказа', placeholder: 'Номер заказа' },
+        { key: 'date', label: 'Дата', placeholder: 'Дата' },
+        { key: 'fromPoint', label: 'Откуда', placeholder: 'Откуда' },
+        { key: 'toPoint', label: 'Куда', placeholder: 'Куда' },
+        { key: 'sum', label: 'Сумма', placeholder: 'Сумма' },
+        { key: 'driver', label: 'Водитель', placeholder: 'Водитель' },
+        { key: 'comment', label: 'Комментарий', placeholder: 'Комментарий' },
+        { key: 'internalOrderNumber', label: 'Внутренний номер заказа', placeholder: 'Внутренний номер заказа' },
+        { key: 'vehicleType', label: 'Тип авто', placeholder: 'Тип авто / Класс' },
+        { key: 'status', label: 'Статус', placeholder: 'Статус' },
+        { key: 'passengers', label: 'Пассажиры', placeholder: 'Пассажиры' },
+        { key: 'luggage', label: 'Багаж', placeholder: 'Багаж' },
+        { key: 'lang', label: 'Язык', placeholder: 'Язык' }
+      ]
+    },
     t () {
       return this.$store.state.language === 'ru'
         ? {
@@ -117,8 +158,11 @@ export default {
             sheetTab: 'Имя вкладки (таблица)',
             add: 'Добавить',
             sync: 'Синхронизировать',
+            mapping: 'Маппинг',
+            mappingTitle: 'Маппинг колонок',
             activate: 'Активировать',
-            deactivate: 'Выключить'
+            deactivate: 'Выключить',
+            close: 'Закрыть'
           }
         : {
             title: 'Integration Settings',
@@ -140,8 +184,11 @@ export default {
             sheetTab: 'Tab name',
             add: 'Add',
             sync: 'Sync now',
+            mapping: 'Mapping',
+            mappingTitle: 'Column Mapping',
             activate: 'Activate',
-            deactivate: 'Disable'
+            deactivate: 'Disable',
+            close: 'Close'
           }
     }
   },
@@ -226,6 +273,52 @@ export default {
         this.sheetNotice = { type: 'error', text: `Ошибка изменения статуса: ${error.message}` }
       }
     },
+    parseMapping (raw) {
+      if (!raw) return {}
+      try {
+        return typeof raw === 'string' ? JSON.parse(raw) : raw
+      } catch (_) {
+        return {}
+      }
+    },
+    openMapping (sheet) {
+      const parsed = this.parseMapping(sheet.columnMapping)
+      this.mapDraft = {
+        contractor: parsed.contractor || '',
+        orderNumber: parsed.orderNumber || '',
+        date: parsed.date || '',
+        fromPoint: parsed.fromPoint || '',
+        toPoint: parsed.toPoint || '',
+        sum: parsed.sum || '',
+        driver: parsed.driver || '',
+        comment: parsed.comment || '',
+        internalOrderNumber: parsed.internalOrderNumber || '',
+        vehicleType: parsed.vehicleType || '',
+        status: parsed.status || '',
+        passengers: parsed.passengers || '',
+        luggage: parsed.luggage || '',
+        lang: parsed.lang || ''
+      }
+      this.mappingModal = { open: true, sourceId: sheet.id, sourceName: sheet.name || sheet.monthLabel || sheet.id }
+    },
+    closeMapping () {
+      this.mappingModal = { open: false, sourceId: '', sourceName: '' }
+    },
+    async saveMapping () {
+      this.sheetNotice = { type: 'ok', text: '' }
+      try {
+        await this.jsonRequest(`/api/admin/sheet-sources/${this.mappingModal.sourceId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...this.headers() },
+          body: JSON.stringify({ columnMapping: this.mapDraft })
+        })
+        await this.load()
+        this.closeMapping()
+        this.sheetNotice = { type: 'ok', text: 'Маппинг сохранён.' }
+      } catch (error) {
+        this.sheetNotice = { type: 'error', text: `Ошибка сохранения маппинга: ${error.message}` }
+      }
+    },
     async saveStaffLink (user) {
       this.staffNotice = { type: 'ok', text: '' }
       const telegramUserId = String(this.staffDrafts[user.id] || '').trim()
@@ -278,4 +371,9 @@ export default {
 .cell-wrap { word-break: break-all; }
 .muted { font-size: 12px; color: #647191; }
 .muted--error { color: #a13a31; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; z-index: 1200; }
+.modal { width: min(920px, 92vw); max-height: 86vh; overflow: auto; background: #fff; border-radius: 12px; padding: 16px; }
+.map-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 12px 0; }
+.map-row { display: grid; grid-template-columns: 240px 1fr; gap: 10px; align-items: center; }
+.map-label { font-weight: 600; color: #243550; }
 </style>

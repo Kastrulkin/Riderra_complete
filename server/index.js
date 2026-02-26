@@ -254,6 +254,23 @@ function pickField(row, aliases) {
   return null
 }
 
+function parseColumnMapping(raw) {
+  if (!raw) return {}
+  if (typeof raw === 'object' && raw !== null) return raw
+  try {
+    const parsed = JSON.parse(String(raw))
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch (_) {
+    return {}
+  }
+}
+
+function aliasesWithMapping(defaultAliases, mapping, key) {
+  const customHeader = mapping && mapping[key] ? String(mapping[key]).trim() : ''
+  if (!customHeader) return defaultAliases
+  return [customHeader, ...defaultAliases]
+}
+
 function toBase64Url(input) {
   return Buffer.from(input)
     .toString('base64')
@@ -447,6 +464,7 @@ async function syncSheetSource(sheetSourceId) {
   }
 
   const headers = rows[0].map((h) => String(h || '').trim())
+  const mapping = parseColumnMapping(source.columnMapping)
   const stats = { created: 0, updated: 0, unchanged: 0, errors: 0, total: 0 }
 
   for (let i = 1; i < rows.length; i++) {
@@ -474,27 +492,27 @@ async function syncSheetSource(sheetSourceId) {
 
     try {
       const externalKey =
-        pickField(raw, ['external key', 'order id', 'номер заказа', 'id', 'номер']) ||
+        pickField(raw, aliasesWithMapping(['external key', 'order id', 'номер заказа', 'id', 'номер'], mapping, 'orderNumber')) ||
         `${source.googleSheetId}:${source.tabName}:${sourceRow}`
 
-      const fromPoint = pickField(raw, ['from', 'откуда', 'адрес подачи', 'pickup']) || 'UNKNOWN'
-      const toPoint = pickField(raw, ['to', 'куда', 'адрес назначения', 'dropoff']) || 'UNKNOWN'
-      const vehicleType = pickField(raw, ['vehicle type', 'тип авто', 'класс', 'class']) || 'standard'
-      const clientPrice = toFloat(pickField(raw, ['price', 'цена', 'стоимость', 'client price']), 0)
-      const passengers = toInt(pickField(raw, ['passengers', 'пассажиры']), null)
-      const luggage = toInt(pickField(raw, ['luggage', 'багаж']), null)
-      const pickupRaw = pickField(raw, [
+      const fromPoint = pickField(raw, aliasesWithMapping(['from', 'откуда', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || 'UNKNOWN'
+      const toPoint = pickField(raw, aliasesWithMapping(['to', 'куда', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || 'UNKNOWN'
+      const vehicleType = pickField(raw, aliasesWithMapping(['vehicle type', 'тип авто', 'класс', 'class'], mapping, 'vehicleType')) || 'standard'
+      const clientPrice = toFloat(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), 0)
+      const passengers = toInt(pickField(raw, aliasesWithMapping(['passengers', 'пассажиры', 'pax'], mapping, 'passengers')), null)
+      const luggage = toInt(pickField(raw, aliasesWithMapping(['luggage', 'багаж'], mapping, 'luggage')), null)
+      const pickupRaw = pickField(raw, aliasesWithMapping([
         'pickup datetime',
         'pickup time',
         'дата и время подачи',
         'дата подачи',
         'дата',
         'время'
-      ])
+      ], mapping, 'date'))
       const pickupAt = parseDateTimeFlexible(pickupRaw)
-      const lang = pickField(raw, ['lang', 'язык']) || null
-      const comment = pickField(raw, ['comment', 'комментарий', 'примечание']) || null
-      const status = pickField(raw, ['status', 'статус']) || 'pending'
+      const lang = pickField(raw, aliasesWithMapping(['lang', 'язык'], mapping, 'lang')) || null
+      const comment = pickField(raw, aliasesWithMapping(['comment', 'комментарий', 'примечание'], mapping, 'comment')) || null
+      const status = pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending'
 
       const upserted = await prisma.order.upsert({
         where: { externalKey },
@@ -1181,6 +1199,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
     if (!source) {
       return res.json({ source: null, headers: [], rows: [], rawRows: [] })
     }
+    const mapping = parseColumnMapping(source.columnMapping)
 
     const snapshots = await prisma.orderSourceSnapshot.findMany({
       where: { sheetSourceId: source.id },
@@ -1219,15 +1238,15 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
         }
       }
 
-      const contractor = pickField(raw, ['контрагент', 'contractor']) || ''
-      const orderNumber = pickField(raw, ['номер заказа', 'order id', 'номер']) || ''
-      const date = pickField(raw, ['дата', 'date', 'pickup datetime', 'pickup time', 'дата подачи']) || ''
-      const fromPoint = pickField(raw, ['откуда', 'from', 'адрес подачи', 'pickup']) || ''
-      const toPoint = pickField(raw, ['куда', 'to', 'адрес назначения', 'dropoff']) || ''
-      const sum = pickField(raw, ['сумма', 'цена', 'стоимость', 'price', 'client price']) || ''
-      const driver = pickField(raw, ['водитель', 'driver']) || ''
-      const comment = pickField(raw, ['комментарий', 'comment', 'примечание']) || ''
-      const internalOrderNumber = pickField(raw, ['внутренний номер заказа', 'internal order number']) || ''
+      const contractor = pickField(raw, aliasesWithMapping(['контрагент', 'contractor'], mapping, 'contractor')) || ''
+      const orderNumber = pickField(raw, aliasesWithMapping(['номер заказа', 'order id', 'номер'], mapping, 'orderNumber')) || ''
+      const date = pickField(raw, aliasesWithMapping(['дата', 'date', 'pickup datetime', 'pickup time', 'дата подачи'], mapping, 'date')) || ''
+      const fromPoint = pickField(raw, aliasesWithMapping(['откуда', 'from', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || ''
+      const toPoint = pickField(raw, aliasesWithMapping(['куда', 'to', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || ''
+      const sum = pickField(raw, aliasesWithMapping(['сумма', 'цена', 'стоимость', 'price', 'client price'], mapping, 'sum')) || ''
+      const driver = pickField(raw, aliasesWithMapping(['водитель', 'driver'], mapping, 'driver')) || ''
+      const comment = pickField(raw, aliasesWithMapping(['комментарий', 'comment', 'примечание'], mapping, 'comment')) || ''
+      const internalOrderNumber = pickField(raw, aliasesWithMapping(['внутренний номер заказа', 'internal order number'], mapping, 'internalOrderNumber')) || ''
 
       rows.push({
         id: snapshot.order?.id || '',
@@ -1849,7 +1868,7 @@ app.get('/api/admin/sheet-sources', authenticateToken, requirePermission('settin
 
 app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
-    const { name, monthLabel, googleSheetId, tabName, isActive = true, syncEnabled = true } = req.body
+    const { name, monthLabel, googleSheetId, tabName, columnMapping, isActive = true, syncEnabled = true } = req.body
     const normalizedSheetId = normalizeGoogleSheetId(googleSheetId)
     if (!name || !monthLabel || !normalizedSheetId) {
       return res.status(400).json({ error: 'name, monthLabel and googleSheetId are required' })
@@ -1861,6 +1880,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('setti
         monthLabel,
         googleSheetId: normalizedSheetId,
         tabName: tabName || 'таблица',
+        columnMapping: columnMapping ? JSON.stringify(columnMapping) : null,
         isActive: !!isActive,
         syncEnabled: !!syncEnabled
       }
@@ -1875,12 +1895,13 @@ app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('setti
 app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { sourceId } = req.params
-    const { name, monthLabel, googleSheetId, tabName, isActive, syncEnabled } = req.body
+    const { name, monthLabel, googleSheetId, tabName, columnMapping, isActive, syncEnabled } = req.body
     const data = {}
     if (name !== undefined) data.name = name
     if (monthLabel !== undefined) data.monthLabel = monthLabel
     if (googleSheetId !== undefined) data.googleSheetId = normalizeGoogleSheetId(googleSheetId)
     if (tabName !== undefined) data.tabName = tabName
+    if (columnMapping !== undefined) data.columnMapping = columnMapping ? JSON.stringify(columnMapping) : null
     if (isActive !== undefined) data.isActive = !!isActive
     if (syncEnabled !== undefined) data.syncEnabled = !!syncEnabled
 
@@ -2197,6 +2218,46 @@ app.get('/api/admin/pricing/cities', authenticateToken, requirePermission('prici
   } catch (error) {
     console.error('Error fetching city pricing:', error)
     res.status(500).json({ error: 'Failed to fetch city pricing' })
+  }
+})
+
+app.get('/api/admin/pricing/export-eta-template', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
+  try {
+    const rows = await prisma.cityPricing.findMany({
+      where: {
+        isActive: true,
+        fixedPrice: { not: null }
+      },
+      orderBy: [{ country: 'asc' }, { city: 'asc' }, { routeFrom: 'asc' }, { routeTo: 'asc' }],
+      take: 20000
+    })
+
+    const headers = [
+      'From', 'To', 'Price', 'Lux', 'MV 8 pax', 'Sprinter',
+      'Electric Standard', 'Saloon', 'Estate', 'Executive', 'MPV', 'MV 6 pax', 'MV 7 pax'
+    ]
+    const esc = (v) => {
+      const s = String(v ?? '')
+      return `"${s.replace(/"/g, '""')}"`
+    }
+
+    const lines = [headers.map(esc).join(';')]
+    for (const row of rows) {
+      lines.push([
+        row.routeFrom || '',
+        row.routeTo || '',
+        row.fixedPrice !== null && row.fixedPrice !== undefined ? row.fixedPrice : '',
+        '', '', '', '', '', '', '', '', '', ''
+      ].map(esc).join(';'))
+    }
+
+    const csv = '\uFEFF' + lines.join('\n')
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename="ETA_Fixed_Price_template.csv"')
+    res.status(200).send(csv)
+  } catch (error) {
+    console.error('Error exporting ETA template:', error)
+    res.status(500).json({ error: 'Failed to export ETA template' })
   }
 })
 
