@@ -29,6 +29,7 @@
             <div>{{ t.driver }}</div>
             <div>{{ t.comment }}</div>
             <div>{{ t.internalOrderNumber }}</div>
+            <div>{{ t.status }}</div>
             <div>{{ t.card }}</div>
           </div>
           <div v-for="o in filteredRows" :key="`${o.sourceRow}-${o.id}`" class="table-row main-grid">
@@ -53,6 +54,9 @@
             <div>{{ o.driver || '-' }}</div>
             <div>{{ o.comment || '-' }}</div>
             <div>{{ o.internalOrderNumber || '-' }}</div>
+            <div>
+              <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
+            </div>
             <div>
               <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
                 {{ t.openCard }}
@@ -95,7 +99,10 @@
         </div>
         <div class="meta-grid">
           <div><strong>ID:</strong> {{ selectedOrder.id || '-' }}</div>
-          <div><strong>{{ t.status }}:</strong> {{ statusLabel(selectedOrder.status) }}</div>
+          <div>
+            <strong>{{ t.status }}:</strong>
+            <span class="status-pill" :class="statusPillClass(selectedOrder.status)">{{ statusLabel(selectedOrder.status) }}</span>
+          </div>
           <div><strong>{{ t.orderNumber }}:</strong> {{ selectedOrder.orderNumber || '-' }}</div>
           <div><strong>{{ t.internalOrderNumber }}:</strong> {{ selectedOrder.internalOrderNumber || '-' }}</div>
           <div><strong>{{ t.contractor }}:</strong> {{ selectedOrder.contractor || '-' }}</div>
@@ -134,9 +141,9 @@
           <div v-else class="history-list">
             <div v-for="h in statusHistory" :key="h.id" class="history-item">
               <div class="history-main">
-                <span class="history-status">{{ statusLabel(h.fromStatus) }}</span>
+                <span class="history-status" :class="statusPillClass(h.fromStatus)">{{ statusLabel(h.fromStatus) }}</span>
                 <span>→</span>
-                <span class="history-status">{{ statusLabel(h.toStatus) }}</span>
+                <span class="history-status" :class="statusPillClass(h.toStatus)">{{ statusLabel(h.toStatus) }}</span>
               </div>
               <div class="history-meta">
                 <span>{{ formatDateTime(h.createdAt) }}</span>
@@ -349,6 +356,31 @@ export default {
       }
       const dictionary = this.$store.state.language === 'ru' ? ru : en
       return dictionary[code] || status || '-'
+    },
+    statusPillClass (status) {
+      const code = String(status || '').toLowerCase()
+      const palette = {
+        draft: 'status-pill--neutral',
+        waiting_info: 'status-pill--warning',
+        validated: 'status-pill--info',
+        pending_dispatch: 'status-pill--warning',
+        dispatch_risk: 'status-pill--critical',
+        assigned: 'status-pill--info',
+        accepted: 'status-pill--info',
+        pending_ops_control: 'status-pill--warning',
+        confirmed: 'status-pill--ok',
+        in_progress: 'status-pill--ok',
+        incident_open: 'status-pill--critical',
+        incident_reported: 'status-pill--critical',
+        completed: 'status-pill--ok',
+        ready_finance: 'status-pill--finance',
+        finance_hold: 'status-pill--critical',
+        paid: 'status-pill--paid',
+        closed: 'status-pill--closed',
+        pending: 'status-pill--warning',
+        cancelled: 'status-pill--critical'
+      }
+      return palette[code] || 'status-pill--neutral'
     },
     normalizeToken (value) {
       return String(value || '')
@@ -590,7 +622,7 @@ export default {
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
 .table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
-.main-grid { display: grid; grid-template-columns: 100px 100px 170px 130px 140px 200px 200px 110px 150px 230px 160px 120px; }
+.main-grid { display: grid; grid-template-columns: 90px 90px 160px 120px 130px 190px 190px 100px 140px 220px 150px 120px 110px; }
 .raw-grid { display: grid; }
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -615,6 +647,24 @@ export default {
   border-radius: 8px;
   font-weight: 600;
 }
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.status-pill--neutral { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+.status-pill--info { background: #e0f2fe; color: #0c4a6e; border-color: #bae6fd; }
+.status-pill--warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.status-pill--critical { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.status-pill--ok { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.status-pill--finance { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+.status-pill--paid { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+.status-pill--closed { background: #e5e7eb; color: #374151; border-color: #d1d5db; }
 .card-link:disabled {
   opacity: 0.5;
   cursor: not-allowed;
