@@ -159,10 +159,11 @@ export default {
   padding-bottom: 40px;
   position: relative;
   z-index: 10;
-  color: #fff;
+  color: #1f2937;
   min-height: 100vh;
   display: flex;
   align-items: center;
+  background: #f3f4f6;
 }
 
 .auth-container {
@@ -173,27 +174,26 @@ export default {
 }
 
 .auth-card {
-  background: rgba(255,255,255,0.1);
+  background: #ffffff;
   border-radius: 16px;
   padding: 40px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid #e5e7eb;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
 }
 
 .auth-title {
   font-size: 28px;
   font-weight: 700;
-  color: #fff;
+  color: #111827;
   margin-bottom: 8px;
   text-align: center;
 }
 
 .auth-subtitle {
   font-size: 16px;
-  color: rgba(255,255,255,0.7);
+  color: #4b5563;
   margin-bottom: 32px;
   text-align: center;
 }
@@ -213,15 +213,15 @@ export default {
 .form-group label {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255,255,255,0.9);
+  color: #111827;
 }
 
 .form-input {
   padding: 12px 16px;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  background: rgba(255,255,255,0.1);
-  color: #fff;
+  background: #ffffff;
+  color: #111827;
   font-size: 16px;
   transition: all 0.2s ease;
 }
@@ -229,11 +229,12 @@ export default {
 .form-input:focus {
   outline: none;
   border-color: #007bff;
-  background: rgba(255,255,255,0.15);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .form-input::placeholder {
-  color: rgba(255,255,255,0.5);
+  color: #9ca3af;
 }
 
 .error-message {
