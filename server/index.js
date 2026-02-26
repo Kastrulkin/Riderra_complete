@@ -1486,7 +1486,14 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
       where: { sheetSourceId: source.id },
       include: {
         order: {
-          select: { id: true, status: true, driverPrice: true, clientPrice: true }
+          select: {
+            id: true,
+            status: true,
+            driverPrice: true,
+            clientPrice: true,
+            updatedAt: true,
+            createdAt: true
+          }
         }
       },
       orderBy: [{ sourceRow: 'asc' }, { createdAt: 'desc' }],
@@ -1531,7 +1538,12 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
         sum,
         driver,
         comment,
-        internalOrderNumber
+        internalOrderNumber,
+        status: snapshot.order?.status || '',
+        orderClientPrice: snapshot.order?.clientPrice ?? null,
+        orderDriverPrice: snapshot.order?.driverPrice ?? null,
+        orderCreatedAt: snapshot.order?.createdAt || null,
+        orderUpdatedAt: snapshot.order?.updatedAt || null
       })
 
     }

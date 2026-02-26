@@ -29,6 +29,7 @@
             <div>{{ t.driver }}</div>
             <div>{{ t.comment }}</div>
             <div>{{ t.internalOrderNumber }}</div>
+            <div>{{ t.card }}</div>
           </div>
           <div v-for="o in filteredRows" :key="`${o.sourceRow}-${o.id}`" class="table-row main-grid">
             <div class="tech cell-ellipsis" :title="o.id">{{ o.id || '-' }}</div>
@@ -52,6 +53,11 @@
             <div>{{ o.driver || '-' }}</div>
             <div>{{ o.comment || '-' }}</div>
             <div>{{ o.internalOrderNumber || '-' }}</div>
+            <div>
+              <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
+                {{ t.openCard }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -80,6 +86,53 @@
         <div class="hint">{{ t.total }}: {{ mode === 'table' ? filteredRows.length : filteredRawRows.length }}</div>
       </div>
     </section>
+
+    <div v-if="selectedOrder" class="modal-backdrop" @click.self="closeOrderCard">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3>{{ t.orderCard }}</h3>
+          <button class="modal-close" type="button" @click="closeOrderCard">×</button>
+        </div>
+        <div class="meta-grid">
+          <div><strong>ID:</strong> {{ selectedOrder.id || '-' }}</div>
+          <div><strong>{{ t.status }}:</strong> {{ selectedOrder.status || '-' }}</div>
+          <div><strong>{{ t.orderNumber }}:</strong> {{ selectedOrder.orderNumber || '-' }}</div>
+          <div><strong>{{ t.internalOrderNumber }}:</strong> {{ selectedOrder.internalOrderNumber || '-' }}</div>
+          <div><strong>{{ t.contractor }}:</strong> {{ selectedOrder.contractor || '-' }}</div>
+          <div><strong>{{ t.driver }}:</strong> {{ selectedOrder.driver || '-' }}</div>
+          <div><strong>{{ t.sum }}:</strong> {{ selectedOrder.sum || '-' }}</div>
+          <div><strong>{{ t.driverPrice }}:</strong> {{ formatMoney(selectedOrder.orderDriverPrice) }}</div>
+          <div><strong>{{ t.clientPrice }}:</strong> {{ formatMoney(selectedOrder.orderClientPrice) }}</div>
+          <div><strong>{{ t.updatedAt }}:</strong> {{ formatDateTime(selectedOrder.orderUpdatedAt) }}</div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn--primary" type="button" @click="openRawFromCard">{{ t.findInDetails }}</button>
+        </div>
+
+        <div class="status-history">
+          <h4>{{ t.statusHistory }}</h4>
+          <div v-if="historyLoading" class="hint">{{ t.loadingHistory }}</div>
+          <div v-else-if="historyError" class="hint hint--error">{{ historyError }}</div>
+          <div v-else-if="!statusHistory.length" class="hint">{{ t.noHistory }}</div>
+          <div v-else class="history-list">
+            <div v-for="h in statusHistory" :key="h.id" class="history-item">
+              <div class="history-main">
+                <span class="history-status">{{ h.fromStatus }}</span>
+                <span>→</span>
+                <span class="history-status">{{ h.toStatus }}</span>
+              </div>
+              <div class="history-meta">
+                <span>{{ formatDateTime(h.createdAt) }}</span>
+                <span>{{ historySourceLabel(h.source) }}</span>
+                <span>{{ h.actorEmail || '-' }}</span>
+              </div>
+              <div v-if="h.reason" class="history-reason">{{ h.reason }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -99,7 +152,11 @@ export default {
     filteredRows: [],
     filteredRawRows: [],
     drilldownToken: '',
-    drilldownNotice: ''
+    drilldownNotice: '',
+    selectedOrder: null,
+    statusHistory: [],
+    historyLoading: false,
+    historyError: ''
   }),
   computed: {
     t () {
@@ -122,6 +179,17 @@ export default {
             driver: 'Водитель',
             comment: 'Комментарий',
             internalOrderNumber: 'Внутренний номер заказа',
+            card: 'Карточка',
+            openCard: 'Открыть',
+            orderCard: 'Карточка заказа',
+            status: 'Статус',
+            statusHistory: 'История статусов',
+            loadingHistory: 'Загрузка истории...',
+            noHistory: 'История статусов пока пуста',
+            findInDetails: 'Найти в Подробностях',
+            updatedAt: 'Обновлено',
+            driverPrice: 'Цена водителя',
+            clientPrice: 'Цена клиенту',
             total: 'Всего',
             matchedInDetails: 'Найдено в Подробностях',
             notFoundInDetails: 'В Подробностях не найдено'
@@ -144,6 +212,17 @@ export default {
             driver: 'Driver',
             comment: 'Comment',
             internalOrderNumber: 'Internal Order Number',
+            card: 'Card',
+            openCard: 'Open',
+            orderCard: 'Order card',
+            status: 'Status',
+            statusHistory: 'Status history',
+            loadingHistory: 'Loading history...',
+            noHistory: 'No status history yet',
+            findInDetails: 'Find in details',
+            updatedAt: 'Updated at',
+            driverPrice: 'Driver price',
+            clientPrice: 'Client price',
             total: 'Total',
             matchedInDetails: 'Found in details',
             notFoundInDetails: 'Not found in details'
@@ -169,6 +248,27 @@ export default {
       this.drilldownNotice = ''
       this.drilldownToken = ''
       this.applyFilter()
+    },
+    formatDateTime (value) {
+      if (!value) return '-'
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return '-'
+      return date.toLocaleString()
+    },
+    formatMoney (value) {
+      if (value === null || value === undefined || value === '') return '-'
+      const number = Number(value)
+      if (!Number.isFinite(number)) return '-'
+      return number.toFixed(2)
+    },
+    historySourceLabel (source) {
+      const map = {
+        admin_api: 'Admin API',
+        google_sheet_sync: 'Google Sheet Sync',
+        easytaxi_webhook: 'EasyTaxi Webhook',
+        system: 'System'
+      }
+      return map[String(source || '').toLowerCase()] || source || 'System'
     },
     normalizeToken (value) {
       return String(value || '')
@@ -268,6 +368,36 @@ export default {
         ? `${this.t.matchedInDetails}: ${count}`
         : this.t.notFoundInDetails
     },
+    async openOrderCard (order) {
+      if (!order || !order.id) return
+      this.selectedOrder = order
+      this.statusHistory = []
+      this.historyLoading = true
+      this.historyError = ''
+      try {
+        const response = await fetch(`/api/admin/orders/${encodeURIComponent(order.id)}/status-history`, { headers: this.headers() })
+        if (!response.ok) throw new Error('failed')
+        const data = await response.json()
+        this.statusHistory = Array.isArray(data.history) ? data.history : []
+      } catch (_) {
+        this.historyError = this.$store.state.language === 'ru'
+          ? 'Не удалось загрузить историю статусов'
+          : 'Failed to load status history'
+      } finally {
+        this.historyLoading = false
+      }
+    },
+    closeOrderCard () {
+      this.selectedOrder = null
+      this.statusHistory = []
+      this.historyLoading = false
+      this.historyError = ''
+    },
+    openRawFromCard () {
+      const selected = this.selectedOrder
+      this.closeOrderCard()
+      if (selected && selected.orderNumber) this.openOrderDetails(selected.orderNumber)
+    },
     isRawMatch (row) {
       if (!this.drilldownToken) return false
       return this.normalizeToken(this.rowText(row)).includes(this.drilldownToken)
@@ -300,11 +430,12 @@ export default {
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
 .table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
-.main-grid { display: grid; grid-template-columns: 120px 120px 180px 130px 140px 220px 220px 110px 150px 260px 170px; }
+.main-grid { display: grid; grid-template-columns: 100px 100px 170px 130px 140px 200px 200px 110px 150px 230px 160px 120px; }
 .raw-grid { display: grid; }
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint { margin-top: 10px; color: #637191; }
+.hint--error { color: #9f1239; }
 .order-block { font-weight: 700; color: #335388; }
 .order-link {
   border: none;
@@ -316,4 +447,91 @@ export default {
   text-decoration: underline;
 }
 .order-link:hover { color: #084a95; }
+.card-link {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #1e3a8a;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.card-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-card {
+  width: min(980px, 100%);
+  max-height: 85vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #d8d8e6;
+  padding: 18px;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  color: #334155;
+}
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 8px 16px;
+  color: #334155;
+}
+.modal-actions { margin: 14px 0; }
+.status-history h4 { margin: 6px 0 10px; color: #17233d; }
+.history-list { display: flex; flex-direction: column; gap: 10px; }
+.history-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafc;
+}
+.history-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.history-status {
+  background: #e2e8f0;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+.history-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+.history-reason {
+  margin-top: 6px;
+  color: #334155;
+}
+@media (max-width: 900px) {
+  .meta-grid { grid-template-columns: 1fr; }
+}
 </style>
