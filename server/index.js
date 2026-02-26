@@ -221,11 +221,35 @@ function can(actor, action, resource, context = {}) {
   if (!actor) return false
   const permissions = actor.permissions || []
   const role = actor.role || actor.actorRole || null
+  const actorId = actor.actorId || null
   const actorTenantId = actor.tenantId || null
   const targetTenantId = context.tenantId || null
+  const isSupervisor = role === 'staff_supervisor' || permissions.includes('approvals.resolve')
+  const isExternal = ['executor', 'customer', 'passenger'].includes(role)
 
   if (targetTenantId && actorTenantId && actorTenantId !== targetTenantId) return false
   if (role === 'admin' || permissions.includes('*')) return true
+  if (
+    isExternal &&
+    ['crm.read', 'crm.manage', 'pricing.read', 'pricing.manage', 'settings.manage', 'directions.manage', 'ops.manage', 'approvals.resolve'].includes(action)
+  ) return false
+
+  if (context.ownerUserId && !isSupervisor && actorId && context.ownerUserId !== actorId) return false
+
+  if (context.businessHours?.enabled) {
+    const tz = String(context.businessHours.timezone || process.env.BUSINESS_TIMEZONE || 'Europe/Moscow')
+    const startHour = Number.isFinite(context.businessHours.startHour) ? context.businessHours.startHour : 6
+    const endHour = Number.isFinite(context.businessHours.endHour) ? context.businessHours.endHour : 23
+    const hourStr = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      hour12: false,
+      timeZone: tz
+    }).format(new Date())
+    const hour = Number.parseInt(hourStr, 10)
+    if (!Number.isFinite(hour) || hour < startHour || hour > endHour) {
+      return false
+    }
+  }
 
   if (action === 'permission.check') {
     if (Array.isArray(context.anyOf) && context.anyOf.length > 0) {
@@ -271,6 +295,14 @@ function can(actor, action, resource, context = {}) {
   }
 
   if (action === 'orders.transition') {
+    if (['paid', 'closed'].includes(String(context.toStatus || '').toLowerCase()) && !isSupervisor) {
+      return false
+    }
+    if (role === 'executor') {
+      if (!actorId || !context.ownerUserId || context.ownerUserId !== actorId) return false
+      const allowedExecutorTargets = ['in_progress', 'completed', 'incident_open']
+      if (!allowedExecutorTargets.includes(String(context.toStatus || '').toLowerCase())) return false
+    }
     return canTransitionByPermissions(
       permissions,
       context.fromStatus || '',
@@ -283,6 +315,7 @@ function can(actor, action, resource, context = {}) {
 
 function buildActorFromReq(req) {
   return {
+    actorId: req.actorContext?.actorId || req.user?.id || null,
     role: req.user?.role,
     actorRole: req.actorContext?.actorRole,
     permissions: req.userPermissions || [],
@@ -319,15 +352,23 @@ function hasAnyPermission(req, permissionCodes) {
 }
 
 function requireCan(action, resource, contextBuilder = null) {
-  return (req, res, next) => {
-    const context = {
-      tenantId: req.actorContext?.tenantId || null,
-      ...(typeof contextBuilder === 'function' ? (contextBuilder(req) || {}) : {})
+  return async (req, res, next) => {
+    try {
+      const extraContext = typeof contextBuilder === 'function'
+        ? await contextBuilder(req)
+        : {}
+      const context = {
+        tenantId: req.actorContext?.tenantId || null,
+        ...(extraContext || {})
+      }
+      if (!can(buildActorFromReq(req), action, resource, context)) {
+        return res.status(403).json({ error: `Policy denied: ${action} on ${resource}` })
+      }
+      next()
+    } catch (error) {
+      console.error('requireCan failed:', error)
+      res.status(500).json({ error: 'Policy evaluation failed' })
     }
-    if (!can(buildActorFromReq(req), action, resource, context)) {
-      return res.status(403).json({ error: `Policy denied: ${action} on ${resource}` })
-    }
-    next()
   }
 }
 
@@ -715,6 +756,7 @@ async function applyOrderStatusTransition({
   toStatus,
   reason = null,
   actorPermissions = [],
+  actorRole = null,
   actorUserId = null,
   actorEmail = null,
   source = 'system',
@@ -732,6 +774,11 @@ async function applyOrderStatusTransition({
     where: {
       id: orderId,
       ...(tenantId ? { tenantId } : {})
+    },
+    include: {
+      driver: {
+        select: { userId: true }
+      }
     }
   })
   if (!order) {
@@ -750,10 +797,20 @@ async function applyOrderStatusTransition({
   }
 
   if (!bypassPermissions && !can(
-    { permissions: actorPermissions || [], tenantId: tenantId || order.tenantId || null },
+    {
+      permissions: actorPermissions || [],
+      tenantId: tenantId || order.tenantId || null,
+      actorId: actorUserId || null,
+      actorRole: actorRole || null
+    },
     'orders.transition',
     'order',
-    { tenantId: tenantId || order.tenantId || null, fromStatus: currentStatus, toStatus: targetStatus }
+    {
+      tenantId: tenantId || order.tenantId || null,
+      fromStatus: currentStatus,
+      toStatus: targetStatus,
+      ownerUserId: order.driver?.userId || null
+    }
   )) {
     const error = new Error(`Transition denied: ${currentStatus} -> ${targetStatus}`)
     error.statusCode = 403
@@ -1898,6 +1955,7 @@ app.put(
           toStatus: targetStatus,
           reason,
           actorPermissions: req.userPermissions || [],
+          actorRole: req.actorContext.actorRole || null,
           actorUserId: req.user?.id || null,
           actorEmail: req.user?.email || null,
           source: 'admin_api'
@@ -1942,7 +2000,11 @@ app.get(
       const { orderId } = req.params
       const order = await prisma.order.findFirst({
         where: { id: orderId, tenantId: req.actorContext.tenantId },
-        select: { id: true, status: true }
+        select: {
+          id: true,
+          status: true,
+          driver: { select: { userId: true } }
+        }
       })
       if (!order) return res.status(404).json({ error: 'Order not found' })
 
@@ -1953,7 +2015,8 @@ app.get(
         can(actor, 'orders.transition', 'order', {
           tenantId: req.actorContext.tenantId,
           fromStatus: currentStatus,
-          toStatus: target
+          toStatus: target,
+          ownerUserId: order.driver?.userId || null
         })
       )
 
@@ -2062,6 +2125,7 @@ app.post(
             toStatus: payload.toStatus,
             reason: [payload.reason || null, reason || null, `[approval:${approval.id}]`].filter(Boolean).join(' | '),
             actorPermissions: ['approvals.resolve'],
+            actorRole: req.actorContext.actorRole || null,
             actorUserId: req.actorContext.actorId || null,
             actorEmail: req.user?.email || null,
             source: 'approval_resolver',
@@ -4059,7 +4123,9 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft'), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft', () => ({
+  businessHours: { enabled: true, startHour: 6, endHour: 23 }
+})), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -4085,7 +4151,9 @@ app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft'), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft', () => ({
+  businessHours: { enabled: true, startHour: 6, endHour: 23 }
+})), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
