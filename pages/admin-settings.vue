@@ -17,18 +17,20 @@
             <input v-model="sheetForm.monthLabel" class="input" :placeholder="t.sheetMonth" />
             <input v-model="sheetForm.googleSheetId" class="input" :placeholder="t.sheetId" />
             <input v-model="sheetForm.tabName" class="input" :placeholder="t.sheetTab" />
+            <input v-model="sheetForm.detailsTabName" class="input" :placeholder="t.detailsTab" />
             <button class="btn btn--primary" @click="createSheetSource">{{ t.add }}</button>
           </div>
 
           <div class="table-wrap">
-            <div class="grid-head six-cols">
-              <div>{{ t.name }}</div><div>{{ t.month }}</div><div>Sheet ID</div><div>Tab</div><div>{{ t.status }}</div><div>{{ t.actions }}</div>
+            <div class="grid-head seven-cols">
+              <div>{{ t.name }}</div><div>{{ t.month }}</div><div>Sheet ID</div><div>Tab</div><div>{{ t.detailsTab }}</div><div>{{ t.status }}</div><div>{{ t.actions }}</div>
             </div>
-            <div v-for="s in sheets" :key="s.id" class="grid-row six-cols">
+            <div v-for="s in sheets" :key="s.id" class="grid-row seven-cols">
               <div>{{ s.name }}</div>
               <div>{{ s.monthLabel }}</div>
               <div class="cell-wrap" :title="s.googleSheetId">{{ shortSheetId(s.googleSheetId) }}</div>
               <div>{{ s.tabName }}</div>
+              <div>{{ s.detailsTabName || 'подробности' }}</div>
               <div>
                 <div>{{ s.isActive ? 'active' : 'off' }}</div>
                 <div class="muted" v-if="s.lastSyncStatus">{{ s.lastSyncStatus }}</div>
@@ -105,7 +107,7 @@ export default {
   data: () => ({
     sheets: [],
     staff: [],
-    sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица' },
+    sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица', detailsTabName: 'подробности' },
     staffDrafts: {},
     syncingSheetId: null,
     sheetNotice: { type: 'ok', text: '' },
@@ -156,6 +158,7 @@ export default {
             sheetMonth: 'Метка месяца (например 2025-01)',
             sheetId: 'Google Sheet ID',
             sheetTab: 'Имя вкладки (таблица)',
+            detailsTab: 'Имя вкладки (подробности)',
             add: 'Добавить',
             sync: 'Синхронизировать',
             mapping: 'Маппинг',
@@ -182,6 +185,7 @@ export default {
             sheetMonth: 'Month label (e.g. 2025-01)',
             sheetId: 'Google Sheet ID',
             sheetTab: 'Tab name',
+            detailsTab: 'Details tab name',
             add: 'Add',
             sync: 'Sync now',
             mapping: 'Mapping',
@@ -233,7 +237,7 @@ export default {
           headers: { 'Content-Type': 'application/json', ...this.headers() },
           body: JSON.stringify(payload)
         })
-        this.sheetForm = { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица' }
+        this.sheetForm = { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица', detailsTabName: 'подробности' }
         await this.load()
         this.sheetNotice = { type: 'ok', text: 'Источник добавлен.' }
       } catch (error) {
@@ -364,7 +368,7 @@ export default {
 .grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 980px; align-items: center; }
 .three-cols { display: grid; grid-template-columns: 1.4fr 1.2fr 1.4fr; }
 .four-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr .7fr; }
-.six-cols { display: grid; grid-template-columns: 1fr .8fr 1.7fr .7fr 1fr 1fr; }
+.seven-cols { display: grid; grid-template-columns: 1fr .8fr 1.5fr .6fr .8fr 1fr 1fr; }
 .grid-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; color: #1d2c4a; }
 .grid-row { border-bottom: 1px solid #f0f2f7; color: #2f3e60; }
 .row-actions { display: flex; gap: 6px; align-items: center; }

@@ -421,7 +421,8 @@ function normalizeGoogleSheetId(value) {
 
 async function fetchGoogleSheetRows(sheetSource) {
   const accessToken = await getGoogleAccessToken()
-  const range = `${sheetSource.tabName}!A:AZ`
+  const tabName = String(sheetSource.tabName || '').trim() || 'таблица'
+  const range = `${tabName}!A:AZ`
   const sheetId = normalizeGoogleSheetId(sheetSource.googleSheetId)
   if (!sheetId) {
     throw new Error('Google Sheet ID is empty')
@@ -1213,10 +1214,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
     })
 
     const seenRows = new Set()
-    const headers = []
-    const headerSet = new Set()
     const rows = []
-    const rawRows = []
 
     for (const snapshot of snapshots) {
       if (seenRows.has(snapshot.sourceRow)) continue
@@ -1230,13 +1228,6 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
       }
       const raw = payload && payload.row && typeof payload.row === 'object' ? payload.row : payload
       if (!raw || typeof raw !== 'object') continue
-
-      for (const key of Object.keys(raw)) {
-        if (!headerSet.has(key)) {
-          headerSet.add(key)
-          headers.push(key)
-        }
-      }
 
       const contractor = pickField(raw, aliasesWithMapping(['контрагент', 'contractor'], mapping, 'contractor')) || ''
       const orderNumber = pickField(raw, aliasesWithMapping(['номер заказа', 'order id', 'номер'], mapping, 'orderNumber')) || ''
@@ -1263,12 +1254,58 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
         internalOrderNumber
       })
 
-      rawRows.push({
-        id: snapshot.order?.id || '',
-        source: source.name || source.monthLabel || 'google_sheet',
-        sourceRow: snapshot.sourceRow,
-        values: raw
+    }
+
+    let headers = []
+    let rawRows = []
+    try {
+      const detailsTabName = String(source.detailsTabName || '').trim() || 'подробности'
+      const detailRows = await fetchGoogleSheetRows({
+        googleSheetId: source.googleSheetId,
+        tabName: detailsTabName
       })
+      const detailHeaders = (detailRows[0] || []).map((h) => String(h || '').trim()).filter(Boolean)
+      headers = detailHeaders
+      rawRows = detailRows.slice(1).map((cells, idx) => {
+        const values = {}
+        detailHeaders.forEach((header, colIdx) => {
+          values[header] = cells[colIdx] !== undefined ? String(cells[colIdx]).trim() : ''
+        })
+        return {
+          id: '',
+          source: `${source.name || source.monthLabel || 'google_sheet'}:${detailsTabName}`,
+          sourceRow: idx + 2,
+          values
+        }
+      })
+    } catch (detailsError) {
+      console.error('Error fetching details tab for sheet view:', detailsError)
+      const headerSet = new Set()
+      headers = []
+      rawRows = []
+      for (const snapshot of snapshots) {
+        if (!snapshot?.rawPayload) continue
+        let payload = {}
+        try {
+          payload = JSON.parse(snapshot.rawPayload || '{}')
+        } catch (_) {
+          payload = {}
+        }
+        const raw = payload && payload.row && typeof payload.row === 'object' ? payload.row : payload
+        if (!raw || typeof raw !== 'object') continue
+        for (const key of Object.keys(raw)) {
+          if (!headerSet.has(key)) {
+            headerSet.add(key)
+            headers.push(key)
+          }
+        }
+        rawRows.push({
+          id: snapshot.order?.id || '',
+          source: source.name || source.monthLabel || 'google_sheet',
+          sourceRow: snapshot.sourceRow,
+          values: raw
+        })
+      }
     }
 
     res.json({
@@ -1276,7 +1313,8 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
         id: source.id,
         name: source.name,
         monthLabel: source.monthLabel,
-        tabName: source.tabName
+        tabName: source.tabName,
+        detailsTabName: source.detailsTabName || 'подробности'
       },
       headers,
       rows,
@@ -1868,7 +1906,7 @@ app.get('/api/admin/sheet-sources', authenticateToken, requirePermission('settin
 
 app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
-    const { name, monthLabel, googleSheetId, tabName, columnMapping, isActive = true, syncEnabled = true } = req.body
+    const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive = true, syncEnabled = true } = req.body
     const normalizedSheetId = normalizeGoogleSheetId(googleSheetId)
     if (!name || !monthLabel || !normalizedSheetId) {
       return res.status(400).json({ error: 'name, monthLabel and googleSheetId are required' })
@@ -1880,6 +1918,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('setti
         monthLabel,
         googleSheetId: normalizedSheetId,
         tabName: tabName || 'таблица',
+        detailsTabName: detailsTabName || 'подробности',
         columnMapping: columnMapping ? JSON.stringify(columnMapping) : null,
         isActive: !!isActive,
         syncEnabled: !!syncEnabled
@@ -1895,12 +1934,13 @@ app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('setti
 app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { sourceId } = req.params
-    const { name, monthLabel, googleSheetId, tabName, columnMapping, isActive, syncEnabled } = req.body
+    const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive, syncEnabled } = req.body
     const data = {}
     if (name !== undefined) data.name = name
     if (monthLabel !== undefined) data.monthLabel = monthLabel
     if (googleSheetId !== undefined) data.googleSheetId = normalizeGoogleSheetId(googleSheetId)
     if (tabName !== undefined) data.tabName = tabName
+    if (detailsTabName !== undefined) data.detailsTabName = detailsTabName
     if (columnMapping !== undefined) data.columnMapping = columnMapping ? JSON.stringify(columnMapping) : null
     if (isActive !== undefined) data.isActive = !!isActive
     if (syncEnabled !== undefined) data.syncEnabled = !!syncEnabled
