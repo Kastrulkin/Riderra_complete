@@ -621,6 +621,8 @@ async function promoteStagingToCustomerCrm() {
         phone: row.phone,
         email: row.email,
         telegramUrl: row.telegramUrl,
+        registrationCountry: row.countryPresence,
+        presenceCities: row.cityPresence,
         countryPresence: row.countryPresence,
         cityPresence: row.cityPresence,
         comment: row.comment,
@@ -636,6 +638,8 @@ async function promoteStagingToCustomerCrm() {
         phone: row.phone,
         email: row.email,
         telegramUrl: row.telegramUrl,
+        registrationCountry: row.countryPresence,
+        presenceCities: row.cityPresence,
         countryPresence: row.countryPresence,
         cityPresence: row.cityPresence,
         comment: row.comment,
@@ -661,6 +665,8 @@ async function promoteStagingToCustomerCrm() {
         phone: row.phone,
         email: row.email,
         telegramUrl: row.telegramUrl,
+        registrationCountry: row.countryPresence,
+        presenceCities: row.cityPresence,
         countryPresence: row.countryPresence,
         cityPresence: row.cityPresence,
         comment: row.comment,
@@ -675,6 +681,8 @@ async function promoteStagingToCustomerCrm() {
         phone: row.phone,
         email: row.email,
         telegramUrl: row.telegramUrl,
+        registrationCountry: row.countryPresence,
+        presenceCities: row.cityPresence,
         countryPresence: row.countryPresence,
         cityPresence: row.cityPresence,
         comment: row.comment,
@@ -2130,13 +2138,22 @@ app.put('/api/admin/crm/companies/:companyId', authenticateToken, requirePermiss
     const data = {}
     const fields = [
       'name', 'website', 'phone', 'email', 'telegramUrl',
-      'countryPresence', 'cityPresence', 'comment', 'ownerName', 'companyType'
+      'registrationCountry', 'registrationCity', 'registrationAddress',
+      'presenceCountries', 'presenceCities',
+      'countryPresence', 'cityPresence',
+      'comment', 'ownerName', 'companyType'
     ]
     for (const field of fields) {
       if (Object.prototype.hasOwnProperty.call(req.body, field)) {
         const value = req.body[field]
         data[field] = value === '' ? null : value
       }
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'registrationCountry') && !Object.prototype.hasOwnProperty.call(req.body, 'countryPresence')) {
+      data.countryPresence = data.registrationCountry || null
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'presenceCities') && !Object.prototype.hasOwnProperty.call(req.body, 'cityPresence')) {
+      data.cityPresence = data.presenceCities || null
     }
     const segments = Array.isArray(req.body.segments)
       ? [...new Set(req.body.segments.map((x) => String(x || '').trim()).filter(Boolean))]
@@ -2172,13 +2189,22 @@ app.put('/api/admin/crm/contacts/:contactId', authenticateToken, requirePermissi
     const data = {}
     const fields = [
       'fullName', 'website', 'phone', 'email', 'telegramUrl',
-      'countryPresence', 'cityPresence', 'comment', 'position', 'ownerName'
+      'registrationCountry', 'registrationCity', 'registrationAddress',
+      'presenceCountries', 'presenceCities',
+      'countryPresence', 'cityPresence',
+      'comment', 'position', 'ownerName'
     ]
     for (const field of fields) {
       if (Object.prototype.hasOwnProperty.call(req.body, field)) {
         const value = req.body[field]
         data[field] = value === '' ? null : value
       }
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'registrationCountry') && !Object.prototype.hasOwnProperty.call(req.body, 'countryPresence')) {
+      data.countryPresence = data.registrationCountry || null
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'presenceCities') && !Object.prototype.hasOwnProperty.call(req.body, 'cityPresence')) {
+      data.cityPresence = data.presenceCities || null
     }
     const segments = Array.isArray(req.body.segments)
       ? [...new Set(req.body.segments.map((x) => String(x || '').trim()).filter(Boolean))]
@@ -2259,8 +2285,8 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
       const supplierRole = isSupplier(segs)
       if (!clientRole && !supplierRole) continue
 
-      const countries = splitPresence(company.countryPresence)
-      const cities = splitPresence(company.cityPresence)
+      const countries = splitPresence(company.presenceCountries)
+      const cities = splitPresence(company.presenceCities || company.cityPresence)
       const safeCountries = countries.length ? countries : ['—']
       const safeCities = cities.length ? cities : ['—']
 

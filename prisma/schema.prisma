@@ -299,48 +299,58 @@ model CrmContactSegment {
 }
 
 model CustomerCompany {
-  id              String                   @id @default(cuid())
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  sourceSystem    String                   @default("planfix")
-  externalId      String
-  name            String
-  website         String?
-  phone           String?
-  email           String?
-  telegramUrl     String?
-  countryPresence String?
-  cityPresence    String?
-  comment         String?
-  ownerName       String?
-  companyType     String?
-  extraInfo       String?
-  links           CustomerCompanyContact[]
-  segments        CustomerCompanySegment[]
-  pricingRules    CounterpartyPriceRule[]
+  id                  String                   @id @default(cuid())
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  sourceSystem        String                   @default("planfix")
+  externalId          String
+  name                String
+  website             String?
+  phone               String?
+  email               String?
+  telegramUrl         String?
+  registrationCountry String?
+  registrationCity    String?
+  registrationAddress String?
+  presenceCountries   String?
+  presenceCities      String?
+  countryPresence     String?
+  cityPresence        String?
+  comment             String?
+  ownerName           String?
+  companyType         String?
+  extraInfo           String?
+  links               CustomerCompanyContact[]
+  segments            CustomerCompanySegment[]
+  pricingRules        CounterpartyPriceRule[]
 
   @@unique([sourceSystem, externalId])
   @@index([name])
 }
 
 model CustomerContact {
-  id              String                   @id @default(cuid())
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  sourceSystem    String                   @default("planfix")
-  externalId      String
-  fullName        String
-  website         String?
-  phone           String?
-  email           String?
-  telegramUrl     String?
-  countryPresence String?
-  cityPresence    String?
-  comment         String?
-  position        String?
-  ownerName       String?
-  links           CustomerCompanyContact[]
-  segments        CustomerContactSegment[]
+  id                  String                   @id @default(cuid())
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  sourceSystem        String                   @default("planfix")
+  externalId          String
+  fullName            String
+  website             String?
+  phone               String?
+  email               String?
+  telegramUrl         String?
+  registrationCountry String?
+  registrationCity    String?
+  registrationAddress String?
+  presenceCountries   String?
+  presenceCities      String?
+  countryPresence     String?
+  cityPresence        String?
+  comment             String?
+  position            String?
+  ownerName           String?
+  links               CustomerCompanyContact[]
+  segments            CustomerContactSegment[]
 
   @@unique([sourceSystem, externalId])
   @@index([fullName])

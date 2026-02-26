@@ -76,8 +76,11 @@
           <input v-model="form.phone" class="input" placeholder="Телефон" />
           <input v-model="form.email" class="input" placeholder="Email" />
           <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
-          <input v-model="form.countryPresence" class="input" placeholder="Страна регистрации" />
-          <input v-model="form.cityPresence" class="input" placeholder="Города присутствия (где работают)" />
+          <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
+          <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
+          <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
+          <input v-model="form.presenceCountries" class="input" placeholder="Страны присутствия" />
+          <input v-model="form.presenceCities" class="input" placeholder="Города присутствия (где работают)" />
           <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div v-else class="card-grid">
@@ -86,8 +89,11 @@
           <input v-model="form.phone" class="input" placeholder="Телефон" />
           <input v-model="form.email" class="input" placeholder="Email" />
           <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
-          <input v-model="form.countryPresence" class="input" placeholder="Страна регистрации" />
-          <input v-model="form.cityPresence" class="input" placeholder="Города присутствия (где работают)" />
+          <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
+          <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
+          <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
+          <input v-model="form.presenceCountries" class="input" placeholder="Страны присутствия" />
+          <input v-model="form.presenceCities" class="input" placeholder="Города присутствия (где работают)" />
           <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div class="segments-block">
@@ -231,8 +237,11 @@ export default {
         phone: this.details.phone || '',
         email: this.details.email || '',
         telegramUrl: this.details.telegramUrl || '',
-        countryPresence: this.details.countryPresence || '',
-        cityPresence: this.details.cityPresence || '',
+        registrationCountry: this.details.registrationCountry || this.details.countryPresence || '',
+        registrationCity: this.details.registrationCity || '',
+        registrationAddress: this.details.registrationAddress || '',
+        presenceCountries: this.details.presenceCountries || '',
+        presenceCities: this.details.presenceCities || this.details.cityPresence || '',
         comment: this.details.comment || '',
         segments: (this.details.segments || []).map((s) => s.segment)
       }
@@ -249,8 +258,11 @@ export default {
         phone: this.details.phone || '',
         email: this.details.email || '',
         telegramUrl: this.details.telegramUrl || '',
-        countryPresence: this.details.countryPresence || '',
-        cityPresence: this.details.cityPresence || '',
+        registrationCountry: this.details.registrationCountry || this.details.countryPresence || '',
+        registrationCity: this.details.registrationCity || '',
+        registrationAddress: this.details.registrationAddress || '',
+        presenceCountries: this.details.presenceCountries || '',
+        presenceCities: this.details.presenceCities || this.details.cityPresence || '',
         comment: this.details.comment || '',
         segments: (this.details.segments || []).map((s) => s.segment)
       }

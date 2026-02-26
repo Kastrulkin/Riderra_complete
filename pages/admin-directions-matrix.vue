@@ -67,8 +67,11 @@
           <input v-model="companyForm.phone" class="input" placeholder="Телефон" />
           <input v-model="companyForm.email" class="input" placeholder="Email" />
           <input v-model="companyForm.telegramUrl" class="input" placeholder="Telegram ссылка" />
-          <input v-model="companyForm.countryPresence" class="input" placeholder="Страна регистрации" />
-          <input v-model="companyForm.cityPresence" class="input" placeholder="Города присутствия (где работают)" />
+          <input v-model="companyForm.registrationCountry" class="input" placeholder="Страна регистрации" />
+          <input v-model="companyForm.registrationCity" class="input" placeholder="Город регистрации" />
+          <input v-model="companyForm.registrationAddress" class="input" placeholder="Адрес регистрации" />
+          <input v-model="companyForm.presenceCountries" class="input" placeholder="Страны присутствия" />
+          <input v-model="companyForm.presenceCities" class="input" placeholder="Города присутствия (где работают)" />
           <textarea v-model="companyForm.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div class="row-actions">
@@ -141,8 +144,11 @@ export default {
         phone: company.phone || '',
         email: company.email || '',
         telegramUrl: company.telegramUrl || '',
-        countryPresence: company.countryPresence || '',
-        cityPresence: company.cityPresence || '',
+        registrationCountry: company.registrationCountry || company.countryPresence || '',
+        registrationCity: company.registrationCity || '',
+        registrationAddress: company.registrationAddress || '',
+        presenceCountries: company.presenceCountries || '',
+        presenceCities: company.presenceCities || company.cityPresence || '',
         comment: company.comment || ''
       }
     },
