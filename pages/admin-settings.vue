@@ -57,10 +57,16 @@
             {{ staffNotice.text }}
           </div>
           <div class="table-wrap">
-            <div class="grid-head four-cols">
-              <div>{{ t.email }}</div><div>{{ t.roles }}</div><div>{{ t.telegramId }}</div><div>{{ t.actions }}</div>
+            <div class="grid-head seven-staff-cols">
+              <div>{{ t.email }}</div>
+              <div>{{ t.roles }}</div>
+              <div>{{ t.telegramId }}</div>
+              <div>{{ t.abacCountries }}</div>
+              <div>{{ t.abacCities }}</div>
+              <div>{{ t.abacTeams }}</div>
+              <div>{{ t.actions }}</div>
             </div>
-            <div v-for="u in staff" :key="u.id" class="grid-row four-cols">
+            <div v-for="u in staff" :key="u.id" class="grid-row seven-staff-cols">
               <div>{{ u.email }}</div>
               <div>{{ (u.roles || []).join(', ') || '-' }}</div>
               <div>
@@ -70,8 +76,30 @@
                   :placeholder="t.telegramId"
                 />
               </div>
+              <div>
+                <input
+                  v-model="abacDrafts[u.id].countries"
+                  class="input"
+                  :placeholder="t.abacCountriesPlaceholder"
+                />
+              </div>
+              <div>
+                <input
+                  v-model="abacDrafts[u.id].cities"
+                  class="input"
+                  :placeholder="t.abacCitiesPlaceholder"
+                />
+              </div>
+              <div>
+                <input
+                  v-model="abacDrafts[u.id].teams"
+                  class="input"
+                  :placeholder="t.abacTeamsPlaceholder"
+                />
+              </div>
               <div class="row-actions">
                 <button class="btn btn--small btn--primary" @click="saveStaffLink(u)">{{ t.save }}</button>
+                <button class="btn btn--small" @click="saveStaffAbac(u)">{{ t.saveScopes }}</button>
               </div>
             </div>
           </div>
@@ -109,6 +137,7 @@ export default {
     staff: [],
     sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица', detailsTabName: 'подробности' },
     staffDrafts: {},
+    abacDrafts: {},
     syncingSheetId: null,
     sheetNotice: { type: 'ok', text: '' },
     staffNotice: { type: 'ok', text: '' },
@@ -153,6 +182,13 @@ export default {
             syncing: 'Синхронизация...',
             save: 'Сохранить',
             roles: 'Роли',
+            abacCountries: 'Страны доступа',
+            abacCities: 'Города доступа',
+            abacTeams: 'Команды доступа',
+            abacCountriesPlaceholder: 'например: uk, uae',
+            abacCitiesPlaceholder: 'например: london, dubai',
+            abacTeamsPlaceholder: 'например: dispatch, ops',
+            saveScopes: 'Сохранить scope',
             telegramLinks: 'Связки Telegram',
             sheetName: 'Имя источника',
             sheetMonth: 'Метка месяца (например 2025-01)',
@@ -180,6 +216,13 @@ export default {
             syncing: 'Syncing...',
             save: 'Save',
             roles: 'Roles',
+            abacCountries: 'Allowed countries',
+            abacCities: 'Allowed cities',
+            abacTeams: 'Allowed teams',
+            abacCountriesPlaceholder: 'e.g. uk, uae',
+            abacCitiesPlaceholder: 'e.g. london, dubai',
+            abacTeamsPlaceholder: 'e.g. dispatch, ops',
+            saveScopes: 'Save scope',
             telegramLinks: 'Telegram links',
             sheetName: 'Source name',
             sheetMonth: 'Month label (e.g. 2025-01)',
@@ -225,6 +268,14 @@ export default {
       this.staff = staff.rows || []
       this.staffDrafts = this.staff.reduce((acc, user) => {
         acc[user.id] = (user.telegramLinks && user.telegramLinks[0] && user.telegramLinks[0].telegramUserId) || ''
+        return acc
+      }, {})
+      this.abacDrafts = this.staff.reduce((acc, user) => {
+        acc[user.id] = {
+          countries: (user.abacCountries || []).join(', '),
+          cities: (user.abacCities || []).join(', '),
+          teams: (user.abacTeams || []).join(', ')
+        }
         return acc
       }, {})
     },
@@ -341,6 +392,25 @@ export default {
       } catch (error) {
         this.staffNotice = { type: 'error', text: `Ошибка сохранения: ${error.message}` }
       }
+    },
+    async saveStaffAbac (user) {
+      this.staffNotice = { type: 'ok', text: '' }
+      const draft = this.abacDrafts[user.id] || { countries: '', cities: '', teams: '' }
+      try {
+        await this.jsonRequest(`/api/admin/staff-users/${user.id}/abac`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...this.headers() },
+          body: JSON.stringify({
+            countries: draft.countries,
+            cities: draft.cities,
+            teams: draft.teams
+          })
+        })
+        await this.load()
+        this.staffNotice = { type: 'ok', text: `Scope сохранён для ${user.email}.` }
+      } catch (error) {
+        this.staffNotice = { type: 'error', text: `Ошибка сохранения scope: ${error.message}` }
+      }
     }
   }
 }
@@ -368,6 +438,7 @@ export default {
 .grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 980px; align-items: center; }
 .three-cols { display: grid; grid-template-columns: 1.4fr 1.2fr 1.4fr; }
 .four-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr .7fr; }
+.seven-staff-cols { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr 1fr .9fr; }
 .seven-cols { display: grid; grid-template-columns: 1fr .8fr 1.5fr .6fr .8fr 1fr 1fr; }
 .grid-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; color: #1d2c4a; }
 .grid-row { border-bottom: 1px solid #f0f2f7; color: #2f3e60; }
