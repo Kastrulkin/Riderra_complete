@@ -262,6 +262,11 @@ function hasScopeMatch(actorScopes, targetValue) {
   const scopes = actorScopes || []
   if (!scopes.length) return true
   if (scopes.includes('all') || scopes.includes('*') || scopes.includes('globe')) return true
+  if (Array.isArray(targetValue)) {
+    const targets = targetValue.map((x) => normalizeScopeToken(x)).filter(Boolean)
+    if (!targets.length) return true
+    return targets.some((target) => scopes.includes(target))
+  }
   const target = normalizeScopeToken(targetValue)
   if (!target) return true
   return scopes.includes(target)
@@ -303,6 +308,27 @@ function buildCityScopeWhere(req, cityField = 'city') {
       }
     ]
   }
+}
+
+function inferTeamScopeForAction(action) {
+  const map = {
+    'pricing.read': ['pricing'],
+    'pricing.manage': ['pricing'],
+    'directions.read': ['pricing'],
+    'directions.manage': ['pricing'],
+    'ops.read': ['ops_control'],
+    'ops.manage': ['ops_control'],
+    'ops.drafts.resolve': ['ops_control'],
+    'approvals.resolve': ['ops_control'],
+    'drivers.read': ['dispatch', 'ops_control', 'coordination'],
+    'drivers.manage': ['dispatch', 'ops_control', 'coordination'],
+    'crm.read': ['sales', 'coordination', 'audit'],
+    'crm.manage': ['sales', 'coordination', 'audit'],
+    'orders.transition.request': ['coordination', 'dispatch', 'ops_control', 'finance'],
+    'settings.manage': ['all'],
+    'telegram.links.manage': ['all']
+  }
+  return map[action] || null
 }
 
 function can(actor, action, resource, context = {}) {
@@ -454,9 +480,13 @@ function requireCan(action, resource, contextBuilder = null) {
       const extraContext = typeof contextBuilder === 'function'
         ? await contextBuilder(req)
         : {}
+      const inferredTeam = inferTeamScopeForAction(action)
       const context = {
         tenantId: req.actorContext?.tenantId || null,
-        ...(extraContext || {})
+        ...(extraContext || {}),
+        team: (extraContext && Object.prototype.hasOwnProperty.call(extraContext, 'team'))
+          ? extraContext.team
+          : inferredTeam
       }
       if (!can(buildActorFromReq(req), action, resource, context)) {
         return res.status(403).json({ error: `Policy denied: ${action} on ${resource}` })
