@@ -8,7 +8,7 @@ const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
-const BASE = '/Users/alexdemyanov/Downloads/Данные из ПФ'
+const BASE = process.env.PLANFIX_BASE_DIR || '/Users/alexdemyanov/Downloads/Данные из ПФ'
 
 const files = {
   companiesMaster: 'Компании.csv',
