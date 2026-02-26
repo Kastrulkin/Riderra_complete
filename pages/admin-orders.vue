@@ -539,6 +539,7 @@ export default {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            'Idempotency-Key': `order-status-${this.selectedOrder.id}-${Date.now()}`,
             ...this.headers()
           },
           body: JSON.stringify({

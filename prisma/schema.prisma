@@ -7,6 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id                String            @id @default(cuid())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  code              String            @unique
+  name              String
+  isActive          Boolean           @default(true)
+  memberships       TenantMembership[]
+  idempotencyKeys   IdempotencyKey[]
+  auditLogs         AuditLog[]
+  approvals         HumanApproval[]
+  orders            Order[]
+  orderStatusEvents OrderStatusHistory[]
+  pricingRows       CityPricing[]
+  counterpartyRules CounterpartyPriceRule[]
+}
+
+model TenantMembership {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenantId  String
+  userId    String
+  role      String   @default("staff")
+  isActive  Boolean  @default(true)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId, isActive])
+}
+
 // Пользователи системы (админы и водители)
 model User {
   id        String   @id @default(cuid())
@@ -22,6 +54,7 @@ model User {
   roleLinks     UserRole[]
   telegramLinks TelegramLink[]
   opsTasks      OpsTask[]      @relation("OpsTaskAssignee")
+  memberships   TenantMembership[]
 
   @@map("users")
 }
@@ -107,6 +140,7 @@ model DriverRoute {
 
 model Order {
   id          String    @id @default(cuid())
+  tenantId    String?
   createdAt   DateTime  @default(now())
   source      String    @default("internal") // internal, easytaxi, google_sheet
   externalKey String?   @unique // Уникальный ключ заказа во внешней системе
@@ -132,12 +166,16 @@ model Order {
   sourceHistory  OrderSourceSnapshot[]
   priceConflicts PriceConflict[]
   statusHistory  OrderStatusHistory[]
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, createdAt])
 }
 
 model OrderStatusHistory {
   id          String   @id @default(cuid())
   createdAt   DateTime @default(now())
   orderId     String
+  tenantId    String?
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   fromStatus  String
   toStatus    String
@@ -145,9 +183,11 @@ model OrderStatusHistory {
   actorUserId String?
   actorEmail  String?
   source      String   @default("system")
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([orderId, createdAt])
   @@index([source, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model Review {
@@ -204,6 +244,7 @@ model DriverCityRoute {
 
 model SheetSource {
   id             String                @id @default(cuid())
+  tenantId       String?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   name           String
@@ -222,6 +263,7 @@ model SheetSource {
 
 model OrderSourceSnapshot {
   id            String      @id @default(cuid())
+  tenantId      String?
   createdAt     DateTime    @default(now())
   orderId       String?
   order         Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
@@ -232,6 +274,7 @@ model OrderSourceSnapshot {
   rawPayload    String // JSON строка исходной строки
 
   @@index([sheetSourceId, sourceRow])
+  @@index([tenantId, createdAt])
 }
 
 model CrmCompany {
@@ -414,6 +457,7 @@ model CustomerContactSegment {
 
 model CityPricing {
   id             String   @id @default(cuid())
+  tenantId       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   country        String?
@@ -429,13 +473,16 @@ model CityPricing {
   isActive       Boolean  @default(true)
   notes          String?
   source         String   @default("manual")
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, city, isActive])
   @@index([city])
   @@index([isActive])
 }
 
 model CounterpartyPriceRule {
   id                String           @id @default(cuid())
+  tenantId          String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   customerCompanyId String?
@@ -453,13 +500,16 @@ model CounterpartyPriceRule {
   endsAt            DateTime?
   isActive          Boolean          @default(true)
   notes             String?
+  tenant            Tenant?          @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, counterpartyName, isActive])
   @@index([counterpartyName, isActive])
   @@index([city, isActive])
 }
 
 model PriceConflict {
   id         String    @id @default(cuid())
+  tenantId   String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   orderId    String?
@@ -475,9 +525,67 @@ model PriceConflict {
   details    String?
   resolvedAt DateTime?
 
+  @@index([tenantId, status, severity, updatedAt])
   @@unique([orderId, issueType])
   @@index([status, severity, updatedAt])
   @@index([issueType, status])
+}
+
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenantId     String
+  key          String
+  action       String
+  requestHash  String?
+  status       String   @default("processing") // processing, completed, failed
+  responseJson String?
+  traceId      String?
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key, action])
+  @@index([tenantId, createdAt])
+}
+
+model HumanApproval {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenantId    String
+  status      String   @default("pending_human") // pending_human, approved, rejected, expired
+  action      String
+  resource    String
+  resourceId  String?
+  payloadJson String
+  requesterId String?
+  reviewerId  String?
+  reviewedAt  DateTime?
+  expiresAt   DateTime?
+  traceId     String?
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, createdAt])
+  @@index([status, expiresAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  tenantId   String
+  actorId    String?
+  actorRole  String?
+  action     String
+  resource   String
+  resourceId String?
+  traceId    String
+  decision   String?
+  result     String
+  contextJson String?
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([traceId])
 }
 
 model OpsEventDraft {

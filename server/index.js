@@ -247,6 +247,287 @@ function requireAnyPermission(permissionCodes) {
   }
 }
 
+async function getDefaultTenant() {
+  const tenant = await prisma.tenant.upsert({
+    where: { code: 'riderra' },
+    update: {},
+    create: { code: 'riderra', name: 'Riderra', isActive: true }
+  })
+  return tenant
+}
+
+async function ensureDefaultTenantMembership(userId, role = 'staff') {
+  const tenant = await getDefaultTenant()
+  const membership = await prisma.tenantMembership.upsert({
+    where: { tenantId_userId: { tenantId: tenant.id, userId } },
+    update: { isActive: true },
+    create: {
+      tenantId: tenant.id,
+      userId,
+      role,
+      isActive: true
+    }
+  })
+  return { tenant, membership }
+}
+
+async function resolveActorContext(req, res, next) {
+  try {
+    const traceId = String(req.headers['x-trace-id'] || '').trim() || crypto.randomUUID()
+    const requestedTenantCode = String(req.headers['x-tenant-code'] || req.query.tenant_code || req.body?.tenant_code || '').trim().toLowerCase()
+    const isAuthenticated = !!req.user?.id
+
+    if (!isAuthenticated) {
+      const tenant = requestedTenantCode
+        ? await prisma.tenant.findUnique({ where: { code: requestedTenantCode } })
+        : await getDefaultTenant()
+      if (!tenant || !tenant.isActive) return res.status(403).json({ error: 'Tenant is not active or not found' })
+      req.actorContext = {
+        traceId,
+        tenantId: tenant.id,
+        tenantCode: tenant.code,
+        actorId: null,
+        actorRole: 'system',
+        channel: 'api',
+        chatType: 'service'
+      }
+      return next()
+    }
+
+    let membership = null
+    if (requestedTenantCode) {
+      membership = await prisma.tenantMembership.findFirst({
+        where: {
+          userId: req.user.id,
+          isActive: true,
+          tenant: { code: requestedTenantCode, isActive: true }
+        },
+        include: { tenant: true }
+      })
+      if (!membership) {
+        return res.status(403).json({ error: 'Tenant mismatch or no membership for requested tenant' })
+      }
+    } else {
+      membership = await prisma.tenantMembership.findFirst({
+        where: { userId: req.user.id, isActive: true, tenant: { isActive: true } },
+        include: { tenant: true },
+        orderBy: { createdAt: 'asc' }
+      })
+    }
+
+    if (!membership) {
+      return res.status(403).json({ error: 'No active tenant membership found' })
+    }
+
+    req.actorContext = {
+      traceId,
+      tenantId: membership.tenantId,
+      tenantCode: membership.tenant.code,
+      actorId: req.user.id,
+      actorRole: membership.role || req.user.role || 'staff',
+      channel: 'api',
+      chatType: 'dm'
+    }
+    next()
+  } catch (error) {
+    console.error('resolveActorContext failed:', error)
+    res.status(500).json({ error: 'Failed to resolve actor context' })
+  }
+}
+
+function requireActorContext(req, res, next) {
+  if (!req.actorContext?.tenantId) {
+    return res.status(403).json({ error: 'Tenant context required' })
+  }
+  next()
+}
+
+async function writeAuditLog({
+  tenantId,
+  actorId = null,
+  actorRole = null,
+  action,
+  resource,
+  resourceId = null,
+  traceId,
+  decision = null,
+  result = 'ok',
+  context = null
+}) {
+  if (!tenantId || !traceId || !action || !resource) return
+  try {
+    await prisma.auditLog.create({
+      data: {
+        tenantId,
+        actorId,
+        actorRole,
+        action,
+        resource,
+        resourceId,
+        traceId,
+        decision,
+        result,
+        contextJson: context ? JSON.stringify(context) : null
+      }
+    })
+  } catch (error) {
+    console.error('Audit log write failed:', error)
+  }
+}
+
+function getIdempotencyKey(req) {
+  return String(
+    req.headers['idempotency-key'] ||
+    req.body?.idempotency_key ||
+    req.body?.idempotencyKey ||
+    req.query?.idempotency_key ||
+    ''
+  ).trim()
+}
+
+async function withIdempotency(req, action, requestPayload, operation) {
+  const idempotencyKey = getIdempotencyKey(req)
+  if (!idempotencyKey) {
+    const error = new Error('idempotency_key is required')
+    error.statusCode = 400
+    throw error
+  }
+  const tenantId = req.actorContext?.tenantId
+  if (!tenantId) {
+    const error = new Error('tenant context required for idempotency')
+    error.statusCode = 403
+    throw error
+  }
+  const requestHash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify(requestPayload || {}))
+    .digest('hex')
+
+  let keyRow = await prisma.idempotencyKey.findUnique({
+    where: {
+      tenantId_key_action: {
+        tenantId,
+        key: idempotencyKey,
+        action
+      }
+    }
+  })
+
+  if (keyRow?.status === 'completed' && keyRow.responseJson) {
+    return { replayed: true, data: JSON.parse(keyRow.responseJson) }
+  }
+  if (keyRow?.status === 'processing') {
+    const error = new Error('idempotent request in progress')
+    error.statusCode = 409
+    throw error
+  }
+
+  if (!keyRow) {
+    try {
+      keyRow = await prisma.idempotencyKey.create({
+        data: {
+          tenantId,
+          key: idempotencyKey,
+          action,
+          requestHash,
+          status: 'processing',
+          traceId: req.actorContext?.traceId || null
+        }
+      })
+    } catch (_) {
+      keyRow = await prisma.idempotencyKey.findUnique({
+        where: {
+          tenantId_key_action: {
+            tenantId,
+            key: idempotencyKey,
+            action
+          }
+        }
+      })
+      if (keyRow?.status === 'completed' && keyRow.responseJson) {
+        return { replayed: true, data: JSON.parse(keyRow.responseJson) }
+      }
+    }
+  }
+
+  const result = await operation()
+  await prisma.idempotencyKey.update({
+    where: { id: keyRow.id },
+    data: {
+      status: 'completed',
+      requestHash,
+      responseJson: JSON.stringify(result),
+      traceId: req.actorContext?.traceId || null
+    }
+  })
+  return { replayed: false, data: result }
+}
+
+async function ensureHumanApproval(req, {
+  action,
+  resource,
+  resourceId = null,
+  payload,
+  required = false
+}) {
+  if (!required) return { approved: true, approval: null }
+  const tenantId = req.actorContext?.tenantId
+  if (!tenantId) {
+    const error = new Error('Tenant context required')
+    error.statusCode = 403
+    throw error
+  }
+  const approvalId = String(req.body?.approvalId || req.headers['x-approval-id'] || '').trim()
+  if (approvalId) {
+    const approved = await prisma.humanApproval.findFirst({
+      where: {
+        id: approvalId,
+        tenantId,
+        action,
+        resource,
+        resourceId: resourceId || null,
+        status: 'approved'
+      }
+    })
+    if (approved) return { approved: true, approval: approved }
+  }
+
+  const existing = await prisma.humanApproval.findFirst({
+    where: {
+      tenantId,
+      action,
+      resource,
+      resourceId: resourceId || null,
+      status: 'pending_human'
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+  if (existing) {
+    const error = new Error('pending_human approval required')
+    error.statusCode = 409
+    error.details = { code: 'pending_human', approvalId: existing.id }
+    throw error
+  }
+
+  const created = await prisma.humanApproval.create({
+    data: {
+      tenantId,
+      action,
+      resource,
+      resourceId: resourceId || null,
+      payloadJson: JSON.stringify(payload || {}),
+      requesterId: req.actorContext?.actorId || null,
+      traceId: req.actorContext?.traceId || null,
+      status: 'pending_human',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    }
+  })
+  const error = new Error('pending_human approval required')
+  error.statusCode = 409
+  error.details = { code: 'pending_human', approvalId: created.id }
+  throw error
+}
+
 function normalizeOrderStatus(status) {
   return String(status || '').trim().toLowerCase()
 }
@@ -336,6 +617,7 @@ function appendOrderComment(comment, reason) {
 
 async function applyOrderStatusTransition({
   orderId,
+  tenantId = null,
   toStatus,
   reason = null,
   actorPermissions = [],
@@ -352,7 +634,12 @@ async function applyOrderStatusTransition({
     throw error
   }
 
-  const order = await tx.order.findUnique({ where: { id: orderId } })
+  const order = await tx.order.findFirst({
+    where: {
+      id: orderId,
+      ...(tenantId ? { tenantId } : {})
+    }
+  })
   if (!order) {
     const error = new Error('Order not found')
     error.statusCode = 404
@@ -399,6 +686,7 @@ async function applyOrderStatusTransition({
     await tx.orderStatusHistory.create({
       data: {
         orderId: order.id,
+        tenantId: order.tenantId || tenantId || null,
         fromStatus: currentStatus,
         toStatus: targetStatus,
         reason: reason || null,
@@ -629,6 +917,14 @@ async function syncSheetSource(sheetSourceId) {
   if (!source.syncEnabled) {
     throw new Error('Sync is disabled for this source')
   }
+  const defaultTenant = await getDefaultTenant()
+  const effectiveTenantId = source.tenantId || defaultTenant.id
+  if (!source.tenantId) {
+    await prisma.sheetSource.update({
+      where: { id: source.id },
+      data: { tenantId: effectiveTenantId }
+    })
+  }
 
   const rows = await fetchGoogleSheetRows(source)
   if (rows.length === 0) {
@@ -712,7 +1008,7 @@ async function syncSheetSource(sheetSourceId) {
 
       const existingOrder = await prisma.order.findUnique({
         where: { externalKey },
-        select: { id: true, status: true }
+        select: { id: true, status: true, tenantId: true }
       })
 
       let upserted
@@ -721,18 +1017,23 @@ async function syncSheetSource(sheetSourceId) {
           data: {
             externalKey,
             ...orderPayload,
+            tenantId: effectiveTenantId,
             status: incomingStatus
           }
         })
       } else {
+        if (existingOrder.tenantId && existingOrder.tenantId !== effectiveTenantId) {
+          throw new Error(`Tenant mismatch for order externalKey=${externalKey}`)
+        }
         upserted = await prisma.order.update({
           where: { id: existingOrder.id },
-          data: orderPayload
+          data: { ...orderPayload, tenantId: existingOrder.tenantId || effectiveTenantId }
         })
         if (normalizeOrderStatus(existingOrder.status) !== incomingStatus) {
           try {
             upserted = await applyOrderStatusTransition({
               orderId: existingOrder.id,
+              tenantId: existingOrder.tenantId || effectiveTenantId,
               toStatus: incomingStatus,
               reason: `Synced from Google Sheet source "${source.name || source.id}"`,
               source: 'google_sheet_sync',
@@ -747,6 +1048,7 @@ async function syncSheetSource(sheetSourceId) {
       await prisma.orderSourceSnapshot.create({
         data: {
           orderId: upserted.id,
+          tenantId: upserted.tenantId || effectiveTenantId,
           sheetSourceId: source.id,
           sourceRow,
           rowHash,
@@ -761,6 +1063,7 @@ async function syncSheetSource(sheetSourceId) {
       await prisma.orderSourceSnapshot.create({
         data: {
           orderId: null,
+          tenantId: effectiveTenantId,
           sheetSourceId: source.id,
           sourceRow,
           rowHash,
@@ -981,8 +1284,10 @@ app.post('/api/drivers', async (req, res) => {
     
     console.log('Received driver registration:', { name, email, phone, city })
     
+    const tenant = await getDefaultTenant()
     // Сохраняем в базу данных
     const created = await prisma.driver.create({ data: {
+      tenantId: tenant.id,
       name, 
       email, 
       phone, 
@@ -1053,9 +1358,12 @@ app.get('/api/admin/requests', authenticateToken, requireAdmin, async (req, res)
   } catch (e) { res.status(500).json({ error: 'failed' }) }
 })
 
-app.get('/api/admin/drivers', authenticateToken, requirePermission('drivers.read'), async (req, res) => {
+app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireActorContext, requirePermission('drivers.read'), async (req, res) => {
   try {
-    const rows = await prisma.driver.findMany({ orderBy: { createdAt: 'desc' }})
+    const rows = await prisma.driver.findMany({
+      where: { tenantId: req.actorContext.tenantId },
+      orderBy: { createdAt: 'desc' }
+    })
     res.json(rows)
   } catch (e) { res.status(500).json({ error: 'failed' }) }
 })
@@ -1064,10 +1372,12 @@ app.get('/api/admin/drivers', authenticateToken, requirePermission('drivers.read
 app.post('/api/drivers/priority', async (req, res) => {
   try {
     const { fromPoint, toPoint, vehicleType } = req.body
+    const tenant = await getDefaultTenant()
     
     // Получаем всех активных и верифицированных водителей
     const drivers = await prisma.driver.findMany({
       where: {
+        tenantId: tenant.id,
         isActive: true,
         verificationStatus: 'verified'
       },
@@ -1231,13 +1541,19 @@ app.delete('/api/drivers/routes/:routeId', authenticateToken, async (req, res) =
 })
 
 // API для обновления статуса водителя (для админов)
-app.put('/api/admin/drivers/:driverId/status', authenticateToken, requirePermission('drivers.manage'), async (req, res) => {
+app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorContext, requireActorContext, requirePermission('drivers.manage'), async (req, res) => {
   try {
     const { driverId } = req.params
     const { isActive, verificationStatus } = req.body
     
+    const existing = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Driver not found' })
+
     const updated = await prisma.driver.update({
-      where: { id: driverId },
+      where: { id: existing.id },
       data: {
         isActive: isActive !== undefined ? isActive : undefined,
         verificationStatus: verificationStatus || undefined
@@ -1251,7 +1567,7 @@ app.put('/api/admin/drivers/:driverId/status', authenticateToken, requirePermiss
   }
 })
 
-app.put('/api/admin/drivers/:driverId', authenticateToken, requirePermission('drivers.manage'), async (req, res) => {
+app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('drivers.manage'), async (req, res) => {
   try {
     const { driverId } = req.params
     const data = {}
@@ -1269,8 +1585,14 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, requirePermission('dr
     if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
     if (req.body.verificationStatus !== undefined) data.verificationStatus = String(req.body.verificationStatus)
 
+    const existing = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Driver not found' })
+
     const updated = await prisma.driver.update({
-      where: { id: driverId },
+      where: { id: existing.id },
       data
     })
     res.json(updated)
@@ -1281,7 +1603,7 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, requirePermission('dr
 })
 
 // Webhook для получения заказов от EasyTaxi
-app.post('/api/webhooks/easytaxi/order', async (req, res) => {
+app.post('/api/webhooks/easytaxi/order', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { 
       orderId, 
@@ -1295,89 +1617,113 @@ app.post('/api/webhooks/easytaxi/order', async (req, res) => {
       lang 
     } = req.body
     
-    console.log('Received order from EasyTaxi:', { orderId, fromPoint, toPoint, clientPrice })
-    
-    // Создаем заказ в нашей базе
-    const order = await prisma.order.create({
-      data: {
-        id: orderId,
-        fromPoint,
-        toPoint,
-        clientPrice: parseFloat(clientPrice),
-        vehicleType,
-        passengers: passengers ? parseInt(passengers) : null,
-        luggage: luggage ? parseInt(luggage) : null,
-        comment: comment || null,
-        lang: lang || null,
-        status: 'pending'
-      }
-    })
-    
-    // Находим подходящих водителей
-    const drivers = await prisma.driver.findMany({
-      where: {
-        isActive: true,
-        verificationStatus: 'verified'
-      },
-      include: {
-        routes: {
-          where: {
-            isActive: true
+    const tenantId = req.actorContext.tenantId
+    req.body.idempotency_key = req.body.idempotency_key || `easytaxi:${orderId}`
+    const payload = { orderId, fromPoint, toPoint, clientPrice, vehicleType, passengers, luggage, comment, lang }
+    const wrapped = await withIdempotency(req, 'webhook.easytaxi.order', payload, async () => {
+      console.log('Received order from EasyTaxi:', { orderId, fromPoint, toPoint, clientPrice })
+
+      // Создаем заказ в нашей базе (или обновляем при повторе)
+      const order = await prisma.order.upsert({
+        where: { id: orderId },
+        create: {
+          id: orderId,
+          tenantId,
+          fromPoint,
+          toPoint,
+          clientPrice: parseFloat(clientPrice),
+          vehicleType,
+          passengers: passengers ? parseInt(passengers) : null,
+          luggage: luggage ? parseInt(luggage) : null,
+          comment: comment || null,
+          lang: lang || null,
+          status: 'pending'
+        },
+        update: {
+          tenantId,
+          fromPoint,
+          toPoint,
+          clientPrice: parseFloat(clientPrice),
+          vehicleType,
+          passengers: passengers ? parseInt(passengers) : null,
+          luggage: luggage ? parseInt(luggage) : null,
+          comment: comment || null,
+          lang: lang || null
+        }
+      })
+
+      // Находим подходящих водителей
+      const drivers = await prisma.driver.findMany({
+        where: {
+          tenantId,
+          isActive: true,
+          verificationStatus: 'verified'
+        },
+        include: {
+          routes: {
+            where: {
+              isActive: true
+            }
           }
         }
+      })
+
+      const prioritizedDrivers = drivers.map(driver => {
+        const score = calculateDriverScore(driver, fromPoint, toPoint)
+        return { ...driver, priorityScore: score }
+      }).sort((a, b) => b.priorityScore - a.priorityScore)
+
+      if (prioritizedDrivers.length > 0) {
+        const topDriver = prioritizedDrivers[0]
+        const matchedRoute = findMatchingRoute(topDriver.routes, fromPoint, toPoint)
+        const clientPriceNumber = parseFloat(clientPrice)
+        await prisma.order.update({
+          where: { id: orderId },
+          data: {
+            driverId: topDriver.id,
+            driverPrice: matchedRoute?.driverPrice || clientPriceNumber * 0.8,
+            commission: ((topDriver.commissionRate || 0) / 100) * clientPriceNumber
+          }
+        })
+        await applyOrderStatusTransition({
+          orderId,
+          tenantId,
+          toStatus: 'assigned',
+          reason: 'Auto-assigned by EasyTaxi webhook',
+          source: 'easytaxi_webhook',
+          bypassPermissions: true
+        })
       }
+
+      await writeAuditLog({
+        tenantId,
+        actorId: null,
+        actorRole: 'system',
+        action: 'webhook.easytaxi.order',
+        resource: 'order',
+        resourceId: orderId,
+        traceId: req.actorContext.traceId,
+        decision: 'auto',
+        result: 'ok',
+        context: { assigned: prioritizedDrivers.length > 0 }
+      })
+
+      return { success: true, orderId, assigned: prioritizedDrivers.length > 0 }
     })
-    
-    // Рассчитываем приоритет
-    const prioritizedDrivers = drivers.map(driver => {
-      const score = calculateDriverScore(driver, fromPoint, toPoint)
-      return {
-        ...driver,
-        priorityScore: score
-      }
-    }).sort((a, b) => b.priorityScore - a.priorityScore)
-    
-    if (prioritizedDrivers.length > 0) {
-      const topDriver = prioritizedDrivers[0]
-      const matchedRoute = findMatchingRoute(topDriver.routes, fromPoint, toPoint)
-      const clientPriceNumber = parseFloat(clientPrice)
-      
-      // Обновляем заказ с назначенным водителем
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          driverId: topDriver.id,
-          driverPrice: matchedRoute?.driverPrice || clientPriceNumber * 0.8,
-          commission: ((topDriver.commissionRate || 0) / 100) * clientPriceNumber
-        }
-      })
-      await applyOrderStatusTransition({
-        orderId,
-        toStatus: 'assigned',
-        reason: 'Auto-assigned by EasyTaxi webhook',
-        source: 'easytaxi_webhook',
-        bypassPermissions: true
-      })
-      
-      console.log(`Order ${orderId} assigned to driver ${topDriver.name} (${topDriver.email})`)
-      
-      // Здесь можно добавить отправку уведомления водителю
-      // await sendDriverNotification(topDriver, order)
-    } else {
-      console.log(`No suitable drivers found for order ${orderId}`)
-    }
-    
-    res.json({ success: true, orderId })
+
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (e) {
     console.error('Error processing EasyTaxi webhook:', e)
-    res.status(500).json({ error: 'failed' })
+    const status = e.statusCode || 500
+    res.status(status).json({ error: e.message || 'failed', ...(e.details || {}) })
   }
 })
 
 // API для получения статистики заказов
-app.get('/api/admin/orders', authenticateToken, requirePermission('orders.read'), async (req, res) => {
+app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActorContext, requirePermission('orders.read'), async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
+      where: { tenantId: req.actorContext.tenantId },
       orderBy: { createdAt: 'desc' },
       include: {
         driver: {
@@ -1400,6 +1746,8 @@ app.get('/api/admin/orders', authenticateToken, requirePermission('orders.read')
 app.put(
   '/api/admin/orders/:orderId/status',
   authenticateToken,
+  resolveActorContext,
+  requireActorContext,
   requireAnyPermission([
     'orders.validate',
     'orders.assign',
@@ -1417,17 +1765,43 @@ app.put(
       const { toStatus, reason } = req.body || {}
       const targetStatus = normalizeOrderStatus(toStatus)
       if (!targetStatus) return res.status(400).json({ error: 'toStatus is required' })
-
-      const updated = await applyOrderStatusTransition({
-        orderId,
-        toStatus: targetStatus,
-        reason,
-        actorPermissions: req.userPermissions || [],
-        actorUserId: req.user?.id || null,
-        actorEmail: req.user?.email || null,
-        source: 'admin_api'
+      const tenantId = req.actorContext.tenantId
+      const riskyStatuses = ['cancelled', 'paid', 'closed', 'finance_hold', 'incident_reported']
+      await ensureHumanApproval(req, {
+        action: 'order.status.transition',
+        resource: 'order',
+        resourceId: orderId,
+        payload: { toStatus: targetStatus, reason: reason || null },
+        required: riskyStatuses.includes(targetStatus)
       })
-      res.json({ success: true, order: updated })
+
+      const wrapped = await withIdempotency(req, 'admin.order.status.transition', { orderId, targetStatus, reason }, async () => {
+        const updated = await applyOrderStatusTransition({
+          orderId,
+          tenantId,
+          toStatus: targetStatus,
+          reason,
+          actorPermissions: req.userPermissions || [],
+          actorUserId: req.user?.id || null,
+          actorEmail: req.user?.email || null,
+          source: 'admin_api'
+        })
+        await writeAuditLog({
+          tenantId,
+          actorId: req.actorContext.actorId,
+          actorRole: req.actorContext.actorRole,
+          action: 'order.status.transition',
+          resource: 'order',
+          resourceId: orderId,
+          traceId: req.actorContext.traceId,
+          decision: 'policy_allowed',
+          result: 'ok',
+          context: { from: updated.status, to: targetStatus, reason: reason || null }
+        })
+        return { success: true, order: updated }
+      })
+
+      res.json({ ...wrapped.data, idempotent: wrapped.replayed })
     } catch (error) {
       if (error.statusCode) {
         return res.status(error.statusCode).json({
@@ -1444,12 +1818,14 @@ app.put(
 app.get(
   '/api/admin/orders/:orderId/available-status-transitions',
   authenticateToken,
+  resolveActorContext,
+  requireActorContext,
   requirePermission('orders.read'),
   async (req, res) => {
     try {
       const { orderId } = req.params
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
+      const order = await prisma.order.findFirst({
+        where: { id: orderId, tenantId: req.actorContext.tenantId },
         select: { id: true, status: true }
       })
       if (!order) return res.status(404).json({ error: 'Order not found' })
@@ -1472,18 +1848,20 @@ app.get(
 app.get(
   '/api/admin/orders/:orderId/status-history',
   authenticateToken,
+  resolveActorContext,
+  requireActorContext,
   requirePermission('orders.read'),
   async (req, res) => {
     try {
       const { orderId } = req.params
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
+      const order = await prisma.order.findFirst({
+        where: { id: orderId, tenantId: req.actorContext.tenantId },
         select: { id: true }
       })
       if (!order) return res.status(404).json({ error: 'Order not found' })
 
       const history = await prisma.orderStatusHistory.findMany({
-        where: { orderId },
+        where: { orderId, tenantId: req.actorContext.tenantId },
         orderBy: { createdAt: 'desc' },
         take: 500
       })
@@ -1495,13 +1873,115 @@ app.get(
   }
 )
 
-app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('orders.read'), async (req, res) => {
+app.get(
+  '/api/admin/approvals',
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requirePermission('approvals.resolve'),
+  async (req, res) => {
+    try {
+      const { status = 'pending_human', limit = '200' } = req.query
+      const take = Math.min(parseInt(limit, 10) || 200, 500)
+      const where = {
+        tenantId: req.actorContext.tenantId,
+        ...(status ? { status: String(status) } : {})
+      }
+      const rows = await prisma.humanApproval.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take
+      })
+      res.json({ rows })
+    } catch (error) {
+      console.error('Error loading approvals:', error)
+      res.status(500).json({ error: 'Failed to load approvals' })
+    }
+  }
+)
+
+app.post(
+  '/api/admin/approvals/:id/resolve',
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requirePermission('approvals.resolve'),
+  async (req, res) => {
+    try {
+      const { id } = req.params
+      const { decision, reason } = req.body || {}
+      const normalized = String(decision || '').toLowerCase()
+      if (!['approved', 'rejected', 'expired'].includes(normalized)) {
+        return res.status(400).json({ error: 'decision must be approved|rejected|expired' })
+      }
+      const approval = await prisma.humanApproval.findFirst({
+        where: { id, tenantId: req.actorContext.tenantId }
+      })
+      if (!approval) return res.status(404).json({ error: 'Approval not found' })
+      if (approval.status !== 'pending_human') {
+        return res.status(409).json({ error: 'Approval already resolved', status: approval.status })
+      }
+
+      const resolved = await prisma.humanApproval.update({
+        where: { id: approval.id },
+        data: {
+          status: normalized,
+          reviewerId: req.actorContext.actorId || null,
+          reviewedAt: new Date(),
+          payloadJson: approval.payloadJson
+        }
+      })
+
+      let transitionResult = null
+      if (normalized === 'approved' && approval.action === 'order.status.transition') {
+        const payload = JSON.parse(approval.payloadJson || '{}')
+        if (payload?.toStatus) {
+          transitionResult = await applyOrderStatusTransition({
+            orderId: approval.resourceId,
+            tenantId: req.actorContext.tenantId,
+            toStatus: payload.toStatus,
+            reason: [payload.reason || null, reason || null, `[approval:${approval.id}]`].filter(Boolean).join(' | '),
+            actorPermissions: ['approvals.resolve'],
+            actorUserId: req.actorContext.actorId || null,
+            actorEmail: req.user?.email || null,
+            source: 'approval_resolver',
+            bypassPermissions: false
+          })
+        }
+      }
+
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'approval.resolve',
+        resource: 'human_approval',
+        resourceId: approval.id,
+        traceId: req.actorContext.traceId,
+        decision: normalized,
+        result: 'ok',
+        context: {
+          approvalAction: approval.action,
+          transitionOrderId: approval.resourceId,
+          transitionApplied: !!transitionResult
+        }
+      })
+
+      res.json({ success: true, approval: resolved, transitionResult })
+    } catch (error) {
+      console.error('Error resolving approval:', error)
+      res.status(500).json({ error: 'Failed to resolve approval' })
+    }
+  }
+)
+
+app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, requireActorContext, requirePermission('orders.read'), async (req, res) => {
   try {
     const { sourceId = '' } = req.query
     const source = sourceId
-      ? await prisma.sheetSource.findUnique({ where: { id: String(sourceId) } })
+      ? await prisma.sheetSource.findFirst({ where: { id: String(sourceId), tenantId: req.actorContext.tenantId } })
       : await prisma.sheetSource.findFirst({
-          where: { isActive: true },
+          where: { isActive: true, tenantId: req.actorContext.tenantId },
           orderBy: [{ updatedAt: 'desc' }]
         })
 
@@ -1897,8 +2377,10 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Если это водитель, создаем запись водителя
     if (role === 'driver') {
+      const { tenant } = await ensureDefaultTenantMembership(user.id, 'executor')
       await prisma.driver.create({
         data: {
+          tenantId: tenant.id,
           name,
           email,
           phone,
@@ -1908,6 +2390,8 @@ app.post('/api/auth/register', async (req, res) => {
           userId: user.id
         }
       })
+    } else {
+      await ensureDefaultTenantMembership(user.id, role === 'admin' ? 'staff_supervisor' : 'staff')
     }
 
     // Создаем JWT токен
@@ -1918,6 +2402,10 @@ app.post('/api/auth/register', async (req, res) => {
     )
 
     const acl = await getUserRolesAndPermissions(user.id)
+    const { tenant, membership } = await ensureDefaultTenantMembership(
+      user.id,
+      role === 'driver' ? 'executor' : (role === 'admin' ? 'staff_supervisor' : 'staff')
+    )
 
     res.json({
       token,
@@ -1925,6 +2413,7 @@ app.post('/api/auth/register', async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
+        tenant: { id: tenant.id, code: tenant.code, role: membership.role },
         roles: acl.roles,
         permissions: acl.permissions
       }
@@ -1971,6 +2460,10 @@ app.post('/api/auth/login', async (req, res) => {
     )
 
     const acl = await getUserRolesAndPermissions(user.id)
+    const { tenant, membership } = await ensureDefaultTenantMembership(
+      user.id,
+      user.role === 'driver' ? 'executor' : (user.role === 'admin' ? 'staff_supervisor' : 'staff')
+    )
 
     res.json({
       token,
@@ -1978,6 +2471,7 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
+        tenant: { id: tenant.id, code: tenant.code, role: membership.role },
         roles: acl.roles,
         permissions: acl.permissions,
         driver: user.driver
@@ -1990,7 +2484,7 @@ app.post('/api/auth/login', async (req, res) => {
 })
 
 // Получение информации о текущем пользователе
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
+app.get('/api/auth/me', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
@@ -2008,6 +2502,11 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
+        tenant: {
+          id: req.actorContext.tenantId,
+          code: req.actorContext.tenantCode,
+          role: req.actorContext.actorRole
+        },
         roles: req.userRoles || [],
         permissions: req.userPermissions || [],
         driver: user.driver
@@ -2219,9 +2718,10 @@ app.get('/api/admin/city-routes/countries', authenticateToken, requireAnyPermiss
 })
 
 // ==================== GOOGLE SHEETS SOURCES ====================
-app.get('/api/admin/sheet-sources', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+app.get('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
   try {
     const sources = await prisma.sheetSource.findMany({
+      where: { tenantId: req.actorContext.tenantId },
       orderBy: [{ isActive: 'desc' }, { monthLabel: 'desc' }, { createdAt: 'desc' }]
     })
     res.json(sources)
@@ -2231,7 +2731,7 @@ app.get('/api/admin/sheet-sources', authenticateToken, requirePermission('settin
   }
 })
 
-app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive = true, syncEnabled = true } = req.body
     const normalizedSheetId = normalizeGoogleSheetId(googleSheetId)
@@ -2241,6 +2741,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('setti
 
     const source = await prisma.sheetSource.create({
       data: {
+        tenantId: req.actorContext.tenantId,
         name,
         monthLabel,
         googleSheetId: normalizedSheetId,
@@ -2258,7 +2759,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('setti
   }
 })
 
-app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { sourceId } = req.params
     const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive, syncEnabled } = req.body
@@ -2272,8 +2773,14 @@ app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requirePermissi
     if (isActive !== undefined) data.isActive = !!isActive
     if (syncEnabled !== undefined) data.syncEnabled = !!syncEnabled
 
+    const existing = await prisma.sheetSource.findFirst({
+      where: { id: sourceId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Sheet source not found' })
+
     const updated = await prisma.sheetSource.update({
-      where: { id: sourceId },
+      where: { id: existing.id },
       data
     })
     res.json(updated)
@@ -2283,9 +2790,14 @@ app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requirePermissi
   }
 })
 
-app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { sourceId } = req.params
+    const existing = await prisma.sheetSource.findFirst({
+      where: { id: sourceId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Sheet source not found' })
     const stats = await syncSheetSource(sourceId)
     res.json({ success: true, stats })
   } catch (error) {
@@ -2722,12 +3234,13 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
 })
 
 // ==================== CITY PRICING ====================
-app.get('/api/admin/pricing/cities', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
   try {
     const { q = '', limit = '200' } = req.query
     const take = Math.min(parseInt(limit, 10) || 200, 10000)
     const where = {
-      isActive: true
+      isActive: true,
+      tenantId: req.actorContext.tenantId
     }
     if (q) {
       where.OR = [
@@ -2748,10 +3261,11 @@ app.get('/api/admin/pricing/cities', authenticateToken, requirePermission('prici
   }
 })
 
-app.get('/api/admin/pricing/export-eta-template', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/export-eta-template', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
   try {
     const rows = await prisma.cityPricing.findMany({
       where: {
+        tenantId: req.actorContext.tenantId,
         isActive: true,
         fixedPrice: { not: null }
       },
@@ -2788,7 +3302,7 @@ app.get('/api/admin/pricing/export-eta-template', authenticateToken, requirePerm
   }
 })
 
-app.post('/api/admin/pricing/cities', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
   try {
     const {
       country,
@@ -2806,29 +3320,46 @@ app.post('/api/admin/pricing/cities', authenticateToken, requirePermission('pric
 
     if (!city) return res.status(400).json({ error: 'city is required' })
 
-    const row = await prisma.cityPricing.create({
-      data: {
-        country: country || null,
-        city,
-        routeFrom: routeFrom || null,
-        routeTo: routeTo || null,
-        vehicleType: vehicleType || null,
-        fixedPrice: fixedPrice !== undefined && fixedPrice !== null ? parseFloat(fixedPrice) : null,
-        pricePerKm: pricePerKm !== undefined && pricePerKm !== null ? parseFloat(pricePerKm) : null,
-        hourlyRate: hourlyRate !== undefined && hourlyRate !== null ? parseFloat(hourlyRate) : null,
-        childSeatPrice: childSeatPrice !== undefined && childSeatPrice !== null ? parseFloat(childSeatPrice) : null,
-        currency: currency || 'EUR',
-        notes: notes || null
-      }
+    const payload = { country, city, routeFrom, routeTo, vehicleType, fixedPrice, pricePerKm, hourlyRate, childSeatPrice, currency, notes }
+    const wrapped = await withIdempotency(req, 'pricing.city.create', payload, async () => {
+      const row = await prisma.cityPricing.create({
+        data: {
+          tenantId: req.actorContext.tenantId,
+          country: country || null,
+          city,
+          routeFrom: routeFrom || null,
+          routeTo: routeTo || null,
+          vehicleType: vehicleType || null,
+          fixedPrice: fixedPrice !== undefined && fixedPrice !== null ? parseFloat(fixedPrice) : null,
+          pricePerKm: pricePerKm !== undefined && pricePerKm !== null ? parseFloat(pricePerKm) : null,
+          hourlyRate: hourlyRate !== undefined && hourlyRate !== null ? parseFloat(hourlyRate) : null,
+          childSeatPrice: childSeatPrice !== undefined && childSeatPrice !== null ? parseFloat(childSeatPrice) : null,
+          currency: currency || 'EUR',
+          notes: notes || null
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'pricing.city.create',
+        resource: 'city_pricing',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return row
     })
-    res.json(row)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error creating city pricing:', error)
     res.status(500).json({ error: 'Failed to create city pricing' })
   }
 })
 
-app.put('/api/admin/pricing/cities/:id', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
   try {
     const data = {}
     const nullableFields = ['country', 'routeFrom', 'routeTo', 'vehicleType', 'notes', 'source']
@@ -2844,21 +3375,42 @@ app.put('/api/admin/pricing/cities/:id', authenticateToken, requirePermission('p
     if (req.body.childSeatPrice !== undefined) data.childSeatPrice = req.body.childSeatPrice === null ? null : parseFloat(req.body.childSeatPrice)
     if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
 
-    const row = await prisma.cityPricing.update({
-      where: { id: req.params.id },
-      data
+    const existing = await prisma.cityPricing.findFirst({
+      where: { id: req.params.id, tenantId: req.actorContext.tenantId },
+      select: { id: true }
     })
-    res.json(row)
+    if (!existing) return res.status(404).json({ error: 'City pricing row not found' })
+
+    const wrapped = await withIdempotency(req, 'pricing.city.update', { id: req.params.id, data }, async () => {
+      const row = await prisma.cityPricing.update({
+        where: { id: req.params.id },
+        data
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'pricing.city.update',
+        resource: 'city_pricing',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: data
+      })
+      return row
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating city pricing:', error)
     res.status(500).json({ error: 'Failed to update city pricing' })
   }
 })
 
-app.get('/api/admin/pricing/counterparty-rules', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
   try {
     const { q = '', active = '' } = req.query
-    const where = {}
+    const where = { tenantId: req.actorContext.tenantId }
     if (active !== '') where.isActive = String(active) === 'true'
     if (q) {
       where.OR = [
@@ -2883,7 +3435,7 @@ app.get('/api/admin/pricing/counterparty-rules', authenticateToken, requirePermi
   }
 })
 
-app.post('/api/admin/pricing/counterparty-rules', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+app.post('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
   try {
     const {
       customerCompanyId,
@@ -2906,32 +3458,49 @@ app.post('/api/admin/pricing/counterparty-rules', authenticateToken, requirePerm
       return res.status(400).json({ error: 'counterpartyName is required' })
     }
 
-    const row = await prisma.counterpartyPriceRule.create({
-      data: {
-        customerCompanyId: customerCompanyId || null,
-        counterpartyName: String(counterpartyName).trim(),
-        city: city || null,
-        routeFrom: routeFrom || null,
-        routeTo: routeTo || null,
-        vehicleType: vehicleType || null,
-        sellPrice: sellPrice === null || sellPrice === undefined || sellPrice === '' ? null : parseFloat(sellPrice),
-        markupPercent: markupPercent === null || markupPercent === undefined || markupPercent === '' ? null : parseFloat(markupPercent),
-        minMarginAbs: minMarginAbs === null || minMarginAbs === undefined || minMarginAbs === '' ? null : parseFloat(minMarginAbs),
-        currency: currency || 'EUR',
-        startsAt: startsAt ? new Date(startsAt) : null,
-        endsAt: endsAt ? new Date(endsAt) : null,
-        notes: notes || null,
-        isActive: isActive === undefined ? true : !!isActive
-      }
+    const payload = { customerCompanyId, counterpartyName, city, routeFrom, routeTo, vehicleType, sellPrice, markupPercent, minMarginAbs, currency, startsAt, endsAt, notes, isActive }
+    const wrapped = await withIdempotency(req, 'pricing.counterparty.create', payload, async () => {
+      const row = await prisma.counterpartyPriceRule.create({
+        data: {
+          tenantId: req.actorContext.tenantId,
+          customerCompanyId: customerCompanyId || null,
+          counterpartyName: String(counterpartyName).trim(),
+          city: city || null,
+          routeFrom: routeFrom || null,
+          routeTo: routeTo || null,
+          vehicleType: vehicleType || null,
+          sellPrice: sellPrice === null || sellPrice === undefined || sellPrice === '' ? null : parseFloat(sellPrice),
+          markupPercent: markupPercent === null || markupPercent === undefined || markupPercent === '' ? null : parseFloat(markupPercent),
+          minMarginAbs: minMarginAbs === null || minMarginAbs === undefined || minMarginAbs === '' ? null : parseFloat(minMarginAbs),
+          currency: currency || 'EUR',
+          startsAt: startsAt ? new Date(startsAt) : null,
+          endsAt: endsAt ? new Date(endsAt) : null,
+          notes: notes || null,
+          isActive: isActive === undefined ? true : !!isActive
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'pricing.counterparty.create',
+        resource: 'counterparty_rule',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return row
     })
-    res.json(row)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error creating counterparty pricing rule:', error)
     res.status(500).json({ error: 'Failed to create counterparty rule' })
   }
 })
 
-app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
   try {
     const data = {}
     const nullableFields = ['customerCompanyId', 'city', 'routeFrom', 'routeTo', 'vehicleType', 'notes']
@@ -2947,26 +3516,49 @@ app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, requireP
     if (req.body.endsAt !== undefined) data.endsAt = req.body.endsAt ? new Date(req.body.endsAt) : null
     if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
 
-    const row = await prisma.counterpartyPriceRule.update({
-      where: { id: req.params.id },
-      data
+    const existing = await prisma.counterpartyPriceRule.findFirst({
+      where: { id: req.params.id, tenantId: req.actorContext.tenantId },
+      select: { id: true }
     })
-    res.json(row)
+    if (!existing) return res.status(404).json({ error: 'Counterparty rule not found' })
+
+    const wrapped = await withIdempotency(req, 'pricing.counterparty.update', { id: req.params.id, data }, async () => {
+      const row = await prisma.counterpartyPriceRule.update({
+        where: { id: req.params.id },
+        data
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'pricing.counterparty.update',
+        resource: 'counterparty_rule',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: data
+      })
+      return row
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating counterparty pricing rule:', error)
     res.status(500).json({ error: 'Failed to update counterparty rule' })
   }
 })
 
-async function recalculatePriceConflicts() {
+async function recalculatePriceConflicts(tenantId) {
   const orders = await prisma.order.findMany({
     where: {
+      ...(tenantId ? { tenantId } : {}),
       driverPrice: { not: null },
       clientPrice: { gt: 0 },
       status: { in: ['assigned', 'accepted', 'completed'] }
     },
     select: {
       id: true,
+      tenantId: true,
       clientPrice: true,
       driverPrice: true,
       fromPoint: true,
@@ -3006,6 +3598,7 @@ async function recalculatePriceConflicts() {
     await prisma.priceConflict.upsert({
       where: { orderId_issueType: { orderId: order.id, issueType } },
       update: {
+        tenantId: order.tenantId || tenantId || null,
         severity,
         status: 'open',
         sellPrice,
@@ -3015,6 +3608,7 @@ async function recalculatePriceConflicts() {
         details: `${order.fromPoint} -> ${order.toPoint}`
       },
       create: {
+        tenantId: order.tenantId || tenantId || null,
         orderId: order.id,
         issueType,
         severity,
@@ -3030,7 +3624,7 @@ async function recalculatePriceConflicts() {
   }
 
   const openRows = await prisma.priceConflict.findMany({
-    where: { status: 'open' },
+    where: { status: 'open', ...(tenantId ? { tenantId } : {}) },
     select: { id: true, orderId: true, issueType: true }
   })
   for (const row of openRows) {
@@ -3049,9 +3643,9 @@ async function recalculatePriceConflicts() {
   return { processedOrders: orders.length, createdOrUpdated }
 }
 
-app.post('/api/admin/pricing/conflicts/recalculate', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+app.post('/api/admin/pricing/conflicts/recalculate', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
   try {
-    const stats = await recalculatePriceConflicts()
+    const stats = await recalculatePriceConflicts(req.actorContext.tenantId)
     res.json({ ok: true, stats })
   } catch (error) {
     console.error('Error recalculating price conflicts:', error)
@@ -3059,11 +3653,11 @@ app.post('/api/admin/pricing/conflicts/recalculate', authenticateToken, requireP
   }
 })
 
-app.get('/api/admin/pricing/conflicts', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/conflicts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
   try {
     const { status = 'open', severity = '', limit = '200' } = req.query
     const take = Math.min(parseInt(limit, 10) || 200, 500)
-    const where = {}
+    const where = { tenantId: req.actorContext.tenantId }
     if (status) where.status = String(status)
     if (severity) where.severity = String(severity)
     const rows = await prisma.priceConflict.findMany({
