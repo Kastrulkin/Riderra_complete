@@ -56,13 +56,16 @@ model TenantMembership {
 
 // Пользователи системы (админы и водители)
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String // Хешированный пароль
-  role      String   @default("driver") // admin, driver
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String // Хешированный пароль
+  role          String   @default("driver") // admin, driver
+  isActive      Boolean  @default(true)
+  abacCountries String?
+  abacCities    String?
+  abacTeams     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Связь с водителем (если роль = driver)
   driver        Driver?

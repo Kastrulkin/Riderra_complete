@@ -158,12 +158,24 @@ function authenticateToken(req, res, next) {
     }
     req.user = user
     try {
-      const acl = await getUserRolesAndPermissions(user.id)
+      const [acl, dbUser] = await Promise.all([
+        getUserRolesAndPermissions(user.id),
+        prisma.user.findUnique({
+          where: { id: user.id },
+          select: { abacCountries: true, abacCities: true, abacTeams: true }
+        })
+      ])
       req.userRoles = acl.roles
       req.userPermissions = acl.permissions
+      req.userAbac = {
+        countries: parseScopeList(dbUser?.abacCountries),
+        cities: parseScopeList(dbUser?.abacCities),
+        teams: parseScopeList(dbUser?.abacTeams)
+      }
     } catch (aclError) {
       req.userRoles = []
       req.userPermissions = []
+      req.userAbac = { countries: [], cities: [], teams: [] }
     }
     next()
   })
@@ -217,12 +229,69 @@ async function getUserRolesAndPermissions(userId) {
   return { roles, permissions }
 }
 
+function normalizeScopeToken(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function parseScopeList(raw) {
+  return String(raw || '')
+    .split(/[,\n;|/]+/)
+    .map((x) => normalizeScopeToken(x))
+    .filter(Boolean)
+}
+
+function hasScopeMatch(actorScopes, targetValue) {
+  const scopes = actorScopes || []
+  if (!scopes.length) return true
+  const target = normalizeScopeToken(targetValue)
+  if (!target) return true
+  return scopes.includes(target)
+}
+
+function buildGeoScopeWhere(req, countryField = 'country', cityField = 'city') {
+  const countries = req.userAbac?.countries || []
+  const cities = req.userAbac?.cities || []
+  const and = []
+  if (countries.length) {
+    and.push({
+      OR: countries.map((country) => ({
+        [countryField]: { equals: country, mode: 'insensitive' }
+      }))
+    })
+  }
+  if (cities.length) {
+    and.push({
+      OR: cities.map((city) => ({
+        [cityField]: { equals: city, mode: 'insensitive' }
+      }))
+    })
+  }
+  return and.length ? { AND: and } : {}
+}
+
+function buildCityScopeWhere(req, cityField = 'city') {
+  const cities = req.userAbac?.cities || []
+  if (!cities.length) return {}
+  return {
+    AND: [
+      {
+        OR: cities.map((city) => ({
+          [cityField]: { equals: city, mode: 'insensitive' }
+        }))
+      }
+    ]
+  }
+}
+
 function can(actor, action, resource, context = {}) {
   if (!actor) return false
   const permissions = actor.permissions || []
   const role = actor.role || actor.actorRole || null
   const actorId = actor.actorId || null
   const actorTenantId = actor.tenantId || null
+  const actorCountries = actor.allowedCountries || []
+  const actorCities = actor.allowedCities || []
+  const actorTeams = actor.allowedTeams || []
   const targetTenantId = context.tenantId || null
   const isSupervisor = role === 'staff_supervisor' || permissions.includes('approvals.resolve')
   const isExternal = ['executor', 'customer', 'passenger'].includes(role)
@@ -233,6 +302,9 @@ function can(actor, action, resource, context = {}) {
     isExternal &&
     ['crm.read', 'crm.manage', 'pricing.read', 'pricing.manage', 'settings.manage', 'directions.manage', 'ops.manage', 'approvals.resolve'].includes(action)
   ) return false
+  if (!hasScopeMatch(actorCountries, context.country)) return false
+  if (!hasScopeMatch(actorCities, context.city)) return false
+  if (!hasScopeMatch(actorTeams, context.team)) return false
 
   if (context.ownerUserId && !isSupervisor && actorId && context.ownerUserId !== actorId) return false
 
@@ -319,6 +391,9 @@ function buildActorFromReq(req) {
     role: req.user?.role,
     actorRole: req.actorContext?.actorRole,
     permissions: req.userPermissions || [],
+    allowedCountries: req.userAbac?.countries || [],
+    allowedCities: req.userAbac?.cities || [],
+    allowedTeams: req.userAbac?.teams || [],
     tenantId: req.actorContext?.tenantId || null
   }
 }
@@ -2898,7 +2973,11 @@ app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requir
   try {
     const { country, city } = req.query
     
-    const where = { isActive: true, tenantId: req.actorContext.tenantId }
+    const where = {
+      isActive: true,
+      tenantId: req.actorContext.tenantId,
+      ...buildGeoScopeWhere(req, 'country', 'city')
+    }
     if (country) where.country = country
     if (city) where.city = city
 
@@ -2922,7 +3001,11 @@ app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requir
 app.get('/api/admin/city-routes/countries', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.read', 'direction'), async (req, res) => {
   try {
     const countries = await prisma.cityRoute.findMany({
-      where: { isActive: true, tenantId: req.actorContext.tenantId },
+      where: {
+        isActive: true,
+        tenantId: req.actorContext.tenantId,
+        ...buildGeoScopeWhere(req, 'country', 'city')
+      },
       select: { country: true },
       distinct: ['country'],
       orderBy: { country: 'asc' }
@@ -3469,7 +3552,8 @@ app.get('/api/admin/pricing/cities', authenticateToken, resolveActorContext, req
     const take = Math.min(parseInt(limit, 10) || 200, 10000)
     const where = {
       isActive: true,
-      tenantId: req.actorContext.tenantId
+      tenantId: req.actorContext.tenantId,
+      ...buildGeoScopeWhere(req, 'country', 'city')
     }
     if (q) {
       where.OR = [
@@ -3496,7 +3580,8 @@ app.get('/api/admin/pricing/export-eta-template', authenticateToken, resolveActo
       where: {
         tenantId: req.actorContext.tenantId,
         isActive: true,
-        fixedPrice: { not: null }
+        fixedPrice: { not: null },
+        ...buildGeoScopeWhere(req, 'country', 'city')
       },
       orderBy: [{ country: 'asc' }, { city: 'asc' }, { routeFrom: 'asc' }, { routeTo: 'asc' }],
       take: 20000
@@ -3531,7 +3616,10 @@ app.get('/api/admin/pricing/export-eta-template', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
+app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing', (req) => ({
+  country: req.body?.country || null,
+  city: req.body?.city || null
+})), async (req, res) => {
   try {
     const {
       country,
@@ -3588,7 +3676,17 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
   }
 })
 
-app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
+app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing', async (req) => {
+  const existing = await prisma.cityPricing.findFirst({
+    where: { id: req.params.id, tenantId: req.actorContext?.tenantId || '' },
+    select: { country: true, city: true }
+  })
+  if (!existing) return {}
+  return {
+    country: req.body?.country !== undefined ? req.body.country : existing.country,
+    city: req.body?.city !== undefined ? req.body.city : existing.city
+  }
+}), async (req, res) => {
   try {
     const data = {}
     const nullableFields = ['country', 'routeFrom', 'routeTo', 'vehicleType', 'notes', 'source']
@@ -3639,7 +3737,10 @@ app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext,
 app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing'), async (req, res) => {
   try {
     const { q = '', active = '' } = req.query
-    const where = { tenantId: req.actorContext.tenantId }
+    const where = {
+      tenantId: req.actorContext.tenantId,
+      ...buildCityScopeWhere(req, 'city')
+    }
     if (active !== '') where.isActive = String(active) === 'true'
     if (q) {
       where.OR = [
@@ -3664,7 +3765,9 @@ app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActor
   }
 })
 
-app.post('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
+app.post('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing', (req) => ({
+  city: req.body?.city || null
+})), async (req, res) => {
   try {
     const {
       customerCompanyId,
@@ -3729,7 +3832,16 @@ app.post('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActo
   }
 })
 
-app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
+app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing', async (req) => {
+  const existing = await prisma.counterpartyPriceRule.findFirst({
+    where: { id: req.params.id, tenantId: req.actorContext?.tenantId || '' },
+    select: { city: true }
+  })
+  if (!existing) return {}
+  return {
+    city: req.body?.city !== undefined ? req.body.city : existing.city
+  }
+}), async (req, res) => {
   try {
     const data = {}
     const nullableFields = ['customerCompanyId', 'city', 'routeFrom', 'routeTo', 'vehicleType', 'notes']
@@ -4409,13 +4521,83 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
       email: u.email,
       role: u.role,
       roles: u.roleLinks.map((x) => x.role.code),
-      telegramLinks: u.telegramLinks
+      telegramLinks: u.telegramLinks,
+      abacCountries: parseScopeList(u.abacCountries),
+      abacCities: parseScopeList(u.abacCities),
+      abacTeams: parseScopeList(u.abacTeams)
     }))
 
     res.json({ rows })
   } catch (error) {
     console.error('Error fetching staff users:', error)
     res.status(500).json({ error: 'Failed to fetch staff users' })
+  }
+})
+
+app.put('/api/admin/staff-users/:userId/abac', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const userId = String(req.params.userId || '').trim()
+    if (!userId) return res.status(400).json({ error: 'Invalid user id' })
+
+    const membership = await prisma.tenantMembership.findFirst({
+      where: {
+        userId,
+        tenantId: req.actorContext.tenantId,
+        isActive: true
+      },
+      select: { id: true }
+    })
+    if (!membership) return res.status(404).json({ error: 'User is not active in tenant' })
+
+    const countries = parseScopeList(req.body?.countries)
+    const cities = parseScopeList(req.body?.cities)
+    const teams = parseScopeList(req.body?.teams)
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        abacCountries: countries.join(','),
+        abacCities: cities.join(','),
+        abacTeams: teams.join(',')
+      },
+      select: {
+        id: true,
+        email: true,
+        abacCountries: true,
+        abacCities: true,
+        abacTeams: true
+      }
+    })
+
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'settings.staff_abac.update',
+      resource: 'user',
+      resourceId: updated.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: {
+        countries,
+        cities,
+        teams
+      }
+    })
+
+    res.json({
+      user: {
+        id: updated.id,
+        email: updated.email,
+        abacCountries: parseScopeList(updated.abacCountries),
+        abacCities: parseScopeList(updated.abacCities),
+        abacTeams: parseScopeList(updated.abacTeams)
+      }
+    })
+  } catch (error) {
+    console.error('Error updating staff ABAC:', error)
+    res.status(500).json({ error: 'Failed to update staff ABAC' })
   }
 })
 
@@ -4817,7 +4999,9 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
 })
 
 // Получение списка городов по стране
-app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.read', 'direction'), async (req, res) => {
+app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.read', 'direction', (req) => ({
+  country: req.query?.country || null
+})), async (req, res) => {
   try {
     const { country } = req.query
     
@@ -4844,7 +5028,10 @@ app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext,
 })
 
 // Создание нового маршрута
-app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction'), async (req, res) => {
+app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction', (req) => ({
+  country: req.body?.country || null,
+  city: req.body?.city || null
+})), async (req, res) => {
   try {
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency } = req.body
 
@@ -4871,7 +5058,13 @@ app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requi
 })
 
 // Обновление маршрута
-app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction'), async (req, res) => {
+app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction', async (req) => {
+  const row = await prisma.cityRoute.findFirst({
+    where: { id: req.params.routeId, tenantId: req.actorContext.tenantId },
+    select: { country: true, city: true }
+  })
+  return { country: req.body?.country || row?.country || null, city: req.body?.city || row?.city || null }
+}), async (req, res) => {
   try {
     const { routeId } = req.params
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency, isActive } = req.body
@@ -4907,7 +5100,13 @@ app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContex
 })
 
 // Удаление маршрута (мягкое удаление)
-app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction'), async (req, res) => {
+app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction', async (req) => {
+  const row = await prisma.cityRoute.findFirst({
+    where: { id: req.params.routeId, tenantId: req.actorContext.tenantId },
+    select: { country: true, city: true }
+  })
+  return { country: row?.country || null, city: row?.city || null }
+}), async (req, res) => {
   try {
     const { routeId } = req.params
 
