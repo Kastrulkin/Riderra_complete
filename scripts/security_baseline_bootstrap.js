@@ -30,6 +30,9 @@ async function main() {
 
   await prisma.order.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.orderStatusHistory.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.request.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.review.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.driver.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.cityPricing.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.counterpartyPriceRule.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.sheetSource.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })

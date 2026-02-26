@@ -8,12 +8,12 @@ datasource db {
 }
 
 model Tenant {
-  id                String            @id @default(cuid())
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  code              String            @unique
+  id                String                  @id @default(cuid())
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  code              String                  @unique
   name              String
-  isActive          Boolean           @default(true)
+  isActive          Boolean                 @default(true)
   memberships       TenantMembership[]
   idempotencyKeys   IdempotencyKey[]
   auditLogs         AuditLog[]
@@ -22,6 +22,9 @@ model Tenant {
   orderStatusEvents OrderStatusHistory[]
   pricingRows       CityPricing[]
   counterpartyRules CounterpartyPriceRule[]
+  drivers           Driver[]
+  requests          Request[]
+  reviews           Review[]
   customerCompanies CustomerCompany[]
   customerContacts  CustomerContact[]
   crmCompanies      CrmCompany[]
@@ -62,7 +65,7 @@ model User {
   driver        Driver?
   roleLinks     UserRole[]
   telegramLinks TelegramLink[]
-  opsTasks      OpsTask[]      @relation("OpsTaskAssignee")
+  opsTasks      OpsTask[]          @relation("OpsTaskAssignee")
   memberships   TenantMembership[]
 
   @@map("users")
@@ -70,6 +73,7 @@ model User {
 
 model Request {
   id         String    @id @default(cuid())
+  tenantId   String?
   createdAt  DateTime  @default(now())
   name       String
   email      String
@@ -81,10 +85,14 @@ model Request {
   luggage    Int?
   comment    String?
   lang       String?
+  tenant     Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
 }
 
 model Driver {
   id              String   @id @default(cuid())
+  tenantId        String?
   createdAt       DateTime @default(now())
   name            String
   email           String
@@ -128,7 +136,9 @@ model Driver {
   // Связь с предустановленными маршрутами городов
   cityRoutes     DriverCityRoute[]
   unavailability DriverUnavailability[]
+  tenant         Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, country, city])
   @@index([country, city])
   @@index([telegramUserId])
 }
@@ -175,7 +185,7 @@ model Order {
   sourceHistory  OrderSourceSnapshot[]
   priceConflicts PriceConflict[]
   statusHistory  OrderStatusHistory[]
-  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
 }
@@ -201,6 +211,7 @@ model OrderStatusHistory {
 
 model Review {
   id         String   @id @default(cuid())
+  tenantId   String?
   orderId    String?
   order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
   driverId   String
@@ -210,8 +221,11 @@ model Review {
   clientName String? // Имя клиента (опционально)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([orderId]) // Один отзыв на заказ (для admin-отзывов orderId = null)
+  @@index([tenantId, createdAt])
+  @@index([tenantId, driverId, createdAt])
 }
 
 // Предустановленные маршруты по городам (общие для всех водителей)
@@ -546,8 +560,8 @@ model PriceConflict {
   details    String?
   resolvedAt DateTime?
 
-  @@index([tenantId, status, severity, updatedAt])
   @@unique([orderId, issueType])
+  @@index([tenantId, status, severity, updatedAt])
   @@index([status, severity, updatedAt])
   @@index([issueType, status])
 }
@@ -570,11 +584,11 @@ model IdempotencyKey {
 }
 
 model HumanApproval {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   tenantId    String
-  status      String   @default("pending_human") // pending_human, approved, rejected, expired
+  status      String    @default("pending_human") // pending_human, approved, rejected, expired
   action      String
   resource    String
   resourceId  String?
@@ -584,26 +598,26 @@ model HumanApproval {
   reviewedAt  DateTime?
   expiresAt   DateTime?
   traceId     String?
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status, createdAt])
   @@index([status, expiresAt])
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  tenantId   String
-  actorId    String?
-  actorRole  String?
-  action     String
-  resource   String
-  resourceId String?
-  traceId    String
-  decision   String?
-  result     String
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  tenantId    String
+  actorId     String?
+  actorRole   String?
+  action      String
+  resource    String
+  resourceId  String?
+  traceId     String
+  decision    String?
+  result      String
   contextJson String?
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
   @@index([traceId])

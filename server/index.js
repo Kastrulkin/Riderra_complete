@@ -1257,7 +1257,9 @@ async function promoteStagingToCustomerCrm(tenantId) {
 app.post('/api/requests', async (req, res) => {
   try {
     const { name, email, phone, fromPoint, toPoint, date, passengers, luggage, comment, lang } = req.body
+    const tenant = await getDefaultTenant()
     const created = await prisma.request.create({ data: {
+      tenantId: tenant.id,
       name, email, phone, fromPoint, toPoint,
       date: date ? new Date(date) : null,
       passengers: passengers ?? null,
@@ -1364,7 +1366,10 @@ module.exports = app
 // Admin endpoints
 app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
-    const rows = await prisma.request.findMany({ orderBy: { createdAt: 'desc' }})
+    const rows = await prisma.request.findMany({
+      where: { tenantId: req.actorContext.tenantId },
+      orderBy: { createdAt: 'desc' }
+    })
     res.json(rows)
   } catch (e) { res.status(500).json({ error: 'failed' }) }
 })
@@ -1445,10 +1450,16 @@ app.post('/api/drivers/:driverId/routes', async (req, res) => {
   try {
     const { driverId } = req.params
     const { fromPoint, toPoint, driverPrice, ourPrice, currency = 'EUR' } = req.body
+    const tenant = await getDefaultTenant()
+    const driver = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId: tenant.id },
+      select: { id: true }
+    })
+    if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     const route = await prisma.driverRoute.create({
       data: {
-        driverId,
+        driverId: driver.id,
         fromPoint,
         toPoint,
         driverPrice: parseFloat(driverPrice),
@@ -1467,9 +1478,15 @@ app.post('/api/drivers/:driverId/routes', async (req, res) => {
 app.get('/api/drivers/:driverId/routes', async (req, res) => {
   try {
     const { driverId } = req.params
+    const tenant = await getDefaultTenant()
+    const driver = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId: tenant.id },
+      select: { id: true }
+    })
+    if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     const routes = await prisma.driverRoute.findMany({
-      where: { driverId },
+      where: { driverId: driver.id },
       orderBy: { createdAt: 'desc' }
     })
     
@@ -1481,11 +1498,11 @@ app.get('/api/drivers/:driverId/routes', async (req, res) => {
 })
 
 // API для обновления данных водителя (для самого водителя)
-app.put('/api/drivers/me', authenticateToken, async (req, res) => {
+app.put('/api/drivers/me', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     // Находим водителя по userId
     const driver = await prisma.driver.findFirst({
-      where: { userId: req.user.id }
+      where: { userId: req.user.id, tenantId: req.actorContext.tenantId }
     })
 
     if (!driver) {
@@ -1513,13 +1530,13 @@ app.put('/api/drivers/me', authenticateToken, async (req, res) => {
 })
 
 // API для удаления маршрута водителя
-app.delete('/api/drivers/routes/:routeId', authenticateToken, async (req, res) => {
+app.delete('/api/drivers/routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { routeId } = req.params
 
     // Находим водителя по userId
     const driver = await prisma.driver.findFirst({
-      where: { userId: req.user.id }
+      where: { userId: req.user.id, tenantId: req.actorContext.tenantId }
     })
 
     if (!driver) {
@@ -2161,6 +2178,15 @@ app.post('/api/reviews', async (req, res) => {
     if (!order) {
       return res.status(404).json({ error: 'Order not found or not completed' })
     }
+
+    const tenantId = order.tenantId || (await getDefaultTenant()).id
+    const driver = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId },
+      select: { id: true }
+    })
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found in tenant scope' })
+    }
     
     // Проверяем, что отзыв еще не оставлен
     const existingReview = await prisma.review.findUnique({
@@ -2174,8 +2200,9 @@ app.post('/api/reviews', async (req, res) => {
     // Создаем отзыв
     const review = await prisma.review.create({
       data: {
+        tenantId,
         orderId,
-        driverId,
+        driverId: driver.id,
         rating: parseInt(rating),
         comment: comment || null,
         clientName: clientName || null
@@ -2183,7 +2210,7 @@ app.post('/api/reviews', async (req, res) => {
     })
     
     // Пересчитываем рейтинг водителя
-    await updateDriverRating(driverId)
+    await updateDriverRating(driver.id, tenantId)
     
     res.json(review)
   } catch (e) {
@@ -2195,9 +2222,15 @@ app.post('/api/reviews', async (req, res) => {
 app.get('/api/drivers/:driverId/reviews', async (req, res) => {
   try {
     const { driverId } = req.params
+    const tenant = await getDefaultTenant()
+    const driver = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId: tenant.id },
+      select: { id: true }
+    })
+    if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     const reviews = await prisma.review.findMany({
-      where: { driverId },
+      where: { driverId: driver.id, tenantId: tenant.id },
       include: {
         order: {
           select: {
@@ -2219,18 +2252,24 @@ app.get('/api/drivers/:driverId/reviews', async (req, res) => {
 })
 
 // Функция обновления рейтинга водителя
-async function updateDriverRating(driverId) {
+async function updateDriverRating(driverId, tenantId = null) {
   try {
     const reviews = await prisma.review.findMany({
-      where: { driverId }
+      where: { driverId, ...(tenantId ? { tenantId } : {}) }
     })
     
     if (reviews.length === 0) return
     
     const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
     
+    const driver = await prisma.driver.findFirst({
+      where: { id: driverId, ...(tenantId ? { tenantId } : {}) },
+      select: { id: true }
+    })
+    if (!driver) return
+
     await prisma.driver.update({
-      where: { id: driverId },
+      where: { id: driver.id },
       data: { 
         avgRating: Math.round(avgRating * 10) / 10, // Округляем до 1 знака
         totalReviews: reviews.length,
@@ -2248,12 +2287,18 @@ async function updateDriverRating(driverId) {
 app.post('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
     const { driverId, rating, comment, clientName } = req.body
+    const driver = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     // Создаем отзыв от имени админа
     const review = await prisma.review.create({
       data: {
+        tenantId: req.actorContext.tenantId,
         orderId: null, // У админских отзывов нет привязки к конкретному заказу
-        driverId,
+        driverId: driver.id,
         rating: parseInt(rating),
         comment: comment || null,
         clientName: clientName || 'Администратор'
@@ -2261,7 +2306,7 @@ app.post('/api/admin/reviews', authenticateToken, resolveActorContext, requireAc
     })
     
     // Пересчитываем рейтинг водителя
-    await updateDriverRating(driverId)
+    await updateDriverRating(driver.id, req.actorContext.tenantId)
     
     res.json(review)
   } catch (e) {
@@ -2273,6 +2318,7 @@ app.post('/api/admin/reviews', authenticateToken, resolveActorContext, requireAc
 app.get('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
     const reviews = await prisma.review.findMany({
+      where: { tenantId: req.actorContext.tenantId },
       include: {
         driver: {
           select: {
@@ -2303,8 +2349,8 @@ app.delete('/api/admin/reviews/:reviewId', authenticateToken, resolveActorContex
   try {
     const { reviewId } = req.params
     
-    const review = await prisma.review.findUnique({
-      where: { id: reviewId }
+    const review = await prisma.review.findFirst({
+      where: { id: reviewId, tenantId: req.actorContext.tenantId }
     })
     
     if (!review) {
@@ -2312,11 +2358,11 @@ app.delete('/api/admin/reviews/:reviewId', authenticateToken, resolveActorContex
     }
     
     await prisma.review.delete({
-      where: { id: reviewId }
+      where: { id: review.id }
     })
     
     // Пересчитываем рейтинг водителя после удаления отзыва
-    await updateDriverRating(review.driverId)
+    await updateDriverRating(review.driverId, req.actorContext.tenantId)
     
     res.json({ success: true })
   } catch (e) {
@@ -2330,8 +2376,8 @@ app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
   try {
     const { driverId } = req.params
     
-    const driver = await prisma.driver.findUnique({
-      where: { id: driverId },
+    const driver = await prisma.driver.findFirst({
+      where: { id: driverId, tenantId: req.actorContext.tenantId },
       include: {
         routes: {
           orderBy: { createdAt: 'desc' }
@@ -2530,11 +2576,11 @@ app.get('/api/auth/me', authenticateToken, resolveActorContext, requireActorCont
 })
 
 // API для получения заказов текущего водителя
-app.get('/api/drivers/me/orders', authenticateToken, async (req, res) => {
+app.get('/api/drivers/me/orders', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     // Находим водителя по userId
     const driver = await prisma.driver.findFirst({
-      where: { userId: req.user.id }
+      where: { userId: req.user.id, tenantId: req.actorContext.tenantId }
     })
 
     if (!driver) {
@@ -2544,6 +2590,7 @@ app.get('/api/drivers/me/orders', authenticateToken, async (req, res) => {
     // Получаем выполненные заказы водителя
     const orders = await prisma.order.findMany({
       where: { 
+        tenantId: req.actorContext.tenantId,
         driverId: driver.id,
         status: 'completed' // Только выполненные заказы
       },
@@ -2559,11 +2606,11 @@ app.get('/api/drivers/me/orders', authenticateToken, async (req, res) => {
 })
 
 // API для получения данных текущего водителя (полная информация)
-app.get('/api/drivers/me', authenticateToken, async (req, res) => {
+app.get('/api/drivers/me', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     // Находим водителя по userId
     const driver = await prisma.driver.findFirst({
-      where: { userId: req.user.id },
+      where: { userId: req.user.id, tenantId: req.actorContext.tenantId },
       include: {
         routes: {
           where: { isActive: true },
@@ -2586,11 +2633,11 @@ app.get('/api/drivers/me', authenticateToken, async (req, res) => {
 // ==================== API ДЛЯ ПРЕДУСТАНОВЛЕННЫХ МАРШРУТОВ ====================
 
 // Получение всех маршрутов для водителя (с его ценами)
-app.get('/api/drivers/me/city-routes', authenticateToken, async (req, res) => {
+app.get('/api/drivers/me/city-routes', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     // Находим водителя по userId
     const driver = await prisma.driver.findFirst({
-      where: { userId: req.user.id }
+      where: { userId: req.user.id, tenantId: req.actorContext.tenantId }
     })
 
     if (!driver) {
@@ -2636,14 +2683,14 @@ app.get('/api/drivers/me/city-routes', authenticateToken, async (req, res) => {
 })
 
 // Обновление цены водителя для маршрута
-app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, async (req, res) => {
+app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { routeId } = req.params
     const { bestPrice } = req.body
 
     // Находим водителя по userId
     const driver = await prisma.driver.findFirst({
-      where: { userId: req.user.id }
+      where: { userId: req.user.id, tenantId: req.actorContext.tenantId }
     })
 
     if (!driver) {
@@ -3968,7 +4015,10 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
       const name = String(payload.driverNameRaw || '').trim()
       const driver = name
         ? await prisma.driver.findFirst({
-            where: { name: { contains: name, mode: 'insensitive' } },
+            where: {
+              tenantId: req.actorContext.tenantId,
+              name: { contains: name, mode: 'insensitive' }
+            },
             orderBy: { createdAt: 'asc' }
           })
         : null
