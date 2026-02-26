@@ -1400,6 +1400,7 @@ app.post('/api/drivers/priority', async (req, res) => {
       include: {
         routes: {
           where: {
+            tenantId: tenant.id,
             isActive: true
           }
         }
@@ -1459,6 +1460,7 @@ app.post('/api/drivers/:driverId/routes', async (req, res) => {
     
     const route = await prisma.driverRoute.create({
       data: {
+        tenantId: tenant.id,
         driverId: driver.id,
         fromPoint,
         toPoint,
@@ -1486,7 +1488,7 @@ app.get('/api/drivers/:driverId/routes', async (req, res) => {
     if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     const routes = await prisma.driverRoute.findMany({
-      where: { driverId: driver.id },
+      where: { driverId: driver.id, tenantId: tenant.id },
       orderBy: { createdAt: 'desc' }
     })
     
@@ -1547,6 +1549,7 @@ app.delete('/api/drivers/routes/:routeId', authenticateToken, resolveActorContex
     const route = await prisma.driverRoute.findFirst({
       where: {
         id: routeId,
+        tenantId: req.actorContext.tenantId,
         driverId: driver.id
       }
     })
@@ -1687,13 +1690,14 @@ app.post('/api/webhooks/easytaxi/order', resolveActorContext, requireActorContex
           isActive: true,
           verificationStatus: 'verified'
         },
-        include: {
-          routes: {
-            where: {
-              isActive: true
-            }
+      include: {
+        routes: {
+          where: {
+            tenantId,
+            isActive: true
           }
         }
+      }
       })
 
       const prioritizedDrivers = drivers.map(driver => {
@@ -2646,7 +2650,7 @@ app.get('/api/drivers/me/city-routes', authenticateToken, resolveActorContext, r
 
     // Получаем все активные маршруты
     const cityRoutes = await prisma.cityRoute.findMany({
-      where: { isActive: true },
+      where: { isActive: true, tenantId: req.actorContext.tenantId },
       orderBy: [
         { country: 'asc' },
         { city: 'asc' },
@@ -2654,7 +2658,7 @@ app.get('/api/drivers/me/city-routes', authenticateToken, resolveActorContext, r
       ],
       include: {
         driverPrices: {
-          where: { driverId: driver.id },
+          where: { driverId: driver.id, tenantId: req.actorContext.tenantId },
           take: 1
         }
       }
@@ -2698,8 +2702,8 @@ app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, resolveActorC
     }
 
     // Проверяем, существует ли маршрут
-    const cityRoute = await prisma.cityRoute.findUnique({
-      where: { id: routeId }
+    const cityRoute = await prisma.cityRoute.findFirst({
+      where: { id: routeId, tenantId: req.actorContext.tenantId }
     })
 
     if (!cityRoute) {
@@ -2715,9 +2719,11 @@ app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, resolveActorC
         }
       },
       update: {
+        tenantId: req.actorContext.tenantId,
         bestPrice: bestPrice ? parseFloat(bestPrice) : null
       },
       create: {
+        tenantId: req.actorContext.tenantId,
         driverId: driver.id,
         cityRouteId: routeId,
         bestPrice: bestPrice ? parseFloat(bestPrice) : null
@@ -2738,7 +2744,7 @@ app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requir
   try {
     const { country, city } = req.query
     
-    const where = { isActive: true }
+    const where = { isActive: true, tenantId: req.actorContext.tenantId }
     if (country) where.country = country
     if (city) where.city = city
 
@@ -2762,7 +2768,7 @@ app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requir
 app.get('/api/admin/city-routes/countries', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
   try {
     const countries = await prisma.cityRoute.findMany({
-      where: { isActive: true },
+      where: { isActive: true, tenantId: req.actorContext.tenantId },
       select: { country: true },
       distinct: ['country'],
       orderBy: { country: 'asc' }
@@ -4654,6 +4660,7 @@ app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext,
 
     const cities = await prisma.cityRoute.findMany({
       where: { 
+        tenantId: req.actorContext.tenantId,
         isActive: true,
         country: country
       },
@@ -4676,6 +4683,7 @@ app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requi
 
     const route = await prisma.cityRoute.create({
       data: {
+        tenantId: req.actorContext.tenantId,
         country,
         city,
         fromPoint,
@@ -4713,8 +4721,14 @@ app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContex
     if (currency !== undefined) updateData.currency = currency
     if (isActive !== undefined) updateData.isActive = isActive
 
+    const existingRoute = await prisma.cityRoute.findFirst({
+      where: { id: routeId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existingRoute) return res.status(404).json({ error: 'Route not found' })
+
     const route = await prisma.cityRoute.update({
-      where: { id: routeId },
+      where: { id: existingRoute.id },
       data: updateData
     })
 
@@ -4730,8 +4744,14 @@ app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorCon
   try {
     const { routeId } = req.params
 
+    const existingRoute = await prisma.cityRoute.findFirst({
+      where: { id: routeId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existingRoute) return res.status(404).json({ error: 'Route not found' })
+
     await prisma.cityRoute.update({
-      where: { id: routeId },
+      where: { id: existingRoute.id },
       data: { isActive: false }
     })
 
@@ -4775,6 +4795,7 @@ app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorCo
         // Проверяем, существует ли уже такой маршрут
         const existing = await prisma.cityRoute.findFirst({
           where: {
+            tenantId: req.actorContext.tenantId,
             country: route.country,
             city: route.city,
             fromPoint: route.fromPoint,
@@ -4792,6 +4813,7 @@ app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorCo
         // Создаем новый маршрут
         await prisma.cityRoute.create({
           data: {
+            tenantId: req.actorContext.tenantId,
             country: route.country.trim(),
             city: route.city.trim(),
             fromPoint: route.fromPoint.trim(),

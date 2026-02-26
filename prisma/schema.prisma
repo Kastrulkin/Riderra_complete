@@ -23,6 +23,9 @@ model Tenant {
   pricingRows       CityPricing[]
   counterpartyRules CounterpartyPriceRule[]
   drivers           Driver[]
+  driverRoutes      DriverRoute[]
+  cityRoutes        CityRoute[]
+  driverCityRoutes  DriverCityRoute[]
   requests          Request[]
   reviews           Review[]
   customerCompanies CustomerCompany[]
@@ -145,6 +148,7 @@ model Driver {
 
 model DriverRoute {
   id          String   @id @default(cuid())
+  tenantId    String?
   driverId    String
   driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
   fromPoint   String
@@ -155,6 +159,9 @@ model DriverRoute {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, driverId, isActive])
 }
 
 model Order {
@@ -231,6 +238,7 @@ model Review {
 // Предустановленные маршруты по городам (общие для всех водителей)
 model CityRoute {
   id          String   @id @default(cuid())
+  tenantId    String?
   country     String // Страна
   city        String // Город
   fromPoint   String // Откуда
@@ -246,13 +254,16 @@ model CityRoute {
 
   // Связь с индивидуальными ценами водителей
   driverPrices DriverCityRoute[]
+  tenant       Tenant?           @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, country, city, isActive])
   @@map("city_routes")
 }
 
 // Индивидуальные цены водителей для предустановленных маршрутов
 model DriverCityRoute {
   id          String    @id @default(cuid())
+  tenantId    String?
   driverId    String
   driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
   cityRouteId String
@@ -260,8 +271,10 @@ model DriverCityRoute {
   bestPrice   Float? // Ваше лучшее предложение (может быть null, если водитель еще не указал)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([driverId, cityRouteId]) // Одна цена водителя на маршрут
+  @@index([tenantId, driverId, cityRouteId])
   @@map("driver_city_routes")
 }
 
