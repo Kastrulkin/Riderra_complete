@@ -2324,9 +2324,33 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
       }
     }
 
-    const rows = Array.from(secondPassMap.values())
+    const cityFoldMap = new Map()
+    for (const row of secondPassMap.values()) {
+      const cityKey = normalizeCityName(row.city) || '—'
+      if (!cityFoldMap.has(cityKey)) {
+        cityFoldMap.set(cityKey, {
+          city: row.city,
+          countrySet: new Set(),
+          clients: [],
+          suppliers: []
+        })
+      }
+      const target = cityFoldMap.get(cityKey)
+      if (row.country && row.country !== '—') target.countrySet.add(row.country)
+      for (const c of row.clients) {
+        if (!target.clients.some((x) => x.id === c.id)) target.clients.push(c)
+      }
+      for (const s of row.suppliers) {
+        if (!target.suppliers.some((x) => x.id === s.id)) target.suppliers.push(s)
+      }
+    }
+
+    const rows = Array.from(cityFoldMap.values())
       .map((row) => ({
-        ...row,
+        country: row.countrySet.size === 0 ? '—' : Array.from(row.countrySet).sort((a, b) => a.localeCompare(b, 'ru')).join(', '),
+        city: row.city,
+        clients: row.clients,
+        suppliers: row.suppliers,
         clientsCount: row.clients.length,
         suppliersCount: row.suppliers.length
       }))
