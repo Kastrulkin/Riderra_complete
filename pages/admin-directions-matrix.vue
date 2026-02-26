@@ -13,36 +13,50 @@
 
         <div class="table-wrap">
           <div class="table-head">
-            <div>Страна</div><div>Город</div><div>Клиенты</div><div>Исполнители</div><div>Действия</div>
+            <div>Страна</div><div>Город</div><div>Заказчики</div><div>Исполнители</div>
           </div>
-          <div class="table-row" v-for="row in filtered" :key="`${row.country}::${row.city}`">
-            <div>{{ row.country }}</div>
-            <div>{{ row.city }}</div>
-            <div>{{ row.clientsCount }}</div>
-            <div>{{ row.suppliersCount }}</div>
-            <div class="row-actions">
-              <button class="btn btn--small" @click="openList('clients', row)">Клиенты</button>
-              <button class="btn btn--small" @click="openList('suppliers', row)">Исполнители</button>
+          <div
+            class="table-row"
+            v-for="row in groupedRows"
+            :key="`${row.country}::${row.city}`"
+          >
+            <div class="country-cell" :class="{ 'country-cell--empty': !row.showCountry }">
+              {{ row.showCountry ? row.country : '' }}
+            </div>
+            <div>
+              <div class="city-name">{{ row.city }}</div>
+              <div v-if="row.needOutreach" class="outreach-note">{{ row.needOutreach }}</div>
+            </div>
+            <div class="entity-cell">
+              <div v-if="row.clients.length" class="entity-list">
+                <button
+                  v-for="item in row.clients"
+                  :key="item.id"
+                  class="entity-pill entity-pill--client"
+                  @click="openCompany(item.id)"
+                >
+                  {{ item.name }}
+                </button>
+              </div>
+              <div v-else class="muted">Нет заказчиков</div>
+            </div>
+            <div class="entity-cell">
+              <div v-if="row.suppliers.length" class="entity-list">
+                <button
+                  v-for="item in row.suppliers"
+                  :key="item.id"
+                  class="entity-pill entity-pill--supplier"
+                  @click="openCompany(item.id)"
+                >
+                  {{ item.name }}
+                </button>
+              </div>
+              <div v-else class="muted">Нет исполнителей</div>
             </div>
           </div>
         </div>
       </div>
     </section>
-
-    <div v-if="listModal.open" class="modal-overlay" @click="closeList">
-      <div class="modal" @click.stop>
-        <h3>{{ listModal.title }}</h3>
-        <div v-if="!listModal.items.length" class="hint">Список пуст</div>
-        <div v-for="item in listModal.items" :key="item.id" class="card-row">
-          <div>
-            <div class="name">{{ item.name }}</div>
-            <div class="muted">{{ item.email || '-' }} | {{ item.phone || '-' }}</div>
-          </div>
-          <button class="btn btn--small btn--primary" @click="openCompany(item.id)">Открыть карточку</button>
-        </div>
-        <button class="btn" @click="closeList">Закрыть</button>
-      </div>
-    </div>
 
     <div v-if="companyModal.open" class="modal-overlay" @click="companyModal.open = false">
       <div class="modal" @click.stop>
@@ -77,10 +91,24 @@ export default {
     rows: [],
     filtered: [],
     q: '',
-    listModal: { open: false, title: '', items: [] },
     companyModal: { open: false, id: '' },
     companyForm: {}
   }),
+  computed: {
+    groupedRows () {
+      const out = []
+      let currentCountry = ''
+      for (const row of this.filtered) {
+        const showCountry = row.country !== currentCountry
+        currentCountry = row.country
+        let needOutreach = ''
+        if (row.clientsCount > 0 && row.suppliersCount === 0) needOutreach = 'Нужно предложить направление исполнителям'
+        if (row.suppliersCount > 0 && row.clientsCount === 0) needOutreach = 'Нужно предложить направление заказчикам'
+        out.push({ ...row, showCountry, needOutreach })
+      }
+      return out
+    }
+  },
   mounted () {
     this.load()
   },
@@ -102,17 +130,6 @@ export default {
         return
       }
       this.filtered = this.rows.filter((r) => `${r.country} ${r.city}`.toLowerCase().includes(q))
-    },
-    openList (type, row) {
-      const isClients = type === 'clients'
-      this.listModal = {
-        open: true,
-        title: `${row.country} / ${row.city}: ${isClients ? 'клиенты' : 'исполнители'}`,
-        items: isClients ? (row.clients || []) : (row.suppliers || [])
-      }
-    },
-    closeList () {
-      this.listModal = { open: false, title: '', items: [] }
     },
     async openCompany (id) {
       const res = await fetch(`/api/admin/crm/companies/${id}`, { headers: this.authHeaders() })
@@ -147,10 +164,27 @@ export default {
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; width: 100%; }
 .textarea { min-height: 90px; resize: vertical; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
-.table-head, .table-row { display: grid; grid-template-columns: 1fr 1fr .7fr .7fr 1.2fr; gap: 10px; min-width: 900px; padding: 10px 12px; }
+.table-head, .table-row { display: grid; grid-template-columns: 190px 220px 1fr 1fr; gap: 10px; min-width: 1100px; padding: 10px 12px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }
 .table-row { border-bottom: 1px solid #f0f2f8; }
-.row-actions { display: flex; gap: 8px; align-items: center; }
+.country-cell { font-weight: 700; color: #263b64; }
+.country-cell--empty { color: transparent; }
+.city-name { font-weight: 600; color: #20314f; }
+.entity-cell { min-height: 36px; }
+.entity-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.entity-pill {
+  border: 1px solid #d2d9eb;
+  background: #f8fbff;
+  color: #2a3f66;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.entity-pill--client { border-color: #b9daf7; background: #eef7ff; }
+.entity-pill--supplier { border-color: #bce6d4; background: #effaf5; }
+.outreach-note { margin-top: 4px; font-size: 12px; color: #975a16; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1200; }
 .modal { width: min(900px, 92vw); max-height: 86vh; overflow: auto; background: #fff; border-radius: 12px; padding: 16px; }
 .card-row { display: flex; justify-content: space-between; align-items: center; border: 1px solid #e5e7ef; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
