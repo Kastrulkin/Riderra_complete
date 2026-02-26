@@ -9,6 +9,8 @@ const prisma = new PrismaClient()
 
 const ROLE_DEFS = [
   { code: 'owner', name: 'Owner' },
+  { code: 'coordinator', name: 'Coordinator' },
+  { code: 'ops_control', name: 'Ops Control' },
   { code: 'financial', name: 'Financial' },
   { code: 'dispatcher', name: 'Dispatcher' },
   { code: 'operator', name: 'Operator' },
@@ -27,8 +29,22 @@ const PERMISSION_DEFS = [
   { code: 'telegram.link.manage', name: 'Manage telegram links' },
   { code: 'pricing.read', name: 'Read pricing data' },
   { code: 'pricing.manage', name: 'Manage pricing data' },
+  { code: 'directions.read', name: 'Read directions/routes matrix and routes' },
+  { code: 'directions.manage', name: 'Manage directions/routes' },
   { code: 'ops.read', name: 'Read ops drafts/unavailability' },
-  { code: 'ops.manage', name: 'Manage ops drafts/unavailability' }
+  { code: 'ops.manage', name: 'Manage ops drafts/unavailability' },
+  { code: 'orders.create_draft', name: 'Create order drafts from inbound sources' },
+  { code: 'orders.validate', name: 'Validate draft order core fields' },
+  { code: 'orders.assign', name: 'Assign drivers to orders' },
+  { code: 'orders.reassign', name: 'Reassign drivers on orders' },
+  { code: 'orders.confirmation.manage', name: 'Manage order confirmations and execution control' },
+  { code: 'incidents.manage', name: 'Manage no-show/incident workflow and evidence' },
+  { code: 'claims.compose', name: 'Compose client claims/position letters' },
+  { code: 'reconciliation.run', name: 'Run reconciliation with drivers/clients' },
+  { code: 'payouts.manage', name: 'Manage payouts and payment closures' },
+  { code: 'finance.report.export', name: 'Export finance reports' },
+  { code: 'integrations.settings', name: 'Manage integrations and capability settings' },
+  { code: 'approvals.resolve', name: 'Approve or reject pending human actions' }
 ]
 
 const ROLE_PERMISSIONS = {
@@ -43,26 +59,42 @@ const ROLE_PERMISSIONS = {
     'telegram.link.manage',
     'pricing.read',
     'pricing.manage',
+    'directions.read',
+    'directions.manage',
     'ops.read',
-    'ops.manage'
+    'ops.manage',
+    'orders.create_draft',
+    'orders.validate',
+    'orders.assign',
+    'orders.reassign',
+    'orders.confirmation.manage',
+    'incidents.manage',
+    'claims.compose',
+    'reconciliation.run',
+    'payouts.manage',
+    'finance.report.export',
+    'integrations.settings',
+    'approvals.resolve'
   ],
-  financial: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read'],
-  dispatcher: ['orders.read', 'drivers.read', 'drivers.manage', 'crm.read', 'pricing.read', 'ops.read'],
-  operator: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read'],
+  coordinator: ['orders.read', 'orders.create_draft', 'orders.validate', 'crm.read', 'drivers.read', 'pricing.read', 'ops.read'],
+  dispatcher: ['orders.read', 'orders.assign', 'orders.reassign', 'drivers.read', 'drivers.manage', 'crm.read', 'pricing.read', 'ops.read'],
+  ops_control: ['orders.read', 'orders.confirmation.manage', 'incidents.manage', 'claims.compose', 'ops.read', 'ops.manage', 'drivers.read', 'crm.read'],
+  financial: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'reconciliation.run', 'payouts.manage', 'finance.report.export'],
+  operator: ['orders.read', 'orders.create_draft', 'orders.validate', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read'],
   audit: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read'],
-  pricing_admin: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'pricing.manage', 'ops.read', 'ops.manage']
+  pricing_admin: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'pricing.manage', 'directions.read', 'directions.manage', 'integrations.settings', 'ops.read', 'ops.manage']
 }
 
 const USER_ROLES = {
   'demyanov@riderra.com': ['owner'],
   'shilin@riderra.com': ['financial'],
-  'bellavitomatern@gmail.com': ['operator', 'dispatcher'],
+  'bellavitomatern@gmail.com': ['coordinator', 'dispatcher'],
   'donaudeka@gmail.com': ['audit', 'pricing_admin'],
-  'farzalievaas@gmail.com': ['operator', 'dispatcher'],
-  'iproms17@gmail.com': ['operator', 'dispatcher'],
-  'maksmaps123332@gmail.com': ['audit', 'operator', 'dispatcher'],
-  'svetlana.iqtour@gmail.com': ['operator', 'dispatcher'],
-  'samya7098@gmail.com': ['operator', 'dispatcher']
+  'farzalievaas@gmail.com': ['coordinator', 'dispatcher'],
+  'iproms17@gmail.com': ['coordinator', 'dispatcher'],
+  'maksmaps123332@gmail.com': ['audit', 'coordinator', 'dispatcher', 'ops_control'],
+  'svetlana.iqtour@gmail.com': ['coordinator', 'dispatcher'],
+  'samya7098@gmail.com': ['coordinator', 'dispatcher']
 }
 
 async function ensureUser(email) {

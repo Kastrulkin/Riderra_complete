@@ -233,6 +233,20 @@ function requirePermission(permissionCode) {
   }
 }
 
+function hasAnyPermission(req, permissionCodes) {
+  return permissionCodes.some((code) => hasPermission(req, code))
+}
+
+function requireAnyPermission(permissionCodes) {
+  return (req, res, next) => {
+    if (req.user?.role === 'admin') return next() // legacy compatibility
+    if (!hasAnyPermission(req, permissionCodes)) {
+      return res.status(403).json({ error: `One of permissions required: ${permissionCodes.join(', ')}` })
+    }
+    next()
+  }
+}
+
 function normalizeHeader(value) {
   return String(value || '')
     .trim()
@@ -1865,7 +1879,7 @@ app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, async (req, r
 // ==================== АДМИНСКИЕ API ДЛЯ УПРАВЛЕНИЯ МАРШРУТАМИ ====================
 
 // Получение всех маршрутов (для админа)
-app.get('/api/admin/city-routes', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/city-routes', authenticateToken, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
   try {
     const { country, city } = req.query
     
@@ -1890,7 +1904,7 @@ app.get('/api/admin/city-routes', authenticateToken, requireAdmin, async (req, r
 })
 
 // Получение списка стран
-app.get('/api/admin/city-routes/countries', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/city-routes/countries', authenticateToken, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
   try {
     const countries = await prisma.cityRoute.findMany({
       where: { isActive: true },
@@ -2979,7 +2993,7 @@ app.get('/api/admin/ops/drafts', authenticateToken, requirePermission('ops.read'
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, requirePermission('ops.manage'), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -3000,7 +3014,7 @@ app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, requirePerm
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, requirePermission('ops.manage'), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -3380,7 +3394,23 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
     const acl = await getUserRolesAndPermissions(link.userId)
     const canReadCrm = acl.permissions.includes('crm.read') || acl.permissions.includes('*') || link.user.role === 'admin'
-    const canUseOpsCopilot = acl.permissions.includes('ops.read') || acl.permissions.includes('ops.manage') || acl.permissions.includes('*') || link.user.role === 'admin'
+    const canUseOpsCopilot =
+      acl.permissions.includes('ops.read') ||
+      acl.permissions.includes('ops.manage') ||
+      acl.permissions.includes('orders.create_draft') ||
+      acl.permissions.includes('orders.validate') ||
+      acl.permissions.includes('orders.assign') ||
+      acl.permissions.includes('orders.reassign') ||
+      acl.permissions.includes('orders.confirmation.manage') ||
+      acl.permissions.includes('incidents.manage') ||
+      acl.permissions.includes('claims.compose') ||
+      acl.permissions.includes('*') ||
+      link.user.role === 'admin'
+    const canUseFinanceReports =
+      acl.permissions.includes('finance.report.export') ||
+      acl.permissions.includes('reconciliation.run') ||
+      acl.permissions.includes('*') ||
+      link.user.role === 'admin'
 
     if (canUseOpsCopilot) {
       const lowerText = text.toLowerCase()
@@ -3427,6 +3457,13 @@ app.post('/api/telegram/webhook', async (req, res) => {
       }
 
       if (text.startsWith('/report la') || lowerText.includes('отч') && lowerText.includes('лос') && lowerText.includes('анджел')) {
+        if (!canUseFinanceReports) {
+          await telegramSendMessage(
+            telegramChatId,
+            buildCopilotMessage(['Недостаточно прав для финансового отчёта. Нужна роль financial/owner.'])
+          )
+          return res.json({ ok: true })
+        }
         const report = await buildLosAngelesFinanceSummary()
         await telegramSendMessage(
           telegramChatId,
@@ -3605,7 +3642,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 })
 
 // Получение списка городов по стране
-app.get('/api/admin/city-routes/cities', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/city-routes/cities', authenticateToken, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
   try {
     const { country } = req.query
     
@@ -3631,7 +3668,7 @@ app.get('/api/admin/city-routes/cities', authenticateToken, requireAdmin, async 
 })
 
 // Создание нового маршрута
-app.post('/api/admin/city-routes', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admin/city-routes', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency } = req.body
 
@@ -3657,7 +3694,7 @@ app.post('/api/admin/city-routes', authenticateToken, requireAdmin, async (req, 
 })
 
 // Обновление маршрута
-app.put('/api/admin/city-routes/:routeId', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/admin/city-routes/:routeId', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { routeId } = req.params
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency, isActive } = req.body
@@ -3687,7 +3724,7 @@ app.put('/api/admin/city-routes/:routeId', authenticateToken, requireAdmin, asyn
 })
 
 // Удаление маршрута (мягкое удаление)
-app.delete('/api/admin/city-routes/:routeId', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/admin/city-routes/:routeId', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { routeId } = req.params
 
@@ -3704,7 +3741,7 @@ app.delete('/api/admin/city-routes/:routeId', authenticateToken, requireAdmin, a
 })
 
 // Массовая загрузка маршрутов из CSV
-app.post('/api/admin/city-routes/bulk-import', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admin/city-routes/bulk-import', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { routes } = req.body // Массив маршрутов из CSV
 
