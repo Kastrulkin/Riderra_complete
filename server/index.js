@@ -243,6 +243,7 @@ function parseScopeList(raw) {
 function hasScopeMatch(actorScopes, targetValue) {
   const scopes = actorScopes || []
   if (!scopes.length) return true
+  if (scopes.includes('all') || scopes.includes('*') || scopes.includes('globe')) return true
   const target = normalizeScopeToken(targetValue)
   if (!target) return true
   return scopes.includes(target)
@@ -252,14 +253,16 @@ function buildGeoScopeWhere(req, countryField = 'country', cityField = 'city') {
   const countries = req.userAbac?.countries || []
   const cities = req.userAbac?.cities || []
   const and = []
-  if (countries.length) {
+  const countriesScoped = countries.length && !countries.includes('all') && !countries.includes('*') && !countries.includes('globe')
+  const citiesScoped = cities.length && !cities.includes('all') && !cities.includes('*') && !cities.includes('globe')
+  if (countriesScoped) {
     and.push({
       OR: countries.map((country) => ({
         [countryField]: { equals: country, mode: 'insensitive' }
       }))
     })
   }
-  if (cities.length) {
+  if (citiesScoped) {
     and.push({
       OR: cities.map((city) => ({
         [cityField]: { equals: city, mode: 'insensitive' }
@@ -272,6 +275,7 @@ function buildGeoScopeWhere(req, countryField = 'country', cityField = 'city') {
 function buildCityScopeWhere(req, cityField = 'city') {
   const cities = req.userAbac?.cities || []
   if (!cities.length) return {}
+  if (cities.includes('all') || cities.includes('*') || cities.includes('globe')) return {}
   return {
     AND: [
       {

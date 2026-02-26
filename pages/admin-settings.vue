@@ -56,17 +56,16 @@
           <div v-if="staffNotice.text" class="notice" :class="staffNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
             {{ staffNotice.text }}
           </div>
-          <div class="table-wrap">
-            <div class="grid-head seven-staff-cols">
+          <div class="table-wrap table-wrap--staff">
+            <div class="grid-head six-staff-cols">
               <div>{{ t.email }}</div>
               <div>{{ t.roles }}</div>
               <div>{{ t.telegramId }}</div>
-              <div>{{ t.abacCountries }}</div>
-              <div>{{ t.abacCities }}</div>
+              <div>{{ t.geoScope }}</div>
               <div>{{ t.abacTeams }}</div>
               <div>{{ t.actions }}</div>
             </div>
-            <div v-for="u in staff" :key="u.id" class="grid-row seven-staff-cols">
+            <div v-for="u in staff" :key="u.id" class="grid-row six-staff-cols">
               <div>{{ u.email }}</div>
               <div>{{ (u.roles || []).join(', ') || '-' }}</div>
               <div>
@@ -77,25 +76,12 @@
                 />
               </div>
               <div>
-                <input
-                  v-model="abacDrafts[u.id].countries"
-                  class="input"
-                  :placeholder="t.abacCountriesPlaceholder"
-                />
+                <span class="scope-pill">{{ t.globalScope }}</span>
               </div>
               <div>
-                <input
-                  v-model="abacDrafts[u.id].cities"
-                  class="input"
-                  :placeholder="t.abacCitiesPlaceholder"
-                />
-              </div>
-              <div>
-                <input
-                  v-model="abacDrafts[u.id].teams"
-                  class="input"
-                  :placeholder="t.abacTeamsPlaceholder"
-                />
+                <select v-model="abacDrafts[u.id].team" class="input select-input">
+                  <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
               </div>
               <div class="row-actions row-actions--stack">
                 <button class="btn btn--small btn--primary" @click="saveStaffLink(u)">{{ t.save }}</button>
@@ -182,12 +168,9 @@ export default {
             syncing: 'Синхронизация...',
             save: 'Сохранить',
             roles: 'Роли',
-            abacCountries: 'Страны доступа',
-            abacCities: 'Города доступа',
+            geoScope: 'Гео-доступ',
+            globalScope: 'Globe - все города',
             abacTeams: 'Команды доступа',
-            abacCountriesPlaceholder: 'например: uk, uae',
-            abacCitiesPlaceholder: 'например: london, dubai',
-            abacTeamsPlaceholder: 'например: dispatch, ops',
             saveScopes: 'Сохранить scope',
             telegramLinks: 'Связки Telegram',
             sheetName: 'Имя источника',
@@ -216,12 +199,9 @@ export default {
             syncing: 'Syncing...',
             save: 'Save',
             roles: 'Roles',
-            abacCountries: 'Allowed countries',
-            abacCities: 'Allowed cities',
+            geoScope: 'Geo scope',
+            globalScope: 'Globe - all cities',
             abacTeams: 'Allowed teams',
-            abacCountriesPlaceholder: 'e.g. uk, uae',
-            abacCitiesPlaceholder: 'e.g. london, dubai',
-            abacTeamsPlaceholder: 'e.g. dispatch, ops',
             saveScopes: 'Save scope',
             telegramLinks: 'Telegram links',
             sheetName: 'Source name',
@@ -237,6 +217,19 @@ export default {
             deactivate: 'Disable',
             close: 'Close'
           }
+    },
+    teamOptions () {
+      const isRu = this.$store.state.language === 'ru'
+      return [
+        { value: 'all', label: isRu ? 'Все команды' : 'All teams' },
+        { value: 'coordination', label: isRu ? 'Координация' : 'Coordination' },
+        { value: 'dispatch', label: isRu ? 'Диспетчеризация' : 'Dispatch' },
+        { value: 'ops_control', label: isRu ? 'Операционный контроль' : 'Ops control' },
+        { value: 'finance', label: isRu ? 'Финансы' : 'Finance' },
+        { value: 'pricing', label: isRu ? 'Прайсинг' : 'Pricing' },
+        { value: 'sales', label: isRu ? 'Продажи' : 'Sales' },
+        { value: 'audit', label: isRu ? 'Аудит' : 'Audit' }
+      ]
     }
   },
   mounted () { this.load() },
@@ -271,10 +264,9 @@ export default {
         return acc
       }, {})
       this.abacDrafts = this.staff.reduce((acc, user) => {
+        const teams = Array.isArray(user.abacTeams) ? user.abacTeams : []
         acc[user.id] = {
-          countries: (user.abacCountries || []).join(', '),
-          cities: (user.abacCities || []).join(', '),
-          teams: (user.abacTeams || []).join(', ')
+          team: teams[0] || 'all'
         }
         return acc
       }, {})
@@ -395,15 +387,15 @@ export default {
     },
     async saveStaffAbac (user) {
       this.staffNotice = { type: 'ok', text: '' }
-      const draft = this.abacDrafts[user.id] || { countries: '', cities: '', teams: '' }
+      const draft = this.abacDrafts[user.id] || { team: 'all' }
       try {
         await this.jsonRequest(`/api/admin/staff-users/${user.id}/abac`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...this.headers() },
           body: JSON.stringify({
-            countries: draft.countries,
-            cities: draft.cities,
-            teams: draft.teams
+            countries: 'all',
+            cities: 'all',
+            teams: draft.team || 'all'
           })
         })
         await this.load()
@@ -438,7 +430,7 @@ export default {
 .grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 980px; align-items: center; }
 .three-cols { display: grid; grid-template-columns: 1.4fr 1.2fr 1.4fr; }
 .four-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr .7fr; }
-.seven-staff-cols {
+.six-staff-cols {
   display: grid;
   grid-template-columns:
     minmax(220px, 1.3fr)
@@ -446,11 +438,10 @@ export default {
     minmax(180px, 1fr)
     minmax(180px, 1fr)
     minmax(180px, 1fr)
-    minmax(180px, 1fr)
     minmax(170px, .9fr);
   align-items: stretch;
 }
-.seven-staff-cols > div { display: flex; align-items: center; }
+.six-staff-cols > div { display: flex; align-items: center; }
 .table-wrap--staff .grid-head,
 .table-wrap--staff .grid-row { min-width: 1500px; }
 .seven-cols { display: grid; grid-template-columns: 1fr .8fr 1.5fr .6fr .8fr 1fr 1fr; }
@@ -459,6 +450,17 @@ export default {
 .row-actions { display: flex; gap: 6px; align-items: center; }
 .row-actions--stack { flex-direction: column; align-items: stretch; justify-content: center; }
 .row-actions--stack .btn { width: 100%; min-width: 130px; }
+.select-input { min-height: 44px; }
+.scope-pill {
+  display: inline-block;
+  border: 1px solid #b8d1ff;
+  background: #f1f7ff;
+  color: #1f4d96;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
 .cell-wrap { word-break: break-all; }
 .muted { font-size: 12px; color: #647191; }
 .muted--error { color: #a13a31; }
