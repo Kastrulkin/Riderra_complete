@@ -18,7 +18,8 @@
     "security:policy": "node scripts/security_policy_smoke.js",
     "security:gate": "node scripts/security_gate_checks.js",
     "security:release-gate": "node scripts/security_release_gate.js",
-    "security:tenant-mismatch": "node scripts/security_tenant_mismatch_smoke.js"
+    "security:tenant-mismatch": "node scripts/security_tenant_mismatch_smoke.js",
+    "security:api-tenant-mismatch": "node scripts/security_api_tenant_mismatch_smoke.js"
   },
   "dependencies": {
     "@nuxtjs/axios": "^5.8.0",

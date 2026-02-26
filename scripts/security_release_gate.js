@@ -8,6 +8,7 @@ const steps = [
   { name: 'smoke', cmd: ['node', 'scripts/security_smoke_baseline.js'] },
   { name: 'policy', cmd: ['node', 'scripts/security_policy_smoke.js'] },
   { name: 'tenantMismatch', cmd: ['node', 'scripts/security_tenant_mismatch_smoke.js'] },
+  { name: 'apiTenantMismatch', cmd: ['node', 'scripts/security_api_tenant_mismatch_smoke.js'] },
   { name: 'gate', cmd: ['node', 'scripts/security_gate_checks.js'] }
 ]
 
@@ -74,6 +75,7 @@ function main() {
   const gate = report.steps.gate?.parsed?.report || {}
   const policy = report.steps.policy?.parsed || {}
   const tenantMismatch = report.steps.tenantMismatch?.parsed || {}
+  const apiTenantMismatch = report.steps.apiTenantMismatch?.parsed || {}
 
   const nullTenantOk = [
     smoke.ordersNullTenant,
@@ -89,7 +91,7 @@ function main() {
     smoke.opsDraftsNullTenant
   ].every((v) => Number(v || 0) === 0)
 
-  report.criteria.tenantIsolation = Boolean(gate.tenantIsolation) && nullTenantOk && Boolean(tenantMismatch.ok)
+  report.criteria.tenantIsolation = Boolean(gate.tenantIsolation) && nullTenantOk && Boolean(tenantMismatch.ok) && Boolean(apiTenantMismatch.ok)
   report.criteria.policy = Boolean(gate.roles) && Boolean(policy.ok)
   report.criteria.idempotency = Boolean(gate.idempotency)
   report.criteria.humanInLoop = Boolean(gate.humanInLoop)
