@@ -168,14 +168,24 @@ export default {
 </script>
 
 <style scoped>
-.admin-section{padding-top:150px;color:#fff}
-.card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:12px;margin-bottom:14px}
-.toolbar{display:flex;gap:8px;margin:8px 0 12px;flex-wrap:wrap}
-.input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff}
-.grid-head,.grid-row{gap:10px;padding:8px;min-width:1040px}
-.three-cols{display:grid;grid-template-columns:1.4fr 1.2fr 1.4fr}
-.six-cols{display:grid;grid-template-columns:1fr 1fr 2fr .8fr .7fr 1.2fr}
-.grid-head{font-weight:700;border-bottom:1px solid rgba(255,255,255,.2)}
-.grid-row{border-bottom:1px solid rgba(255,255,255,.08)}
-.row-actions{display:flex;gap:6px;align-items:center}
+.admin-section { padding-top: 150px; color: #17233d; }
+.card { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06); }
+.toolbar { display: flex; gap: 8px; margin: 8px 0 12px; flex-wrap: wrap; }
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #c8ccdc;
+  background: #fff;
+  color: #1f2b46;
+}
+.input::placeholder { color: #7a8197; }
+.input:focus { outline: none; border-color: #2f80ed; box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.15); }
+.grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 1040px; }
+.three-cols { display: grid; grid-template-columns: 1.4fr 1.2fr 1.4fr; }
+.six-cols { display: grid; grid-template-columns: 1fr 1fr 2fr .8fr .7fr 1.2fr; }
+.grid-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; color: #1d2c4a; }
+.grid-row { border-bottom: 1px solid #f0f2f7; color: #2f3e60; }
+.row-actions { display: flex; gap: 6px; align-items: center; }
 </style>
