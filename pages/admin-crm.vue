@@ -10,6 +10,7 @@
             <button class="btn btn--ghost" @click="reload">Reload</button>
           </div>
         </div>
+        <admin-tabs />
 
         <div class="crm-filters">
           <input v-model="query" class="input" placeholder="Search by name / email / phone" @keyup.enter="reload"/>
@@ -77,11 +78,12 @@
 
 <script>
 import navigation from '~/components/partials/nav.vue'
+import adminTabs from '~/components/partials/adminTabs.vue'
 
 export default {
   layout: 'default',
   middleware: 'crm',
-  components: { navigation },
+  components: { navigation, adminTabs },
   data() {
     return {
       mode: 'companies',

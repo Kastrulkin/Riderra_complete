@@ -47,7 +47,9 @@ model Driver {
   name            String
   email           String
   phone           String
+  country         String?
   city            String
+  telegramUserId  String?
   fixedFrom       String?
   fixedTo         String?
   fixedPrice      String?
@@ -84,6 +86,9 @@ model Driver {
   // Связь с предустановленными маршрутами городов
   cityRoutes     DriverCityRoute[]
   unavailability DriverUnavailability[]
+
+  @@index([country, city])
+  @@index([telegramUserId])
 }
 
 model DriverRoute {
@@ -125,6 +130,7 @@ model Order {
   // Связь с отзывами
   reviews       Review[]
   sourceHistory OrderSourceSnapshot[]
+  priceConflicts PriceConflict[]
 }
 
 model Review {
@@ -297,6 +303,7 @@ model CustomerCompany {
   extraInfo    String?
   links        CustomerCompanyContact[]
   segments     CustomerCompanySegment[]
+  pricingRules CounterpartyPriceRule[]
 
   @@unique([sourceSystem, externalId])
   @@index([name])
@@ -380,6 +387,52 @@ model CityPricing {
 
   @@index([city])
   @@index([isActive])
+}
+
+model CounterpartyPriceRule {
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  customerCompanyId String?
+  customerCompany   CustomerCompany? @relation(fields: [customerCompanyId], references: [id], onDelete: SetNull)
+  counterpartyName  String
+  city              String?
+  routeFrom         String?
+  routeTo           String?
+  vehicleType       String?
+  sellPrice         Float?
+  markupPercent     Float?
+  minMarginAbs      Float?
+  currency          String           @default("EUR")
+  startsAt          DateTime?
+  endsAt            DateTime?
+  isActive          Boolean          @default(true)
+  notes             String?
+
+  @@index([counterpartyName, isActive])
+  @@index([city, isActive])
+}
+
+model PriceConflict {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orderId    String?
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  issueType  String // driver_gt_sell, low_margin
+  severity   String // critical, warning
+  status     String   @default("open") // open, resolved
+  sellPrice  Float
+  driverCost Float
+  marginAbs  Float
+  marginPct  Float
+  source     String   @default("order_snapshot")
+  details    String?
+  resolvedAt DateTime?
+
+  @@index([status, severity, updatedAt])
+  @@index([issueType, status])
+  @@unique([orderId, issueType])
 }
 
 model OpsEventDraft {

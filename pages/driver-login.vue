@@ -124,7 +124,9 @@ export default {
           
           const permissions = data.user.permissions || []
           if (data.user.role === 'admin' || permissions.includes('admin.panel')) {
-            this.$router.push('/admin-drivers')
+            this.$router.push('/admin-orders')
+          } else if (permissions.includes('orders.read')) {
+            this.$router.push('/admin-orders')
           } else if (permissions.includes('crm.read')) {
             this.$router.push('/admin-crm')
           } else if (data.user.role === 'driver') {

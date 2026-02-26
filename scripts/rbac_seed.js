@@ -18,8 +18,12 @@ const ROLE_DEFS = [
 
 const PERMISSION_DEFS = [
   { code: 'admin.panel', name: 'Access admin panel' },
+  { code: 'orders.read', name: 'Read orders table' },
+  { code: 'drivers.read', name: 'Read drivers' },
+  { code: 'drivers.manage', name: 'Manage drivers' },
   { code: 'crm.read', name: 'Read CRM' },
   { code: 'crm.manage', name: 'Manage CRM' },
+  { code: 'settings.manage', name: 'Manage settings and integrations' },
   { code: 'telegram.link.manage', name: 'Manage telegram links' },
   { code: 'pricing.read', name: 'Read pricing data' },
   { code: 'pricing.manage', name: 'Manage pricing data' },
@@ -30,19 +34,23 @@ const PERMISSION_DEFS = [
 const ROLE_PERMISSIONS = {
   owner: [
     'admin.panel',
+    'orders.read',
+    'drivers.read',
+    'drivers.manage',
     'crm.read',
     'crm.manage',
+    'settings.manage',
     'telegram.link.manage',
     'pricing.read',
     'pricing.manage',
     'ops.read',
     'ops.manage'
   ],
-  financial: ['crm.read', 'pricing.read'],
-  dispatcher: ['crm.read', 'pricing.read', 'ops.read'],
-  operator: ['crm.read', 'pricing.read', 'ops.read'],
-  audit: ['crm.read', 'pricing.read', 'ops.read'],
-  pricing_admin: ['crm.read', 'pricing.read', 'pricing.manage', 'ops.read', 'ops.manage']
+  financial: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read'],
+  dispatcher: ['orders.read', 'drivers.read', 'drivers.manage', 'crm.read', 'pricing.read', 'ops.read'],
+  operator: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read'],
+  audit: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read'],
+  pricing_admin: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'pricing.manage', 'ops.read', 'ops.manage']
 }
 
 const USER_ROLES = {

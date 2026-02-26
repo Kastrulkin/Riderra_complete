@@ -713,6 +713,7 @@ app.post('/api/drivers', async (req, res) => {
       name,
       email,
       phone,
+      country,
       city,
       fixedRoutes,
       fixedRoutesJson,
@@ -734,6 +735,7 @@ app.post('/api/drivers', async (req, res) => {
       name, 
       email, 
       phone, 
+      country: country || null,
       city,
       fixedRoutesJson: fixedRoutesJson || (fixedRoutes ? JSON.stringify(fixedRoutes) : null),
       pricePerKm: (pricePerKm && pricePerKm.trim() !== '') ? pricePerKm : null,
@@ -800,7 +802,7 @@ app.get('/api/admin/requests', authenticateToken, requireAdmin, async (req, res)
   } catch (e) { res.status(500).json({ error: 'failed' }) }
 })
 
-app.get('/api/admin/drivers', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/drivers', authenticateToken, requirePermission('drivers.read'), async (req, res) => {
   try {
     const rows = await prisma.driver.findMany({ orderBy: { createdAt: 'desc' }})
     res.json(rows)
@@ -978,7 +980,7 @@ app.delete('/api/drivers/routes/:routeId', authenticateToken, async (req, res) =
 })
 
 // API для обновления статуса водителя (для админов)
-app.put('/api/admin/drivers/:driverId/status', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/admin/drivers/:driverId/status', authenticateToken, requirePermission('drivers.manage'), async (req, res) => {
   try {
     const { driverId } = req.params
     const { isActive, verificationStatus } = req.body
@@ -991,6 +993,35 @@ app.put('/api/admin/drivers/:driverId/status', authenticateToken, requireAdmin, 
       }
     })
     
+    res.json(updated)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'failed' })
+  }
+})
+
+app.put('/api/admin/drivers/:driverId', authenticateToken, requirePermission('drivers.manage'), async (req, res) => {
+  try {
+    const { driverId } = req.params
+    const data = {}
+    const nullableTextFields = ['country', 'city', 'comment', 'telegramUserId']
+    for (const field of nullableTextFields) {
+      if (req.body[field] !== undefined) {
+        data[field] = req.body[field] ? String(req.body[field]).trim() : null
+      }
+    }
+    if (req.body.commissionRate !== undefined) {
+      data.commissionRate = req.body.commissionRate === null || req.body.commissionRate === ''
+        ? null
+        : parseFloat(req.body.commissionRate)
+    }
+    if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
+    if (req.body.verificationStatus !== undefined) data.verificationStatus = String(req.body.verificationStatus)
+
+    const updated = await prisma.driver.update({
+      where: { id: driverId },
+      data
+    })
     res.json(updated)
   } catch (e) {
     console.error(e)
@@ -1087,7 +1118,7 @@ app.post('/api/webhooks/easytaxi/order', async (req, res) => {
 })
 
 // API для получения статистики заказов
-app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/orders', authenticateToken, requirePermission('orders.read'), async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
@@ -1328,7 +1359,7 @@ app.get('/api/admin/drivers/:driverId', authenticateToken, requireAdmin, async (
 // Регистрация пользователя
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, role = 'driver', name, phone, city, commissionRate } = req.body
+    const { email, password, role = 'driver', name, phone, country, city, commissionRate } = req.body
 
     // Проверяем, существует ли пользователь
     const existingUser = await prisma.user.findUnique({
@@ -1358,6 +1389,7 @@ app.post('/api/auth/register', async (req, res) => {
           name,
           email,
           phone,
+          country: country || null,
           city,
           commissionRate: commissionRate || 15.0,
           userId: user.id
@@ -1674,7 +1706,7 @@ app.get('/api/admin/city-routes/countries', authenticateToken, requireAdmin, asy
 })
 
 // ==================== GOOGLE SHEETS SOURCES ====================
-app.get('/api/admin/sheet-sources', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/sheet-sources', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
     const sources = await prisma.sheetSource.findMany({
       orderBy: [{ isActive: 'desc' }, { monthLabel: 'desc' }, { createdAt: 'desc' }]
@@ -1686,7 +1718,7 @@ app.get('/api/admin/sheet-sources', authenticateToken, requireAdmin, async (req,
   }
 })
 
-app.post('/api/admin/sheet-sources', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { name, monthLabel, googleSheetId, tabName, isActive = true, syncEnabled = true } = req.body
     if (!name || !monthLabel || !googleSheetId) {
@@ -1710,7 +1742,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, requireAdmin, async (req
   }
 })
 
-app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { sourceId } = req.params
     const { name, monthLabel, googleSheetId, tabName, isActive, syncEnabled } = req.body
@@ -1733,7 +1765,7 @@ app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requireAdmin, a
   }
 })
 
-app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { sourceId } = req.params
     const stats = await syncSheetSource(sourceId)
@@ -1985,6 +2017,242 @@ app.put('/api/admin/pricing/cities/:id', authenticateToken, requirePermission('p
   } catch (error) {
     console.error('Error updating city pricing:', error)
     res.status(500).json({ error: 'Failed to update city pricing' })
+  }
+})
+
+app.get('/api/admin/pricing/counterparty-rules', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
+  try {
+    const { q = '', active = '' } = req.query
+    const where = {}
+    if (active !== '') where.isActive = String(active) === 'true'
+    if (q) {
+      where.OR = [
+        { counterpartyName: { contains: String(q), mode: 'insensitive' } },
+        { city: { contains: String(q), mode: 'insensitive' } },
+        { routeFrom: { contains: String(q), mode: 'insensitive' } },
+        { routeTo: { contains: String(q), mode: 'insensitive' } }
+      ]
+    }
+    const rows = await prisma.counterpartyPriceRule.findMany({
+      where,
+      include: {
+        customerCompany: { select: { id: true, name: true } }
+      },
+      orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }],
+      take: 300
+    })
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error fetching counterparty pricing rules:', error)
+    res.status(500).json({ error: 'Failed to fetch counterparty rules' })
+  }
+})
+
+app.post('/api/admin/pricing/counterparty-rules', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+  try {
+    const {
+      customerCompanyId,
+      counterpartyName,
+      city,
+      routeFrom,
+      routeTo,
+      vehicleType,
+      sellPrice,
+      markupPercent,
+      minMarginAbs,
+      currency,
+      startsAt,
+      endsAt,
+      notes,
+      isActive
+    } = req.body || {}
+
+    if (!counterpartyName) {
+      return res.status(400).json({ error: 'counterpartyName is required' })
+    }
+
+    const row = await prisma.counterpartyPriceRule.create({
+      data: {
+        customerCompanyId: customerCompanyId || null,
+        counterpartyName: String(counterpartyName).trim(),
+        city: city || null,
+        routeFrom: routeFrom || null,
+        routeTo: routeTo || null,
+        vehicleType: vehicleType || null,
+        sellPrice: sellPrice === null || sellPrice === undefined || sellPrice === '' ? null : parseFloat(sellPrice),
+        markupPercent: markupPercent === null || markupPercent === undefined || markupPercent === '' ? null : parseFloat(markupPercent),
+        minMarginAbs: minMarginAbs === null || minMarginAbs === undefined || minMarginAbs === '' ? null : parseFloat(minMarginAbs),
+        currency: currency || 'EUR',
+        startsAt: startsAt ? new Date(startsAt) : null,
+        endsAt: endsAt ? new Date(endsAt) : null,
+        notes: notes || null,
+        isActive: isActive === undefined ? true : !!isActive
+      }
+    })
+    res.json(row)
+  } catch (error) {
+    console.error('Error creating counterparty pricing rule:', error)
+    res.status(500).json({ error: 'Failed to create counterparty rule' })
+  }
+})
+
+app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+  try {
+    const data = {}
+    const nullableFields = ['customerCompanyId', 'city', 'routeFrom', 'routeTo', 'vehicleType', 'notes']
+    for (const f of nullableFields) {
+      if (req.body[f] !== undefined) data[f] = req.body[f] || null
+    }
+    if (req.body.counterpartyName !== undefined) data.counterpartyName = String(req.body.counterpartyName || '').trim()
+    if (req.body.currency !== undefined) data.currency = String(req.body.currency || '').trim() || 'EUR'
+    if (req.body.sellPrice !== undefined) data.sellPrice = req.body.sellPrice === null || req.body.sellPrice === '' ? null : parseFloat(req.body.sellPrice)
+    if (req.body.markupPercent !== undefined) data.markupPercent = req.body.markupPercent === null || req.body.markupPercent === '' ? null : parseFloat(req.body.markupPercent)
+    if (req.body.minMarginAbs !== undefined) data.minMarginAbs = req.body.minMarginAbs === null || req.body.minMarginAbs === '' ? null : parseFloat(req.body.minMarginAbs)
+    if (req.body.startsAt !== undefined) data.startsAt = req.body.startsAt ? new Date(req.body.startsAt) : null
+    if (req.body.endsAt !== undefined) data.endsAt = req.body.endsAt ? new Date(req.body.endsAt) : null
+    if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
+
+    const row = await prisma.counterpartyPriceRule.update({
+      where: { id: req.params.id },
+      data
+    })
+    res.json(row)
+  } catch (error) {
+    console.error('Error updating counterparty pricing rule:', error)
+    res.status(500).json({ error: 'Failed to update counterparty rule' })
+  }
+})
+
+async function recalculatePriceConflicts() {
+  const orders = await prisma.order.findMany({
+    where: {
+      driverPrice: { not: null },
+      clientPrice: { gt: 0 },
+      status: { in: ['assigned', 'accepted', 'completed'] }
+    },
+    select: {
+      id: true,
+      clientPrice: true,
+      driverPrice: true,
+      fromPoint: true,
+      toPoint: true,
+      status: true,
+      updatedAt: true
+    },
+    take: 5000
+  })
+
+  const seenConflictKeys = new Set()
+  let createdOrUpdated = 0
+
+  for (const order of orders) {
+    const sellPrice = Number(order.clientPrice || 0)
+    const driverCost = Number(order.driverPrice || 0)
+    const marginAbs = sellPrice - driverCost
+    const marginPct = sellPrice > 0 ? (marginAbs / sellPrice) * 100 : 0
+
+    let issueType = null
+    let severity = null
+    if (driverCost > sellPrice) {
+      issueType = 'driver_gt_sell'
+      severity = 'critical'
+    } else if (marginPct < 10) {
+      issueType = 'low_margin'
+      severity = 'warning'
+    }
+
+    if (!issueType) {
+      continue
+    }
+
+    const key = `${order.id}:${issueType}`
+    seenConflictKeys.add(key)
+
+    await prisma.priceConflict.upsert({
+      where: { orderId_issueType: { orderId: order.id, issueType } },
+      update: {
+        severity,
+        status: 'open',
+        sellPrice,
+        driverCost,
+        marginAbs,
+        marginPct,
+        details: `${order.fromPoint} -> ${order.toPoint}`
+      },
+      create: {
+        orderId: order.id,
+        issueType,
+        severity,
+        status: 'open',
+        sellPrice,
+        driverCost,
+        marginAbs,
+        marginPct,
+        details: `${order.fromPoint} -> ${order.toPoint}`
+      }
+    })
+    createdOrUpdated++
+  }
+
+  const openRows = await prisma.priceConflict.findMany({
+    where: { status: 'open' },
+    select: { id: true, orderId: true, issueType: true }
+  })
+  for (const row of openRows) {
+    const key = `${row.orderId}:${row.issueType}`
+    if (!seenConflictKeys.has(key)) {
+      await prisma.priceConflict.update({
+        where: { id: row.id },
+        data: {
+          status: 'resolved',
+          resolvedAt: new Date()
+        }
+      })
+    }
+  }
+
+  return { processedOrders: orders.length, createdOrUpdated }
+}
+
+app.post('/api/admin/pricing/conflicts/recalculate', authenticateToken, requirePermission('pricing.manage'), async (req, res) => {
+  try {
+    const stats = await recalculatePriceConflicts()
+    res.json({ ok: true, stats })
+  } catch (error) {
+    console.error('Error recalculating price conflicts:', error)
+    res.status(500).json({ error: 'Failed to recalculate conflicts' })
+  }
+})
+
+app.get('/api/admin/pricing/conflicts', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
+  try {
+    const { status = 'open', severity = '', limit = '200' } = req.query
+    const take = Math.min(parseInt(limit, 10) || 200, 500)
+    const where = {}
+    if (status) where.status = String(status)
+    if (severity) where.severity = String(severity)
+    const rows = await prisma.priceConflict.findMany({
+      where,
+      include: {
+        order: {
+          select: {
+            id: true,
+            source: true,
+            fromPoint: true,
+            toPoint: true,
+            status: true,
+            pickupAt: true,
+            driverId: true
+          }
+        }
+      },
+      orderBy: [{ severity: 'asc' }, { updatedAt: 'desc' }],
+      take
+    })
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error fetching price conflicts:', error)
+    res.status(500).json({ error: 'Failed to fetch price conflicts' })
   }
 })
 
@@ -2393,6 +2661,68 @@ app.post('/api/admin/telegram-links', authenticateToken, requirePermission('tele
   } catch (error) {
     console.error('Error creating telegram link:', error)
     res.status(500).json({ error: 'Failed to create telegram link' })
+  }
+})
+
+app.get('/api/admin/telegram-links', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+  try {
+    const rows = await prisma.telegramLink.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500
+    })
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error fetching telegram links:', error)
+    res.status(500).json({ error: 'Failed to fetch telegram links' })
+  }
+})
+
+app.get('/api/admin/staff-users', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        role: { not: 'driver' }
+      },
+      include: {
+        roleLinks: {
+          include: {
+            role: {
+              select: { code: true, name: true }
+            }
+          }
+        },
+        telegramLinks: {
+          select: {
+            telegramUserId: true,
+            telegramChatId: true
+          }
+        }
+      },
+      orderBy: { email: 'asc' },
+      take: 500
+    })
+
+    const rows = users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      roles: u.roleLinks.map((x) => x.role.code),
+      telegramLinks: u.telegramLinks
+    }))
+
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error fetching staff users:', error)
+    res.status(500).json({ error: 'Failed to fetch staff users' })
   }
 })
 
