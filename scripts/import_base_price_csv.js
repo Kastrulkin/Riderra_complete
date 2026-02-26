@@ -54,9 +54,9 @@ async function main () {
       routeFrom: from,
       routeTo: to,
       vehicleType,
-      passengers: pax,
       fixedPrice: price,
       currency,
+      notes: pax ? `pax:${pax}` : null,
       source: 'base_price_xlsx',
       isActive: true
     })
