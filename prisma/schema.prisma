@@ -22,6 +22,15 @@ model Tenant {
   orderStatusEvents OrderStatusHistory[]
   pricingRows       CityPricing[]
   counterpartyRules CounterpartyPriceRule[]
+  customerCompanies CustomerCompany[]
+  customerContacts  CustomerContact[]
+  crmCompanies      CrmCompany[]
+  crmContacts       CrmContact[]
+  opsEventDrafts    OpsEventDraft[]
+  opsEvents         OpsEvent[]
+  driverBlocks      DriverUnavailability[]
+  opsTasks          OpsTask[]
+  telegramLinks     TelegramLink[]
 }
 
 model TenantMembership {
@@ -279,6 +288,7 @@ model OrderSourceSnapshot {
 
 model CrmCompany {
   id              String              @id @default(cuid())
+  tenantId        String?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   sourceSystem    String              @default("planfix")
@@ -296,12 +306,15 @@ model CrmCompany {
   extraInfo       String?
   links           CrmCompanyContact[]
   segments        CrmCompanySegment[]
+  tenant          Tenant?             @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])
+  @@index([tenantId, updatedAt])
 }
 
 model CrmContact {
   id              String              @id @default(cuid())
+  tenantId        String?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   sourceSystem    String              @default("planfix")
@@ -318,8 +331,10 @@ model CrmContact {
   ownerName       String?
   links           CrmCompanyContact[]
   segments        CrmContactSegment[]
+  tenant          Tenant?             @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])
+  @@index([tenantId, updatedAt])
 }
 
 model CrmCompanyContact {
@@ -360,6 +375,7 @@ model CrmContactSegment {
 
 model CustomerCompany {
   id                  String                   @id @default(cuid())
+  tenantId            String?
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   sourceSystem        String                   @default("planfix")
@@ -383,13 +399,16 @@ model CustomerCompany {
   links               CustomerCompanyContact[]
   segments            CustomerCompanySegment[]
   pricingRules        CounterpartyPriceRule[]
+  tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])
   @@index([name])
+  @@index([tenantId, updatedAt])
 }
 
 model CustomerContact {
   id                  String                   @id @default(cuid())
+  tenantId            String?
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   sourceSystem        String                   @default("planfix")
@@ -411,10 +430,12 @@ model CustomerContact {
   ownerName           String?
   links               CustomerCompanyContact[]
   segments            CustomerContactSegment[]
+  tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])
   @@index([fullName])
   @@index([email])
+  @@index([tenantId, updatedAt])
 }
 
 model CustomerCompanyContact {
@@ -590,6 +611,7 @@ model AuditLog {
 
 model OpsEventDraft {
   id                       String    @id @default(cuid())
+  tenantId                 String?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   chatId                   String
@@ -604,19 +626,27 @@ model OpsEventDraft {
   reviewComment            String?
   promotedEventId          String?
   promotedUnavailabilityId String?
+  tenant                   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, createdAt])
 }
 
 model OpsEvent {
   id            String   @id @default(cuid())
+  tenantId      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   type          String
   payloadJson   String
   sourceDraftId String?  @unique
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
 }
 
 model DriverUnavailability {
   id            String   @id @default(cuid())
+  tenantId      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   driverId      String?
@@ -627,12 +657,15 @@ model DriverUnavailability {
   reason        String?
   status        String   @default("active") // active, cancelled
   sourceDraftId String?  @unique
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, status, startAt, endAt])
   @@index([driverId, startAt, endAt])
 }
 
 model OpsTask {
   id             String    @id @default(cuid())
+  tenantId       String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   title          String
@@ -646,7 +679,9 @@ model OpsTask {
   assignedUserId String?
   assignedUser   User?     @relation("OpsTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
   payloadJson    String?
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, status, dueAt])
   @@index([status, dueAt])
   @@index([assignedUserId, status])
 }
@@ -694,12 +729,15 @@ model UserRole {
 
 model TelegramLink {
   id             String   @id @default(cuid())
+  tenantId       String?
   createdAt      DateTime @default(now())
   userId         String
   telegramUserId String   @unique
   telegramChatId String?
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([userId, telegramUserId])
+  @@index([tenantId, userId])
   @@index([userId])
 }

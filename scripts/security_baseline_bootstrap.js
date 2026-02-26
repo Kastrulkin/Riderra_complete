@@ -35,6 +35,15 @@ async function main() {
   await prisma.sheetSource.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.orderSourceSnapshot.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.priceConflict.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.crmCompany.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.crmContact.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.customerCompany.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.customerContact.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.opsEventDraft.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.opsEvent.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.driverUnavailability.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.opsTask.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.telegramLink.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
 
   const [tenants, memberships] = await Promise.all([
     prisma.tenant.count(),

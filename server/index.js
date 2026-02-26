@@ -1085,7 +1085,7 @@ async function syncSheetSource(sheetSourceId) {
   return stats
 }
 
-async function promoteStagingToCustomerCrm() {
+async function promoteStagingToCustomerCrm(tenantId) {
   const stats = {
     companies: { upserted: 0 },
     contacts: { upserted: 0 },
@@ -1094,15 +1094,22 @@ async function promoteStagingToCustomerCrm() {
     links: { upserted: 0 }
   }
 
-  const stagingCompanies = await prisma.crmCompany.findMany()
-  const stagingContacts = await prisma.crmContact.findMany()
+  const stagingCompanies = await prisma.crmCompany.findMany({
+    where: tenantId ? { tenantId } : undefined
+  })
+  const stagingContacts = await prisma.crmContact.findMany({
+    where: tenantId ? { tenantId } : undefined
+  })
   const stagingCompanySegments = await prisma.crmCompanySegment.findMany({
+    where: tenantId ? { company: { tenantId } } : undefined,
     include: { company: true }
   })
   const stagingContactSegments = await prisma.crmContactSegment.findMany({
+    where: tenantId ? { contact: { tenantId } } : undefined,
     include: { contact: true }
   })
   const stagingLinks = await prisma.crmCompanyContact.findMany({
+    where: tenantId ? { company: { tenantId }, contact: { tenantId } } : undefined,
     include: { company: true, contact: true }
   })
 
@@ -1130,6 +1137,7 @@ async function promoteStagingToCustomerCrm() {
         extraInfo: row.extraInfo
       },
       create: {
+        tenantId: tenantId || row.tenantId || null,
         sourceSystem: row.sourceSystem,
         externalId: row.externalId,
         name: row.name,
@@ -1173,6 +1181,7 @@ async function promoteStagingToCustomerCrm() {
         ownerName: row.ownerName
       },
       create: {
+        tenantId: tenantId || row.tenantId || null,
         sourceSystem: row.sourceSystem,
         externalId: row.externalId,
         fullName: row.fullName,
@@ -1193,9 +1202,11 @@ async function promoteStagingToCustomerCrm() {
   }
 
   const customerCompanies = await prisma.customerCompany.findMany({
+    where: tenantId ? { tenantId } : undefined,
     select: { id: true, sourceSystem: true, externalId: true }
   })
   const customerContacts = await prisma.customerContact.findMany({
+    where: tenantId ? { tenantId } : undefined,
     select: { id: true, sourceSystem: true, externalId: true }
   })
 
@@ -2817,7 +2828,7 @@ app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveAc
 // ==================== CRM (PRODUCTION) ====================
 app.post('/api/admin/crm/promote-from-staging', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
   try {
-    const stats = await promoteStagingToCustomerCrm()
+    const stats = await promoteStagingToCustomerCrm(req.actorContext.tenantId)
     res.json({ success: true, stats })
   } catch (error) {
     console.error('Error promoting staging CRM:', error)
@@ -2831,7 +2842,7 @@ app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requ
     const take = Math.min(parseInt(limit, 10) || 100, 500)
     const skip = Math.max(parseInt(offset, 10) || 0, 0)
 
-    const where = {}
+    const where = { tenantId: req.actorContext.tenantId }
     if (q) {
       where.OR = [
         { name: { contains: String(q), mode: 'insensitive' } },
@@ -2869,8 +2880,8 @@ app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requ
 app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const { companyId } = req.params
-    const company = await prisma.customerCompany.findUnique({
-      where: { id: companyId },
+    const company = await prisma.customerCompany.findFirst({
+      where: { id: companyId, tenantId: req.actorContext.tenantId },
       include: {
         segments: true,
         links: {
@@ -2897,7 +2908,7 @@ app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requi
     const take = Math.min(parseInt(limit, 10) || 100, 500)
     const skip = Math.max(parseInt(offset, 10) || 0, 0)
 
-    const where = {}
+    const where = { tenantId: req.actorContext.tenantId }
     if (q) {
       where.OR = [
         { fullName: { contains: String(q), mode: 'insensitive' } },
@@ -2935,8 +2946,8 @@ app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requi
 app.get('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const { contactId } = req.params
-    const contact = await prisma.customerContact.findUnique({
-      where: { id: contactId },
+    const contact = await prisma.customerContact.findFirst({
+      where: { id: contactId, tenantId: req.actorContext.tenantId },
       include: {
         segments: true,
         links: {
@@ -2959,6 +2970,11 @@ app.get('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorCon
 app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
   try {
     const { companyId } = req.params
+    const existingCompany = await prisma.customerCompany.findFirst({
+      where: { id: companyId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existingCompany) return res.status(404).json({ error: 'Company not found' })
     const data = {}
     const fields = [
       'name', 'website', 'phone', 'email', 'telegramUrl',
@@ -3010,6 +3026,11 @@ app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorCo
 app.put('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
   try {
     const { contactId } = req.params
+    const existingContact = await prisma.customerContact.findFirst({
+      where: { id: contactId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existingContact) return res.status(404).json({ error: 'Contact not found' })
     const data = {}
     const fields = [
       'fullName', 'website', 'phone', 'email', 'telegramUrl',
@@ -3108,6 +3129,7 @@ function inferCountryFromCity(rawCity) {
 app.get('/api/admin/crm/directions-matrix', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const companies = await prisma.customerCompany.findMany({
+      where: { tenantId: req.actorContext.tenantId },
       include: { segments: true },
       take: 10000
     })
@@ -3708,7 +3730,7 @@ function isImportantMessage(text) {
   return t.includes('#важно') || t.startsWith('важно:') || t.includes('в отпуске') || t.includes('недоступен')
 }
 
-async function saveOpsDraftFromTelegram({ chatId, telegramUserId, text, authorName, messageDate }) {
+async function saveOpsDraftFromTelegram({ tenantId, chatId, telegramUserId, text, authorName, messageDate }) {
   const parsed = await detectDriverUnavailabilityFromText(text)
   const parsedType = parsed ? 'driver_unavailable' : 'generic_important'
   const payloadBase = {
@@ -3722,6 +3744,7 @@ async function saveOpsDraftFromTelegram({ chatId, telegramUserId, text, authorNa
 
   const draft = await prisma.opsEventDraft.create({
     data: {
+      tenantId: tenantId || null,
       chatId: String(chatId),
       telegramUserId: String(telegramUserId),
       messageText: String(text || ''),
@@ -3765,6 +3788,7 @@ function localDateShort(value) {
 }
 
 async function createOpsTask({
+  tenantId = null,
   userId,
   title,
   details = null,
@@ -3777,6 +3801,7 @@ async function createOpsTask({
 }) {
   return prisma.opsTask.create({
     data: {
+      tenantId,
       assignedUserId: userId,
       title,
       details,
@@ -3790,9 +3815,10 @@ async function createOpsTask({
   })
 }
 
-async function getOpenOpsTasksForUser(userId, limit = 10) {
+async function getOpenOpsTasksForUser(userId, tenantId = null, limit = 10) {
   return prisma.opsTask.findMany({
     where: {
+      ...(tenantId ? { tenantId } : {}),
       assignedUserId: userId,
       status: { in: ['open', 'in_progress'] }
     },
@@ -3812,9 +3838,10 @@ function formatOpsTasks(tasks) {
   )).join('\n\n')
 }
 
-async function buildLosAngelesFinanceSummary() {
+async function buildLosAngelesFinanceSummary(tenantId = null) {
   const rows = await prisma.order.findMany({
     where: {
+      ...(tenantId ? { tenantId } : {}),
       OR: [
         { fromPoint: { contains: 'Los Angeles', mode: 'insensitive' } },
         { toPoint: { contains: 'Los Angeles', mode: 'insensitive' } }
@@ -3846,10 +3873,11 @@ async function buildLosAngelesFinanceSummary() {
   }
 }
 
-async function findAvailabilityConflicts(unavailability) {
+async function findAvailabilityConflicts(unavailability, tenantId = null) {
   if (!unavailability.driverId) return []
   return prisma.order.findMany({
     where: {
+      ...(tenantId ? { tenantId } : {}),
       driverId: unavailability.driverId,
       pickupAt: {
         gte: unavailability.startAt,
@@ -3874,7 +3902,10 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
     const { status = 'pending', limit = '100' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 300)
     const rows = await prisma.opsEventDraft.findMany({
-      where: status ? { status: String(status) } : undefined,
+      where: {
+        tenantId: req.actorContext.tenantId,
+        ...(status ? { status: String(status) } : {})
+      },
       orderBy: { createdAt: 'desc' },
       take
     })
@@ -3889,8 +3920,13 @@ app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActo
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
+    const existing = await prisma.opsEventDraft.findFirst({
+      where: { id: draftId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Draft not found' })
     const draft = await prisma.opsEventDraft.update({
-      where: { id: draftId },
+      where: { id: existing.id },
       data: {
         status: 'rejected',
         reviewerUserId: req.user.id,
@@ -3910,13 +3946,16 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
-    const draft = await prisma.opsEventDraft.findUnique({ where: { id: draftId } })
+    const draft = await prisma.opsEventDraft.findFirst({
+      where: { id: draftId, tenantId: req.actorContext.tenantId }
+    })
     if (!draft) return res.status(404).json({ error: 'Draft not found' })
     if (draft.status !== 'pending') return res.status(400).json({ error: 'Draft is not pending' })
 
     const payload = JSON.parse(draft.payloadJson || '{}')
     const event = await prisma.opsEvent.create({
       data: {
+        tenantId: req.actorContext.tenantId,
         type: draft.parsedType,
         payloadJson: draft.payloadJson,
         sourceDraftId: draft.id
@@ -3936,6 +3975,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
 
       unavailability = await prisma.driverUnavailability.create({
         data: {
+          tenantId: req.actorContext.tenantId,
           driverId: driver?.id || null,
           driverNameRaw: name || 'unknown',
           startAt: new Date(payload.startAt),
@@ -3944,7 +3984,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
           sourceDraftId: draft.id
         }
       })
-      conflicts = await findAvailabilityConflicts(unavailability)
+      conflicts = await findAvailabilityConflicts(unavailability, req.actorContext.tenantId)
     }
 
     const updatedDraft = await prisma.opsEventDraft.update({
@@ -3976,7 +4016,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
 app.get('/api/admin/ops/unavailability', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
   try {
     const rows = await prisma.driverUnavailability.findMany({
-      where: { status: 'active' },
+      where: { tenantId: req.actorContext.tenantId, status: 'active' },
       include: { driver: { select: { id: true, name: true, email: true } } },
       orderBy: { startAt: 'asc' }
     })
@@ -3989,11 +4029,11 @@ app.get('/api/admin/ops/unavailability', authenticateToken, resolveActorContext,
 
 app.get('/api/admin/ops/unavailability/:id/conflicts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
   try {
-    const row = await prisma.driverUnavailability.findUnique({
-      where: { id: req.params.id }
+    const row = await prisma.driverUnavailability.findFirst({
+      where: { id: req.params.id, tenantId: req.actorContext.tenantId }
     })
     if (!row) return res.status(404).json({ error: 'Unavailability not found' })
-    const conflicts = await findAvailabilityConflicts(row)
+    const conflicts = await findAvailabilityConflicts(row, req.actorContext.tenantId)
     res.json({ conflicts })
   } catch (error) {
     console.error('Error fetching availability conflicts:', error)
@@ -4077,9 +4117,11 @@ app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, re
       where: { telegramUserId: String(telegramUserId) },
       update: {
         userId: user.id,
+        tenantId: req.actorContext.tenantId,
         telegramChatId: telegramChatId ? String(telegramChatId) : null
       },
       create: {
+        tenantId: req.actorContext.tenantId,
         userId: user.id,
         telegramUserId: String(telegramUserId),
         telegramChatId: telegramChatId ? String(telegramChatId) : null
@@ -4096,6 +4138,7 @@ app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, re
 app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
   try {
     const rows = await prisma.telegramLink.findMany({
+      where: { tenantId: req.actorContext.tenantId },
       include: {
         user: {
           select: {
@@ -4119,7 +4162,13 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
   try {
     const users = await prisma.user.findMany({
       where: {
-        role: { not: 'driver' }
+        role: { not: 'driver' },
+        memberships: {
+          some: {
+            tenantId: req.actorContext.tenantId,
+            isActive: true
+          }
+        }
       },
       include: {
         roleLinks: {
@@ -4130,6 +4179,7 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
           }
         },
         telegramLinks: {
+          where: { tenantId: req.actorContext.tenantId },
           select: {
             telegramUserId: true,
             telegramChatId: true
@@ -4172,6 +4222,8 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const telegramUserId = String(message.from?.id || '')
     const telegramChatId = String(message.chat?.id || '')
     if (!telegramUserId || !telegramChatId) return res.json({ ok: true })
+    const defaultTenant = await getDefaultTenant()
+    const tenantId = defaultTenant.id
     const text = String(message.text || '').trim()
     const chatType = String(message.chat?.type || '')
     const isGroupChat = chatType === 'group' || chatType === 'supergroup'
@@ -4201,6 +4253,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
         ].filter(Boolean).join(' ') || String(message.from?.username || '').trim() || telegramUserId
         const messageDate = message.date ? new Date(Number(message.date) * 1000).toISOString() : null
         const draft = await saveOpsDraftFromTelegram({
+          tenantId,
           chatId: telegramChatId,
           telegramUserId,
           text,
@@ -4233,6 +4286,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
         const rows = await prisma.cityPricing.findMany({
           where: {
+            tenantId,
             isActive: true,
             city: { contains: city, mode: 'insensitive' }
           },
@@ -4283,6 +4337,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       await telegramSendMessage(telegramChatId, 'Этот Telegram аккаунт не привязан к Riderra. Обратитесь к администратору.')
       return res.json({ ok: true })
     }
+    const linkTenantId = link.tenantId || tenantId
 
     const acl = await getUserRolesAndPermissions(link.userId)
     const canReadCrm = acl.permissions.includes('crm.read') || acl.permissions.includes('*') || link.user.role === 'admin'
@@ -4308,7 +4363,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       const lowerText = text.toLowerCase()
 
       if (text.startsWith('/tasks')) {
-        const tasks = await getOpenOpsTasksForUser(link.userId)
+        const tasks = await getOpenOpsTasksForUser(link.userId, linkTenantId)
         await telegramSendMessage(
           telegramChatId,
           buildCopilotMessage([
@@ -4327,7 +4382,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
           return res.json({ ok: true })
         }
         const task = await prisma.opsTask.findFirst({
-          where: { id: taskId, assignedUserId: link.userId }
+          where: { id: taskId, assignedUserId: link.userId, tenantId: linkTenantId }
         })
         if (!task) {
           await telegramSendMessage(telegramChatId, buildCopilotMessage([`Задача ${taskId} не найдена у вас.`]))
@@ -4356,7 +4411,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
           )
           return res.json({ ok: true })
         }
-        const report = await buildLosAngelesFinanceSummary()
+        const report = await buildLosAngelesFinanceSummary(linkTenantId)
         await telegramSendMessage(
           telegramChatId,
           buildCopilotMessage([
@@ -4381,6 +4436,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
         const order = await prisma.order.findFirst({
           where: {
+            tenantId: linkTenantId,
             driverId: null,
             pickupAt: { gte: tomorrowStart, lte: tomorrowEnd },
             OR: [
@@ -4392,6 +4448,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
         })
 
         const task = await createOpsTask({
+          tenantId: linkTenantId,
           userId: link.userId,
           type: 'assign_driver',
           priority: 'high',
@@ -4415,7 +4472,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
       if ((lowerText.includes('новый заказ') && lowerText.includes('показать детали')) || text.startsWith('/new-order-check')) {
         const order = await prisma.order.findFirst({
-          where: { status: { in: ['pending', 'assigned', 'accepted'] } },
+          where: { tenantId: linkTenantId, status: { in: ['pending', 'assigned', 'accepted'] } },
           orderBy: { createdAt: 'desc' }
         })
 
@@ -4447,6 +4504,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
       if ((lowerText.includes('отправили заказ') && lowerText.includes('не назначили') && lowerText.includes('easytaxi')) || text.startsWith('/easytaxi-reminder')) {
         const task = await createOpsTask({
+          tenantId: linkTenantId,
           userId: link.userId,
           type: 'easytaxi_sync',
           priority: 'high',
@@ -4480,6 +4538,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       }
       const rows = await prisma.customerCompany.findMany({
         where: {
+          tenantId: linkTenantId,
           OR: [
             { name: { contains: query, mode: 'insensitive' } },
             { email: { contains: query, mode: 'insensitive' } },
@@ -4501,6 +4560,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       }
       const rows = await prisma.customerContact.findMany({
         where: {
+          tenantId: linkTenantId,
           OR: [
             { fullName: { contains: query, mode: 'insensitive' } },
             { email: { contains: query, mode: 'insensitive' } },

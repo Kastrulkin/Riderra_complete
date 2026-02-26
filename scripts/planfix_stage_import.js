@@ -122,6 +122,12 @@ function csvRows(filePath) {
 }
 
 async function main() {
+  const tenantCode = process.env.TENANT_CODE || 'riderra'
+  const tenant = await prisma.tenant.findUnique({ where: { code: tenantCode } })
+  if (!tenant) {
+    throw new Error(`Tenant not found: ${tenantCode}. Run security_baseline_bootstrap.js first.`)
+  }
+
   const report = {
     imported: {},
     segments: {},
@@ -146,6 +152,7 @@ async function main() {
 
     await prisma.crmCompany.create({
       data: {
+        tenantId: tenant.id,
         sourceSystem: 'planfix',
         externalId,
         name,
@@ -170,6 +177,7 @@ async function main() {
 
     await prisma.crmContact.create({
       data: {
+        tenantId: tenant.id,
         sourceSystem: 'planfix',
         externalId,
         fullName,

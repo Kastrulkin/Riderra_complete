@@ -5,10 +5,13 @@ async function main() {
   const tenant = await prisma.tenant.findUnique({ where: { code: 'riderra' } })
   if (!tenant) throw new Error('tenant:riderra missing')
 
-  const [membershipCount, ordersNullTenant, pricingNullTenant, idemUniqueCheck] = await Promise.all([
+  const [membershipCount, ordersNullTenant, pricingNullTenant, companiesNullTenant, contactsNullTenant, opsDraftsNullTenant, idemUniqueCheck] = await Promise.all([
     prisma.tenantMembership.count({ where: { tenantId: tenant.id, isActive: true } }),
     prisma.order.count({ where: { tenantId: null } }),
     prisma.cityPricing.count({ where: { tenantId: null } }),
+    prisma.customerCompany.count({ where: { tenantId: null } }),
+    prisma.customerContact.count({ where: { tenantId: null } }),
+    prisma.opsEventDraft.count({ where: { tenantId: null } }),
     prisma.idempotencyKey.count()
   ])
 
@@ -44,6 +47,9 @@ async function main() {
     membershipCount,
     ordersNullTenant,
     pricingNullTenant,
+    companiesNullTenant,
+    contactsNullTenant,
+    opsDraftsNullTenant,
     idempotencyRows: idemUniqueCheck
   }))
 }
