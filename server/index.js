@@ -247,6 +247,77 @@ function requireAnyPermission(permissionCodes) {
   }
 }
 
+function normalizeOrderStatus(status) {
+  return String(status || '').trim().toLowerCase()
+}
+
+const ORDER_STATUS_TRANSITIONS = {
+  draft: ['waiting_info', 'validated', 'pending_dispatch', 'cancelled'],
+  waiting_info: ['validated', 'cancelled'],
+  validated: ['pending_dispatch', 'cancelled'],
+  pending_dispatch: ['assigned', 'dispatch_risk', 'cancelled'],
+  dispatch_risk: ['pending_dispatch', 'assigned', 'cancelled'],
+  assigned: ['assigned', 'accepted', 'pending_ops_control', 'cancelled'],
+  accepted: ['pending_ops_control', 'in_progress', 'completed', 'cancelled'],
+  pending_ops_control: ['confirmed', 'cancelled'],
+  confirmed: ['in_progress', 'incident_open', 'ready_finance', 'cancelled'],
+  in_progress: ['incident_open', 'completed', 'ready_finance', 'cancelled'],
+  incident_open: ['incident_reported', 'ready_finance', 'cancelled'],
+  incident_reported: ['ready_finance', 'cancelled'],
+  completed: ['ready_finance', 'cancelled'],
+  ready_finance: ['finance_hold', 'paid', 'cancelled'],
+  finance_hold: ['ready_finance', 'paid', 'cancelled'],
+  paid: ['closed'],
+  closed: [],
+  pending: ['assigned', 'pending_ops_control', 'cancelled'],
+  cancelled: []
+}
+
+function canTransitionByPermissions(perms, fromStatus, toStatus) {
+  const from = normalizeOrderStatus(fromStatus)
+  const to = normalizeOrderStatus(toStatus)
+  const allowedTargets = ORDER_STATUS_TRANSITIONS[from] || []
+  if (!allowedTargets.includes(to)) return false
+  if (perms.includes('*') || perms.includes('approvals.resolve')) return true
+
+  const has = (code) => perms.includes(code)
+  const byDomain = {
+    'orders.create_draft': [['new', 'draft']],
+    'orders.validate': [['draft', 'waiting_info'], ['draft', 'validated'], ['waiting_info', 'validated'], ['validated', 'pending_dispatch']],
+    'orders.assign': [['pending', 'assigned'], ['pending_dispatch', 'assigned'], ['dispatch_risk', 'assigned']],
+    'orders.reassign': [['assigned', 'assigned']],
+    'orders.confirmation.manage': [
+      ['assigned', 'pending_ops_control'],
+      ['accepted', 'pending_ops_control'],
+      ['pending_ops_control', 'confirmed'],
+      ['confirmed', 'in_progress'],
+      ['in_progress', 'completed'],
+      ['confirmed', 'ready_finance'],
+      ['completed', 'ready_finance']
+    ],
+    'incidents.manage': [
+      ['confirmed', 'incident_open'],
+      ['in_progress', 'incident_open'],
+      ['incident_open', 'incident_reported'],
+      ['incident_reported', 'ready_finance']
+    ],
+    'claims.compose': [['incident_open', 'incident_reported']],
+    'reconciliation.run': [['ready_finance', 'finance_hold'], ['finance_hold', 'ready_finance']],
+    'payouts.manage': [['ready_finance', 'paid'], ['finance_hold', 'paid'], ['paid', 'closed']]
+  }
+
+  for (const [permCode, pairs] of Object.entries(byDomain)) {
+    if (!has(permCode)) continue
+    if (pairs.some(([a, b]) => a === from && b === to)) return true
+  }
+
+  if (to === 'cancelled' && (has('orders.assign') || has('orders.reassign') || has('orders.confirmation.manage') || has('incidents.manage'))) {
+    return true
+  }
+
+  return false
+}
+
 function normalizeHeader(value) {
   return String(value || '')
     .trim()
@@ -1208,6 +1279,59 @@ app.get('/api/admin/orders', authenticateToken, requirePermission('orders.read')
     res.status(500).json({ error: 'failed' })
   }
 })
+
+app.put(
+  '/api/admin/orders/:orderId/status',
+  authenticateToken,
+  requireAnyPermission([
+    'orders.validate',
+    'orders.assign',
+    'orders.reassign',
+    'orders.confirmation.manage',
+    'incidents.manage',
+    'claims.compose',
+    'reconciliation.run',
+    'payouts.manage',
+    'approvals.resolve'
+  ]),
+  async (req, res) => {
+    try {
+      const { orderId } = req.params
+      const { toStatus, reason } = req.body || {}
+      const targetStatus = normalizeOrderStatus(toStatus)
+      if (!targetStatus) return res.status(400).json({ error: 'toStatus is required' })
+
+      const order = await prisma.order.findUnique({ where: { id: orderId } })
+      if (!order) return res.status(404).json({ error: 'Order not found' })
+
+      const currentStatus = normalizeOrderStatus(order.status)
+      const perms = req.userPermissions || []
+      if (!canTransitionByPermissions(perms, currentStatus, targetStatus)) {
+        return res.status(403).json({
+          error: `Transition denied: ${currentStatus} -> ${targetStatus}`,
+          currentStatus,
+          targetStatus
+        })
+      }
+
+      const nextComment = reason
+        ? [order.comment, `[status:${currentStatus}->${targetStatus}] ${reason}`].filter(Boolean).join('\n')
+        : order.comment
+
+      const updated = await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: targetStatus,
+          comment: nextComment
+        }
+      })
+      res.json({ success: true, order: updated })
+    } catch (error) {
+      console.error('Error changing order status:', error)
+      res.status(500).json({ error: 'Failed to change order status' })
+    }
+  }
+)
 
 app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('orders.read'), async (req, res) => {
   try {
