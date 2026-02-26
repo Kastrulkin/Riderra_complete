@@ -237,20 +237,11 @@ function can(actor, action, resource, context = {}) {
     return false
   }
 
-  if (action === 'orders.transition') {
-    return canTransitionByPermissions(
-      permissions,
-      context.fromStatus || '',
-      context.toStatus || ''
-    )
-  }
-
-  if (action === 'orders.read') {
-    return permissions.includes('orders.read')
-  }
-
-  if (action === 'orders.transition.request') {
-    return [
+  const actionPermissionMap = {
+    'drivers.read': ['drivers.read'],
+    'drivers.manage': ['drivers.manage'],
+    'orders.read': ['orders.read'],
+    'orders.transition.request': [
       'orders.validate',
       'orders.assign',
       'orders.reassign',
@@ -260,11 +251,31 @@ function can(actor, action, resource, context = {}) {
       'reconciliation.run',
       'payouts.manage',
       'approvals.resolve'
-    ].some((code) => permissions.includes(code))
+    ],
+    'approvals.resolve': ['approvals.resolve'],
+    'directions.read': ['directions.read', 'directions.manage'],
+    'directions.manage': ['directions.manage'],
+    'settings.manage': ['settings.manage'],
+    'crm.read': ['crm.read'],
+    'crm.manage': ['crm.manage'],
+    'pricing.read': ['pricing.read'],
+    'pricing.manage': ['pricing.manage'],
+    'ops.read': ['ops.read'],
+    'ops.manage': ['ops.manage'],
+    'ops.drafts.resolve': ['ops.manage', 'approvals.resolve'],
+    'telegram.links.manage': ['telegram.link.manage']
   }
 
-  if (action === 'approvals.resolve') {
-    return permissions.includes('approvals.resolve')
+  if (actionPermissionMap[action]) {
+    return actionPermissionMap[action].some((code) => permissions.includes(code))
+  }
+
+  if (action === 'orders.transition') {
+    return canTransitionByPermissions(
+      permissions,
+      context.fromStatus || '',
+      context.toStatus || ''
+    )
   }
 
   return false
@@ -1460,7 +1471,7 @@ app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireAc
   } catch (e) { res.status(500).json({ error: 'failed' }) }
 })
 
-app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireActorContext, requirePermission('drivers.read'), async (req, res) => {
+app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver'), async (req, res) => {
   try {
     const rows = await prisma.driver.findMany({
       where: { tenantId: req.actorContext.tenantId },
@@ -1655,7 +1666,7 @@ app.delete('/api/drivers/routes/:routeId', authenticateToken, resolveActorContex
 })
 
 // API для обновления статуса водителя (для админов)
-app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorContext, requireActorContext, requirePermission('drivers.manage'), async (req, res) => {
+app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver'), async (req, res) => {
   try {
     const { driverId } = req.params
     const { isActive, verificationStatus } = req.body
@@ -1681,7 +1692,7 @@ app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorCo
   }
 })
 
-app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('drivers.manage'), async (req, res) => {
+app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver'), async (req, res) => {
   try {
     const { driverId } = req.params
     const data = {}
@@ -2084,7 +2095,7 @@ app.post(
   }
 )
 
-app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, requireActorContext, requirePermission('orders.read'), async (req, res) => {
+app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const { sourceId = '' } = req.query
     const source = sourceId
@@ -2819,7 +2830,7 @@ app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, resolveActorC
 // ==================== АДМИНСКИЕ API ДЛЯ УПРАВЛЕНИЯ МАРШРУТАМИ ====================
 
 // Получение всех маршрутов (для админа)
-app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
+app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.read', 'direction'), async (req, res) => {
   try {
     const { country, city } = req.query
     
@@ -2844,7 +2855,7 @@ app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requir
 })
 
 // Получение списка стран
-app.get('/api/admin/city-routes/countries', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
+app.get('/api/admin/city-routes/countries', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.read', 'direction'), async (req, res) => {
   try {
     const countries = await prisma.cityRoute.findMany({
       where: { isActive: true, tenantId: req.actorContext.tenantId },
@@ -2861,7 +2872,7 @@ app.get('/api/admin/city-routes/countries', authenticateToken, resolveActorConte
 })
 
 // ==================== GOOGLE SHEETS SOURCES ====================
-app.get('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
+app.get('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const sources = await prisma.sheetSource.findMany({
       where: { tenantId: req.actorContext.tenantId },
@@ -2874,7 +2885,7 @@ app.get('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requ
   }
 })
 
-app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
+app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive = true, syncEnabled = true } = req.body
     const normalizedSheetId = normalizeGoogleSheetId(googleSheetId)
@@ -2902,7 +2913,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, req
   }
 })
 
-app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
+app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const { sourceId } = req.params
     const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive, syncEnabled } = req.body
@@ -2933,7 +2944,7 @@ app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, resolveActorCon
   }
 })
 
-app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
+app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const { sourceId } = req.params
     const existing = await prisma.sheetSource.findFirst({
@@ -2958,7 +2969,7 @@ app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveAc
 })
 
 // ==================== CRM (PRODUCTION) ====================
-app.post('/api/admin/crm/promote-from-staging', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
+app.post('/api/admin/crm/promote-from-staging', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.manage', 'crm'), async (req, res) => {
   try {
     const stats = await promoteStagingToCustomerCrm(req.actorContext.tenantId)
     res.json({ success: true, stats })
@@ -2968,7 +2979,7 @@ app.post('/api/admin/crm/promote-from-staging', authenticateToken, resolveActorC
   }
 })
 
-app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
     const { q = '', segment = '', limit = '100', offset = '0' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
@@ -3009,7 +3020,7 @@ app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requ
   }
 })
 
-app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
     const { companyId } = req.params
     const company = await prisma.customerCompany.findFirst({
@@ -3034,7 +3045,7 @@ app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorCo
   }
 })
 
-app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
     const { q = '', segment = '', limit = '100', offset = '0' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
@@ -3075,7 +3086,7 @@ app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requi
   }
 })
 
-app.get('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
     const { contactId } = req.params
     const contact = await prisma.customerContact.findFirst({
@@ -3099,7 +3110,7 @@ app.get('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorCon
   }
 })
 
-app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
+app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.manage', 'crm'), async (req, res) => {
   try {
     const { companyId } = req.params
     const existingCompany = await prisma.customerCompany.findFirst({
@@ -3155,7 +3166,7 @@ app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorCo
   }
 })
 
-app.put('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
+app.put('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.manage', 'crm'), async (req, res) => {
   try {
     const { contactId } = req.params
     const existingContact = await prisma.customerContact.findFirst({
@@ -3258,7 +3269,7 @@ function inferCountryFromCity(rawCity) {
   return map[city] || ''
 }
 
-app.get('/api/admin/crm/directions-matrix', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/directions-matrix', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
     const companies = await prisma.customerCompany.findMany({
       where: { tenantId: req.actorContext.tenantId },
@@ -3388,7 +3399,7 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, resolveActorConte
 })
 
 // ==================== CITY PRICING ====================
-app.get('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing'), async (req, res) => {
   try {
     const { q = '', limit = '200' } = req.query
     const take = Math.min(parseInt(limit, 10) || 200, 10000)
@@ -3415,7 +3426,7 @@ app.get('/api/admin/pricing/cities', authenticateToken, resolveActorContext, req
   }
 })
 
-app.get('/api/admin/pricing/export-eta-template', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/export-eta-template', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing'), async (req, res) => {
   try {
     const rows = await prisma.cityPricing.findMany({
       where: {
@@ -3456,7 +3467,7 @@ app.get('/api/admin/pricing/export-eta-template', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
+app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
   try {
     const {
       country,
@@ -3513,7 +3524,7 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
   }
 })
 
-app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
+app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
   try {
     const data = {}
     const nullableFields = ['country', 'routeFrom', 'routeTo', 'vehicleType', 'notes', 'source']
@@ -3561,7 +3572,7 @@ app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext,
   }
 })
 
-app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing'), async (req, res) => {
   try {
     const { q = '', active = '' } = req.query
     const where = { tenantId: req.actorContext.tenantId }
@@ -3589,7 +3600,7 @@ app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActor
   }
 })
 
-app.post('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
+app.post('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
   try {
     const {
       customerCompanyId,
@@ -3654,7 +3665,7 @@ app.post('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActo
   }
 })
 
-app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
+app.put('/api/admin/pricing/counterparty-rules/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
   try {
     const data = {}
     const nullableFields = ['customerCompanyId', 'city', 'routeFrom', 'routeTo', 'vehicleType', 'notes']
@@ -3797,7 +3808,7 @@ async function recalculatePriceConflicts(tenantId) {
   return { processedOrders: orders.length, createdOrUpdated }
 }
 
-app.post('/api/admin/pricing/conflicts/recalculate', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.manage'), async (req, res) => {
+app.post('/api/admin/pricing/conflicts/recalculate', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
   try {
     const stats = await recalculatePriceConflicts(req.actorContext.tenantId)
     res.json({ ok: true, stats })
@@ -3807,7 +3818,7 @@ app.post('/api/admin/pricing/conflicts/recalculate', authenticateToken, resolveA
   }
 })
 
-app.get('/api/admin/pricing/conflicts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('pricing.read'), async (req, res) => {
+app.get('/api/admin/pricing/conflicts', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing'), async (req, res) => {
   try {
     const { status = 'open', severity = '', limit = '200' } = req.query
     const take = Math.min(parseInt(limit, 10) || 200, 500)
@@ -4029,7 +4040,7 @@ async function findAvailabilityConflicts(unavailability, tenantId = null) {
   })
 }
 
-app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
+app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
     const { status = 'pending', limit = '100' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 300)
@@ -4048,7 +4059,7 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft'), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -4074,7 +4085,7 @@ app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft'), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -4148,7 +4159,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
   }
 })
 
-app.get('/api/admin/ops/unavailability', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
+app.get('/api/admin/ops/unavailability', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
     const rows = await prisma.driverUnavailability.findMany({
       where: { tenantId: req.actorContext.tenantId, status: 'active' },
@@ -4162,7 +4173,7 @@ app.get('/api/admin/ops/unavailability', authenticateToken, resolveActorContext,
   }
 })
 
-app.get('/api/admin/ops/unavailability/:id/conflicts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
+app.get('/api/admin/ops/unavailability/:id/conflicts', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
     const row = await prisma.driverUnavailability.findFirst({
       where: { id: req.params.id, tenantId: req.actorContext.tenantId }
@@ -4238,7 +4249,7 @@ function formatPricingResult(rows, askChildSeat = false) {
     .join('\n')
 }
 
-app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, requireActorContext, requirePermission('telegram.link.manage'), async (req, res) => {
+app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, requireActorContext, requireCan('telegram.links.manage', 'telegram_link'), async (req, res) => {
   try {
     const { email, telegramUserId, telegramChatId } = req.body
     if (!email || !telegramUserId) {
@@ -4270,7 +4281,7 @@ app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, re
   }
 })
 
-app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
+app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const rows = await prisma.telegramLink.findMany({
       where: { tenantId: req.actorContext.tenantId },
@@ -4293,7 +4304,7 @@ app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, req
   }
 })
 
-app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
+app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       where: {
@@ -4738,7 +4749,7 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
 })
 
 // Получение списка городов по стране
-app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
+app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.read', 'direction'), async (req, res) => {
   try {
     const { country } = req.query
     
@@ -4765,7 +4776,7 @@ app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext,
 })
 
 // Создание нового маршрута
-app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
+app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction'), async (req, res) => {
   try {
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency } = req.body
 
@@ -4792,7 +4803,7 @@ app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requi
 })
 
 // Обновление маршрута
-app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
+app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction'), async (req, res) => {
   try {
     const { routeId } = req.params
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency, isActive } = req.body
@@ -4828,7 +4839,7 @@ app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContex
 })
 
 // Удаление маршрута (мягкое удаление)
-app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
+app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction'), async (req, res) => {
   try {
     const { routeId } = req.params
 
@@ -4851,7 +4862,7 @@ app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorCon
 })
 
 // Массовая загрузка маршрутов из CSV
-app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
+app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorContext, requireActorContext, requireCan('directions.manage', 'direction'), async (req, res) => {
   try {
     const { routes } = req.body // Массив маршрутов из CSV
 
