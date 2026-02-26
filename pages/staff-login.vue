@@ -11,7 +11,7 @@
         <div class="auth-container">
           <div class="auth-card">
             <h1 class="auth-title">{{ t.title }}</h1>
-            <p class="auth-subtitle">{{ t.subtitle }}</p>
+            <p v-if="t.subtitle" class="auth-subtitle">{{ t.subtitle }}</p>
 
             <form @submit.prevent="login" class="auth-form">
               <div class="form-group">
@@ -68,7 +68,7 @@ export default {
       const dict = {
         ru: {
           title: 'Вход для сотрудников Riderra',
-          subtitle: 'Диспетчер, оператор, продажи, аудит, финансы',
+          subtitle: '',
           email: 'Email',
           emailPlaceholder: 'Введите ваш email',
           password: 'Пароль',
@@ -80,7 +80,7 @@ export default {
         },
         en: {
           title: 'Riderra Staff Login',
-          subtitle: 'Dispatcher, operator, sales, audit, finance',
+          subtitle: '',
           email: 'Email',
           emailPlaceholder: 'Enter your email',
           password: 'Password',
