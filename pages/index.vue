@@ -64,6 +64,10 @@ export default {
   beforeMount(){
   },
   mounted(){
+    if (typeof window !== 'undefined' && window.location && window.location.hostname === 'u3211.riderra.com') {
+      this.$router.replace('/staff-login')
+      return
+    }
     if (typeof window !== 'undefined' && window.iFrameResize) {
       window.iFrameResize({ log: false, targetOrigin: '*', checkOrigin: false }, 'iframe#eto-iframe-booking');
     }
@@ -142,4 +146,3 @@ export default {
     }
   }
 </style>
-
