@@ -11,6 +11,7 @@ const steps = [
   { name: 'apiTenantMismatch', cmd: ['node', 'scripts/security_api_tenant_mismatch_smoke.js'] },
   { name: 'apiIdempotency', cmd: ['node', 'scripts/security_api_idempotency_smoke.js'] },
   { name: 'apiHumanInLoop', cmd: ['node', 'scripts/security_api_human_in_loop_smoke.js'] },
+  { name: 'apiAuditTrace', cmd: ['node', 'scripts/security_api_audit_trace_smoke.js'] },
   { name: 'gate', cmd: ['node', 'scripts/security_gate_checks.js'] }
 ]
 
@@ -80,6 +81,7 @@ function main() {
   const apiTenantMismatch = report.steps.apiTenantMismatch?.parsed || {}
   const apiIdempotency = report.steps.apiIdempotency?.parsed || {}
   const apiHumanInLoop = report.steps.apiHumanInLoop?.parsed || {}
+  const apiAuditTrace = report.steps.apiAuditTrace?.parsed || {}
 
   const nullTenantOk = [
     smoke.ordersNullTenant,
@@ -99,7 +101,7 @@ function main() {
   report.criteria.policy = Boolean(gate.roles) && Boolean(policy.ok)
   report.criteria.idempotency = Boolean(gate.idempotency) && Boolean(apiIdempotency.ok)
   report.criteria.humanInLoop = Boolean(gate.humanInLoop) && Boolean(apiHumanInLoop.ok)
-  report.criteria.audit = Boolean(gate.audit)
+  report.criteria.audit = Boolean(gate.audit) && Boolean(apiAuditTrace.ok)
 
   const allOk = Object.values(report.criteria).every(Boolean)
   report.ok = allOk
