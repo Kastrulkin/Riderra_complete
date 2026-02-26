@@ -35,7 +35,6 @@ async function main() {
   await prisma.sheetSource.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.orderSourceSnapshot.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.priceConflict.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
-  await prisma.driver.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
 
   const [tenants, memberships] = await Promise.all([
     prisma.tenant.count(),
