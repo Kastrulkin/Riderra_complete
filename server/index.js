@@ -318,6 +318,78 @@ function canTransitionByPermissions(perms, fromStatus, toStatus) {
   return false
 }
 
+function isKnownOrderStatus(status) {
+  const normalized = normalizeOrderStatus(status)
+  return Object.prototype.hasOwnProperty.call(ORDER_STATUS_TRANSITIONS, normalized)
+}
+
+function normalizeIncomingOrderStatus(status, fallback = 'pending') {
+  const normalized = normalizeOrderStatus(status)
+  if (!normalized) return fallback
+  return isKnownOrderStatus(normalized) ? normalized : fallback
+}
+
+function appendOrderComment(comment, reason) {
+  if (!reason) return comment
+  return [comment, reason].filter(Boolean).join('\n')
+}
+
+async function applyOrderStatusTransition({
+  orderId,
+  toStatus,
+  reason = null,
+  actorPermissions = [],
+  bypassPermissions = false,
+  tx = prisma
+}) {
+  const targetStatus = normalizeOrderStatus(toStatus)
+  if (!targetStatus) {
+    const error = new Error('toStatus is required')
+    error.statusCode = 400
+    throw error
+  }
+
+  const order = await tx.order.findUnique({ where: { id: orderId } })
+  if (!order) {
+    const error = new Error('Order not found')
+    error.statusCode = 404
+    throw error
+  }
+
+  const currentStatus = normalizeOrderStatus(order.status)
+  const allowedTargets = ORDER_STATUS_TRANSITIONS[currentStatus] || []
+  if (currentStatus !== targetStatus && !allowedTargets.includes(targetStatus)) {
+    const error = new Error(`Transition denied: ${currentStatus} -> ${targetStatus}`)
+    error.statusCode = 403
+    error.details = { currentStatus, targetStatus }
+    throw error
+  }
+
+  if (!bypassPermissions && !canTransitionByPermissions(actorPermissions, currentStatus, targetStatus)) {
+    const error = new Error(`Transition denied: ${currentStatus} -> ${targetStatus}`)
+    error.statusCode = 403
+    error.details = { currentStatus, targetStatus }
+    throw error
+  }
+
+  const nextComment = appendOrderComment(
+    order.comment,
+    reason ? `[status:${currentStatus}->${targetStatus}] ${reason}` : null
+  )
+  const patch = {}
+  if (currentStatus !== targetStatus) patch.status = targetStatus
+  if (nextComment !== order.comment) patch.comment = nextComment
+
+  if (Object.keys(patch).length === 0) {
+    return order
+  }
+
+  return tx.order.update({
+    where: { id: order.id },
+    data: patch
+  })
+}
+
 function normalizeHeader(value) {
   return String(value || '')
     .trim()
@@ -598,40 +670,56 @@ async function syncSheetSource(sheetSourceId) {
       const pickupAt = parseDateTimeFlexible(pickupRaw)
       const lang = pickField(raw, aliasesWithMapping(['lang', 'язык'], mapping, 'lang')) || null
       const comment = pickField(raw, aliasesWithMapping(['comment', 'комментарий', 'примечание'], mapping, 'comment')) || null
-      const status = pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending'
+      const incomingStatus = normalizeIncomingOrderStatus(
+        pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending',
+        'pending'
+      )
+      const orderPayload = {
+        source: 'google_sheet',
+        sourceRow,
+        fromPoint,
+        toPoint,
+        vehicleType,
+        clientPrice,
+        passengers,
+        luggage,
+        pickupAt,
+        lang,
+        comment
+      }
 
-      const upserted = await prisma.order.upsert({
+      const existingOrder = await prisma.order.findUnique({
         where: { externalKey },
-        create: {
-          source: 'google_sheet',
-          externalKey,
-          sourceRow,
-          fromPoint,
-          toPoint,
-          vehicleType,
-          clientPrice,
-          passengers,
-          luggage,
-          pickupAt,
-          lang,
-          comment,
-          status
-        },
-        update: {
-          source: 'google_sheet',
-          sourceRow,
-          fromPoint,
-          toPoint,
-          vehicleType,
-          clientPrice,
-          passengers,
-          luggage,
-          pickupAt,
-          lang,
-          comment,
-          status
-        }
+        select: { id: true, status: true }
       })
+
+      let upserted
+      if (!existingOrder) {
+        upserted = await prisma.order.create({
+          data: {
+            externalKey,
+            ...orderPayload,
+            status: incomingStatus
+          }
+        })
+      } else {
+        upserted = await prisma.order.update({
+          where: { id: existingOrder.id },
+          data: orderPayload
+        })
+        if (normalizeOrderStatus(existingOrder.status) !== incomingStatus) {
+          try {
+            upserted = await applyOrderStatusTransition({
+              orderId: existingOrder.id,
+              toStatus: incomingStatus,
+              reason: `Synced from Google Sheet source "${source.name || source.id}"`,
+              bypassPermissions: true
+            })
+          } catch (statusError) {
+            console.warn(`Status sync skipped for order ${existingOrder.id}: ${statusError.message}`)
+          }
+        }
+      }
 
       await prisma.orderSourceSnapshot.create({
         data: {
@@ -1237,9 +1325,14 @@ app.post('/api/webhooks/easytaxi/order', async (req, res) => {
         data: {
           driverId: topDriver.id,
           driverPrice: matchedRoute?.driverPrice || clientPriceNumber * 0.8,
-          commission: ((topDriver.commissionRate || 0) / 100) * clientPriceNumber,
-          status: 'assigned'
+          commission: ((topDriver.commissionRate || 0) / 100) * clientPriceNumber
         }
+      })
+      await applyOrderStatusTransition({
+        orderId,
+        toStatus: 'assigned',
+        reason: 'Auto-assigned by EasyTaxi webhook',
+        bypassPermissions: true
       })
       
       console.log(`Order ${orderId} assigned to driver ${topDriver.name} (${topDriver.email})`)
@@ -1301,32 +1394,20 @@ app.put(
       const targetStatus = normalizeOrderStatus(toStatus)
       if (!targetStatus) return res.status(400).json({ error: 'toStatus is required' })
 
-      const order = await prisma.order.findUnique({ where: { id: orderId } })
-      if (!order) return res.status(404).json({ error: 'Order not found' })
-
-      const currentStatus = normalizeOrderStatus(order.status)
-      const perms = req.userPermissions || []
-      if (!canTransitionByPermissions(perms, currentStatus, targetStatus)) {
-        return res.status(403).json({
-          error: `Transition denied: ${currentStatus} -> ${targetStatus}`,
-          currentStatus,
-          targetStatus
-        })
-      }
-
-      const nextComment = reason
-        ? [order.comment, `[status:${currentStatus}->${targetStatus}] ${reason}`].filter(Boolean).join('\n')
-        : order.comment
-
-      const updated = await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: targetStatus,
-          comment: nextComment
-        }
+      const updated = await applyOrderStatusTransition({
+        orderId,
+        toStatus: targetStatus,
+        reason,
+        actorPermissions: req.userPermissions || []
       })
       res.json({ success: true, order: updated })
     } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({
+          error: error.message,
+          ...(error.details || {})
+        })
+      }
       console.error('Error changing order status:', error)
       res.status(500).json({ error: 'Failed to change order status' })
     }
