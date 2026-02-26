@@ -21,7 +21,7 @@
             <button class="btn btn--primary" @click="createSheetSource">{{ t.add }}</button>
           </div>
 
-          <div class="table-wrap">
+          <div class="table-wrap table-wrap--staff">
             <div class="grid-head seven-cols">
               <div>{{ t.name }}</div><div>{{ t.month }}</div><div>Sheet ID</div><div>Tab</div><div>{{ t.detailsTab }}</div><div>{{ t.status }}</div><div>{{ t.actions }}</div>
             </div>
@@ -97,7 +97,7 @@
                   :placeholder="t.abacTeamsPlaceholder"
                 />
               </div>
-              <div class="row-actions">
+              <div class="row-actions row-actions--stack">
                 <button class="btn btn--small btn--primary" @click="saveStaffLink(u)">{{ t.save }}</button>
                 <button class="btn btn--small" @click="saveStaffAbac(u)">{{ t.saveScopes }}</button>
               </div>
@@ -438,11 +438,27 @@ export default {
 .grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 980px; align-items: center; }
 .three-cols { display: grid; grid-template-columns: 1.4fr 1.2fr 1.4fr; }
 .four-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr .7fr; }
-.seven-staff-cols { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr 1fr .9fr; }
+.seven-staff-cols {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.3fr)
+    minmax(170px, 1fr)
+    minmax(180px, 1fr)
+    minmax(180px, 1fr)
+    minmax(180px, 1fr)
+    minmax(180px, 1fr)
+    minmax(170px, .9fr);
+  align-items: stretch;
+}
+.seven-staff-cols > div { display: flex; align-items: center; }
+.table-wrap--staff .grid-head,
+.table-wrap--staff .grid-row { min-width: 1500px; }
 .seven-cols { display: grid; grid-template-columns: 1fr .8fr 1.5fr .6fr .8fr 1fr 1fr; }
 .grid-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; color: #1d2c4a; }
 .grid-row { border-bottom: 1px solid #f0f2f7; color: #2f3e60; }
 .row-actions { display: flex; gap: 6px; align-items: center; }
+.row-actions--stack { flex-direction: column; align-items: stretch; justify-content: center; }
+.row-actions--stack .btn { width: 100%; min-width: 130px; }
 .cell-wrap { word-break: break-all; }
 .muted { font-size: 12px; color: #647191; }
 .muted--error { color: #a13a31; }
