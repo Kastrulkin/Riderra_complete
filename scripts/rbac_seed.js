@@ -87,7 +87,7 @@ const ROLE_PERMISSIONS = {
 
 const USER_ROLES = {
   'demyanov@riderra.com': ['owner'],
-  'shilin@riderra.com': ['financial'],
+  'shilin@riderra.com': ['financial', 'owner'],
   'bellavitomatern@gmail.com': ['coordinator', 'dispatcher'],
   'donaudeka@gmail.com': ['audit', 'pricing_admin'],
   'farzalievaas@gmail.com': ['coordinator', 'dispatcher'],
