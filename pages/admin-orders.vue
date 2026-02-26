@@ -57,6 +57,7 @@
 
         <div v-else class="table-wrap">
           <div class="table-head raw-grid" :style="rawGridStyle">
+            <div class="tech">{{ t.orderBlock }}</div>
             <div class="tech">id</div>
             <div class="tech">{{ t.sourceRow }}</div>
             <div v-for="h in rawHeaders" :key="h">{{ h }}</div>
@@ -65,9 +66,10 @@
             v-for="r in filteredRawRows"
             :key="`${r.sourceRow}-${r.id}`"
             class="table-row raw-grid"
-            :class="{ 'table-row--matched': isRawMatch(r) }"
+            :class="{ 'table-row--matched': isRawMatch(r), 'table-row--group-start': r._groupStart }"
             :style="rawGridStyle"
           >
+            <div class="tech order-block">{{ orderKeyDisplay(r) }}</div>
             <div class="tech cell-ellipsis" :title="r.id">{{ r.id || '-' }}</div>
             <div class="tech">{{ r.sourceRow }}</div>
             <div v-for="h in rawHeaders" :key="`${r.sourceRow}-${h}`">{{ (r.values && r.values[h]) || '-' }}</div>
@@ -110,6 +112,7 @@ export default {
             refresh: 'Обновить',
             source: 'Источник',
             sourceRow: 'Строка',
+            orderBlock: 'Блок заказа',
             contractor: 'Контрагент',
             orderNumber: 'Номер заказа',
             date: 'Дата',
@@ -131,6 +134,7 @@ export default {
             refresh: 'Refresh',
             source: 'Source',
             sourceRow: 'Row',
+            orderBlock: 'Order Block',
             contractor: 'Contractor',
             orderNumber: 'Order Number',
             date: 'Date',
@@ -147,7 +151,7 @@ export default {
     },
     rawGridStyle () {
       const cols = Math.max(this.rawHeaders.length, 1)
-      return { gridTemplateColumns: `120px 80px repeat(${cols}, minmax(180px, 1fr))` }
+      return { gridTemplateColumns: `170px 120px 80px repeat(${cols}, minmax(180px, 1fr))` }
     }
   },
   mounted () { this.load() },
@@ -176,11 +180,53 @@ export default {
       const values = row.values || {}
       return `${row.id || ''} ${row.sourceRow || ''} ${Object.values(values).join(' ')}`
     },
+    extractOrderKey (row) {
+      const values = row.values || {}
+      const flat = Object.values(values).map((v) => String(v || '')).join(' | ')
+      const col1 = String(values['Колонка 1'] || '')
+      const col2 = String(values['Колонка 2'] || '')
+      const col3 = String(values['Колонка 3'] || '')
+
+      const bookingRefWithValue = flat.match(/booking\s*ref\.?\s*:?\s*([A-Z0-9_-]+)/i)
+      if (bookingRefWithValue && bookingRefWithValue[1]) return bookingRefWithValue[1].toUpperCase()
+
+      if (/booking\s*ref\.?/i.test(col2)) {
+        const maybeRef = (col3 || '').trim()
+        if (maybeRef) return maybeRef.toUpperCase()
+      }
+
+      const refInBracket = col1.match(/^([A-Z0-9_/-]+)\s*\(/i)
+      if (refInBracket && refInBracket[1]) return refInBracket[1].toUpperCase()
+
+      const fallbackRef = flat.match(/\b([A-Z]{2,}[A-Z0-9_/-]{4,})\b/)
+      if (fallbackRef && fallbackRef[1]) return fallbackRef[1].toUpperCase()
+      return ''
+    },
+    decorateRawRows (rows) {
+      let currentKey = ''
+      let previousKey = ''
+      return rows.map((row, index) => {
+        const foundKey = this.extractOrderKey(row)
+        if (foundKey) currentKey = foundKey
+        const effectiveKey = currentKey || `row-${index + 1}`
+        const isStart = index === 0 || effectiveKey !== previousKey
+        previousKey = effectiveKey
+        return {
+          ...row,
+          _groupKey: effectiveKey,
+          _groupStart: isStart
+        }
+      })
+    },
+    orderKeyDisplay (row) {
+      const key = String(row._groupKey || '')
+      return key.startsWith('row-') ? '-' : key
+    },
     applyFilter () {
       const q = this.q.trim().toLowerCase()
       if (!q) {
         this.filteredRows = this.rows
-        this.filteredRawRows = this.rawRows
+        this.filteredRawRows = this.decorateRawRows(this.rawRows)
         return
       }
 
@@ -201,7 +247,8 @@ export default {
           .some((v) => String(v).toLowerCase().includes(q))
       )
 
-      this.filteredRawRows = this.rawRows.filter((row) => this.rowText(row).toLowerCase().includes(q))
+      const raw = this.rawRows.filter((row) => this.rowText(row).toLowerCase().includes(q))
+      this.filteredRawRows = this.decorateRawRows(raw)
     },
     openOrderDetails (orderNumber) {
       const rawToken = String(orderNumber || '').trim()
@@ -251,12 +298,14 @@ export default {
 .table-head, .table-row { gap: 10px; min-width: 1900px; padding: 10px 12px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; }
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
+.table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
 .main-grid { display: grid; grid-template-columns: 120px 120px 180px 130px 140px 220px 220px 110px 150px 260px 170px; }
 .raw-grid { display: grid; }
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint { margin-top: 10px; color: #637191; }
+.order-block { font-weight: 700; color: #335388; }
 .order-link {
   border: none;
   background: transparent;
