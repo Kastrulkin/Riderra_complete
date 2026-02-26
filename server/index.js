@@ -217,10 +217,49 @@ async function getUserRolesAndPermissions(userId) {
   return { roles, permissions }
 }
 
+function can(actor, action, resource, context = {}) {
+  if (!actor) return false
+  const permissions = actor.permissions || []
+  const role = actor.role || actor.actorRole || null
+  const actorTenantId = actor.tenantId || null
+  const targetTenantId = context.tenantId || null
+
+  if (targetTenantId && actorTenantId && actorTenantId !== targetTenantId) return false
+  if (role === 'admin' || permissions.includes('*')) return true
+
+  if (action === 'permission.check') {
+    if (Array.isArray(context.anyOf) && context.anyOf.length > 0) {
+      return context.anyOf.some((code) => permissions.includes(code))
+    }
+    if (typeof context.permissionCode === 'string' && context.permissionCode) {
+      return permissions.includes(context.permissionCode)
+    }
+    return false
+  }
+
+  if (action === 'orders.transition') {
+    return canTransitionByPermissions(
+      permissions,
+      context.fromStatus || '',
+      context.toStatus || ''
+    )
+  }
+
+  return false
+}
+
 function hasPermission(req, permissionCode) {
-  const perms = req.userPermissions || []
-  if (perms.includes('*')) return true
-  return perms.includes(permissionCode)
+  return can(
+    {
+      role: req.user?.role,
+      actorRole: req.actorContext?.actorRole,
+      permissions: req.userPermissions || [],
+      tenantId: req.actorContext?.tenantId || null
+    },
+    'permission.check',
+    'permission',
+    { permissionCode, tenantId: req.actorContext?.tenantId || null }
+  )
 }
 
 function requirePermission(permissionCode) {
@@ -234,7 +273,17 @@ function requirePermission(permissionCode) {
 }
 
 function hasAnyPermission(req, permissionCodes) {
-  return permissionCodes.some((code) => hasPermission(req, code))
+  return can(
+    {
+      role: req.user?.role,
+      actorRole: req.actorContext?.actorRole,
+      permissions: req.userPermissions || [],
+      tenantId: req.actorContext?.tenantId || null
+    },
+    'permission.check',
+    'permission',
+    { anyOf: permissionCodes, tenantId: req.actorContext?.tenantId || null }
+  )
 }
 
 function requireAnyPermission(permissionCodes) {
@@ -247,17 +296,19 @@ function requireAnyPermission(permissionCodes) {
   }
 }
 
-async function getDefaultTenant() {
-  const tenant = await prisma.tenant.upsert({
-    where: { code: 'riderra' },
-    update: {},
-    create: { code: 'riderra', name: 'Riderra', isActive: true }
+async function getConfiguredTenant(tenantCode = null) {
+  const code = String(tenantCode || process.env.TENANT_CODE || 'riderra').trim().toLowerCase()
+  const tenant = await prisma.tenant.findUnique({
+    where: { code }
   })
+  if (!tenant || !tenant.isActive) {
+    throw new Error(`Tenant "${code}" is not configured or inactive`)
+  }
   return tenant
 }
 
 async function ensureDefaultTenantMembership(userId, role = 'staff') {
-  const tenant = await getDefaultTenant()
+  const tenant = await getConfiguredTenant()
   const membership = await prisma.tenantMembership.upsert({
     where: { tenantId_userId: { tenantId: tenant.id, userId } },
     update: { isActive: true },
@@ -278,9 +329,7 @@ async function resolveActorContext(req, res, next) {
     const isAuthenticated = !!req.user?.id
 
     if (!isAuthenticated) {
-      const tenant = requestedTenantCode
-        ? await prisma.tenant.findUnique({ where: { code: requestedTenantCode } })
-        : await getDefaultTenant()
+      const tenant = await getConfiguredTenant(requestedTenantCode || null)
       if (!tenant || !tenant.isActive) return res.status(403).json({ error: 'Tenant is not active or not found' })
       req.actorContext = {
         traceId,
@@ -655,7 +704,12 @@ async function applyOrderStatusTransition({
     throw error
   }
 
-  if (!bypassPermissions && !canTransitionByPermissions(actorPermissions, currentStatus, targetStatus)) {
+  if (!bypassPermissions && !can(
+    { permissions: actorPermissions || [], tenantId: tenantId || order.tenantId || null },
+    'orders.transition',
+    'order',
+    { tenantId: tenantId || order.tenantId || null, fromStatus: currentStatus, toStatus: targetStatus }
+  )) {
     const error = new Error(`Transition denied: ${currentStatus} -> ${targetStatus}`)
     error.statusCode = 403
     error.details = { currentStatus, targetStatus }
@@ -917,8 +971,8 @@ async function syncSheetSource(sheetSourceId) {
   if (!source.syncEnabled) {
     throw new Error('Sync is disabled for this source')
   }
-  const defaultTenant = await getDefaultTenant()
-  const effectiveTenantId = source.tenantId || defaultTenant.id
+  const configuredTenant = await getConfiguredTenant()
+  const effectiveTenantId = source.tenantId || configuredTenant.id
   if (!source.tenantId) {
     await prisma.sheetSource.update({
       where: { id: source.id },
@@ -1254,12 +1308,11 @@ async function promoteStagingToCustomerCrm(tenantId) {
   return stats
 }
 
-app.post('/api/requests', async (req, res) => {
+app.post('/api/requests', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { name, email, phone, fromPoint, toPoint, date, passengers, luggage, comment, lang } = req.body
-    const tenant = await getDefaultTenant()
     const created = await prisma.request.create({ data: {
-      tenantId: tenant.id,
+      tenantId: req.actorContext.tenantId,
       name, email, phone, fromPoint, toPoint,
       date: date ? new Date(date) : null,
       passengers: passengers ?? null,
@@ -1274,7 +1327,7 @@ app.post('/api/requests', async (req, res) => {
   }
 })
 
-app.post('/api/drivers', async (req, res) => {
+app.post('/api/drivers', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const {
       name,
@@ -1297,10 +1350,9 @@ app.post('/api/drivers', async (req, res) => {
     
     console.log('Received driver registration:', { name, email, phone, city })
     
-    const tenant = await getDefaultTenant()
     // Сохраняем в базу данных
     const created = await prisma.driver.create({ data: {
-      tenantId: tenant.id,
+      tenantId: req.actorContext.tenantId,
       name, 
       email, 
       phone, 
@@ -1385,22 +1437,21 @@ app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireAct
 })
 
 // API для расчета приоритета водителей
-app.post('/api/drivers/priority', async (req, res) => {
+app.post('/api/drivers/priority', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { fromPoint, toPoint, vehicleType } = req.body
-    const tenant = await getDefaultTenant()
     
     // Получаем всех активных и верифицированных водителей
     const drivers = await prisma.driver.findMany({
       where: {
-        tenantId: tenant.id,
+        tenantId: req.actorContext.tenantId,
         isActive: true,
         verificationStatus: 'verified'
       },
       include: {
         routes: {
           where: {
-            tenantId: tenant.id,
+            tenantId: req.actorContext.tenantId,
             isActive: true
           }
         }
@@ -1447,20 +1498,19 @@ function calculateDriverScore(driver, fromPoint, toPoint) {
 }
 
 // API для управления маршрутами водителей
-app.post('/api/drivers/:driverId/routes', async (req, res) => {
+app.post('/api/drivers/:driverId/routes', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { driverId } = req.params
     const { fromPoint, toPoint, driverPrice, ourPrice, currency = 'EUR' } = req.body
-    const tenant = await getDefaultTenant()
     const driver = await prisma.driver.findFirst({
-      where: { id: driverId, tenantId: tenant.id },
+      where: { id: driverId, tenantId: req.actorContext.tenantId },
       select: { id: true }
     })
     if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     const route = await prisma.driverRoute.create({
       data: {
-        tenantId: tenant.id,
+        tenantId: req.actorContext.tenantId,
         driverId: driver.id,
         fromPoint,
         toPoint,
@@ -1477,18 +1527,17 @@ app.post('/api/drivers/:driverId/routes', async (req, res) => {
   }
 })
 
-app.get('/api/drivers/:driverId/routes', async (req, res) => {
+app.get('/api/drivers/:driverId/routes', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { driverId } = req.params
-    const tenant = await getDefaultTenant()
     const driver = await prisma.driver.findFirst({
-      where: { id: driverId, tenantId: tenant.id },
+      where: { id: driverId, tenantId: req.actorContext.tenantId },
       select: { id: true }
     })
     if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     const routes = await prisma.driverRoute.findMany({
-      where: { driverId: driver.id, tenantId: tenant.id },
+      where: { driverId: driver.id, tenantId: req.actorContext.tenantId },
       orderBy: { createdAt: 'desc' }
     })
     
@@ -2166,7 +2215,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
 })
 
 // API для управления отзывами
-app.post('/api/reviews', async (req, res) => {
+app.post('/api/reviews', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { orderId, driverId, rating, comment, clientName } = req.body
     
@@ -2183,7 +2232,10 @@ app.post('/api/reviews', async (req, res) => {
       return res.status(404).json({ error: 'Order not found or not completed' })
     }
 
-    const tenantId = order.tenantId || (await getDefaultTenant()).id
+    const tenantId = req.actorContext.tenantId
+    if (order.tenantId && order.tenantId !== tenantId) {
+      return res.status(403).json({ error: 'Tenant mismatch for order' })
+    }
     const driver = await prisma.driver.findFirst({
       where: { id: driverId, tenantId },
       select: { id: true }
@@ -2223,18 +2275,17 @@ app.post('/api/reviews', async (req, res) => {
   }
 })
 
-app.get('/api/drivers/:driverId/reviews', async (req, res) => {
+app.get('/api/drivers/:driverId/reviews', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { driverId } = req.params
-    const tenant = await getDefaultTenant()
     const driver = await prisma.driver.findFirst({
-      where: { id: driverId, tenantId: tenant.id },
+      where: { id: driverId, tenantId: req.actorContext.tenantId },
       select: { id: true }
     })
     if (!driver) return res.status(404).json({ error: 'Driver not found' })
     
     const reviews = await prisma.review.findMany({
-      where: { driverId: driver.id, tenantId: tenant.id },
+      where: { driverId: driver.id, tenantId: req.actorContext.tenantId },
       include: {
         order: {
           select: {
@@ -4261,7 +4312,7 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
   }
 })
 
-app.post('/api/telegram/webhook', async (req, res) => {
+app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET
     if (webhookSecret) {
@@ -4278,8 +4329,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const telegramUserId = String(message.from?.id || '')
     const telegramChatId = String(message.chat?.id || '')
     if (!telegramUserId || !telegramChatId) return res.json({ ok: true })
-    const defaultTenant = await getDefaultTenant()
-    const tenantId = defaultTenant.id
+    const tenantId = req.actorContext.tenantId
     const text = String(message.text || '').trim()
     const chatType = String(message.chat?.type || '')
     const isGroupChat = chatType === 'group' || chatType === 'supergroup'
@@ -4396,24 +4446,34 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const linkTenantId = link.tenantId || tenantId
 
     const acl = await getUserRolesAndPermissions(link.userId)
-    const canReadCrm = acl.permissions.includes('crm.read') || acl.permissions.includes('*') || link.user.role === 'admin'
-    const canUseOpsCopilot =
-      acl.permissions.includes('ops.read') ||
-      acl.permissions.includes('ops.manage') ||
-      acl.permissions.includes('orders.create_draft') ||
-      acl.permissions.includes('orders.validate') ||
-      acl.permissions.includes('orders.assign') ||
-      acl.permissions.includes('orders.reassign') ||
-      acl.permissions.includes('orders.confirmation.manage') ||
-      acl.permissions.includes('incidents.manage') ||
-      acl.permissions.includes('claims.compose') ||
-      acl.permissions.includes('*') ||
-      link.user.role === 'admin'
-    const canUseFinanceReports =
-      acl.permissions.includes('finance.report.export') ||
-      acl.permissions.includes('reconciliation.run') ||
-      acl.permissions.includes('*') ||
-      link.user.role === 'admin'
+    const actor = {
+      role: link.user.role,
+      actorRole: link.user.role,
+      permissions: acl.permissions || [],
+      tenantId: linkTenantId
+    }
+    const canReadCrm = can(actor, 'permission.check', 'permission', {
+      permissionCode: 'crm.read',
+      tenantId: linkTenantId
+    })
+    const canUseOpsCopilot = can(actor, 'permission.check', 'permission', {
+      anyOf: [
+        'ops.read',
+        'ops.manage',
+        'orders.create_draft',
+        'orders.validate',
+        'orders.assign',
+        'orders.reassign',
+        'orders.confirmation.manage',
+        'incidents.manage',
+        'claims.compose'
+      ],
+      tenantId: linkTenantId
+    })
+    const canUseFinanceReports = can(actor, 'permission.check', 'permission', {
+      anyOf: ['finance.report.export', 'reconciliation.run'],
+      tenantId: linkTenantId
+    })
 
     if (canUseOpsCopilot) {
       const lowerText = text.toLowerCase()
