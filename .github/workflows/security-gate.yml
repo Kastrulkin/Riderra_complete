@@ -4,7 +4,8 @@ on:
   push:
     branches: ["master"]
   pull_request:
-    branches: ["master"]
+    branches: ["**"]
+  workflow_dispatch:
 
 jobs:
   security-gate:
@@ -48,11 +49,12 @@ jobs:
       - name: Prisma sync schema
         run: npm run prisma:migrate
 
-      - name: Bootstrap tenant baseline
-        run: node scripts/security_baseline_bootstrap.js
+      - name: Security release gate
+        run: npm run security:release-gate
 
-      - name: Security smoke baseline
-        run: node scripts/security_smoke_baseline.js
-
-      - name: Security gate checks
-        run: node scripts/security_gate_checks.js
+      - name: Upload security gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-release-gate-report
+          path: reports/security-release-gate.json

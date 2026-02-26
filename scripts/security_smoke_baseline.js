@@ -1,6 +1,12 @@
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message)
+  }
+}
+
 async function main() {
   const tenant = await prisma.tenant.findUnique({ where: { code: 'riderra' } })
   if (!tenant) throw new Error('tenant:riderra missing')
@@ -35,7 +41,23 @@ async function main() {
     prisma.idempotencyKey.count()
   ])
 
-  if (membershipCount === 0) throw new Error('no active tenant memberships')
+  assert(membershipCount > 0, 'no active tenant memberships')
+
+  const nullTenantChecks = [
+    ['ordersNullTenant', ordersNullTenant],
+    ['requestsNullTenant', requestsNullTenant],
+    ['reviewsNullTenant', reviewsNullTenant],
+    ['driversNullTenant', driversNullTenant],
+    ['driverRoutesNullTenant', driverRoutesNullTenant],
+    ['cityRoutesNullTenant', cityRoutesNullTenant],
+    ['driverCityRoutesNullTenant', driverCityRoutesNullTenant],
+    ['pricingNullTenant', pricingNullTenant],
+    ['companiesNullTenant', companiesNullTenant],
+    ['contactsNullTenant', contactsNullTenant],
+    ['opsDraftsNullTenant', opsDraftsNullTenant]
+  ]
+  const broken = nullTenantChecks.filter(([, count]) => Number(count || 0) !== 0)
+  assert(broken.length === 0, `null tenant rows detected: ${broken.map(([name, count]) => `${name}=${count}`).join(', ')}`)
 
   const approval = await prisma.humanApproval.create({
     data: {

@@ -1662,6 +1662,9 @@ app.post('/api/drivers', resolveActorContext, requireActorContext, async (req, r
 })
 
 module.exports = app
+module.exports.__internal = {
+  can
+}
 
 // Admin endpoints
 app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order', () => ({

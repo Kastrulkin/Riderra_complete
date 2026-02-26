@@ -12,7 +12,12 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma db push",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore .",
-    "precommit": "npm run lint"
+    "precommit": "npm run lint",
+    "security:bootstrap": "node scripts/security_baseline_bootstrap.js",
+    "security:smoke": "node scripts/security_smoke_baseline.js",
+    "security:policy": "node scripts/security_policy_smoke.js",
+    "security:gate": "node scripts/security_gate_checks.js",
+    "security:release-gate": "node scripts/security_release_gate.js"
   },
   "dependencies": {
     "@nuxtjs/axios": "^5.8.0",
