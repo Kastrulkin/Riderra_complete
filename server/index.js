@@ -1264,7 +1264,14 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('or
         googleSheetId: source.googleSheetId,
         tabName: detailsTabName
       })
-      const detailHeaders = (detailRows[0] || []).map((h) => String(h || '').trim()).filter(Boolean)
+      let detailHeaders = (detailRows[0] || []).map((h) => String(h || '').trim())
+      const hasNamedHeaders = detailHeaders.some((h) => h.length > 0)
+      if (!hasNamedHeaders) {
+        const maxCols = detailRows.reduce((max, row) => Math.max(max, Array.isArray(row) ? row.length : 0), 0)
+        detailHeaders = Array.from({ length: maxCols }, (_, idx) => `Колонка ${idx + 1}`)
+      } else {
+        detailHeaders = detailHeaders.map((h, idx) => h || `Колонка ${idx + 1}`)
+      }
       headers = detailHeaders
       rawRows = detailRows.slice(1).map((cells, idx) => {
         const values = {}
