@@ -7,7 +7,7 @@ module.exports = {
     host: '0.0.0.0', // default: localhost
   },
   ssr: false,
-  target: 'static',
+  target: 'server',
   head: {
     title: 'Riderra - a network of fleets',
     meta: [
