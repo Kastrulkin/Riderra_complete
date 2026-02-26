@@ -95,7 +95,7 @@
         </div>
         <div class="meta-grid">
           <div><strong>ID:</strong> {{ selectedOrder.id || '-' }}</div>
-          <div><strong>{{ t.status }}:</strong> {{ selectedOrder.status || '-' }}</div>
+          <div><strong>{{ t.status }}:</strong> {{ statusLabel(selectedOrder.status) }}</div>
           <div><strong>{{ t.orderNumber }}:</strong> {{ selectedOrder.orderNumber || '-' }}</div>
           <div><strong>{{ t.internalOrderNumber }}:</strong> {{ selectedOrder.internalOrderNumber || '-' }}</div>
           <div><strong>{{ t.contractor }}:</strong> {{ selectedOrder.contractor || '-' }}</div>
@@ -110,6 +110,22 @@
           <button class="btn btn--primary" type="button" @click="openRawFromCard">{{ t.findInDetails }}</button>
         </div>
 
+        <div class="status-change">
+          <h4>{{ t.changeStatus }}</h4>
+          <div class="status-change-row">
+            <select v-model="selectedToStatus" class="input status-select">
+              <option value="">{{ t.selectStatus }}</option>
+              <option v-for="s in availableStatuses" :key="s" :value="s">{{ statusLabel(s) }}</option>
+            </select>
+            <input v-model="statusReason" class="input" :placeholder="t.reasonPlaceholder" />
+            <button class="btn btn--primary" type="button" :disabled="statusSaving || !selectedToStatus" @click="applyStatusChange">
+              {{ statusSaving ? t.saving : t.applyStatus }}
+            </button>
+          </div>
+          <div v-if="transitionsError" class="hint hint--error">{{ transitionsError }}</div>
+          <div v-else-if="!availableStatuses.length" class="hint">{{ t.noAllowedTransitions }}</div>
+        </div>
+
         <div class="status-history">
           <h4>{{ t.statusHistory }}</h4>
           <div v-if="historyLoading" class="hint">{{ t.loadingHistory }}</div>
@@ -118,9 +134,9 @@
           <div v-else class="history-list">
             <div v-for="h in statusHistory" :key="h.id" class="history-item">
               <div class="history-main">
-                <span class="history-status">{{ h.fromStatus }}</span>
+                <span class="history-status">{{ statusLabel(h.fromStatus) }}</span>
                 <span>→</span>
-                <span class="history-status">{{ h.toStatus }}</span>
+                <span class="history-status">{{ statusLabel(h.toStatus) }}</span>
               </div>
               <div class="history-meta">
                 <span>{{ formatDateTime(h.createdAt) }}</span>
@@ -156,7 +172,12 @@ export default {
     selectedOrder: null,
     statusHistory: [],
     historyLoading: false,
-    historyError: ''
+    historyError: '',
+    availableStatuses: [],
+    selectedToStatus: '',
+    statusReason: '',
+    statusSaving: false,
+    transitionsError: ''
   }),
   computed: {
     t () {
@@ -190,6 +211,12 @@ export default {
             updatedAt: 'Обновлено',
             driverPrice: 'Цена водителя',
             clientPrice: 'Цена клиенту',
+            changeStatus: 'Сменить статус',
+            selectStatus: 'Выберите статус',
+            reasonPlaceholder: 'Причина (необязательно)',
+            applyStatus: 'Применить',
+            saving: 'Сохраняю...',
+            noAllowedTransitions: 'Нет доступных переходов для вашей роли',
             total: 'Всего',
             matchedInDetails: 'Найдено в Подробностях',
             notFoundInDetails: 'В Подробностях не найдено'
@@ -223,6 +250,12 @@ export default {
             updatedAt: 'Updated at',
             driverPrice: 'Driver price',
             clientPrice: 'Client price',
+            changeStatus: 'Change status',
+            selectStatus: 'Select status',
+            reasonPlaceholder: 'Reason (optional)',
+            applyStatus: 'Apply',
+            saving: 'Saving...',
+            noAllowedTransitions: 'No transitions available for your role',
             total: 'Total',
             matchedInDetails: 'Found in details',
             notFoundInDetails: 'Not found in details'
@@ -269,6 +302,53 @@ export default {
         system: 'System'
       }
       return map[String(source || '').toLowerCase()] || source || 'System'
+    },
+    statusLabel (status) {
+      const code = String(status || '').toLowerCase()
+      const ru = {
+        draft: 'Черновик',
+        waiting_info: 'Ожидает данных',
+        validated: 'Проверен',
+        pending_dispatch: 'Ожидает распределения',
+        dispatch_risk: 'Риск распределения',
+        assigned: 'Назначен',
+        accepted: 'Принят',
+        pending_ops_control: 'Ожидает контроля',
+        confirmed: 'Подтвержден',
+        in_progress: 'В работе',
+        incident_open: 'Инцидент открыт',
+        incident_reported: 'Инцидент оформлен',
+        completed: 'Завершен',
+        ready_finance: 'Готов в финансы',
+        finance_hold: 'Фин. пауза',
+        paid: 'Оплачен',
+        closed: 'Закрыт',
+        pending: 'Новый',
+        cancelled: 'Отменен'
+      }
+      const en = {
+        draft: 'Draft',
+        waiting_info: 'Waiting info',
+        validated: 'Validated',
+        pending_dispatch: 'Pending dispatch',
+        dispatch_risk: 'Dispatch risk',
+        assigned: 'Assigned',
+        accepted: 'Accepted',
+        pending_ops_control: 'Pending ops control',
+        confirmed: 'Confirmed',
+        in_progress: 'In progress',
+        incident_open: 'Incident open',
+        incident_reported: 'Incident reported',
+        completed: 'Completed',
+        ready_finance: 'Ready for finance',
+        finance_hold: 'Finance hold',
+        paid: 'Paid',
+        closed: 'Closed',
+        pending: 'Pending',
+        cancelled: 'Cancelled'
+      }
+      const dictionary = this.$store.state.language === 'ru' ? ru : en
+      return dictionary[code] || status || '-'
     },
     normalizeToken (value) {
       return String(value || '')
@@ -374,17 +454,92 @@ export default {
       this.statusHistory = []
       this.historyLoading = true
       this.historyError = ''
+      this.availableStatuses = []
+      this.selectedToStatus = ''
+      this.statusReason = ''
+      this.transitionsError = ''
+      await this.loadOrderCardData(order.id)
+    },
+    async loadOrderCardData (orderId) {
+      this.historyLoading = true
+      this.historyError = ''
+      this.transitionsError = ''
       try {
-        const response = await fetch(`/api/admin/orders/${encodeURIComponent(order.id)}/status-history`, { headers: this.headers() })
-        if (!response.ok) throw new Error('failed')
-        const data = await response.json()
-        this.statusHistory = Array.isArray(data.history) ? data.history : []
+        const [historyResponse, transitionsResponse] = await Promise.all([
+          fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status-history`, { headers: this.headers() }),
+          fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/available-status-transitions`, { headers: this.headers() })
+        ])
+
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json()
+          this.statusHistory = Array.isArray(historyData.history) ? historyData.history : []
+        } else {
+          this.historyError = this.$store.state.language === 'ru'
+            ? 'Не удалось загрузить историю статусов'
+            : 'Failed to load status history'
+        }
+
+        if (transitionsResponse.ok) {
+          const transitionsData = await transitionsResponse.json()
+          this.availableStatuses = Array.isArray(transitionsData.allowedTo) ? transitionsData.allowedTo : []
+        } else {
+          this.transitionsError = this.$store.state.language === 'ru'
+            ? 'Не удалось загрузить доступные переходы'
+            : 'Failed to load available transitions'
+        }
       } catch (_) {
         this.historyError = this.$store.state.language === 'ru'
           ? 'Не удалось загрузить историю статусов'
           : 'Failed to load status history'
+        this.transitionsError = this.$store.state.language === 'ru'
+          ? 'Не удалось загрузить доступные переходы'
+          : 'Failed to load available transitions'
       } finally {
         this.historyLoading = false
+      }
+    },
+    async applyStatusChange () {
+      if (!this.selectedOrder || !this.selectedOrder.id || !this.selectedToStatus || this.statusSaving) return
+      this.statusSaving = true
+      this.transitionsError = ''
+      try {
+        const response = await fetch(`/api/admin/orders/${encodeURIComponent(this.selectedOrder.id)}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...this.headers()
+          },
+          body: JSON.stringify({
+            toStatus: this.selectedToStatus,
+            reason: this.statusReason ? this.statusReason.trim() : ''
+          })
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data && data.error ? data.error : 'failed')
+        }
+
+        const updatedStatus = data?.order?.status || this.selectedToStatus
+        this.selectedOrder = {
+          ...this.selectedOrder,
+          status: updatedStatus,
+          orderUpdatedAt: new Date().toISOString()
+        }
+        this.rows = this.rows.map((row) => (
+          row.id === this.selectedOrder.id
+            ? { ...row, status: updatedStatus, orderUpdatedAt: new Date().toISOString() }
+            : row
+        ))
+        this.applyFilter()
+        this.statusReason = ''
+        this.selectedToStatus = ''
+        await this.loadOrderCardData(this.selectedOrder.id)
+      } catch (error) {
+        this.transitionsError = error.message || (this.$store.state.language === 'ru'
+          ? 'Не удалось сменить статус'
+          : 'Failed to change status')
+      } finally {
+        this.statusSaving = false
       }
     },
     closeOrderCard () {
@@ -392,6 +547,11 @@ export default {
       this.statusHistory = []
       this.historyLoading = false
       this.historyError = ''
+      this.availableStatuses = []
+      this.selectedToStatus = ''
+      this.statusReason = ''
+      this.statusSaving = false
+      this.transitionsError = ''
     },
     openRawFromCard () {
       const selected = this.selectedOrder
@@ -498,6 +658,14 @@ export default {
   color: #334155;
 }
 .modal-actions { margin: 14px 0; }
+.status-change { margin: 8px 0 16px; }
+.status-change h4 { margin: 6px 0 10px; color: #17233d; }
+.status-change-row {
+  display: grid;
+  grid-template-columns: 220px 1fr 160px;
+  gap: 10px;
+}
+.status-select { min-width: 180px; }
 .status-history h4 { margin: 6px 0 10px; color: #17233d; }
 .history-list { display: flex; flex-direction: column; gap: 10px; }
 .history-item {
@@ -533,5 +701,6 @@ export default {
 }
 @media (max-width: 900px) {
   .meta-grid { grid-template-columns: 1fr; }
+  .status-change-row { grid-template-columns: 1fr; }
 }
 </style>

@@ -1442,6 +1442,34 @@ app.put(
 )
 
 app.get(
+  '/api/admin/orders/:orderId/available-status-transitions',
+  authenticateToken,
+  requirePermission('orders.read'),
+  async (req, res) => {
+    try {
+      const { orderId } = req.params
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, status: true }
+      })
+      if (!order) return res.status(404).json({ error: 'Order not found' })
+
+      const currentStatus = normalizeOrderStatus(order.status)
+      const perms = req.userPermissions || []
+      const candidates = ORDER_STATUS_TRANSITIONS[currentStatus] || []
+      const allowedTo = candidates.filter((target) =>
+        canTransitionByPermissions(perms, currentStatus, target)
+      )
+
+      res.json({ orderId, currentStatus, allowedTo })
+    } catch (error) {
+      console.error('Error loading available status transitions:', error)
+      res.status(500).json({ error: 'Failed to load available status transitions' })
+    }
+  }
+)
+
+app.get(
   '/api/admin/orders/:orderId/status-history',
   authenticateToken,
   requirePermission('orders.read'),
