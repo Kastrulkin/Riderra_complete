@@ -49,11 +49,12 @@ export default {
   display: inline-block;
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.25);
-  color: rgba(255,255,255,0.85);
+  border: 1px solid #cbd5e1;
+  color: #334155;
   text-decoration: none;
-  background: rgba(255,255,255,0.08);
+  background: #f8fafc;
   font-size: 14px;
+  font-weight: 600;
 }
 
 .admin-tab--active {
