@@ -245,17 +245,43 @@ function can(actor, action, resource, context = {}) {
     )
   }
 
+  if (action === 'orders.read') {
+    return permissions.includes('orders.read')
+  }
+
+  if (action === 'orders.transition.request') {
+    return [
+      'orders.validate',
+      'orders.assign',
+      'orders.reassign',
+      'orders.confirmation.manage',
+      'incidents.manage',
+      'claims.compose',
+      'reconciliation.run',
+      'payouts.manage',
+      'approvals.resolve'
+    ].some((code) => permissions.includes(code))
+  }
+
+  if (action === 'approvals.resolve') {
+    return permissions.includes('approvals.resolve')
+  }
+
   return false
+}
+
+function buildActorFromReq(req) {
+  return {
+    role: req.user?.role,
+    actorRole: req.actorContext?.actorRole,
+    permissions: req.userPermissions || [],
+    tenantId: req.actorContext?.tenantId || null
+  }
 }
 
 function hasPermission(req, permissionCode) {
   return can(
-    {
-      role: req.user?.role,
-      actorRole: req.actorContext?.actorRole,
-      permissions: req.userPermissions || [],
-      tenantId: req.actorContext?.tenantId || null
-    },
+    buildActorFromReq(req),
     'permission.check',
     'permission',
     { permissionCode, tenantId: req.actorContext?.tenantId || null }
@@ -274,16 +300,24 @@ function requirePermission(permissionCode) {
 
 function hasAnyPermission(req, permissionCodes) {
   return can(
-    {
-      role: req.user?.role,
-      actorRole: req.actorContext?.actorRole,
-      permissions: req.userPermissions || [],
-      tenantId: req.actorContext?.tenantId || null
-    },
+    buildActorFromReq(req),
     'permission.check',
     'permission',
     { anyOf: permissionCodes, tenantId: req.actorContext?.tenantId || null }
   )
+}
+
+function requireCan(action, resource, contextBuilder = null) {
+  return (req, res, next) => {
+    const context = {
+      tenantId: req.actorContext?.tenantId || null,
+      ...(typeof contextBuilder === 'function' ? (contextBuilder(req) || {}) : {})
+    }
+    if (!can(buildActorFromReq(req), action, resource, context)) {
+      return res.status(403).json({ error: `Policy denied: ${action} on ${resource}` })
+    }
+    next()
+  }
 }
 
 function requireAnyPermission(permissionCodes) {
@@ -1801,7 +1835,7 @@ app.post('/api/webhooks/easytaxi/order', resolveActorContext, requireActorContex
 })
 
 // API для получения статистики заказов
-app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActorContext, requirePermission('orders.read'), async (req, res) => {
+app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       where: { tenantId: req.actorContext.tenantId },
@@ -1829,17 +1863,7 @@ app.put(
   authenticateToken,
   resolveActorContext,
   requireActorContext,
-  requireAnyPermission([
-    'orders.validate',
-    'orders.assign',
-    'orders.reassign',
-    'orders.confirmation.manage',
-    'incidents.manage',
-    'claims.compose',
-    'reconciliation.run',
-    'payouts.manage',
-    'approvals.resolve'
-  ]),
+  requireCan('orders.transition.request', 'order'),
   async (req, res) => {
     try {
       const { orderId } = req.params
@@ -1901,7 +1925,7 @@ app.get(
   authenticateToken,
   resolveActorContext,
   requireActorContext,
-  requirePermission('orders.read'),
+  requireCan('orders.read', 'order'),
   async (req, res) => {
     try {
       const { orderId } = req.params
@@ -1912,10 +1936,14 @@ app.get(
       if (!order) return res.status(404).json({ error: 'Order not found' })
 
       const currentStatus = normalizeOrderStatus(order.status)
-      const perms = req.userPermissions || []
+      const actor = buildActorFromReq(req)
       const candidates = ORDER_STATUS_TRANSITIONS[currentStatus] || []
       const allowedTo = candidates.filter((target) =>
-        canTransitionByPermissions(perms, currentStatus, target)
+        can(actor, 'orders.transition', 'order', {
+          tenantId: req.actorContext.tenantId,
+          fromStatus: currentStatus,
+          toStatus: target
+        })
       )
 
       res.json({ orderId, currentStatus, allowedTo })
@@ -1931,7 +1959,7 @@ app.get(
   authenticateToken,
   resolveActorContext,
   requireActorContext,
-  requirePermission('orders.read'),
+  requireCan('orders.read', 'order'),
   async (req, res) => {
     try {
       const { orderId } = req.params
@@ -1959,7 +1987,7 @@ app.get(
   authenticateToken,
   resolveActorContext,
   requireActorContext,
-  requirePermission('approvals.resolve'),
+  requireCan('approvals.resolve', 'approval'),
   async (req, res) => {
     try {
       const { status = 'pending_human', limit = '200' } = req.query
@@ -1986,7 +2014,7 @@ app.post(
   authenticateToken,
   resolveActorContext,
   requireActorContext,
-  requirePermission('approvals.resolve'),
+  requireCan('approvals.resolve', 'approval'),
   async (req, res) => {
     try {
       const { id } = req.params
