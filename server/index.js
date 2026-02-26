@@ -647,6 +647,19 @@ function getIdempotencyKey(req) {
   ).trim()
 }
 
+function ensureIdempotencyKey(req, action, payload = {}) {
+  if (getIdempotencyKey(req)) return
+  const tenantId = req.actorContext?.tenantId || 'tenant'
+  const actorId = req.actorContext?.actorId || 'actor'
+  const fingerprint = crypto
+    .createHash('sha256')
+    .update(JSON.stringify({ tenantId, actorId, action, payload }))
+    .digest('hex')
+    .slice(0, 24)
+  if (!req.body || typeof req.body !== 'object') req.body = {}
+  req.body.idempotency_key = `auto:${action}:${fingerprint}`
+}
+
 async function withIdempotency(req, action, requestPayload, operation) {
   const idempotencyKey = getIdempotencyKey(req)
   if (!idempotencyKey) {
@@ -1863,15 +1876,35 @@ app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorCo
     })
     if (!existing) return res.status(404).json({ error: 'Driver not found' })
 
-    const updated = await prisma.driver.update({
-      where: { id: existing.id },
-      data: {
-        isActive: isActive !== undefined ? isActive : undefined,
-        verificationStatus: verificationStatus || undefined
-      }
+    const payload = {
+      driverId,
+      isActive: isActive !== undefined ? !!isActive : undefined,
+      verificationStatus: verificationStatus || undefined
+    }
+    ensureIdempotencyKey(req, 'drivers.status.update', payload)
+    const wrapped = await withIdempotency(req, 'drivers.status.update', payload, async () => {
+      const updated = await prisma.driver.update({
+        where: { id: existing.id },
+        data: {
+          isActive: isActive !== undefined ? isActive : undefined,
+          verificationStatus: verificationStatus || undefined
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'drivers.status.update',
+        resource: 'driver',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return updated
     })
-    
-    res.json(updated)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'failed' })
@@ -1902,11 +1935,28 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
     })
     if (!existing) return res.status(404).json({ error: 'Driver not found' })
 
-    const updated = await prisma.driver.update({
-      where: { id: existing.id },
-      data
+    const payload = { driverId, data }
+    ensureIdempotencyKey(req, 'drivers.update', payload)
+    const wrapped = await withIdempotency(req, 'drivers.update', payload, async () => {
+      const updated = await prisma.driver.update({
+        where: { id: existing.id },
+        data
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'drivers.update',
+        resource: 'driver',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: data
+      })
+      return updated
     })
-    res.json(updated)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'failed' })
@@ -3102,20 +3152,37 @@ app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, req
       return res.status(400).json({ error: 'name, monthLabel and googleSheetId are required' })
     }
 
-    const source = await prisma.sheetSource.create({
-      data: {
+    const payload = { name, monthLabel, googleSheetId: normalizedSheetId, tabName, detailsTabName, columnMapping, isActive, syncEnabled }
+    ensureIdempotencyKey(req, 'sheet_source.create', payload)
+    const wrapped = await withIdempotency(req, 'sheet_source.create', payload, async () => {
+      const source = await prisma.sheetSource.create({
+        data: {
+          tenantId: req.actorContext.tenantId,
+          name,
+          monthLabel,
+          googleSheetId: normalizedSheetId,
+          tabName: tabName || 'таблица',
+          detailsTabName: detailsTabName || 'подробности',
+          columnMapping: columnMapping ? JSON.stringify(columnMapping) : null,
+          isActive: !!isActive,
+          syncEnabled: !!syncEnabled
+        }
+      })
+      await writeAuditLog({
         tenantId: req.actorContext.tenantId,
-        name,
-        monthLabel,
-        googleSheetId: normalizedSheetId,
-        tabName: tabName || 'таблица',
-        detailsTabName: detailsTabName || 'подробности',
-        columnMapping: columnMapping ? JSON.stringify(columnMapping) : null,
-        isActive: !!isActive,
-        syncEnabled: !!syncEnabled
-      }
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'sheet_source.create',
+        resource: 'sheet_source',
+        resourceId: source.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return source
     })
-    res.json(source)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error creating sheet source:', error)
     res.status(500).json({ error: 'Failed to create sheet source' })
@@ -3142,11 +3209,28 @@ app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, resolveActorCon
     })
     if (!existing) return res.status(404).json({ error: 'Sheet source not found' })
 
-    const updated = await prisma.sheetSource.update({
-      where: { id: existing.id },
-      data
+    const payload = { sourceId: existing.id, data }
+    ensureIdempotencyKey(req, 'sheet_source.update', payload)
+    const wrapped = await withIdempotency(req, 'sheet_source.update', payload, async () => {
+      const updated = await prisma.sheetSource.update({
+        where: { id: existing.id },
+        data
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'sheet_source.update',
+        resource: 'sheet_source',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: data
+      })
+      return updated
     })
-    res.json(updated)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating sheet source:', error)
     res.status(500).json({ error: 'Failed to update sheet source' })
@@ -3161,8 +3245,25 @@ app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveAc
       select: { id: true }
     })
     if (!existing) return res.status(404).json({ error: 'Sheet source not found' })
-    const stats = await syncSheetSource(sourceId)
-    res.json({ success: true, stats })
+    const payload = { sourceId }
+    ensureIdempotencyKey(req, 'sheet_source.sync', payload)
+    const wrapped = await withIdempotency(req, 'sheet_source.sync', payload, async () => {
+      const stats = await syncSheetSource(sourceId)
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'sheet_source.sync',
+        resource: 'sheet_source',
+        resourceId: sourceId,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: stats
+      })
+      return stats
+    })
+    res.json({ success: true, stats: wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error syncing sheet source:', error)
     await prisma.sheetSource.update({
@@ -3180,8 +3281,25 @@ app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveAc
 // ==================== CRM (PRODUCTION) ====================
 app.post('/api/admin/crm/promote-from-staging', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.manage', 'crm'), async (req, res) => {
   try {
-    const stats = await promoteStagingToCustomerCrm(req.actorContext.tenantId)
-    res.json({ success: true, stats })
+    const payload = { tenantId: req.actorContext.tenantId }
+    ensureIdempotencyKey(req, 'crm.promote_from_staging', payload)
+    const wrapped = await withIdempotency(req, 'crm.promote_from_staging', payload, async () => {
+      const stats = await promoteStagingToCustomerCrm(req.actorContext.tenantId)
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'crm.promote_from_staging',
+        resource: 'crm',
+        resourceId: null,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: stats
+      })
+      return stats
+    })
+    res.json({ success: true, stats: wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error promoting staging CRM:', error)
     res.status(500).json({ error: 'Failed to promote staging CRM', details: error.message })
@@ -3351,24 +3469,41 @@ app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorCo
       ? [...new Set(req.body.segments.map((x) => String(x || '').trim()).filter(Boolean))]
       : null
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const company = await tx.customerCompany.update({ where: { id: companyId }, data })
-      if (segments !== null) {
-        await tx.customerCompanySegment.deleteMany({ where: { companyId } })
-        if (segments.length) {
-          await tx.customerCompanySegment.createMany({
-            data: segments.map((segment) => ({
-              companyId,
-              segment,
-              sourceFile: 'manual_ui'
-            })),
-            skipDuplicates: true
-          })
+    const payload = { companyId, data, segments }
+    ensureIdempotencyKey(req, 'crm.company.update', payload)
+    const wrapped = await withIdempotency(req, 'crm.company.update', payload, async () => {
+      const updated = await prisma.$transaction(async (tx) => {
+        const company = await tx.customerCompany.update({ where: { id: companyId }, data })
+        if (segments !== null) {
+          await tx.customerCompanySegment.deleteMany({ where: { companyId } })
+          if (segments.length) {
+            await tx.customerCompanySegment.createMany({
+              data: segments.map((segment) => ({
+                companyId,
+                segment,
+                sourceFile: 'manual_ui'
+              })),
+              skipDuplicates: true
+            })
+          }
         }
-      }
-      return company
+        return company
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'crm.company.update',
+        resource: 'customer_company',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { fields: Object.keys(data), segments }
+      })
+      return updated
     })
-    res.json(updated)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating CRM company:', error)
     res.status(500).json({ error: 'Failed to update CRM company' })
@@ -3407,24 +3542,41 @@ app.put('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorCon
       ? [...new Set(req.body.segments.map((x) => String(x || '').trim()).filter(Boolean))]
       : null
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const contact = await tx.customerContact.update({ where: { id: contactId }, data })
-      if (segments !== null) {
-        await tx.customerContactSegment.deleteMany({ where: { contactId } })
-        if (segments.length) {
-          await tx.customerContactSegment.createMany({
-            data: segments.map((segment) => ({
-              contactId,
-              segment,
-              sourceFile: 'manual_ui'
-            })),
-            skipDuplicates: true
-          })
+    const payload = { contactId, data, segments }
+    ensureIdempotencyKey(req, 'crm.contact.update', payload)
+    const wrapped = await withIdempotency(req, 'crm.contact.update', payload, async () => {
+      const updated = await prisma.$transaction(async (tx) => {
+        const contact = await tx.customerContact.update({ where: { id: contactId }, data })
+        if (segments !== null) {
+          await tx.customerContactSegment.deleteMany({ where: { contactId } })
+          if (segments.length) {
+            await tx.customerContactSegment.createMany({
+              data: segments.map((segment) => ({
+                contactId,
+                segment,
+                sourceFile: 'manual_ui'
+              })),
+              skipDuplicates: true
+            })
+          }
         }
-      }
-      return contact
+        return contact
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'crm.contact.update',
+        resource: 'customer_contact',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { fields: Object.keys(data), segments }
+      })
+      return updated
     })
-    res.json(updated)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating CRM contact:', error)
     res.status(500).json({ error: 'Failed to update CRM contact' })
@@ -4501,22 +4653,39 @@ app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, re
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    const link = await prisma.telegramLink.upsert({
-      where: { telegramUserId: String(telegramUserId) },
-      update: {
-        userId: user.id,
+    const payload = { email, telegramUserId: String(telegramUserId), telegramChatId: telegramChatId ? String(telegramChatId) : null }
+    ensureIdempotencyKey(req, 'telegram.link.upsert', payload)
+    const wrapped = await withIdempotency(req, 'telegram.link.upsert', payload, async () => {
+      const link = await prisma.telegramLink.upsert({
+        where: { telegramUserId: String(telegramUserId) },
+        update: {
+          userId: user.id,
+          tenantId: req.actorContext.tenantId,
+          telegramChatId: telegramChatId ? String(telegramChatId) : null
+        },
+        create: {
+          tenantId: req.actorContext.tenantId,
+          userId: user.id,
+          telegramUserId: String(telegramUserId),
+          telegramChatId: telegramChatId ? String(telegramChatId) : null
+        }
+      })
+      await writeAuditLog({
         tenantId: req.actorContext.tenantId,
-        telegramChatId: telegramChatId ? String(telegramChatId) : null
-      },
-      create: {
-        tenantId: req.actorContext.tenantId,
-        userId: user.id,
-        telegramUserId: String(telegramUserId),
-        telegramChatId: telegramChatId ? String(telegramChatId) : null
-      }
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'telegram.link.upsert',
+        resource: 'telegram_link',
+        resourceId: link.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return link
     })
 
-    res.json({ success: true, link })
+    res.json({ success: true, link: wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error creating telegram link:', error)
     res.status(500).json({ error: 'Failed to create telegram link' })
@@ -5096,23 +5265,39 @@ app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requi
 })), async (req, res) => {
   try {
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency } = req.body
-
-    const route = await prisma.cityRoute.create({
-      data: {
+    const payload = { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency }
+    ensureIdempotencyKey(req, 'city_route.create', payload)
+    const wrapped = await withIdempotency(req, 'city_route.create', payload, async () => {
+      const route = await prisma.cityRoute.create({
+        data: {
+          tenantId: req.actorContext.tenantId,
+          country,
+          city,
+          fromPoint,
+          toPoint,
+          vehicleType,
+          passengers: parseInt(passengers),
+          distance: parseFloat(distance),
+          targetFare: parseFloat(targetFare),
+          currency: currency || 'EUR'
+        }
+      })
+      await writeAuditLog({
         tenantId: req.actorContext.tenantId,
-        country,
-        city,
-        fromPoint,
-        toPoint,
-        vehicleType,
-        passengers: parseInt(passengers),
-        distance: parseFloat(distance),
-        targetFare: parseFloat(targetFare),
-        currency: currency || 'EUR'
-      }
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'city_route.create',
+        resource: 'city_route',
+        resourceId: route.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return route
     })
 
-    res.json(route)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error creating city route:', error)
     res.status(500).json({ error: 'Failed to create city route' })
@@ -5149,12 +5334,29 @@ app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContex
     })
     if (!existingRoute) return res.status(404).json({ error: 'Route not found' })
 
-    const route = await prisma.cityRoute.update({
-      where: { id: existingRoute.id },
-      data: updateData
+    const payload = { routeId: existingRoute.id, updateData }
+    ensureIdempotencyKey(req, 'city_route.update', payload)
+    const wrapped = await withIdempotency(req, 'city_route.update', payload, async () => {
+      const route = await prisma.cityRoute.update({
+        where: { id: existingRoute.id },
+        data: updateData
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'city_route.update',
+        resource: 'city_route',
+        resourceId: route.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: updateData
+      })
+      return route
     })
 
-    res.json(route)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating city route:', error)
     res.status(500).json({ error: 'Failed to update city route' })
@@ -5178,12 +5380,29 @@ app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorCon
     })
     if (!existingRoute) return res.status(404).json({ error: 'Route not found' })
 
-    await prisma.cityRoute.update({
-      where: { id: existingRoute.id },
-      data: { isActive: false }
+    const payload = { routeId: existingRoute.id }
+    ensureIdempotencyKey(req, 'city_route.deactivate', payload)
+    const wrapped = await withIdempotency(req, 'city_route.deactivate', payload, async () => {
+      await prisma.cityRoute.update({
+        where: { id: existingRoute.id },
+        data: { isActive: false }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'city_route.deactivate',
+        resource: 'city_route',
+        resourceId: existingRoute.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return { success: true }
     })
 
-    res.json({ success: true })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error deleting city route:', error)
     res.status(500).json({ error: 'Failed to delete city route' })
@@ -5199,74 +5418,89 @@ app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorCo
       return res.status(400).json({ error: 'Invalid routes data' })
     }
 
-    const results = {
-      added: 0,
-      skipped: 0,
-      errors: []
-    }
+    const payload = { routesCount: routes.length }
+    ensureIdempotencyKey(req, 'city_route.bulk_import', payload)
+    const wrapped = await withIdempotency(req, 'city_route.bulk_import', payload, async () => {
+      const results = {
+        added: 0,
+        skipped: 0,
+        errors: []
+      }
 
-    for (let i = 0; i < routes.length; i++) {
-      const route = routes[i]
-      
-      try {
-        // Проверяем обязательные поля
-        if (!route.country || !route.city || !route.fromPoint || !route.toPoint || 
-            !route.vehicleType || !route.passengers || !route.distance || !route.targetFare) {
+      for (let i = 0; i < routes.length; i++) {
+        const route = routes[i]
+        try {
+          if (!route.country || !route.city || !route.fromPoint || !route.toPoint ||
+              !route.vehicleType || !route.passengers || !route.distance || !route.targetFare) {
+            results.errors.push({
+              row: i + 1,
+              error: 'Missing required fields'
+            })
+            results.skipped++
+            continue
+          }
+
+          const existing = await prisma.cityRoute.findFirst({
+            where: {
+              tenantId: req.actorContext.tenantId,
+              country: route.country,
+              city: route.city,
+              fromPoint: route.fromPoint,
+              toPoint: route.toPoint,
+              vehicleType: route.vehicleType,
+              isActive: true
+            }
+          })
+
+          if (existing) {
+            results.skipped++
+            continue
+          }
+
+          await prisma.cityRoute.create({
+            data: {
+              tenantId: req.actorContext.tenantId,
+              country: route.country.trim(),
+              city: route.city.trim(),
+              fromPoint: route.fromPoint.trim(),
+              toPoint: route.toPoint.trim(),
+              vehicleType: route.vehicleType.trim(),
+              passengers: parseInt(route.passengers) || 1,
+              distance: parseFloat(route.distance) || 0,
+              targetFare: parseFloat(route.targetFare) || 0,
+              currency: (route.currency || 'EUR').trim().toUpperCase()
+            }
+          })
+
+          results.added++
+        } catch (error) {
           results.errors.push({
             row: i + 1,
-            error: 'Missing required fields'
+            error: error.message || 'Unknown error'
           })
           results.skipped++
-          continue
         }
-
-        // Проверяем, существует ли уже такой маршрут
-        const existing = await prisma.cityRoute.findFirst({
-          where: {
-            tenantId: req.actorContext.tenantId,
-            country: route.country,
-            city: route.city,
-            fromPoint: route.fromPoint,
-            toPoint: route.toPoint,
-            vehicleType: route.vehicleType,
-            isActive: true
-          }
-        })
-
-        if (existing) {
-          results.skipped++
-          continue
-        }
-
-        // Создаем новый маршрут
-        await prisma.cityRoute.create({
-          data: {
-            tenantId: req.actorContext.tenantId,
-            country: route.country.trim(),
-            city: route.city.trim(),
-            fromPoint: route.fromPoint.trim(),
-            toPoint: route.toPoint.trim(),
-            vehicleType: route.vehicleType.trim(),
-            passengers: parseInt(route.passengers) || 1,
-            distance: parseFloat(route.distance) || 0,
-            targetFare: parseFloat(route.targetFare) || 0,
-            currency: (route.currency || 'EUR').trim().toUpperCase()
-          }
-        })
-
-        results.added++
-      } catch (error) {
-        results.errors.push({
-          row: i + 1,
-          error: error.message || 'Unknown error'
-        })
-        results.skipped++
       }
-    }
+
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'city_route.bulk_import',
+        resource: 'city_route',
+        resourceId: null,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { routesCount: routes.length, ...results }
+      })
+      return results
+    })
 
     res.json({
       success: true,
-      results
+      results: wrapped.data,
+      idempotent: wrapped.replayed
     })
   } catch (error) {
     console.error('Error bulk importing routes:', error)
