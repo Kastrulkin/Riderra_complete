@@ -76,8 +76,8 @@
           <input v-model="form.phone" class="input" placeholder="Телефон" />
           <input v-model="form.email" class="input" placeholder="Email" />
           <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
-          <input v-model="form.countryPresence" class="input" placeholder="Страны присутствия" />
-          <input v-model="form.cityPresence" class="input" placeholder="Города присутствия" />
+          <input v-model="form.countryPresence" class="input" placeholder="Страна регистрации" />
+          <input v-model="form.cityPresence" class="input" placeholder="Город регистрации" />
           <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div v-else class="card-grid">
@@ -86,8 +86,8 @@
           <input v-model="form.phone" class="input" placeholder="Телефон" />
           <input v-model="form.email" class="input" placeholder="Email" />
           <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
-          <input v-model="form.countryPresence" class="input" placeholder="Страны присутствия" />
-          <input v-model="form.cityPresence" class="input" placeholder="Города присутствия" />
+          <input v-model="form.countryPresence" class="input" placeholder="Страна регистрации" />
+          <input v-model="form.cityPresence" class="input" placeholder="Город регистрации" />
           <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div class="segments-block">

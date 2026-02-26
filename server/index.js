@@ -2215,6 +2215,32 @@ function splitPresence(raw) {
     .filter(Boolean)
 }
 
+function normalizeCountryName(raw) {
+  const value = String(raw || '').trim()
+  if (!value || value === '—') return ''
+  const key = value.toLowerCase()
+  const map = {
+    'uk': 'United Kingdom',
+    'u.k.': 'United Kingdom',
+    'great britain': 'United Kingdom',
+    'britain': 'United Kingdom',
+    'united kingdom': 'United Kingdom',
+    'велкобритания': 'United Kingdom',
+    'великобритания': 'United Kingdom',
+    'англия': 'United Kingdom',
+    'uae': 'UAE',
+    'u.a.e.': 'UAE',
+    'united arab emirates': 'UAE',
+    'эмирейтс': 'UAE',
+    'оаэ': 'UAE'
+  }
+  return map[key] || value
+}
+
+function normalizeCityName(raw) {
+  return String(raw || '').trim().toLowerCase()
+}
+
 app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission('crm.read'), async (req, res) => {
   try {
     const companies = await prisma.customerCompany.findMany({
@@ -2226,6 +2252,7 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
     const isSupplier = (segments) => segments.includes('supplier_company') || segments.includes('potential_supplier')
 
     const matrixMap = new Map()
+    const cityToKnownCountries = new Map()
     for (const company of companies) {
       const segs = (company.segments || []).map((s) => s.segment)
       const clientRole = isClient(segs)
@@ -2239,16 +2266,22 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
 
       for (const country of safeCountries) {
         for (const city of safeCities) {
-          const key = `${country}||${city}`
+          const normalizedCountry = normalizeCountryName(country)
+          const normalizedCity = normalizeCityName(city) || '—'
+          const key = `${normalizedCountry || '—'}||${normalizedCity}`
           if (!matrixMap.has(key)) {
             matrixMap.set(key, {
-              country,
-              city,
+              country: normalizedCountry || '—',
+              city: String(city || '').trim() || '—',
               clients: [],
               suppliers: []
             })
           }
           const row = matrixMap.get(key)
+          if (normalizedCountry && normalizedCity && normalizedCity !== '—') {
+            if (!cityToKnownCountries.has(normalizedCity)) cityToKnownCountries.set(normalizedCity, new Set())
+            cityToKnownCountries.get(normalizedCity).add(normalizedCountry)
+          }
           const item = {
             id: company.id,
             name: company.name,
@@ -2265,7 +2298,33 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
       }
     }
 
-    const rows = Array.from(matrixMap.values())
+    const secondPassMap = new Map()
+    for (const row of matrixMap.values()) {
+      const normalizedCity = normalizeCityName(row.city) || '—'
+      let finalCountry = row.country
+      if (row.country === '—' && normalizedCity !== '—') {
+        const known = cityToKnownCountries.get(normalizedCity)
+        if (known && known.size === 1) finalCountry = Array.from(known)[0]
+      }
+      const key = `${finalCountry}||${normalizedCity}`
+      if (!secondPassMap.has(key)) {
+        secondPassMap.set(key, {
+          country: finalCountry,
+          city: row.city,
+          clients: [],
+          suppliers: []
+        })
+      }
+      const target = secondPassMap.get(key)
+      for (const c of row.clients) {
+        if (!target.clients.some((x) => x.id === c.id)) target.clients.push(c)
+      }
+      for (const s of row.suppliers) {
+        if (!target.suppliers.some((x) => x.id === s.id)) target.suppliers.push(s)
+      }
+    }
+
+    const rows = Array.from(secondPassMap.values())
       .map((row) => ({
         ...row,
         clientsCount: row.clients.length,
