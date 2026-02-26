@@ -68,6 +68,53 @@ function pick(row, keys) {
   return null
 }
 
+function splitMulti(v) {
+  return String(v || '')
+    .replace(/\u2022/g, '|')
+    .split(/[|,;\n/]+/)
+    .map((x) => norm(x))
+    .filter(Boolean)
+}
+
+function mergeUniqueList(prev, next) {
+  const set = new Set([...splitMulti(prev), ...splitMulti(next)])
+  return [...set].join(' | ') || null
+}
+
+function inferCountryFromAddress(addressRaw, cityPresenceRaw) {
+  const address = norm(addressRaw)
+  if (!address) return null
+  const citySet = new Set(splitMulti(cityPresenceRaw).map((x) => x.toLowerCase()))
+
+  const chunks = address
+    .replace(/\u2022/g, '|')
+    .split(/[|;]+/)
+    .map((x) => norm(x))
+    .filter(Boolean)
+
+  const countries = []
+  for (const chunk of chunks) {
+    const parts = chunk.split(',').map((x) => norm(x)).filter(Boolean)
+    if (parts.length >= 2) {
+      const a = parts[0]
+      const b = parts[parts.length - 1]
+      const aIsCity = citySet.has(a.toLowerCase())
+      const bIsCity = citySet.has(b.toLowerCase())
+      if (aIsCity && !bIsCity) {
+        countries.push(b)
+      } else if (bIsCity && !aIsCity) {
+        countries.push(a)
+      } else {
+        countries.push(a)
+      }
+    } else if (parts.length === 1) {
+      const single = parts[0]
+      if (!citySet.has(single.toLowerCase()) && !/\d/.test(single)) countries.push(single)
+    }
+  }
+  return [...new Set(countries)].join(' | ') || null
+}
+
 function csvRows(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')
   const parsed = Papa.parse(raw, { header: true, delimiter: ';', skipEmptyLines: true })
@@ -220,6 +267,7 @@ async function main() {
     { file: files.suppliersCompanies, entity: 'company', segment: 'supplier_company' },
     { file: files.suppliersContacts, entity: 'contact', segment: 'supplier_contact' }
   ]
+  const presenceByCompanyExternalId = new Map()
 
   for (const config of segmentConfig) {
     const rows = csvRows(path.join(BASE, config.file))
@@ -235,6 +283,16 @@ async function main() {
         if (!company) {
           missed++
           continue
+        }
+        const cityPresence = pick(row, ['Города присутствия', 'Город', 'Cities', 'City'])
+        const countryPresence = pick(row, ['Страны присутствия', 'Страна', 'Countries', 'Country']) ||
+          inferCountryFromAddress(row['Адрес'], cityPresence)
+        if (cityPresence || countryPresence) {
+          const prev = presenceByCompanyExternalId.get(externalId) || {}
+          presenceByCompanyExternalId.set(externalId, {
+            cityPresence: mergeUniqueList(prev.cityPresence, cityPresence),
+            countryPresence: mergeUniqueList(prev.countryPresence, countryPresence)
+          })
         }
         await prisma.crmCompanySegment.upsert({
           where: { companyId_segment: { companyId: company.id, segment: config.segment } },
@@ -258,6 +316,22 @@ async function main() {
 
     report.segments[config.file] = { matched, missed }
   }
+
+  let presenceUpdated = 0
+  for (const [externalId, presence] of presenceByCompanyExternalId.entries()) {
+    await prisma.crmCompany.updateMany({
+      where: {
+        sourceSystem: 'planfix',
+        externalId
+      },
+      data: {
+        ...(presence.cityPresence ? { cityPresence: presence.cityPresence } : {}),
+        ...(presence.countryPresence ? { countryPresence: presence.countryPresence } : {})
+      }
+    })
+    presenceUpdated++
+  }
+  report.imported.companyPresenceUpdated = presenceUpdated
 
   report.imported.companySegments = await prisma.crmCompanySegment.count()
   report.imported.contactSegments = await prisma.crmContactSegment.count()
