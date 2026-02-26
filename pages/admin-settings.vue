@@ -9,6 +9,9 @@
 
         <div class="card">
           <h3>{{ t.sheetSources }}</h3>
+          <div v-if="sheetNotice.text" class="notice" :class="sheetNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
+            {{ sheetNotice.text }}
+          </div>
           <div class="toolbar">
             <input v-model="sheetForm.name" class="input" :placeholder="t.sheetName" />
             <input v-model="sheetForm.monthLabel" class="input" :placeholder="t.sheetMonth" />
@@ -17,32 +20,57 @@
             <button class="btn btn--primary" @click="createSheetSource">{{ t.add }}</button>
           </div>
 
-          <div class="grid-head six-cols">
-            <div>{{ t.name }}</div><div>{{ t.month }}</div><div>Sheet ID</div><div>Tab</div><div>{{ t.status }}</div><div>{{ t.actions }}</div>
-          </div>
-          <div v-for="s in sheets" :key="s.id" class="grid-row six-cols">
-            <div>{{ s.name }}</div>
-            <div>{{ s.monthLabel }}</div>
-            <div>{{ s.googleSheetId }}</div>
-            <div>{{ s.tabName }}</div>
-            <div>{{ s.isActive ? 'active' : 'off' }}</div>
-            <div class="row-actions">
-              <button class="btn btn--small btn--primary" @click="syncSheet(s.id)">{{ t.sync }}</button>
-              <button class="btn btn--small" @click="toggleSheet(s)">{{ s.isActive ? t.deactivate : t.activate }}</button>
+          <div class="table-wrap">
+            <div class="grid-head six-cols">
+              <div>{{ t.name }}</div><div>{{ t.month }}</div><div>Sheet ID</div><div>Tab</div><div>{{ t.status }}</div><div>{{ t.actions }}</div>
+            </div>
+            <div v-for="s in sheets" :key="s.id" class="grid-row six-cols">
+              <div>{{ s.name }}</div>
+              <div>{{ s.monthLabel }}</div>
+              <div class="cell-wrap" :title="s.googleSheetId">{{ shortSheetId(s.googleSheetId) }}</div>
+              <div>{{ s.tabName }}</div>
+              <div>
+                <div>{{ s.isActive ? 'active' : 'off' }}</div>
+                <div class="muted" v-if="s.lastSyncStatus">{{ s.lastSyncStatus }}</div>
+                <div class="muted muted--error" v-if="s.lastSyncError">{{ s.lastSyncError }}</div>
+              </div>
+              <div class="row-actions">
+                <button
+                  class="btn btn--small btn--primary"
+                  :disabled="syncingSheetId === s.id"
+                  @click="syncSheet(s.id)"
+                >
+                  {{ syncingSheetId === s.id ? t.syncing : t.sync }}
+                </button>
+                <button class="btn btn--small" @click="toggleSheet(s)">{{ s.isActive ? t.deactivate : t.activate }}</button>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="card">
           <h3>{{ t.staffTelegram }}</h3>
-          <div class="toolbar">
-            <input v-model="linkForm.email" class="input" :placeholder="t.email" />
-            <input v-model="linkForm.telegramUserId" class="input" :placeholder="t.telegramId" />
-            <button class="btn btn--primary" @click="saveLink">{{ t.save }}</button>
+          <div v-if="staffNotice.text" class="notice" :class="staffNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
+            {{ staffNotice.text }}
           </div>
-          <div class="grid-head three-cols"><div>{{ t.email }}</div><div>{{ t.roles }}</div><div>{{ t.telegramLinks }}</div></div>
-          <div v-for="u in staff" :key="u.id" class="grid-row three-cols">
-            <div>{{ u.email }}</div><div>{{ (u.roles || []).join(', ') || '-' }}</div><div>{{ fmtLinks(u.telegramLinks) }}</div>
+          <div class="table-wrap">
+            <div class="grid-head four-cols">
+              <div>{{ t.email }}</div><div>{{ t.roles }}</div><div>{{ t.telegramId }}</div><div>{{ t.actions }}</div>
+            </div>
+            <div v-for="u in staff" :key="u.id" class="grid-row four-cols">
+              <div>{{ u.email }}</div>
+              <div>{{ (u.roles || []).join(', ') || '-' }}</div>
+              <div>
+                <input
+                  v-model="staffDrafts[u.id]"
+                  class="input"
+                  :placeholder="t.telegramId"
+                />
+              </div>
+              <div class="row-actions">
+                <button class="btn btn--small btn--primary" @click="saveStaffLink(u)">{{ t.save }}</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -60,8 +88,11 @@ export default {
   data: () => ({
     sheets: [],
     staff: [],
-    linkForm: { email: '', telegramUserId: '', telegramChatId: '' },
-    sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица' }
+    sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица' },
+    staffDrafts: {},
+    syncingSheetId: null,
+    sheetNotice: { type: 'ok', text: '' },
+    staffNotice: { type: 'ok', text: '' }
   }),
   computed: {
     t () {
@@ -76,6 +107,7 @@ export default {
             actions: 'Действия',
             email: 'Email сотрудника',
             telegramId: 'Telegram User ID',
+            syncing: 'Синхронизация...',
             save: 'Сохранить',
             roles: 'Роли',
             telegramLinks: 'Связки Telegram',
@@ -98,6 +130,7 @@ export default {
             actions: 'Actions',
             email: 'Staff email',
             telegramId: 'Telegram User ID',
+            syncing: 'Syncing...',
             save: 'Save',
             roles: 'Roles',
             telegramLinks: 'Telegram links',
@@ -118,50 +151,99 @@ export default {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '' }
     },
-    fmtLinks (links) {
-      if (!links || !links.length) return '-'
-      return links.map((l) => `${l.telegramUserId}${l.telegramChatId ? ` (chat ${l.telegramChatId})` : ''}`).join(', ')
+    shortSheetId (value) {
+      const raw = String(value || '').trim()
+      const m = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+      if (m && m[1]) return m[1]
+      return raw
+    },
+    async jsonRequest (url, options = {}) {
+      const response = await fetch(url, options)
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(body.details || body.error || `HTTP ${response.status}`)
+      }
+      return body
     },
     async load () {
       const [sheets, staff] = await Promise.all([
-        fetch('/api/admin/sheet-sources', { headers: this.headers() }).then(r => r.json()),
-        fetch('/api/admin/staff-users', { headers: this.headers() }).then(r => r.json())
+        this.jsonRequest('/api/admin/sheet-sources', { headers: this.headers() }),
+        this.jsonRequest('/api/admin/staff-users', { headers: this.headers() })
       ])
       this.sheets = Array.isArray(sheets) ? sheets : []
       this.staff = staff.rows || []
+      this.staffDrafts = this.staff.reduce((acc, user) => {
+        acc[user.id] = (user.telegramLinks && user.telegramLinks[0] && user.telegramLinks[0].telegramUserId) || ''
+        return acc
+      }, {})
     },
     async createSheetSource () {
-      await fetch('/api/admin/sheet-sources', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...this.headers() },
-        body: JSON.stringify(this.sheetForm)
-      })
-      this.sheetForm = { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица' }
-      await this.load()
+      this.sheetNotice = { type: 'ok', text: '' }
+      try {
+        const payload = { ...this.sheetForm, googleSheetId: this.shortSheetId(this.sheetForm.googleSheetId) }
+        await this.jsonRequest('/api/admin/sheet-sources', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...this.headers() },
+          body: JSON.stringify(payload)
+        })
+        this.sheetForm = { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица' }
+        await this.load()
+        this.sheetNotice = { type: 'ok', text: 'Источник добавлен.' }
+      } catch (error) {
+        this.sheetNotice = { type: 'error', text: `Ошибка добавления: ${error.message}` }
+      }
     },
     async syncSheet (id) {
-      await fetch(`/api/admin/sheet-sources/${id}/sync`, {
-        method: 'POST',
-        headers: this.headers()
-      })
-      await this.load()
+      this.sheetNotice = { type: 'ok', text: '' }
+      this.syncingSheetId = id
+      try {
+        const data = await this.jsonRequest(`/api/admin/sheet-sources/${id}/sync`, {
+          method: 'POST',
+          headers: this.headers()
+        })
+        await this.load()
+        const stats = data.stats || {}
+        this.sheetNotice = {
+          type: 'ok',
+          text: `Синхронизировано: total=${stats.total || 0}, created=${stats.created || 0}, updated=${stats.updated || 0}, errors=${stats.errors || 0}`
+        }
+      } catch (error) {
+        this.sheetNotice = { type: 'error', text: `Ошибка синхронизации: ${error.message}` }
+      } finally {
+        this.syncingSheetId = null
+      }
     },
     async toggleSheet (sheet) {
-      await fetch(`/api/admin/sheet-sources/${sheet.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...this.headers() },
-        body: JSON.stringify({ isActive: !sheet.isActive })
-      })
-      await this.load()
+      this.sheetNotice = { type: 'ok', text: '' }
+      try {
+        await this.jsonRequest(`/api/admin/sheet-sources/${sheet.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...this.headers() },
+          body: JSON.stringify({ isActive: !sheet.isActive })
+        })
+        await this.load()
+      } catch (error) {
+        this.sheetNotice = { type: 'error', text: `Ошибка изменения статуса: ${error.message}` }
+      }
     },
-    async saveLink () {
-      await fetch('/api/admin/telegram-links', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...this.headers() },
-        body: JSON.stringify(this.linkForm)
-      })
-      this.linkForm = { email: '', telegramUserId: '', telegramChatId: '' }
-      await this.load()
+    async saveStaffLink (user) {
+      this.staffNotice = { type: 'ok', text: '' }
+      const telegramUserId = String(this.staffDrafts[user.id] || '').trim()
+      if (!telegramUserId) {
+        this.staffNotice = { type: 'error', text: `Для ${user.email} заполните Telegram User ID.` }
+        return
+      }
+      try {
+        await this.jsonRequest('/api/admin/telegram-links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...this.headers() },
+          body: JSON.stringify({ email: user.email, telegramUserId })
+        })
+        await this.load()
+        this.staffNotice = { type: 'ok', text: `Сохранено для ${user.email}.` }
+      } catch (error) {
+        this.staffNotice = { type: 'error', text: `Ошибка сохранения: ${error.message}` }
+      }
     }
   }
 }
@@ -171,6 +253,9 @@ export default {
 .admin-section { padding-top: 150px; color: #17233d; }
 .card { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06); }
 .toolbar { display: flex; gap: 8px; margin: 8px 0 12px; flex-wrap: wrap; }
+.notice { border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-weight: 600; }
+.notice--ok { background: #ebf7ef; border: 1px solid #a5d6b4; color: #1f6b32; }
+.notice--error { background: #fff1f0; border: 1px solid #f4b8b2; color: #9f2f26; }
 .input {
   width: 100%;
   min-height: 44px;
@@ -182,10 +267,15 @@ export default {
 }
 .input::placeholder { color: #7a8197; }
 .input:focus { outline: none; border-color: #2f80ed; box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.15); }
-.grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 1040px; }
+.table-wrap { overflow-x: auto; }
+.grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 980px; align-items: center; }
 .three-cols { display: grid; grid-template-columns: 1.4fr 1.2fr 1.4fr; }
-.six-cols { display: grid; grid-template-columns: 1fr 1fr 2fr .8fr .7fr 1.2fr; }
+.four-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr .7fr; }
+.six-cols { display: grid; grid-template-columns: 1fr .8fr 1.7fr .7fr 1fr 1fr; }
 .grid-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; color: #1d2c4a; }
 .grid-row { border-bottom: 1px solid #f0f2f7; color: #2f3e60; }
 .row-actions { display: flex; gap: 6px; align-items: center; }
+.cell-wrap { word-break: break-all; }
+.muted { font-size: 12px; color: #647191; }
+.muted--error { color: #a13a31; }
 </style>

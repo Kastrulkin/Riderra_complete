@@ -394,10 +394,22 @@ async function getGoogleAccessToken() {
   return tokenData.access_token
 }
 
+function normalizeGoogleSheetId(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+  if (match && match[1]) return match[1]
+  return raw
+}
+
 async function fetchGoogleSheetRows(sheetSource) {
   const accessToken = await getGoogleAccessToken()
   const range = `${sheetSource.tabName}!A:AZ`
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetSource.googleSheetId}/values/${encodeURIComponent(range)}`
+  const sheetId = normalizeGoogleSheetId(sheetSource.googleSheetId)
+  if (!sheetId) {
+    throw new Error('Google Sheet ID is empty')
+  }
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`
 
   const response = await fetch(url, {
     headers: {
@@ -1721,7 +1733,8 @@ app.get('/api/admin/sheet-sources', authenticateToken, requirePermission('settin
 app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
   try {
     const { name, monthLabel, googleSheetId, tabName, isActive = true, syncEnabled = true } = req.body
-    if (!name || !monthLabel || !googleSheetId) {
+    const normalizedSheetId = normalizeGoogleSheetId(googleSheetId)
+    if (!name || !monthLabel || !normalizedSheetId) {
       return res.status(400).json({ error: 'name, monthLabel and googleSheetId are required' })
     }
 
@@ -1729,7 +1742,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, requirePermission('setti
       data: {
         name,
         monthLabel,
-        googleSheetId,
+        googleSheetId: normalizedSheetId,
         tabName: tabName || 'таблица',
         isActive: !!isActive,
         syncEnabled: !!syncEnabled
@@ -1749,7 +1762,7 @@ app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, requirePermissi
     const data = {}
     if (name !== undefined) data.name = name
     if (monthLabel !== undefined) data.monthLabel = monthLabel
-    if (googleSheetId !== undefined) data.googleSheetId = googleSheetId
+    if (googleSheetId !== undefined) data.googleSheetId = normalizeGoogleSheetId(googleSheetId)
     if (tabName !== undefined) data.tabName = tabName
     if (isActive !== undefined) data.isActive = !!isActive
     if (syncEnabled !== undefined) data.syncEnabled = !!syncEnabled
