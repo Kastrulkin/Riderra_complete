@@ -131,6 +131,23 @@ model Order {
   reviews        Review[]
   sourceHistory  OrderSourceSnapshot[]
   priceConflicts PriceConflict[]
+  statusHistory  OrderStatusHistory[]
+}
+
+model OrderStatusHistory {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  String
+  toStatus    String
+  reason      String?
+  actorUserId String?
+  actorEmail  String?
+  source      String   @default("system")
+
+  @@index([orderId, createdAt])
+  @@index([source, createdAt])
 }
 
 model Review {

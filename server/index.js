@@ -339,6 +339,9 @@ async function applyOrderStatusTransition({
   toStatus,
   reason = null,
   actorPermissions = [],
+  actorUserId = null,
+  actorEmail = null,
+  source = 'system',
   bypassPermissions = false,
   tx = prisma
 }) {
@@ -380,14 +383,33 @@ async function applyOrderStatusTransition({
   if (currentStatus !== targetStatus) patch.status = targetStatus
   if (nextComment !== order.comment) patch.comment = nextComment
 
-  if (Object.keys(patch).length === 0) {
+  const shouldLogHistory = currentStatus !== targetStatus
+  if (Object.keys(patch).length === 0 && !shouldLogHistory) {
     return order
   }
 
-  return tx.order.update({
+  const updatedOrder = Object.keys(patch).length === 0
+    ? order
+    : await tx.order.update({
     where: { id: order.id },
     data: patch
   })
+
+  if (shouldLogHistory) {
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        fromStatus: currentStatus,
+        toStatus: targetStatus,
+        reason: reason || null,
+        actorUserId,
+        actorEmail,
+        source
+      }
+    })
+  }
+
+  return updatedOrder
 }
 
 function normalizeHeader(value) {
@@ -713,6 +735,7 @@ async function syncSheetSource(sheetSourceId) {
               orderId: existingOrder.id,
               toStatus: incomingStatus,
               reason: `Synced from Google Sheet source "${source.name || source.id}"`,
+              source: 'google_sheet_sync',
               bypassPermissions: true
             })
           } catch (statusError) {
@@ -1332,6 +1355,7 @@ app.post('/api/webhooks/easytaxi/order', async (req, res) => {
         orderId,
         toStatus: 'assigned',
         reason: 'Auto-assigned by EasyTaxi webhook',
+        source: 'easytaxi_webhook',
         bypassPermissions: true
       })
       
@@ -1398,7 +1422,10 @@ app.put(
         orderId,
         toStatus: targetStatus,
         reason,
-        actorPermissions: req.userPermissions || []
+        actorPermissions: req.userPermissions || [],
+        actorUserId: req.user?.id || null,
+        actorEmail: req.user?.email || null,
+        source: 'admin_api'
       })
       res.json({ success: true, order: updated })
     } catch (error) {
@@ -1410,6 +1437,32 @@ app.put(
       }
       console.error('Error changing order status:', error)
       res.status(500).json({ error: 'Failed to change order status' })
+    }
+  }
+)
+
+app.get(
+  '/api/admin/orders/:orderId/status-history',
+  authenticateToken,
+  requirePermission('orders.read'),
+  async (req, res) => {
+    try {
+      const { orderId } = req.params
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { id: true }
+      })
+      if (!order) return res.status(404).json({ error: 'Order not found' })
+
+      const history = await prisma.orderStatusHistory.findMany({
+        where: { orderId },
+        orderBy: { createdAt: 'desc' },
+        take: 500
+      })
+      res.json({ orderId, history })
+    } catch (error) {
+      console.error('Error loading order status history:', error)
+      res.status(500).json({ error: 'Failed to load order status history' })
     }
   }
 )
