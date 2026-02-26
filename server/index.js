@@ -1168,6 +1168,107 @@ app.get('/api/admin/orders', authenticateToken, requirePermission('orders.read')
   }
 })
 
+app.get('/api/admin/orders-sheet-view', authenticateToken, requirePermission('orders.read'), async (req, res) => {
+  try {
+    const { sourceId = '' } = req.query
+    const source = sourceId
+      ? await prisma.sheetSource.findUnique({ where: { id: String(sourceId) } })
+      : await prisma.sheetSource.findFirst({
+          where: { isActive: true },
+          orderBy: [{ updatedAt: 'desc' }]
+        })
+
+    if (!source) {
+      return res.json({ source: null, headers: [], rows: [], rawRows: [] })
+    }
+
+    const snapshots = await prisma.orderSourceSnapshot.findMany({
+      where: { sheetSourceId: source.id },
+      include: {
+        order: {
+          select: { id: true, status: true, driverPrice: true, clientPrice: true }
+        }
+      },
+      orderBy: [{ sourceRow: 'asc' }, { createdAt: 'desc' }],
+      take: 10000
+    })
+
+    const seenRows = new Set()
+    const headers = []
+    const headerSet = new Set()
+    const rows = []
+    const rawRows = []
+
+    for (const snapshot of snapshots) {
+      if (seenRows.has(snapshot.sourceRow)) continue
+      seenRows.add(snapshot.sourceRow)
+
+      let payload = {}
+      try {
+        payload = JSON.parse(snapshot.rawPayload || '{}')
+      } catch (_) {
+        payload = {}
+      }
+      const raw = payload && payload.row && typeof payload.row === 'object' ? payload.row : payload
+      if (!raw || typeof raw !== 'object') continue
+
+      for (const key of Object.keys(raw)) {
+        if (!headerSet.has(key)) {
+          headerSet.add(key)
+          headers.push(key)
+        }
+      }
+
+      const contractor = pickField(raw, ['контрагент', 'contractor']) || ''
+      const orderNumber = pickField(raw, ['номер заказа', 'order id', 'номер']) || ''
+      const date = pickField(raw, ['дата', 'date', 'pickup datetime', 'pickup time', 'дата подачи']) || ''
+      const fromPoint = pickField(raw, ['откуда', 'from', 'адрес подачи', 'pickup']) || ''
+      const toPoint = pickField(raw, ['куда', 'to', 'адрес назначения', 'dropoff']) || ''
+      const sum = pickField(raw, ['сумма', 'цена', 'стоимость', 'price', 'client price']) || ''
+      const driver = pickField(raw, ['водитель', 'driver']) || ''
+      const comment = pickField(raw, ['комментарий', 'comment', 'примечание']) || ''
+      const internalOrderNumber = pickField(raw, ['внутренний номер заказа', 'internal order number']) || ''
+
+      rows.push({
+        id: snapshot.order?.id || '',
+        source: source.name || source.monthLabel || 'google_sheet',
+        sourceRow: snapshot.sourceRow,
+        contractor,
+        orderNumber,
+        date,
+        fromPoint,
+        toPoint,
+        sum,
+        driver,
+        comment,
+        internalOrderNumber
+      })
+
+      rawRows.push({
+        id: snapshot.order?.id || '',
+        source: source.name || source.monthLabel || 'google_sheet',
+        sourceRow: snapshot.sourceRow,
+        values: raw
+      })
+    }
+
+    res.json({
+      source: {
+        id: source.id,
+        name: source.name,
+        monthLabel: source.monthLabel,
+        tabName: source.tabName
+      },
+      headers,
+      rows,
+      rawRows
+    })
+  } catch (error) {
+    console.error('Error fetching sheet view orders:', error)
+    res.status(500).json({ error: 'Failed to fetch sheet view orders' })
+  }
+})
+
 // API для управления отзывами
 app.post('/api/reviews', async (req, res) => {
   try {
