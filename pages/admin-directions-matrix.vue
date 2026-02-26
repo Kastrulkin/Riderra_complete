@@ -68,7 +68,7 @@
           <input v-model="companyForm.email" class="input" placeholder="Email" />
           <input v-model="companyForm.telegramUrl" class="input" placeholder="Telegram ссылка" />
           <input v-model="companyForm.countryPresence" class="input" placeholder="Страна регистрации" />
-          <input v-model="companyForm.cityPresence" class="input" placeholder="Город регистрации" />
+          <input v-model="companyForm.cityPresence" class="input" placeholder="Города присутствия (где работают)" />
           <textarea v-model="companyForm.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div class="row-actions">
