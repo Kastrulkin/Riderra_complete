@@ -2245,7 +2245,7 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
 app.get('/api/admin/pricing/cities', authenticateToken, requirePermission('pricing.read'), async (req, res) => {
   try {
     const { q = '', limit = '200' } = req.query
-    const take = Math.min(parseInt(limit, 10) || 200, 500)
+    const take = Math.min(parseInt(limit, 10) || 200, 10000)
     const where = {
       isActive: true
     }
