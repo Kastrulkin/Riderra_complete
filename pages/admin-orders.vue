@@ -34,7 +34,17 @@
             <div class="tech cell-ellipsis" :title="o.id">{{ o.id || '-' }}</div>
             <div class="tech">{{ o.source || '-' }}</div>
             <div>{{ o.contractor || '-' }}</div>
-            <div>{{ o.orderNumber || '-' }}</div>
+            <div>
+              <button
+                v-if="o.orderNumber"
+                class="order-link"
+                type="button"
+                @click="openOrderDetails(o.orderNumber)"
+              >
+                {{ o.orderNumber }}
+              </button>
+              <span v-else>-</span>
+            </div>
             <div>{{ o.date || '-' }}</div>
             <div>{{ o.fromPoint || '-' }}</div>
             <div>{{ o.toPoint || '-' }}</div>
@@ -51,13 +61,20 @@
             <div class="tech">{{ t.sourceRow }}</div>
             <div v-for="h in rawHeaders" :key="h">{{ h }}</div>
           </div>
-          <div v-for="r in filteredRawRows" :key="`${r.sourceRow}-${r.id}`" class="table-row raw-grid" :style="rawGridStyle">
+          <div
+            v-for="r in filteredRawRows"
+            :key="`${r.sourceRow}-${r.id}`"
+            class="table-row raw-grid"
+            :class="{ 'table-row--matched': isRawMatch(r) }"
+            :style="rawGridStyle"
+          >
             <div class="tech cell-ellipsis" :title="r.id">{{ r.id || '-' }}</div>
             <div class="tech">{{ r.sourceRow }}</div>
             <div v-for="h in rawHeaders" :key="`${r.sourceRow}-${h}`">{{ (r.values && r.values[h]) || '-' }}</div>
           </div>
         </div>
 
+        <div v-if="drilldownNotice" class="hint">{{ drilldownNotice }}</div>
         <div class="hint">{{ t.total }}: {{ mode === 'table' ? filteredRows.length : filteredRawRows.length }}</div>
       </div>
     </section>
@@ -78,7 +95,9 @@ export default {
     rawRows: [],
     rawHeaders: [],
     filteredRows: [],
-    filteredRawRows: []
+    filteredRawRows: [],
+    drilldownToken: '',
+    drilldownNotice: ''
   }),
   computed: {
     t () {
@@ -100,7 +119,9 @@ export default {
             driver: 'Водитель',
             comment: 'Комментарий',
             internalOrderNumber: 'Внутренний номер заказа',
-            total: 'Всего'
+            total: 'Всего',
+            matchedInDetails: 'Найдено в Подробностях',
+            notFoundInDetails: 'В Подробностях не найдено'
           }
         : {
             title: 'Orders Table',
@@ -119,7 +140,9 @@ export default {
             driver: 'Driver',
             comment: 'Comment',
             internalOrderNumber: 'Internal Order Number',
-            total: 'Total'
+            total: 'Total',
+            matchedInDetails: 'Found in details',
+            notFoundInDetails: 'Not found in details'
           }
     },
     rawGridStyle () {
@@ -139,7 +162,19 @@ export default {
       this.rows = data.rows || []
       this.rawRows = data.rawRows || []
       this.rawHeaders = data.headers || []
+      this.drilldownNotice = ''
+      this.drilldownToken = ''
       this.applyFilter()
+    },
+    normalizeToken (value) {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/\s+/g, '')
+        .replace(/[^a-z0-9а-яё_-]/gi, '')
+    },
+    rowText (row) {
+      const values = row.values || {}
+      return `${row.id || ''} ${row.sourceRow || ''} ${Object.values(values).join(' ')}`
     },
     applyFilter () {
       const q = this.q.trim().toLowerCase()
@@ -166,11 +201,29 @@ export default {
           .some((v) => String(v).toLowerCase().includes(q))
       )
 
-      this.filteredRawRows = this.rawRows.filter((row) => {
-        const values = row.values || {}
-        const text = Object.values(values).join(' ')
-        return `${row.id || ''} ${row.sourceRow || ''} ${text}`.toLowerCase().includes(q)
+      this.filteredRawRows = this.rawRows.filter((row) => this.rowText(row).toLowerCase().includes(q))
+    },
+    openOrderDetails (orderNumber) {
+      const rawToken = String(orderNumber || '').trim()
+      if (!rawToken) return
+      const normalizedToken = this.normalizeToken(rawToken)
+      this.mode = 'raw'
+      this.q = rawToken
+      this.drilldownToken = normalizedToken
+      this.applyFilter()
+
+      const exactMatches = this.filteredRawRows.filter((row) => {
+        const normalizedRow = this.normalizeToken(this.rowText(row))
+        return normalizedRow.includes(normalizedToken)
       })
+      const count = exactMatches.length
+      this.drilldownNotice = count > 0
+        ? `${this.t.matchedInDetails}: ${count}`
+        : this.t.notFoundInDetails
+    },
+    isRawMatch (row) {
+      if (!this.drilldownToken) return false
+      return this.normalizeToken(this.rowText(row)).includes(this.drilldownToken)
     }
   }
 }
@@ -198,9 +251,20 @@ export default {
 .table-head, .table-row { gap: 10px; min-width: 1900px; padding: 10px 12px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; }
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
+.table-row--matched { background: #fff8dd; }
 .main-grid { display: grid; grid-template-columns: 120px 120px 180px 130px 140px 220px 220px 110px 150px 260px 170px; }
 .raw-grid { display: grid; }
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint { margin-top: 10px; color: #637191; }
+.order-link {
+  border: none;
+  background: transparent;
+  color: #0b63c8;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.order-link:hover { color: #084a95; }
 </style>
