@@ -2267,6 +2267,20 @@ function normalizeCityName(raw) {
   return String(raw || '').trim().toLowerCase()
 }
 
+function inferCountryFromCity(rawCity) {
+  const city = normalizeCityName(rawCity)
+  const map = {
+    london: 'United Kingdom',
+    dubai: 'UAE',
+    paris: 'France',
+    rome: 'Italy',
+    vienna: 'Austria',
+    madrid: 'Spain',
+    cancun: 'Mexico'
+  }
+  return map[city] || ''
+}
+
 app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission('crm.read'), async (req, res) => {
   try {
     const companies = await prisma.customerCompany.findMany({
@@ -2287,7 +2301,7 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
 
       const countries = splitPresence(company.presenceCountries)
       const cities = splitPresence(company.presenceCities || company.cityPresence)
-      const safeCountries = countries.length ? countries : ['—']
+      const safeCountries = countries.length ? countries : [inferCountryFromCity(cities[0]) || '—']
       const safeCities = cities.length ? cities : ['—']
 
       for (const country of safeCountries) {
