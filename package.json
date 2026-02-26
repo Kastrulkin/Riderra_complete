@@ -19,7 +19,9 @@
     "security:gate": "node scripts/security_gate_checks.js",
     "security:release-gate": "node scripts/security_release_gate.js",
     "security:tenant-mismatch": "node scripts/security_tenant_mismatch_smoke.js",
-    "security:api-tenant-mismatch": "node scripts/security_api_tenant_mismatch_smoke.js"
+    "security:api-tenant-mismatch": "node scripts/security_api_tenant_mismatch_smoke.js",
+    "security:api-idempotency": "node scripts/security_api_idempotency_smoke.js",
+    "security:api-human-in-loop": "node scripts/security_api_human_in_loop_smoke.js"
   },
   "dependencies": {
     "@nuxtjs/axios": "^5.8.0",

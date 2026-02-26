@@ -9,6 +9,8 @@ const steps = [
   { name: 'policy', cmd: ['node', 'scripts/security_policy_smoke.js'] },
   { name: 'tenantMismatch', cmd: ['node', 'scripts/security_tenant_mismatch_smoke.js'] },
   { name: 'apiTenantMismatch', cmd: ['node', 'scripts/security_api_tenant_mismatch_smoke.js'] },
+  { name: 'apiIdempotency', cmd: ['node', 'scripts/security_api_idempotency_smoke.js'] },
+  { name: 'apiHumanInLoop', cmd: ['node', 'scripts/security_api_human_in_loop_smoke.js'] },
   { name: 'gate', cmd: ['node', 'scripts/security_gate_checks.js'] }
 ]
 
@@ -76,6 +78,8 @@ function main() {
   const policy = report.steps.policy?.parsed || {}
   const tenantMismatch = report.steps.tenantMismatch?.parsed || {}
   const apiTenantMismatch = report.steps.apiTenantMismatch?.parsed || {}
+  const apiIdempotency = report.steps.apiIdempotency?.parsed || {}
+  const apiHumanInLoop = report.steps.apiHumanInLoop?.parsed || {}
 
   const nullTenantOk = [
     smoke.ordersNullTenant,
@@ -93,8 +97,8 @@ function main() {
 
   report.criteria.tenantIsolation = Boolean(gate.tenantIsolation) && nullTenantOk && Boolean(tenantMismatch.ok) && Boolean(apiTenantMismatch.ok)
   report.criteria.policy = Boolean(gate.roles) && Boolean(policy.ok)
-  report.criteria.idempotency = Boolean(gate.idempotency)
-  report.criteria.humanInLoop = Boolean(gate.humanInLoop)
+  report.criteria.idempotency = Boolean(gate.idempotency) && Boolean(apiIdempotency.ok)
+  report.criteria.humanInLoop = Boolean(gate.humanInLoop) && Boolean(apiHumanInLoop.ok)
   report.criteria.audit = Boolean(gate.audit)
 
   const allOk = Object.values(report.criteria).every(Boolean)
