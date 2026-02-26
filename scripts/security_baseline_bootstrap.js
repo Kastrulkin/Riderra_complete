@@ -28,6 +28,32 @@ async function main() {
     })
   }
 
+  // CI baseline: on a clean database there may be no users at all.
+  // Keep at least one active membership so security smoke checks are deterministic.
+  const ciUser = await prisma.user.upsert({
+    where: { email: 'security-gate-system@riderra.local' },
+    update: {
+      role: 'staff',
+      isActive: true
+    },
+    create: {
+      email: 'security-gate-system@riderra.local',
+      password: 'not-used-in-ci',
+      role: 'staff',
+      isActive: true
+    }
+  })
+  await prisma.tenantMembership.upsert({
+    where: { tenantId_userId: { tenantId: tenant.id, userId: ciUser.id } },
+    update: { isActive: true, role: 'system' },
+    create: {
+      tenantId: tenant.id,
+      userId: ciUser.id,
+      role: 'system',
+      isActive: true
+    }
+  })
+
   await prisma.order.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.orderStatusHistory.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.request.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
