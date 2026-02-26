@@ -1806,18 +1806,36 @@ app.put('/api/drivers/me', authenticateToken, resolveActorContext, requireActorC
 
     const { commissionRate, kmRate, hourlyRate, childSeatPrice, pricingCurrency } = req.body
 
-    const updated = await prisma.driver.update({
-      where: { id: driver.id },
-      data: {
-        commissionRate: commissionRate ? parseFloat(commissionRate) : undefined,
-        kmRate: kmRate !== undefined ? (kmRate === null || kmRate === '' ? null : parseFloat(kmRate)) : undefined,
-        hourlyRate: hourlyRate !== undefined ? (hourlyRate === null || hourlyRate === '' ? null : parseFloat(hourlyRate)) : undefined,
-        childSeatPrice: childSeatPrice !== undefined ? (childSeatPrice === null || childSeatPrice === '' ? null : parseFloat(childSeatPrice)) : undefined,
-        pricingCurrency: pricingCurrency !== undefined ? (pricingCurrency ? String(pricingCurrency) : null) : undefined
-      }
+    const data = {
+      commissionRate: commissionRate ? parseFloat(commissionRate) : undefined,
+      kmRate: kmRate !== undefined ? (kmRate === null || kmRate === '' ? null : parseFloat(kmRate)) : undefined,
+      hourlyRate: hourlyRate !== undefined ? (hourlyRate === null || hourlyRate === '' ? null : parseFloat(hourlyRate)) : undefined,
+      childSeatPrice: childSeatPrice !== undefined ? (childSeatPrice === null || childSeatPrice === '' ? null : parseFloat(childSeatPrice)) : undefined,
+      pricingCurrency: pricingCurrency !== undefined ? (pricingCurrency ? String(pricingCurrency) : null) : undefined
+    }
+    const payload = { driverId: driver.id, data }
+    ensureIdempotencyKey(req, 'driver.self.update', payload)
+    const wrapped = await withIdempotency(req, 'driver.self.update', payload, async () => {
+      const updated = await prisma.driver.update({
+        where: { id: driver.id },
+        data
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'driver.self.update',
+        resource: 'driver',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return updated
     })
 
-    res.json(updated)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating driver:', error)
     res.status(500).json({ error: 'Failed to update driver' })
@@ -1851,13 +1869,29 @@ app.delete('/api/drivers/routes/:routeId', authenticateToken, resolveActorContex
       return res.status(404).json({ error: 'Route not found' })
     }
 
-    // Удаляем маршрут (или помечаем как неактивный)
-    await prisma.driverRoute.update({
-      where: { id: routeId },
-      data: { isActive: false }
+    const payload = { routeId: route.id, driverId: driver.id }
+    ensureIdempotencyKey(req, 'driver.route.deactivate', payload)
+    const wrapped = await withIdempotency(req, 'driver.route.deactivate', payload, async () => {
+      await prisma.driverRoute.update({
+        where: { id: routeId },
+        data: { isActive: false }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'driver.route.deactivate',
+        resource: 'driver_route',
+        resourceId: route.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return { success: true }
     })
 
-    res.json({ success: true })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error deleting route:', error)
     res.status(500).json({ error: 'Failed to delete route' })
@@ -3051,27 +3085,47 @@ app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, resolveActorC
       return res.status(404).json({ error: 'City route not found' })
     }
 
-    // Создаем или обновляем цену водителя
-    const driverCityRoute = await prisma.driverCityRoute.upsert({
-      where: {
-        driverId_cityRouteId: {
+    const payload = {
+      driverId: driver.id,
+      routeId,
+      bestPrice: bestPrice ? parseFloat(bestPrice) : null
+    }
+    ensureIdempotencyKey(req, 'driver.city_route.upsert', payload)
+    const wrapped = await withIdempotency(req, 'driver.city_route.upsert', payload, async () => {
+      const driverCityRoute = await prisma.driverCityRoute.upsert({
+        where: {
+          driverId_cityRouteId: {
+            driverId: driver.id,
+            cityRouteId: routeId
+          }
+        },
+        update: {
+          tenantId: req.actorContext.tenantId,
+          bestPrice: bestPrice ? parseFloat(bestPrice) : null
+        },
+        create: {
+          tenantId: req.actorContext.tenantId,
           driverId: driver.id,
-          cityRouteId: routeId
+          cityRouteId: routeId,
+          bestPrice: bestPrice ? parseFloat(bestPrice) : null
         }
-      },
-      update: {
+      })
+      await writeAuditLog({
         tenantId: req.actorContext.tenantId,
-        bestPrice: bestPrice ? parseFloat(bestPrice) : null
-      },
-      create: {
-        tenantId: req.actorContext.tenantId,
-        driverId: driver.id,
-        cityRouteId: routeId,
-        bestPrice: bestPrice ? parseFloat(bestPrice) : null
-      }
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'driver.city_route.upsert',
+        resource: 'driver_city_route',
+        resourceId: driverCityRoute.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return driverCityRoute
     })
 
-    res.json(driverCityRoute)
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating driver city route:', error)
     res.status(500).json({ error: 'Failed to update city route' })
@@ -4460,17 +4514,34 @@ app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActo
       select: { id: true }
     })
     if (!existing) return res.status(404).json({ error: 'Draft not found' })
-    const draft = await prisma.opsEventDraft.update({
-      where: { id: existing.id },
-      data: {
-        status: 'rejected',
-        reviewerUserId: req.user.id,
-        reviewerEmail: req.user.email,
-        reviewedAt: new Date(),
-        reviewComment: comment || null
-      }
+    const payload = { draftId, comment: comment || null }
+    ensureIdempotencyKey(req, 'ops.draft.reject', payload)
+    const wrapped = await withIdempotency(req, 'ops.draft.reject', payload, async () => {
+      const draft = await prisma.opsEventDraft.update({
+        where: { id: existing.id },
+        data: {
+          status: 'rejected',
+          reviewerUserId: req.user.id,
+          reviewerEmail: req.user.email,
+          reviewedAt: new Date(),
+          reviewComment: comment || null
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'ops.draft.reject',
+        resource: 'ops_draft',
+        resourceId: draft.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return draft
     })
-    res.json({ success: true, draft })
+    res.json({ success: true, draft: wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error rejecting ops draft:', error)
     res.status(500).json({ error: 'Failed to reject draft' })
@@ -4488,64 +4559,90 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
     })
     if (!draft) return res.status(404).json({ error: 'Draft not found' })
     if (draft.status !== 'pending') return res.status(400).json({ error: 'Draft is not pending' })
-
-    const payload = JSON.parse(draft.payloadJson || '{}')
-    const event = await prisma.opsEvent.create({
-      data: {
-        tenantId: req.actorContext.tenantId,
-        type: draft.parsedType,
-        payloadJson: draft.payloadJson,
-        sourceDraftId: draft.id
-      }
-    })
-
-    let unavailability = null
-    let conflicts = []
-    if (draft.parsedType === 'driver_unavailable') {
-      const name = String(payload.driverNameRaw || '').trim()
-      const driver = name
-        ? await prisma.driver.findFirst({
-            where: {
-              tenantId: req.actorContext.tenantId,
-              name: { contains: name, mode: 'insensitive' }
-            },
-            orderBy: { createdAt: 'asc' }
-          })
-        : null
-
-      unavailability = await prisma.driverUnavailability.create({
+    const payload = { draftId, comment: comment || null }
+    ensureIdempotencyKey(req, 'ops.draft.approve', payload)
+    const wrapped = await withIdempotency(req, 'ops.draft.approve', payload, async () => {
+      const parsedPayload = JSON.parse(draft.payloadJson || '{}')
+      const event = await prisma.opsEvent.create({
         data: {
           tenantId: req.actorContext.tenantId,
-          driverId: driver?.id || null,
-          driverNameRaw: name || 'unknown',
-          startAt: new Date(payload.startAt),
-          endAt: new Date(payload.endAt),
-          reason: payload.reason || 'unavailable',
+          type: draft.parsedType,
+          payloadJson: draft.payloadJson,
           sourceDraftId: draft.id
         }
       })
-      conflicts = await findAvailabilityConflicts(unavailability, req.actorContext.tenantId)
-    }
 
-    const updatedDraft = await prisma.opsEventDraft.update({
-      where: { id: draft.id },
-      data: {
-        status: 'approved',
-        reviewerUserId: req.user.id,
-        reviewerEmail: req.user.email,
-        reviewedAt: new Date(),
-        reviewComment: comment || null,
-        promotedEventId: event.id,
-        promotedUnavailabilityId: unavailability?.id || null
+      let unavailability = null
+      let conflicts = []
+      if (draft.parsedType === 'driver_unavailable') {
+        const name = String(parsedPayload.driverNameRaw || '').trim()
+        const driver = name
+          ? await prisma.driver.findFirst({
+              where: {
+                tenantId: req.actorContext.tenantId,
+                name: { contains: name, mode: 'insensitive' }
+              },
+              orderBy: { createdAt: 'asc' }
+            })
+          : null
+
+        unavailability = await prisma.driverUnavailability.create({
+          data: {
+            tenantId: req.actorContext.tenantId,
+            driverId: driver?.id || null,
+            driverNameRaw: name || 'unknown',
+            startAt: new Date(parsedPayload.startAt),
+            endAt: new Date(parsedPayload.endAt),
+            reason: parsedPayload.reason || 'unavailable',
+            sourceDraftId: draft.id
+          }
+        })
+        conflicts = await findAvailabilityConflicts(unavailability, req.actorContext.tenantId)
+      }
+
+      const updatedDraft = await prisma.opsEventDraft.update({
+        where: { id: draft.id },
+        data: {
+          status: 'approved',
+          reviewerUserId: req.user.id,
+          reviewerEmail: req.user.email,
+          reviewedAt: new Date(),
+          reviewComment: comment || null,
+          promotedEventId: event.id,
+          promotedUnavailabilityId: unavailability?.id || null
+        }
+      })
+
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'ops.draft.approve',
+        resource: 'ops_draft',
+        resourceId: draft.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          draftId,
+          comment: comment || null,
+          promotedEventId: event.id,
+          promotedUnavailabilityId: unavailability?.id || null
+        }
+      })
+
+      return {
+        draft: updatedDraft,
+        event,
+        unavailability,
+        conflicts
       }
     })
 
     res.json({
       success: true,
-      draft: updatedDraft,
-      event,
-      unavailability,
-      conflicts
+      ...wrapped.data,
+      idempotent: wrapped.replayed
     })
   } catch (error) {
     console.error('Error approving ops draft:', error)
