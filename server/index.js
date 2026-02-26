@@ -170,7 +170,7 @@ function authenticateToken(req, res, next) {
       req.userAbac = {
         countries: parseScopeList(dbUser?.abacCountries),
         cities: parseScopeList(dbUser?.abacCities),
-        teams: parseScopeList(dbUser?.abacTeams)
+        teams: sanitizeTeamScopes(dbUser?.abacTeams)
       }
     } catch (aclError) {
       req.userRoles = []
@@ -233,11 +233,29 @@ function normalizeScopeToken(value) {
   return String(value || '').trim().toLowerCase()
 }
 
+const ALLOWED_TEAM_SCOPES = new Set([
+  'all',
+  'coordination',
+  'dispatch',
+  'ops_control',
+  'finance',
+  'pricing',
+  'sales',
+  'audit'
+])
+
 function parseScopeList(raw) {
   return String(raw || '')
     .split(/[,\n;|/]+/)
     .map((x) => normalizeScopeToken(x))
     .filter(Boolean)
+}
+
+function sanitizeTeamScopes(raw) {
+  const values = parseScopeList(raw)
+  if (!values.length) return ['all']
+  const filtered = [...new Set(values.filter((x) => ALLOWED_TEAM_SCOPES.has(x)))]
+  return filtered.length ? filtered : ['all']
 }
 
 function hasScopeMatch(actorScopes, targetValue) {
@@ -4528,7 +4546,7 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
       telegramLinks: u.telegramLinks,
       abacCountries: parseScopeList(u.abacCountries),
       abacCities: parseScopeList(u.abacCities),
-      abacTeams: parseScopeList(u.abacTeams)
+      abacTeams: sanitizeTeamScopes(u.abacTeams)
     }))
 
     res.json({ rows })
@@ -4555,7 +4573,7 @@ app.put('/api/admin/staff-users/:userId/abac', authenticateToken, resolveActorCo
 
     const countries = parseScopeList(req.body?.countries)
     const cities = parseScopeList(req.body?.cities)
-    const teams = parseScopeList(req.body?.teams)
+    const teams = sanitizeTeamScopes(req.body?.teams)
 
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -4596,7 +4614,7 @@ app.put('/api/admin/staff-users/:userId/abac', authenticateToken, resolveActorCo
         email: updated.email,
         abacCountries: parseScopeList(updated.abacCountries),
         abacCities: parseScopeList(updated.abacCities),
-        abacTeams: parseScopeList(updated.abacTeams)
+        abacTeams: sanitizeTeamScopes(updated.abacTeams)
       }
     })
   } catch (error) {
