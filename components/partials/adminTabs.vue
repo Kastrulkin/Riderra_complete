@@ -21,6 +21,7 @@ export default {
         { to: '/admin-orders', label: 'Таблица' },
         { to: '/admin-drivers', label: 'Водители' },
         { to: '/admin-crm', label: 'CRM' },
+        { to: '/admin-directions-matrix', label: 'Матрица направлений' },
         { to: '/admin-pricing', label: 'Прайс' },
         { to: '/admin-settings', label: 'Настройки' }
       ]
@@ -28,6 +29,7 @@ export default {
         { to: '/admin-orders', label: 'Orders' },
         { to: '/admin-drivers', label: 'Drivers' },
         { to: '/admin-crm', label: 'CRM' },
+        { to: '/admin-directions-matrix', label: 'Directions Matrix' },
         { to: '/admin-pricing', label: 'Pricing' },
         { to: '/admin-settings', label: 'Settings' }
       ]

@@ -601,6 +601,10 @@ async function promoteStagingToCustomerCrm() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         ownerName: row.ownerName,
         companyType: row.companyType,
         extraInfo: row.extraInfo
@@ -612,6 +616,10 @@ async function promoteStagingToCustomerCrm() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         ownerName: row.ownerName,
         companyType: row.companyType,
         extraInfo: row.extraInfo
@@ -633,6 +641,10 @@ async function promoteStagingToCustomerCrm() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         position: row.position,
         ownerName: row.ownerName
       },
@@ -643,6 +655,10 @@ async function promoteStagingToCustomerCrm() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         position: row.position,
         ownerName: row.ownerName
       }
@@ -1936,6 +1952,123 @@ app.get('/api/admin/crm/contacts/:contactId', authenticateToken, requirePermissi
   } catch (error) {
     console.error('Error fetching CRM contact details:', error)
     res.status(500).json({ error: 'Failed to fetch CRM contact details' })
+  }
+})
+
+app.put('/api/admin/crm/companies/:companyId', authenticateToken, requirePermission('crm.manage'), async (req, res) => {
+  try {
+    const { companyId } = req.params
+    const data = {}
+    const fields = [
+      'name', 'website', 'phone', 'email', 'telegramUrl',
+      'countryPresence', 'cityPresence', 'comment', 'ownerName', 'companyType'
+    ]
+    for (const field of fields) {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        const value = req.body[field]
+        data[field] = value === '' ? null : value
+      }
+    }
+    const updated = await prisma.customerCompany.update({ where: { id: companyId }, data })
+    res.json(updated)
+  } catch (error) {
+    console.error('Error updating CRM company:', error)
+    res.status(500).json({ error: 'Failed to update CRM company' })
+  }
+})
+
+app.put('/api/admin/crm/contacts/:contactId', authenticateToken, requirePermission('crm.manage'), async (req, res) => {
+  try {
+    const { contactId } = req.params
+    const data = {}
+    const fields = [
+      'fullName', 'website', 'phone', 'email', 'telegramUrl',
+      'countryPresence', 'cityPresence', 'comment', 'position', 'ownerName'
+    ]
+    for (const field of fields) {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        const value = req.body[field]
+        data[field] = value === '' ? null : value
+      }
+    }
+    const updated = await prisma.customerContact.update({ where: { id: contactId }, data })
+    res.json(updated)
+  } catch (error) {
+    console.error('Error updating CRM contact:', error)
+    res.status(500).json({ error: 'Failed to update CRM contact' })
+  }
+})
+
+function splitPresence(raw) {
+  return String(raw || '')
+    .split(/[,\n;|/]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission('crm.read'), async (req, res) => {
+  try {
+    const companies = await prisma.customerCompany.findMany({
+      include: { segments: true },
+      take: 10000
+    })
+
+    const isClient = (segments) => segments.includes('client_company') || segments.includes('potential_client_company') || segments.includes('potential_client_agent')
+    const isSupplier = (segments) => segments.includes('supplier_company') || segments.includes('potential_supplier')
+
+    const matrixMap = new Map()
+    for (const company of companies) {
+      const segs = (company.segments || []).map((s) => s.segment)
+      const role = isClient(segs) ? 'client' : (isSupplier(segs) ? 'supplier' : null)
+      if (!role) continue
+
+      const countries = splitPresence(company.countryPresence)
+      const cities = splitPresence(company.cityPresence)
+      const safeCountries = countries.length ? countries : ['—']
+      const safeCities = cities.length ? cities : ['—']
+
+      for (const country of safeCountries) {
+        for (const city of safeCities) {
+          const key = `${country}||${city}`
+          if (!matrixMap.has(key)) {
+            matrixMap.set(key, {
+              country,
+              city,
+              clients: [],
+              suppliers: []
+            })
+          }
+          const row = matrixMap.get(key)
+          const item = {
+            id: company.id,
+            name: company.name,
+            phone: company.phone || null,
+            email: company.email || null
+          }
+          if (role === 'client') {
+            if (!row.clients.some((x) => x.id === company.id)) row.clients.push(item)
+          } else {
+            if (!row.suppliers.some((x) => x.id === company.id)) row.suppliers.push(item)
+          }
+        }
+      }
+    }
+
+    const rows = Array.from(matrixMap.values())
+      .map((row) => ({
+        ...row,
+        clientsCount: row.clients.length,
+        suppliersCount: row.suppliers.length
+      }))
+      .sort((a, b) => {
+        if (a.country === b.country) return a.city.localeCompare(b.city, 'ru')
+        return a.country.localeCompare(b.country, 'ru')
+      })
+
+    res.json({ rows, total: rows.length })
+  } catch (error) {
+    console.error('Error fetching directions matrix:', error)
+    res.status(500).json({ error: 'Failed to fetch directions matrix' })
   }
 })
 

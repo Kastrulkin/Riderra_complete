@@ -21,7 +21,7 @@ model User {
   driver        Driver?
   roleLinks     UserRole[]
   telegramLinks TelegramLink[]
-  opsTasks      OpsTask[] @relation("OpsTaskAssignee")
+  opsTasks      OpsTask[]      @relation("OpsTaskAssignee")
 
   @@map("users")
 }
@@ -128,8 +128,8 @@ model Order {
   updatedAt   DateTime  @updatedAt
 
   // Связь с отзывами
-  reviews       Review[]
-  sourceHistory OrderSourceSnapshot[]
+  reviews        Review[]
+  sourceHistory  OrderSourceSnapshot[]
   priceConflicts PriceConflict[]
 }
 
@@ -216,38 +216,46 @@ model OrderSourceSnapshot {
 }
 
 model CrmCompany {
-  id           String              @id @default(cuid())
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  sourceSystem String              @default("planfix")
-  externalId   String
-  name         String
-  website      String?
-  phone        String?
-  email        String?
-  ownerName    String?
-  companyType  String?
-  extraInfo    String?
-  links        CrmCompanyContact[]
-  segments     CrmCompanySegment[]
+  id              String              @id @default(cuid())
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  sourceSystem    String              @default("planfix")
+  externalId      String
+  name            String
+  website         String?
+  phone           String?
+  email           String?
+  telegramUrl     String?
+  countryPresence String?
+  cityPresence    String?
+  comment         String?
+  ownerName       String?
+  companyType     String?
+  extraInfo       String?
+  links           CrmCompanyContact[]
+  segments        CrmCompanySegment[]
 
   @@unique([sourceSystem, externalId])
 }
 
 model CrmContact {
-  id           String              @id @default(cuid())
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  sourceSystem String              @default("planfix")
-  externalId   String
-  fullName     String
-  website      String?
-  phone        String?
-  email        String?
-  position     String?
-  ownerName    String?
-  links        CrmCompanyContact[]
-  segments     CrmContactSegment[]
+  id              String              @id @default(cuid())
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  sourceSystem    String              @default("planfix")
+  externalId      String
+  fullName        String
+  website         String?
+  phone           String?
+  email           String?
+  telegramUrl     String?
+  countryPresence String?
+  cityPresence    String?
+  comment         String?
+  position        String?
+  ownerName       String?
+  links           CrmCompanyContact[]
+  segments        CrmContactSegment[]
 
   @@unique([sourceSystem, externalId])
 }
@@ -289,40 +297,48 @@ model CrmContactSegment {
 }
 
 model CustomerCompany {
-  id           String                   @id @default(cuid())
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
-  sourceSystem String                   @default("planfix")
-  externalId   String
-  name         String
-  website      String?
-  phone        String?
-  email        String?
-  ownerName    String?
-  companyType  String?
-  extraInfo    String?
-  links        CustomerCompanyContact[]
-  segments     CustomerCompanySegment[]
-  pricingRules CounterpartyPriceRule[]
+  id              String                   @id @default(cuid())
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  sourceSystem    String                   @default("planfix")
+  externalId      String
+  name            String
+  website         String?
+  phone           String?
+  email           String?
+  telegramUrl     String?
+  countryPresence String?
+  cityPresence    String?
+  comment         String?
+  ownerName       String?
+  companyType     String?
+  extraInfo       String?
+  links           CustomerCompanyContact[]
+  segments        CustomerCompanySegment[]
+  pricingRules    CounterpartyPriceRule[]
 
   @@unique([sourceSystem, externalId])
   @@index([name])
 }
 
 model CustomerContact {
-  id           String                   @id @default(cuid())
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
-  sourceSystem String                   @default("planfix")
-  externalId   String
-  fullName     String
-  website      String?
-  phone        String?
-  email        String?
-  position     String?
-  ownerName    String?
-  links        CustomerCompanyContact[]
-  segments     CustomerContactSegment[]
+  id              String                   @id @default(cuid())
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  sourceSystem    String                   @default("planfix")
+  externalId      String
+  fullName        String
+  website         String?
+  phone           String?
+  email           String?
+  telegramUrl     String?
+  countryPresence String?
+  cityPresence    String?
+  comment         String?
+  position        String?
+  ownerName       String?
+  links           CustomerCompanyContact[]
+  segments        CustomerContactSegment[]
 
   @@unique([sourceSystem, externalId])
   @@index([fullName])
@@ -414,25 +430,25 @@ model CounterpartyPriceRule {
 }
 
 model PriceConflict {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   orderId    String?
-  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   issueType  String // driver_gt_sell, low_margin
   severity   String // critical, warning
-  status     String   @default("open") // open, resolved
+  status     String    @default("open") // open, resolved
   sellPrice  Float
   driverCost Float
   marginAbs  Float
   marginPct  Float
-  source     String   @default("order_snapshot")
+  source     String    @default("order_snapshot")
   details    String?
   resolvedAt DateTime?
 
+  @@unique([orderId, issueType])
   @@index([status, severity, updatedAt])
   @@index([issueType, status])
-  @@unique([orderId, issueType])
 }
 
 model OpsEventDraft {
@@ -479,19 +495,19 @@ model DriverUnavailability {
 }
 
 model OpsTask {
-  id             String   @id @default(cuid())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   title          String
   details        String?
   type           String
-  status         String   @default("open") // open, in_progress, done, cancelled
-  priority       String   @default("normal") // low, normal, high, urgent
-  source         String   @default("telegram_private")
+  status         String    @default("open") // open, in_progress, done, cancelled
+  priority       String    @default("normal") // low, normal, high, urgent
+  source         String    @default("telegram_private")
   sourceRef      String?
   dueAt          DateTime?
   assignedUserId String?
-  assignedUser   User?    @relation("OpsTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedUser   User?     @relation("OpsTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
   payloadJson    String?
 
   @@index([status, dueAt])

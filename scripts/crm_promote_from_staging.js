@@ -33,6 +33,10 @@ async function main() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         ownerName: row.ownerName,
         companyType: row.companyType,
         extraInfo: row.extraInfo
@@ -44,6 +48,10 @@ async function main() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         ownerName: row.ownerName,
         companyType: row.companyType,
         extraInfo: row.extraInfo
@@ -65,6 +73,10 @@ async function main() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         position: row.position,
         ownerName: row.ownerName
       },
@@ -75,6 +87,10 @@ async function main() {
         website: row.website,
         phone: row.phone,
         email: row.email,
+        telegramUrl: row.telegramUrl,
+        countryPresence: row.countryPresence,
+        cityPresence: row.cityPresence,
+        comment: row.comment,
         position: row.position,
         ownerName: row.ownerName
       }

@@ -60,6 +60,14 @@ function splitContacts(v) {
   return value.split(',').map((s) => nameKey(s)).filter(Boolean)
 }
 
+function pick(row, keys) {
+  for (const key of keys) {
+    const val = row[key]
+    if (norm(val)) return norm(val)
+  }
+  return null
+}
+
 function csvRows(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')
   const parsed = Papa.parse(raw, { header: true, delimiter: ';', skipEmptyLines: true })
@@ -97,6 +105,10 @@ async function main() {
         website: norm(row['Сайт']) || null,
         phone: norm(row['Телефон']) || null,
         email: normEmail(row['Email']) || null,
+        telegramUrl: pick(row, ['Telegram', 'Телеграм', 'Telegram link', 'Ссылка Telegram']),
+        countryPresence: pick(row, ['Страны присутствия', 'Страна', 'Countries', 'Country']),
+        cityPresence: pick(row, ['Города присутствия', 'Город', 'Cities', 'City']),
+        comment: pick(row, ['Комментарий', 'Комментарии', 'Notes', 'Comment']),
         ownerName: norm(row['Ответственный']) || null,
         companyType: norm(row['Пол / Тип']) || null,
         extraInfo: null
@@ -117,6 +129,10 @@ async function main() {
         website: norm(row['Сайт']) || null,
         phone: normPhone(row['Телефон']) || null,
         email: normEmail(row['Email']) || null,
+        telegramUrl: pick(row, ['Telegram', 'Телеграм', 'Telegram link', 'Ссылка Telegram']),
+        countryPresence: pick(row, ['Страны присутствия', 'Страна', 'Countries', 'Country']),
+        cityPresence: pick(row, ['Города присутствия', 'Город', 'Cities', 'City']),
+        comment: pick(row, ['Комментарий', 'Комментарии', 'Notes', 'Comment']),
         position: norm(row['Должность']) || null,
         ownerName: norm(row['Добавил']) || null
       }

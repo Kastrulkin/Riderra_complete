@@ -18,6 +18,7 @@
             <div>{{ o.id }}</div><div>{{ o.source }}</div><div>{{ fmt(o.pickupAt || o.createdAt) }}</div><div>{{ o.fromPoint }}</div><div>{{ o.toPoint }}</div><div>{{ o.clientPrice }}</div><div>{{ o.driverPrice || '-' }}</div><div>{{ o.status }}</div>
           </div>
         </div>
+        <div class="hint">{{ t.total }}: {{ filtered.length }}</div>
       </div>
     </section>
   </div>
@@ -34,8 +35,8 @@ export default {
   computed: {
     t () {
       return this.$store.state.language === 'ru'
-        ? { title: 'Таблица заказов', search: 'Поиск по маршруту/ID', refresh: 'Обновить', source: 'Источник', pickupAt: 'Подача', from: 'Откуда', to: 'Куда', client: 'Цена клиента', driver: 'Цена водителя', status: 'Статус' }
-        : { title: 'Orders Table', search: 'Search by route/ID', refresh: 'Refresh', source: 'Source', pickupAt: 'Pickup', from: 'From', to: 'To', client: 'Client price', driver: 'Driver price', status: 'Status' }
+        ? { title: 'Таблица заказов', search: 'Поиск по маршруту/ID', refresh: 'Обновить', source: 'Источник', pickupAt: 'Подача', from: 'Откуда', to: 'Куда', client: 'Цена клиента', driver: 'Цена водителя', status: 'Статус', total: 'Всего' }
+        : { title: 'Orders Table', search: 'Search by route/ID', refresh: 'Refresh', source: 'Source', pickupAt: 'Pickup', from: 'From', to: 'To', client: 'Client price', driver: 'Driver price', status: 'Status', total: 'Total' }
     }
   },
   mounted () { this.load() },
@@ -72,5 +73,12 @@ export default {
 </script>
 
 <style scoped>
-.admin-section{padding-top:150px;color:#fff}.toolbar{display:flex;gap:10px;margin-bottom:14px}.input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff}.table-wrap{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;overflow:auto}.table-head,.table-row{display:grid;grid-template-columns:1.2fr .8fr 1fr 1.2fr 1.2fr .8fr .8fr .7fr;gap:10px;min-width:1100px;padding:10px 12px}.table-head{font-weight:700;background:rgba(255,255,255,.08)}.table-row{border-top:1px solid rgba(255,255,255,.08)}
+.admin-section { padding-top: 150px; color: #17233d; }
+.toolbar { display: flex; gap: 10px; margin-bottom: 14px; }
+.input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #c8ccdc; background: #fff; color: #1f2b46; }
+.table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
+.table-head, .table-row { display: grid; grid-template-columns: 1.2fr .8fr 1fr 1.2fr 1.2fr .8fr .8fr .7fr; gap: 10px; min-width: 1100px; padding: 10px 12px; }
+.table-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; }
+.table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
+.hint { margin-top: 10px; color: #637191; }
 </style>

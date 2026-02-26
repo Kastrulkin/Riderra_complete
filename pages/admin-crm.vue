@@ -13,20 +13,21 @@
         <admin-tabs />
 
         <div class="crm-filters">
-          <input v-model="query" class="input" placeholder="Search by name / email / phone" @keyup.enter="reload"/>
+          <input v-model="query" class="input" placeholder="Поиск: имя / email / телефон" @keyup.enter="reload"/>
           <select v-model="segment" class="input" @change="reload">
-            <option value="">All segments</option>
-            <option value="client_company">client_company</option>
-            <option value="client_contact">client_contact</option>
-            <option value="supplier_company">supplier_company</option>
-            <option value="supplier_contact">supplier_contact</option>
-            <option value="potential_client_company">potential_client_company</option>
-            <option value="potential_client_contact">potential_client_contact</option>
-            <option value="potential_supplier">potential_supplier</option>
+            <option value="">Все сегменты</option>
+            <option value="client_company">Заказчик (компания)</option>
+            <option value="client_contact">Заказчик (контакт)</option>
+            <option value="supplier_company">Исполнитель (компания)</option>
+            <option value="supplier_contact">Исполнитель (контакт)</option>
+            <option value="potential_client_company">Потенциальный заказчик (компания)</option>
+            <option value="potential_client_contact">Потенциальный заказчик (контакт)</option>
+            <option value="potential_client_agent">Потенциальный заказчик (агент)</option>
+            <option value="potential_supplier">Потенциальный исполнитель</option>
           </select>
           <select v-model="mode" class="input" @change="reload">
-            <option value="companies">Companies</option>
-            <option value="contacts">Contacts</option>
+            <option value="companies">Компании</option>
+            <option value="contacts">Контакты</option>
           </select>
         </div>
 
@@ -41,9 +42,9 @@
               <div>{{ r.name }}</div>
               <div>{{ r.email || '-' }}</div>
               <div>{{ r.phone || '-' }}</div>
-              <div>{{ (r.segments || []).map(s => s.segment).join(', ') || '-' }}</div>
+              <div>{{ formatSegments(r.segments || []) }}</div>
               <div>{{ r._count?.links || 0 }}</div>
-              <div><button class="btn btn--small" @click="openCompany(r.id)">Open</button></div>
+              <div><button class="btn btn--small" @click="openCompany(r.id)">Открыть</button></div>
             </div>
           </div>
 
@@ -55,13 +56,13 @@
               <div>{{ r.fullName }}</div>
               <div>{{ r.email || '-' }}</div>
               <div>{{ r.phone || '-' }}</div>
-              <div>{{ (r.segments || []).map(s => s.segment).join(', ') || '-' }}</div>
+              <div>{{ formatSegments(r.segments || []) }}</div>
               <div>{{ r._count?.links || 0 }}</div>
-              <div><button class="btn btn--small" @click="openContact(r.id)">Open</button></div>
+              <div><button class="btn btn--small" @click="openContact(r.id)">Открыть</button></div>
             </div>
           </div>
 
-          <div class="hint">Total: {{ total }}</div>
+          <div class="hint">Всего: {{ total }}</div>
         </div>
       </div>
     </section>
@@ -69,8 +70,40 @@
     <div v-if="details" class="modal-overlay" @click="details=null">
       <div class="modal" @click.stop>
         <h3>{{ detailsTitle }}</h3>
-        <pre class="json">{{ JSON.stringify(details, null, 2) }}</pre>
-        <button class="btn btn--primary" @click="details=null">Close</button>
+        <div v-if="detailsMode==='company'" class="card-grid">
+          <input v-model="form.name" class="input" placeholder="Название" />
+          <input v-model="form.website" class="input" placeholder="Сайт" />
+          <input v-model="form.phone" class="input" placeholder="Телефон" />
+          <input v-model="form.email" class="input" placeholder="Email" />
+          <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
+          <input v-model="form.countryPresence" class="input" placeholder="Страны присутствия" />
+          <input v-model="form.cityPresence" class="input" placeholder="Города присутствия" />
+          <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
+        </div>
+        <div v-else class="card-grid">
+          <input v-model="form.fullName" class="input" placeholder="Имя" />
+          <input v-model="form.position" class="input" placeholder="Должность" />
+          <input v-model="form.phone" class="input" placeholder="Телефон" />
+          <input v-model="form.email" class="input" placeholder="Email" />
+          <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
+          <input v-model="form.countryPresence" class="input" placeholder="Страны присутствия" />
+          <input v-model="form.cityPresence" class="input" placeholder="Города присутствия" />
+          <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
+        </div>
+
+        <div v-if="detailsMode==='company'" class="links-block">
+          <h4>Контакты компании</h4>
+          <div class="linked-row" v-for="link in details.links || []" :key="link.id">
+            <div>{{ link.contact.fullName }}</div>
+            <div>{{ link.contact.email || '-' }}</div>
+            <div>{{ link.contact.phone || '-' }}</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn--primary" @click="saveDetails">Сохранить</button>
+          <button class="btn" @click="details=null">Закрыть</button>
+        </div>
       </div>
     </div>
   </div>
@@ -93,7 +126,10 @@ export default {
       total: 0,
       loading: false,
       details: null,
-      detailsTitle: ''
+      detailsTitle: '',
+      detailsMode: 'company',
+      detailsId: '',
+      form: {}
     }
   },
   mounted() {
@@ -106,6 +142,22 @@ export default {
         'Content-Type': 'application/json',
         Authorization: token ? `Bearer ${token}` : ''
       }
+    },
+    segmentLabel(code) {
+      const map = {
+        client_company: 'Заказчик (компания)',
+        client_contact: 'Заказчик (контакт)',
+        supplier_company: 'Исполнитель (компания)',
+        supplier_contact: 'Исполнитель (контакт)',
+        potential_client_company: 'Потенциальный заказчик (компания)',
+        potential_client_contact: 'Потенциальный заказчик (контакт)',
+        potential_client_agent: 'Потенциальный заказчик (агент)',
+        potential_supplier: 'Потенциальный исполнитель'
+      }
+      return map[code] || code
+    },
+    formatSegments(list) {
+      return list.length ? list.map((s) => this.segmentLabel(s.segment)).join(', ') : '-'
     },
     async reload() {
       this.loading = true
@@ -129,12 +181,52 @@ export default {
     async openCompany(id) {
       const res = await fetch(`/api/admin/crm/companies/${id}`, { headers: this.authHeaders() })
       this.details = await res.json()
-      this.detailsTitle = `Company ${id}`
+      this.detailsMode = 'company'
+      this.detailsId = id
+      this.detailsTitle = `Компания: ${this.details.name || id}`
+      this.form = {
+        name: this.details.name || '',
+        website: this.details.website || '',
+        phone: this.details.phone || '',
+        email: this.details.email || '',
+        telegramUrl: this.details.telegramUrl || '',
+        countryPresence: this.details.countryPresence || '',
+        cityPresence: this.details.cityPresence || '',
+        comment: this.details.comment || ''
+      }
     },
     async openContact(id) {
       const res = await fetch(`/api/admin/crm/contacts/${id}`, { headers: this.authHeaders() })
       this.details = await res.json()
-      this.detailsTitle = `Contact ${id}`
+      this.detailsMode = 'contact'
+      this.detailsId = id
+      this.detailsTitle = `Контакт: ${this.details.fullName || id}`
+      this.form = {
+        fullName: this.details.fullName || '',
+        position: this.details.position || '',
+        phone: this.details.phone || '',
+        email: this.details.email || '',
+        telegramUrl: this.details.telegramUrl || '',
+        countryPresence: this.details.countryPresence || '',
+        cityPresence: this.details.cityPresence || '',
+        comment: this.details.comment || ''
+      }
+    },
+    async saveDetails() {
+      const endpoint = this.detailsMode === 'company'
+        ? `/api/admin/crm/companies/${this.detailsId}`
+        : `/api/admin/crm/contacts/${this.detailsId}`
+      await fetch(endpoint, {
+        method: 'PUT',
+        headers: this.authHeaders(),
+        body: JSON.stringify(this.form)
+      })
+      if (this.detailsMode === 'company') {
+        await this.openCompany(this.detailsId)
+      } else {
+        await this.openContact(this.detailsId)
+      }
+      await this.reload()
     },
     async promoteFromStaging() {
       if (!confirm('Перенести данные из временного слоя (staging) в рабочую CRM?')) return
@@ -162,9 +254,15 @@ export default {
 .hint { margin-top:10px; color:#777; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:1200; }
 .modal { width:min(900px,90vw); max-height:80vh; overflow:auto; background:#fff; border-radius:12px; padding:18px; }
-.json { white-space:pre-wrap; word-break:break-word; background:#f7f7f9; padding:12px; border-radius:8px; }
+.card-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
+.textarea { min-height:90px; resize:vertical; }
+.links-block { margin:12px 0; border-top:1px solid #ececf4; padding-top:10px; }
+.linked-row { display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:8px; padding:6px 0; border-bottom:1px solid #f1f1f7; }
+.actions { display:flex; gap:10px; }
 @media (max-width: 900px) {
   .crm-filters { flex-direction:column; }
   .table__row { grid-template-columns: 1fr; }
+  .card-grid { grid-template-columns:1fr; }
+  .linked-row { grid-template-columns:1fr; }
 }
 </style>
