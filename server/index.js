@@ -1351,7 +1351,7 @@ app.post('/api/drivers', async (req, res) => {
 module.exports = app
 
 // Admin endpoints
-app.get('/api/admin/requests', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
     const rows = await prisma.request.findMany({ orderBy: { createdAt: 'desc' }})
     res.json(rows)
@@ -2234,7 +2234,7 @@ async function updateDriverRating(driverId) {
 }
 
 // Админские API для управления отзывами
-app.post('/api/admin/reviews', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
     const { driverId, rating, comment, clientName } = req.body
     
@@ -2259,7 +2259,7 @@ app.post('/api/admin/reviews', authenticateToken, requireAdmin, async (req, res)
   }
 })
 
-app.get('/api/admin/reviews', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
     const reviews = await prisma.review.findMany({
       include: {
@@ -2288,7 +2288,7 @@ app.get('/api/admin/reviews', authenticateToken, requireAdmin, async (req, res) 
   }
 })
 
-app.delete('/api/admin/reviews/:reviewId', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/admin/reviews/:reviewId', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
     const { reviewId } = req.params
     
@@ -2315,7 +2315,7 @@ app.delete('/api/admin/reviews/:reviewId', authenticateToken, requireAdmin, asyn
 })
 
 // API для получения детальной информации о водителе
-app.get('/api/admin/drivers/:driverId', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
   try {
     const { driverId } = req.params
     
@@ -2676,7 +2676,7 @@ app.put('/api/drivers/me/city-routes/:routeId', authenticateToken, async (req, r
 // ==================== АДМИНСКИЕ API ДЛЯ УПРАВЛЕНИЯ МАРШРУТАМИ ====================
 
 // Получение всех маршрутов (для админа)
-app.get('/api/admin/city-routes', authenticateToken, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
+app.get('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
   try {
     const { country, city } = req.query
     
@@ -2701,7 +2701,7 @@ app.get('/api/admin/city-routes', authenticateToken, requireAnyPermission(['dire
 })
 
 // Получение списка стран
-app.get('/api/admin/city-routes/countries', authenticateToken, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
+app.get('/api/admin/city-routes/countries', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
   try {
     const countries = await prisma.cityRoute.findMany({
       where: { isActive: true },
@@ -2815,7 +2815,7 @@ app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveAc
 })
 
 // ==================== CRM (PRODUCTION) ====================
-app.post('/api/admin/crm/promote-from-staging', authenticateToken, requirePermission('crm.manage'), async (req, res) => {
+app.post('/api/admin/crm/promote-from-staging', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
   try {
     const stats = await promoteStagingToCustomerCrm()
     res.json({ success: true, stats })
@@ -2825,7 +2825,7 @@ app.post('/api/admin/crm/promote-from-staging', authenticateToken, requirePermis
   }
 })
 
-app.get('/api/admin/crm/companies', authenticateToken, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const { q = '', segment = '', limit = '100', offset = '0' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
@@ -2866,7 +2866,7 @@ app.get('/api/admin/crm/companies', authenticateToken, requirePermission('crm.re
   }
 })
 
-app.get('/api/admin/crm/companies/:companyId', authenticateToken, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const { companyId } = req.params
     const company = await prisma.customerCompany.findUnique({
@@ -2891,7 +2891,7 @@ app.get('/api/admin/crm/companies/:companyId', authenticateToken, requirePermiss
   }
 })
 
-app.get('/api/admin/crm/contacts', authenticateToken, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const { q = '', segment = '', limit = '100', offset = '0' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
@@ -2932,7 +2932,7 @@ app.get('/api/admin/crm/contacts', authenticateToken, requirePermission('crm.rea
   }
 })
 
-app.get('/api/admin/crm/contacts/:contactId', authenticateToken, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const { contactId } = req.params
     const contact = await prisma.customerContact.findUnique({
@@ -2956,7 +2956,7 @@ app.get('/api/admin/crm/contacts/:contactId', authenticateToken, requirePermissi
   }
 })
 
-app.put('/api/admin/crm/companies/:companyId', authenticateToken, requirePermission('crm.manage'), async (req, res) => {
+app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
   try {
     const { companyId } = req.params
     const data = {}
@@ -3007,7 +3007,7 @@ app.put('/api/admin/crm/companies/:companyId', authenticateToken, requirePermiss
   }
 })
 
-app.put('/api/admin/crm/contacts/:contactId', authenticateToken, requirePermission('crm.manage'), async (req, res) => {
+app.put('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.manage'), async (req, res) => {
   try {
     const { contactId } = req.params
     const data = {}
@@ -3105,7 +3105,7 @@ function inferCountryFromCity(rawCity) {
   return map[city] || ''
 }
 
-app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission('crm.read'), async (req, res) => {
+app.get('/api/admin/crm/directions-matrix', authenticateToken, resolveActorContext, requireActorContext, requirePermission('crm.read'), async (req, res) => {
   try {
     const companies = await prisma.customerCompany.findMany({
       include: { segments: true },
@@ -3869,7 +3869,7 @@ async function findAvailabilityConflicts(unavailability) {
   })
 }
 
-app.get('/api/admin/ops/drafts', authenticateToken, requirePermission('ops.read'), async (req, res) => {
+app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
   try {
     const { status = 'pending', limit = '100' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 300)
@@ -3885,7 +3885,7 @@ app.get('/api/admin/ops/drafts', authenticateToken, requirePermission('ops.read'
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -3906,7 +3906,7 @@ app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, requireAnyP
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['approvals.resolve', 'ops.manage']), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -3973,7 +3973,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, requireAny
   }
 })
 
-app.get('/api/admin/ops/unavailability', authenticateToken, requirePermission('ops.read'), async (req, res) => {
+app.get('/api/admin/ops/unavailability', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
   try {
     const rows = await prisma.driverUnavailability.findMany({
       where: { status: 'active' },
@@ -3987,7 +3987,7 @@ app.get('/api/admin/ops/unavailability', authenticateToken, requirePermission('o
   }
 })
 
-app.get('/api/admin/ops/unavailability/:id/conflicts', authenticateToken, requirePermission('ops.read'), async (req, res) => {
+app.get('/api/admin/ops/unavailability/:id/conflicts', authenticateToken, resolveActorContext, requireActorContext, requirePermission('ops.read'), async (req, res) => {
   try {
     const row = await prisma.driverUnavailability.findUnique({
       where: { id: req.params.id }
@@ -4063,7 +4063,7 @@ function formatPricingResult(rows, askChildSeat = false) {
     .join('\n')
 }
 
-app.post('/api/admin/telegram-links', authenticateToken, requirePermission('telegram.link.manage'), async (req, res) => {
+app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, requireActorContext, requirePermission('telegram.link.manage'), async (req, res) => {
   try {
     const { email, telegramUserId, telegramChatId } = req.body
     if (!email || !telegramUserId) {
@@ -4093,7 +4093,7 @@ app.post('/api/admin/telegram-links', authenticateToken, requirePermission('tele
   }
 })
 
-app.get('/api/admin/telegram-links', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
   try {
     const rows = await prisma.telegramLink.findMany({
       include: {
@@ -4115,7 +4115,7 @@ app.get('/api/admin/telegram-links', authenticateToken, requirePermission('setti
   }
 })
 
-app.get('/api/admin/staff-users', authenticateToken, requirePermission('settings.manage'), async (req, res) => {
+app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requireActorContext, requirePermission('settings.manage'), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       where: {
@@ -4534,7 +4534,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 })
 
 // Получение списка городов по стране
-app.get('/api/admin/city-routes/cities', authenticateToken, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
+app.get('/api/admin/city-routes/cities', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['directions.read', 'directions.manage']), async (req, res) => {
   try {
     const { country } = req.query
     
@@ -4560,7 +4560,7 @@ app.get('/api/admin/city-routes/cities', authenticateToken, requireAnyPermission
 })
 
 // Создание нового маршрута
-app.post('/api/admin/city-routes', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
+app.post('/api/admin/city-routes', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency } = req.body
 
@@ -4586,7 +4586,7 @@ app.post('/api/admin/city-routes', authenticateToken, requirePermission('directi
 })
 
 // Обновление маршрута
-app.put('/api/admin/city-routes/:routeId', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
+app.put('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { routeId } = req.params
     const { country, city, fromPoint, toPoint, vehicleType, passengers, distance, targetFare, currency, isActive } = req.body
@@ -4616,7 +4616,7 @@ app.put('/api/admin/city-routes/:routeId', authenticateToken, requirePermission(
 })
 
 // Удаление маршрута (мягкое удаление)
-app.delete('/api/admin/city-routes/:routeId', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
+app.delete('/api/admin/city-routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { routeId } = req.params
 
@@ -4633,7 +4633,7 @@ app.delete('/api/admin/city-routes/:routeId', authenticateToken, requirePermissi
 })
 
 // Массовая загрузка маршрутов из CSV
-app.post('/api/admin/city-routes/bulk-import', authenticateToken, requirePermission('directions.manage'), async (req, res) => {
+app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorContext, requireActorContext, requirePermission('directions.manage'), async (req, res) => {
   try {
     const { routes } = req.body // Массив маршрутов из CSV
 
