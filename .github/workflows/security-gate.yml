@@ -1,0 +1,58 @@
+name: Security Gate
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  security-gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: riderra
+          POSTGRES_PASSWORD: riderra
+          POSTGRES_DB: riderra
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U riderra -d riderra"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://riderra:riderra@localhost:5432/riderra?schema=public
+      JWT_SECRET: ci-jwt-secret
+      TENANT_CODE: riderra
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Prisma generate
+        run: npm run prisma:generate
+
+      - name: Prisma sync schema
+        run: npm run prisma:migrate
+
+      - name: Bootstrap tenant baseline
+        run: node scripts/security_baseline_bootstrap.js
+
+      - name: Security smoke baseline
+        run: node scripts/security_smoke_baseline.js
+
+      - name: Security gate checks
+        run: node scripts/security_gate_checks.js
