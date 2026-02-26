@@ -1645,7 +1645,9 @@ app.post('/api/drivers', resolveActorContext, requireActorContext, async (req, r
 module.exports = app
 
 // Admin endpoints
-app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
+app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order', () => ({
+  team: ['coordination', 'dispatch', 'ops_control', 'sales', 'finance', 'audit']
+})), async (req, res) => {
   try {
     const rows = await prisma.request.findMany({
       where: { tenantId: req.actorContext.tenantId },
@@ -2569,7 +2571,9 @@ async function updateDriverRating(driverId, tenantId = null) {
 }
 
 // Админские API для управления отзывами
-app.post('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
+app.post('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver', () => ({
+  team: ['dispatch', 'ops_control']
+})), async (req, res) => {
   try {
     const { driverId, rating, comment, clientName } = req.body
     const driver = await prisma.driver.findFirst({
@@ -2600,7 +2604,9 @@ app.post('/api/admin/reviews', authenticateToken, resolveActorContext, requireAc
   }
 })
 
-app.get('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
+app.get('/api/admin/reviews', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver', () => ({
+  team: ['dispatch', 'ops_control', 'audit']
+})), async (req, res) => {
   try {
     const reviews = await prisma.review.findMany({
       where: { tenantId: req.actorContext.tenantId },
@@ -2630,7 +2636,9 @@ app.get('/api/admin/reviews', authenticateToken, resolveActorContext, requireAct
   }
 })
 
-app.delete('/api/admin/reviews/:reviewId', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
+app.delete('/api/admin/reviews/:reviewId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver', () => ({
+  team: ['dispatch', 'ops_control']
+})), async (req, res) => {
   try {
     const { reviewId } = req.params
     
@@ -2657,7 +2665,9 @@ app.delete('/api/admin/reviews/:reviewId', authenticateToken, resolveActorContex
 })
 
 // API для получения детальной информации о водителе
-app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireAdmin, async (req, res) => {
+app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver', () => ({
+  team: ['dispatch', 'ops_control', 'coordination', 'audit']
+})), async (req, res) => {
   try {
     const { driverId } = req.params
     
