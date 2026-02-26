@@ -463,7 +463,6 @@ function hasPermission(req, permissionCode) {
 
 function requirePermission(permissionCode) {
   return (req, res, next) => {
-    if (req.user?.role === 'admin') return next() // legacy compatibility
     if (!hasPermission(req, permissionCode)) {
       return res.status(403).json({ error: `Permission required: ${permissionCode}` })
     }
@@ -507,7 +506,6 @@ function requireCan(action, resource, contextBuilder = null) {
 
 function requireAnyPermission(permissionCodes) {
   return (req, res, next) => {
-    if (req.user?.role === 'admin') return next() // legacy compatibility
     if (!hasAnyPermission(req, permissionCodes)) {
       return res.status(403).json({ error: `One of permissions required: ${permissionCodes.join(', ')}` })
     }
