@@ -23,9 +23,9 @@
 
         <div v-if="tab==='base'" class="panel">
           <h3>{{ t.base }}</h3>
-          <div class="grid-head"><div>{{ t.city }}</div><div>{{ t.route }}</div><div>{{ t.sale }}</div><div>{{ t.perKm }}</div><div>{{ t.hourly }}</div><div>{{ t.childSeat }}</div><div>{{ t.source }}</div></div>
+          <div class="grid-head"><div>{{ t.country }}</div><div>{{ t.city }}</div><div>{{ t.route }}</div><div>{{ t.sale }}</div><div>{{ t.perKm }}</div><div>{{ t.hourly }}</div><div>{{ t.childSeat }}</div><div>{{ t.source }}</div></div>
           <div v-for="r in baseRows" :key="r.id" class="grid-row">
-            <div>{{ r.city }}</div><div>{{ r.routeFrom || '-' }} -> {{ r.routeTo || '-' }}</div><div>{{ r.fixedPrice || '-' }} {{ r.currency }}</div><div>{{ r.pricePerKm || '-' }}</div><div>{{ r.hourlyRate || '-' }}</div><div>{{ r.childSeatPrice || '-' }}</div><div>{{ r.source }}</div>
+            <div>{{ r.country || '-' }}</div><div>{{ r.city }}</div><div>{{ r.routeFrom || '-' }} -> {{ r.routeTo || '-' }}</div><div>{{ r.fixedPrice || '-' }} {{ r.currency }}</div><div>{{ r.pricePerKm || '-' }}</div><div>{{ r.hourlyRate || '-' }}</div><div>{{ r.childSeatPrice || '-' }}</div><div>{{ r.source }}</div>
           </div>
         </div>
 
@@ -161,9 +161,9 @@ export default {
 .grid-head,
 .grid-row {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr .8fr .8fr .9fr .9fr;
+  grid-template-columns: .9fr 1fr 1.2fr 1fr .8fr .8fr .9fr .9fr;
   gap: 10px;
-  min-width: 1100px;
+  min-width: 1260px;
   padding: 9px 6px;
 }
 .grid-head {
