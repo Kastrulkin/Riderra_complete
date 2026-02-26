@@ -353,6 +353,12 @@ function can(actor, action, resource, context = {}) {
   if (!hasScopeMatch(actorCountries, context.country)) return false
   if (!hasScopeMatch(actorCities, context.city)) return false
   if (!hasScopeMatch(actorTeams, context.team)) return false
+  if (Array.isArray(context.allowedCurrentStatuses) && context.allowedCurrentStatuses.length > 0) {
+    const currentStatus = normalizeScopeToken(context.currentStatus)
+    if (!context.allowedCurrentStatuses.map((x) => normalizeScopeToken(x)).includes(currentStatus)) {
+      return false
+    }
+  }
 
   if (context.ownerUserId && !isSupervisor && actorId && context.ownerUserId !== actorId) return false
 
@@ -1673,7 +1679,10 @@ app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireAc
 app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver'), async (req, res) => {
   try {
     const rows = await prisma.driver.findMany({
-      where: { tenantId: req.actorContext.tenantId },
+      where: {
+        tenantId: req.actorContext.tenantId,
+        ...buildGeoScopeWhere(req, 'country', 'city')
+      },
       orderBy: { createdAt: 'desc' }
     })
     res.json(rows)
@@ -1899,7 +1908,17 @@ app.delete('/api/drivers/routes/:routeId', authenticateToken, resolveActorContex
 })
 
 // API для обновления статуса водителя (для админов)
-app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver'), async (req, res) => {
+app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver', async (req) => {
+  const existing = await prisma.driver.findFirst({
+    where: { id: req.params.driverId, tenantId: req.actorContext.tenantId },
+    select: { country: true, city: true, verificationStatus: true }
+  })
+  return {
+    country: existing?.country || null,
+    city: existing?.city || null,
+    currentStatus: existing?.verificationStatus || null
+  }
+}), async (req, res) => {
   try {
     const { driverId } = req.params
     const { isActive, verificationStatus } = req.body
@@ -1945,7 +1964,16 @@ app.put('/api/admin/drivers/:driverId/status', authenticateToken, resolveActorCo
   }
 })
 
-app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver'), async (req, res) => {
+app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver', async (req) => {
+  const existing = await prisma.driver.findFirst({
+    where: { id: req.params.driverId, tenantId: req.actorContext.tenantId },
+    select: { country: true, city: true }
+  })
+  return {
+    country: req.body?.country !== undefined ? req.body.country : (existing?.country || null),
+    city: req.body?.city !== undefined ? req.body.city : (existing?.city || null)
+  }
+}), async (req, res) => {
   try {
     const { driverId } = req.params
     const data = {}
@@ -2749,9 +2777,17 @@ app.delete('/api/admin/reviews/:reviewId', authenticateToken, resolveActorContex
 })
 
 // API для получения детальной информации о водителе
-app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver', () => ({
-  team: ['dispatch', 'ops_control', 'coordination', 'audit']
-})), async (req, res) => {
+app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver', async (req) => {
+  const row = await prisma.driver.findFirst({
+    where: { id: req.params.driverId, tenantId: req.actorContext.tenantId },
+    select: { country: true, city: true }
+  })
+  return {
+    team: ['dispatch', 'ops_control', 'coordination', 'audit'],
+    country: row?.country || null,
+    city: row?.city || null
+  }
+}), async (req, res) => {
   try {
     const { driverId } = req.params
     
@@ -4503,9 +4539,18 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft', () => ({
-  businessHours: { enabled: true, startHour: 6, endHour: 23 }
-})), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft', async (req) => {
+  const row = await prisma.opsEventDraft.findFirst({
+    where: { id: req.params.draftId, tenantId: req.actorContext.tenantId },
+    select: { status: true }
+  })
+  if (!row) return {}
+  return {
+    businessHours: { enabled: true, startHour: 6, endHour: 23 },
+    currentStatus: row?.status || null,
+    allowedCurrentStatuses: ['pending']
+  }
+}), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
@@ -4548,9 +4593,18 @@ app.post('/api/admin/ops/drafts/:draftId/reject', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft', () => ({
-  businessHours: { enabled: true, startHour: 6, endHour: 23 }
-})), async (req, res) => {
+app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft', async (req) => {
+  const row = await prisma.opsEventDraft.findFirst({
+    where: { id: req.params.draftId, tenantId: req.actorContext.tenantId },
+    select: { status: true }
+  })
+  if (!row) return {}
+  return {
+    businessHours: { enabled: true, startHour: 6, endHour: 23 },
+    currentStatus: row?.status || null,
+    allowedCurrentStatuses: ['pending']
+  }
+}), async (req, res) => {
   try {
     const { draftId } = req.params
     const { comment } = req.body || {}
