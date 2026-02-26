@@ -2228,8 +2228,9 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
     const matrixMap = new Map()
     for (const company of companies) {
       const segs = (company.segments || []).map((s) => s.segment)
-      const role = isClient(segs) ? 'client' : (isSupplier(segs) ? 'supplier' : null)
-      if (!role) continue
+      const clientRole = isClient(segs)
+      const supplierRole = isSupplier(segs)
+      if (!clientRole && !supplierRole) continue
 
       const countries = splitPresence(company.countryPresence)
       const cities = splitPresence(company.cityPresence)
@@ -2254,9 +2255,10 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
             phone: company.phone || null,
             email: company.email || null
           }
-          if (role === 'client') {
+          if (clientRole) {
             if (!row.clients.some((x) => x.id === company.id)) row.clients.push(item)
-          } else {
+          }
+          if (supplierRole) {
             if (!row.suppliers.some((x) => x.id === company.id)) row.suppliers.push(item)
           }
         }
