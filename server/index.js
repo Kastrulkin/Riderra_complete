@@ -2301,11 +2301,11 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, requirePermission
 
       const countries = splitPresence(company.presenceCountries)
       const cities = splitPresence(company.presenceCities || company.cityPresence)
-      const safeCountries = countries.length ? countries : [inferCountryFromCity(cities[0]) || '—']
       const safeCities = cities.length ? cities : ['—']
 
-      for (const country of safeCountries) {
-        for (const city of safeCities) {
+      for (const city of safeCities) {
+        const scopedCountries = countries.length ? countries : [inferCountryFromCity(city) || '—']
+        for (const country of scopedCountries) {
           const normalizedCountry = normalizeCountryName(country)
           const normalizedCity = normalizeCityName(city) || '—'
           const key = `${normalizedCountry || '—'}||${normalizedCity}`
