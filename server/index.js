@@ -1211,22 +1211,20 @@ async function fetchGoogleSheetRows(sheetSource) {
   return data.values || []
 }
 
-async function syncSheetSource(sheetSourceId) {
-  const source = await prisma.sheetSource.findUnique({ where: { id: sheetSourceId } })
+async function syncSheetSource(sheetSourceId, tenantId) {
+  if (!tenantId) {
+    const error = new Error('tenantId is required for sheet sync')
+    error.statusCode = 403
+    throw error
+  }
+  const source = await prisma.sheetSource.findFirst({ where: { id: sheetSourceId, tenantId } })
   if (!source) {
     throw new Error('Sheet source not found')
   }
   if (!source.syncEnabled) {
     throw new Error('Sync is disabled for this source')
   }
-  const configuredTenant = await getConfiguredTenant()
-  const effectiveTenantId = source.tenantId || configuredTenant.id
-  if (!source.tenantId) {
-    await prisma.sheetSource.update({
-      where: { id: source.id },
-      data: { tenantId: effectiveTenantId }
-    })
-  }
+  const effectiveTenantId = tenantId
 
   const rows = await fetchGoogleSheetRows(source)
   if (rows.length === 0) {
@@ -3341,7 +3339,7 @@ app.post('/api/admin/sheet-sources/:sourceId/sync', authenticateToken, resolveAc
     const payload = { sourceId }
     ensureIdempotencyKey(req, 'sheet_source.sync', payload)
     const wrapped = await withIdempotency(req, 'sheet_source.sync', payload, async () => {
-      const stats = await syncSheetSource(sourceId)
+      const stats = await syncSheetSource(sourceId, req.actorContext.tenantId)
       await writeAuditLog({
         tenantId: req.actorContext.tenantId,
         actorId: req.actorContext.actorId,
