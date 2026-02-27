@@ -4186,7 +4186,7 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
       notes
     } = req.body
 
-    if (!city) return res.status(400).json({ error: 'city is required' })
+    const normalizedCity = String(city || '').trim() || String(routeFrom || '').trim() || String(country || '').trim() || 'General'
     if (!String(vehicleType || '').trim()) return res.status(400).json({ error: 'vehicleType is required' })
 
     const payload = { country, city, routeFrom, routeTo, vehicleType, fixedPrice, pricePerKm, hourlyRate, childSeatPrice, currency, notes }
@@ -4195,7 +4195,7 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
         data: {
           tenantId: req.actorContext.tenantId,
           country: country || null,
-          city,
+          city: normalizedCity,
           routeFrom: routeFrom || null,
           routeTo: routeTo || null,
           vehicleType: String(vehicleType).trim(),
@@ -4288,6 +4288,42 @@ app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext,
   } catch (error) {
     console.error('Error updating city pricing:', error)
     res.status(500).json({ error: 'Failed to update city pricing' })
+  }
+})
+
+app.delete('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing'), async (req, res) => {
+  try {
+    const existing = await prisma.cityPricing.findFirst({
+      where: { id: req.params.id, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'City pricing row not found' })
+
+    const payload = { id: req.params.id, deactivate: true }
+    ensureIdempotencyKey(req, 'pricing.city.deactivate', payload)
+    const wrapped = await withIdempotency(req, 'pricing.city.deactivate', payload, async () => {
+      const row = await prisma.cityPricing.update({
+        where: { id: existing.id },
+        data: { isActive: false }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'pricing.city.deactivate',
+        resource: 'city_pricing',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return { success: true }
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error deleting city pricing row:', error)
+    res.status(500).json({ error: 'Failed to delete city pricing row' })
   }
 })
 

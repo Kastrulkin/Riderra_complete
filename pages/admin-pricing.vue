@@ -16,6 +16,7 @@
 
         <div class="toolbar">
           <button class="btn btn--primary" @click="reloadAll">{{ t.refresh }}</button>
+          <button v-if="tab==='base'" class="btn" @click="openBaseForm()">{{ t.addRow }}</button>
           <button class="btn" @click="downloadEtaTemplate">{{ t.etaTemplate }}</button>
           <button v-if="tab==='conflicts'" class="btn btn--danger" @click="recalc">{{ t.recalc }}</button>
         </div>
@@ -23,9 +24,18 @@
 
         <div v-if="tab==='base'" class="panel">
           <h3>{{ t.base }}</h3>
-          <div class="grid-head grid-head--base"><div>{{ t.country }}</div><div>{{ t.city }}</div><div>{{ t.route }}</div><div>{{ t.vehicleClass }}</div><div>{{ t.sale }}</div><div>{{ t.perKm }}</div><div>{{ t.hourly }}</div><div>{{ t.childSeat }}</div><div>{{ t.source }}</div></div>
+          <div class="grid-head grid-head--base"><div>{{ t.country }}</div><div>{{ t.from }}</div><div>{{ t.to }}</div><div>{{ t.vehicleClass }}</div><div>{{ t.sale }}</div><div>{{ t.currency }}</div><div>{{ t.actions }}</div></div>
           <div v-for="r in baseRows" :key="r.id" class="grid-row grid-row--base">
-            <div>{{ r.country || '-' }}</div><div>{{ r.city }}</div><div>{{ r.routeFrom || '-' }} -> {{ r.routeTo || '-' }}</div><div><span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span></div><div>{{ r.fixedPrice || '-' }} {{ r.currency }}</div><div>{{ r.pricePerKm || '-' }}</div><div>{{ r.hourlyRate || '-' }}</div><div>{{ r.childSeatPrice || '-' }}</div><div>{{ r.source }}</div>
+            <div>{{ r.country || '-' }}</div>
+            <div>{{ r.routeFrom || '-' }}</div>
+            <div>{{ r.routeTo || '-' }}</div>
+            <div><span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span></div>
+            <div>{{ r.fixedPrice || '-' }}</div>
+            <div>{{ r.currency || '-' }}</div>
+            <div class="row-actions">
+              <button class="btn btn--small btn--primary" @click="openBaseForm(r)">{{ t.edit }}</button>
+              <button class="btn btn--small btn--danger" @click="removeBaseRow(r)">{{ t.delete }}</button>
+            </div>
           </div>
         </div>
 
@@ -54,6 +64,42 @@
         </div>
       </div>
     </section>
+
+    <div v-if="editingBase" class="modal-overlay" @click="closeBaseForm">
+      <div class="modal" @click.stop>
+        <h3>{{ editingBase.id ? t.editRow : t.addRow }}</h3>
+        <div class="form-grid">
+          <div>
+            <label>{{ t.country }}</label>
+            <input v-model="baseForm.country" class="input" />
+          </div>
+          <div>
+            <label>{{ t.from }}</label>
+            <input v-model="baseForm.routeFrom" class="input" />
+          </div>
+          <div>
+            <label>{{ t.to }}</label>
+            <input v-model="baseForm.routeTo" class="input" />
+          </div>
+          <div>
+            <label>{{ t.vehicleClass }} *</label>
+            <input v-model="baseForm.vehicleType" class="input" />
+          </div>
+          <div>
+            <label>{{ t.sale }} *</label>
+            <input v-model="baseForm.fixedPrice" class="input" type="number" step="0.01" min="0" />
+          </div>
+          <div>
+            <label>{{ t.currency }} *</label>
+            <input v-model="baseForm.currency" class="input" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn--primary" @click="saveBaseRow">{{ t.save }}</button>
+          <button class="btn" @click="closeBaseForm">{{ t.cancel }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -64,28 +110,174 @@ import adminTabs from '~/components/partials/adminTabs.vue'
 export default {
   middleware: 'staff',
   components: { navigation, adminTabs },
-  data: () => ({ tab: 'base', baseRows: [], cpRows: [], conflictRows: [], driverRows: [], notice: '' }),
+  data: () => ({
+    tab: 'base',
+    baseRows: [],
+    cpRows: [],
+    conflictRows: [],
+    driverRows: [],
+    notice: '',
+    editingBase: null,
+    baseForm: {
+      country: '',
+      routeFrom: '',
+      routeTo: '',
+      vehicleType: '',
+      fixedPrice: '',
+      currency: 'EUR'
+    }
+  }),
   computed: {
     t () {
       return this.$store.state.language === 'ru'
         ? {
-            title: 'Прайс и контроль маржи', base: 'Продажа (базовый)', counterparty: 'Контрагенты', driver: 'Цены водителей', conflicts: 'Риски/расхождения', refresh: 'Обновить', etaTemplate: 'Шаблон для ETA', recalc: 'Пересчитать риски', city: 'Город', route: 'Маршрут', vehicleClass: 'Класс авто', missingClass: 'Класс не задан', sale: 'Цена продажи', perKm: 'За км', hourly: 'Почасовая', childSeat: 'Детское кресло', source: 'Источник', counterpartyName: 'Контрагент', markup: 'Наценка', status: 'Статус', name: 'Водитель', country: 'Страна', comment: 'Комментарий', issue: 'Проблема', driverCost: 'Цена водителя', margin: 'Маржа', severity: 'Критичность', loadedRows: 'Загружено строк базового прайса'
+            title: 'Прайс и контроль маржи',
+            base: 'Продажа (базовый)',
+            counterparty: 'Контрагенты',
+            driver: 'Цены водителей',
+            conflicts: 'Риски/расхождения',
+            refresh: 'Обновить',
+            addRow: 'Добавить строку',
+            editRow: 'Редактировать строку',
+            edit: 'Изменить',
+            delete: 'Удалить',
+            actions: 'Действия',
+            etaTemplate: 'Шаблон для ETA',
+            recalc: 'Пересчитать риски',
+            city: 'Город',
+            route: 'Маршрут',
+            from: 'Откуда',
+            to: 'Куда',
+            vehicleClass: 'Класс авто',
+            missingClass: 'Класс не задан',
+            sale: 'Цена',
+            currency: 'Валюта',
+            perKm: 'За км',
+            hourly: 'Почасовая',
+            childSeat: 'Детское кресло',
+            source: 'Источник',
+            counterpartyName: 'Контрагент',
+            markup: 'Наценка',
+            status: 'Статус',
+            name: 'Водитель',
+            country: 'Страна',
+            comment: 'Комментарий',
+            issue: 'Проблема',
+            driverCost: 'Цена водителя',
+            margin: 'Маржа',
+            severity: 'Критичность',
+            loadedRows: 'Загружено строк базового прайса',
+            save: 'Сохранить',
+            cancel: 'Отмена'
           }
         : {
-            title: 'Pricing & Margin Control', base: 'Base Sell', counterparty: 'Counterparty', driver: 'Driver Prices', conflicts: 'Conflicts', refresh: 'Refresh', etaTemplate: 'ETA Template', recalc: 'Recalculate', city: 'City', route: 'Route', vehicleClass: 'Vehicle class', missingClass: 'Class missing', sale: 'Sell price', perKm: 'Per km', hourly: 'Hourly', childSeat: 'Child seat', source: 'Source', counterpartyName: 'Counterparty', markup: 'Markup', status: 'Status', name: 'Driver', country: 'Country', comment: 'Comment', issue: 'Issue', driverCost: 'Driver cost', margin: 'Margin', severity: 'Severity', loadedRows: 'Loaded base price rows'
+            title: 'Pricing & Margin Control',
+            base: 'Base Sell',
+            counterparty: 'Counterparty',
+            driver: 'Driver Prices',
+            conflicts: 'Conflicts',
+            refresh: 'Refresh',
+            addRow: 'Add row',
+            editRow: 'Edit row',
+            edit: 'Edit',
+            delete: 'Delete',
+            actions: 'Actions',
+            etaTemplate: 'ETA Template',
+            recalc: 'Recalculate',
+            city: 'City',
+            route: 'Route',
+            from: 'From',
+            to: 'To',
+            vehicleClass: 'Vehicle class',
+            missingClass: 'Class missing',
+            sale: 'Price',
+            currency: 'Currency',
+            perKm: 'Per km',
+            hourly: 'Hourly',
+            childSeat: 'Child seat',
+            source: 'Source',
+            counterpartyName: 'Counterparty',
+            markup: 'Markup',
+            status: 'Status',
+            name: 'Driver',
+            country: 'Country',
+            comment: 'Comment',
+            issue: 'Issue',
+            driverCost: 'Driver cost',
+            margin: 'Margin',
+            severity: 'Severity',
+            loadedRows: 'Loaded base price rows',
+            save: 'Save',
+            cancel: 'Cancel'
           }
     }
   },
   mounted () { this.reloadAll() },
   methods: {
     headers () { const token = localStorage.getItem('authToken'); return { Authorization: token ? `Bearer ${token}` : '' } },
-    async fetchJson (url) {
-      const response = await fetch(url, { headers: this.headers() })
+    async fetchJson (url, options = {}) {
+      const response = await fetch(url, { headers: this.headers(), ...options })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {
         throw new Error(body.error || `HTTP ${response.status}`)
       }
       return body
+    },
+    openBaseForm (row = null) {
+      this.editingBase = row || {}
+      this.baseForm = {
+        country: row?.country || '',
+        routeFrom: row?.routeFrom || '',
+        routeTo: row?.routeTo || '',
+        vehicleType: row?.vehicleType || '',
+        fixedPrice: row?.fixedPrice ?? '',
+        currency: row?.currency || 'EUR'
+      }
+    },
+    closeBaseForm () {
+      this.editingBase = null
+    },
+    async saveBaseRow () {
+      const payload = {
+        country: this.baseForm.country || null,
+        routeFrom: this.baseForm.routeFrom || null,
+        routeTo: this.baseForm.routeTo || null,
+        vehicleType: String(this.baseForm.vehicleType || '').trim(),
+        fixedPrice: this.baseForm.fixedPrice === '' ? null : parseFloat(this.baseForm.fixedPrice),
+        currency: String(this.baseForm.currency || 'EUR').trim().toUpperCase()
+      }
+      if (!payload.vehicleType) throw new Error('vehicleType is required')
+      if (payload.fixedPrice === null || Number.isNaN(payload.fixedPrice)) throw new Error('fixedPrice is required')
+
+      if (this.editingBase?.id) {
+        await this.fetchJson(`/api/admin/pricing/cities/${this.editingBase.id}`, {
+          method: 'PUT',
+          headers: {
+            ...this.headers(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        })
+      } else {
+        await this.fetchJson('/api/admin/pricing/cities', {
+          method: 'POST',
+          headers: {
+            ...this.headers(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        })
+      }
+      this.closeBaseForm()
+      await this.reloadAll()
+    },
+    async removeBaseRow (row) {
+      if (!row?.id) return
+      await this.fetchJson(`/api/admin/pricing/cities/${row.id}`, {
+        method: 'DELETE',
+        headers: this.headers()
+      })
+      await this.reloadAll()
     },
     async reloadAll () {
       this.notice = ''
@@ -168,8 +360,8 @@ export default {
 }
 .grid-head--base,
 .grid-row--base {
-  grid-template-columns: .8fr .9fr 1.2fr .9fr .9fr .7fr .7fr .9fr .8fr;
-  min-width: 1380px;
+  grid-template-columns: .9fr 1fr 1fr .9fr .8fr .7fr .9fr;
+  min-width: 1180px;
 }
 .grid-head--counterparty,
 .grid-row--counterparty {
@@ -189,6 +381,10 @@ export default {
   background: #ffe8e8;
   color: #8a1f1f;
 }
+.row-actions {
+  display: flex;
+  gap: 6px;
+}
 .grid-head {
   font-weight: 700;
   color: #1d2c4a;
@@ -197,5 +393,31 @@ export default {
 .grid-row {
   color: #2f3e60;
   border-bottom: 1px solid #f0f2f7;
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.modal {
+  width: min(760px, 95vw);
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #d8d8e6;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
 }
 </style>
