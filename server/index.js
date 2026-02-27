@@ -1688,6 +1688,254 @@ app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireAct
   } catch (e) { res.status(500).json({ error: 'failed' }) }
 })
 
+app.get('/api/admin/fleet-vehicles', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver'), async (req, res) => {
+  try {
+    const { q = '', driverId = '', active = '', limit = '500' } = req.query
+    const take = Math.min(parseInt(limit, 10) || 500, 3000)
+    const where = {
+      tenantId: req.actorContext.tenantId
+    }
+    if (driverId) where.driverId = String(driverId)
+    if (active !== '') where.isActive = String(active) === 'true'
+    if (q) {
+      const text = String(q)
+      where.OR = [
+        { vehicleClass: { contains: text, mode: 'insensitive' } },
+        { brand: { contains: text, mode: 'insensitive' } },
+        { model: { contains: text, mode: 'insensitive' } },
+        { plateNumber: { contains: text, mode: 'insensitive' } },
+        { driver: { name: { contains: text, mode: 'insensitive' } } },
+        { driver: { city: { contains: text, mode: 'insensitive' } } }
+      ]
+    }
+
+    const rows = await prisma.fleetVehicle.findMany({
+      where,
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            country: true
+          }
+        }
+      },
+      orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }],
+      take
+    })
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error fetching fleet vehicles:', error)
+    res.status(500).json({ error: 'Failed to fetch vehicles' })
+  }
+})
+
+app.post('/api/admin/fleet-vehicles', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver', async (req) => {
+  if (!req.body?.driverId) return {}
+  const driver = await prisma.driver.findFirst({
+    where: { id: String(req.body.driverId), tenantId: req.actorContext.tenantId },
+    select: { country: true, city: true }
+  })
+  return { country: driver?.country || null, city: driver?.city || null }
+}), async (req, res) => {
+  try {
+    const {
+      driverId = null,
+      vehicleClass,
+      brand = null,
+      model = null,
+      plateNumber,
+      productionYear = null,
+      color = null,
+      seats = null,
+      notes = null,
+      isActive = true
+    } = req.body || {}
+
+    const vehicleClassValue = String(vehicleClass || '').trim()
+    const plateValue = String(plateNumber || '').trim()
+    if (!vehicleClassValue) return res.status(400).json({ error: 'vehicleClass is required' })
+    if (!plateValue) return res.status(400).json({ error: 'plateNumber is required' })
+
+    let effectiveDriverId = null
+    if (driverId) {
+      const driver = await prisma.driver.findFirst({
+        where: { id: String(driverId), tenantId: req.actorContext.tenantId },
+        select: { id: true }
+      })
+      if (!driver) return res.status(404).json({ error: 'Driver not found' })
+      effectiveDriverId = driver.id
+    }
+
+    const payload = {
+      driverId: effectiveDriverId,
+      vehicleClass: vehicleClassValue,
+      brand,
+      model,
+      plateNumber: plateValue,
+      productionYear,
+      color,
+      seats,
+      notes,
+      isActive: !!isActive
+    }
+    ensureIdempotencyKey(req, 'fleet_vehicle.create', payload)
+    const wrapped = await withIdempotency(req, 'fleet_vehicle.create', payload, async () => {
+      const row = await prisma.fleetVehicle.create({
+        data: {
+          tenantId: req.actorContext.tenantId,
+          driverId: effectiveDriverId,
+          vehicleClass: vehicleClassValue,
+          brand: brand ? String(brand).trim() : null,
+          model: model ? String(model).trim() : null,
+          plateNumber: plateValue,
+          productionYear: productionYear === null || productionYear === undefined || productionYear === '' ? null : parseInt(productionYear, 10),
+          color: color ? String(color).trim() : null,
+          seats: seats === null || seats === undefined || seats === '' ? null : parseInt(seats, 10),
+          notes: notes ? String(notes).trim() : null,
+          isActive: !!isActive
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'fleet_vehicle.create',
+        resource: 'fleet_vehicle',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return row
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error creating fleet vehicle:', error)
+    res.status(500).json({ error: 'Failed to create vehicle' })
+  }
+})
+
+app.put('/api/admin/fleet-vehicles/:vehicleId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver', async (req) => {
+  const existing = await prisma.fleetVehicle.findFirst({
+    where: { id: String(req.params.vehicleId), tenantId: req.actorContext.tenantId },
+    include: {
+      driver: { select: { country: true, city: true } }
+    }
+  })
+  return { country: existing?.driver?.country || null, city: existing?.driver?.city || null }
+}), async (req, res) => {
+  try {
+    const vehicleId = String(req.params.vehicleId)
+    const existing = await prisma.fleetVehicle.findFirst({
+      where: { id: vehicleId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Vehicle not found' })
+
+    const data = {}
+    if (req.body.vehicleClass !== undefined) {
+      const cls = String(req.body.vehicleClass || '').trim()
+      if (!cls) return res.status(400).json({ error: 'vehicleClass is required' })
+      data.vehicleClass = cls
+    }
+    if (req.body.plateNumber !== undefined) {
+      const plate = String(req.body.plateNumber || '').trim()
+      if (!plate) return res.status(400).json({ error: 'plateNumber is required' })
+      data.plateNumber = plate
+    }
+    const nullableTextFields = ['brand', 'model', 'color', 'notes']
+    for (const field of nullableTextFields) {
+      if (req.body[field] !== undefined) {
+        data[field] = req.body[field] ? String(req.body[field]).trim() : null
+      }
+    }
+    if (req.body.driverId !== undefined) {
+      if (!req.body.driverId) {
+        data.driverId = null
+      } else {
+        const driver = await prisma.driver.findFirst({
+          where: { id: String(req.body.driverId), tenantId: req.actorContext.tenantId },
+          select: { id: true }
+        })
+        if (!driver) return res.status(404).json({ error: 'Driver not found' })
+        data.driverId = driver.id
+      }
+    }
+    if (req.body.productionYear !== undefined) {
+      data.productionYear = req.body.productionYear === null || req.body.productionYear === '' ? null : parseInt(req.body.productionYear, 10)
+    }
+    if (req.body.seats !== undefined) {
+      data.seats = req.body.seats === null || req.body.seats === '' ? null : parseInt(req.body.seats, 10)
+    }
+    if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
+
+    const payload = { vehicleId, data }
+    ensureIdempotencyKey(req, 'fleet_vehicle.update', payload)
+    const wrapped = await withIdempotency(req, 'fleet_vehicle.update', payload, async () => {
+      const row = await prisma.fleetVehicle.update({
+        where: { id: existing.id },
+        data
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'fleet_vehicle.update',
+        resource: 'fleet_vehicle',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return row
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error updating fleet vehicle:', error)
+    res.status(500).json({ error: 'Failed to update vehicle' })
+  }
+})
+
+app.delete('/api/admin/fleet-vehicles/:vehicleId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver'), async (req, res) => {
+  try {
+    const vehicleId = String(req.params.vehicleId)
+    const existing = await prisma.fleetVehicle.findFirst({
+      where: { id: vehicleId, tenantId: req.actorContext.tenantId },
+      select: { id: true, isActive: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Vehicle not found' })
+    const payload = { vehicleId, deactivate: true }
+    ensureIdempotencyKey(req, 'fleet_vehicle.deactivate', payload)
+    const wrapped = await withIdempotency(req, 'fleet_vehicle.deactivate', payload, async () => {
+      const row = await prisma.fleetVehicle.update({
+        where: { id: existing.id },
+        data: { isActive: false }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'fleet_vehicle.deactivate',
+        resource: 'fleet_vehicle',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: payload
+      })
+      return { success: true }
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error deactivating fleet vehicle:', error)
+    res.status(500).json({ error: 'Failed to deactivate vehicle' })
+  }
+})
+
 // API для расчета приоритета водителей
 app.post('/api/drivers/priority', resolveActorContext, requireActorContext, async (req, res) => {
   try {
@@ -3867,7 +4115,7 @@ app.get('/api/admin/pricing/cities', authenticateToken, resolveActorContext, req
     }
     const rows = await prisma.cityPricing.findMany({
       where,
-      orderBy: [{ city: 'asc' }, { updatedAt: 'desc' }],
+      orderBy: [{ country: 'asc' }, { city: 'asc' }, { vehicleType: 'asc' }, { routeFrom: 'asc' }, { updatedAt: 'desc' }],
       take
     })
     res.json({ rows })
@@ -3939,6 +4187,7 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
     } = req.body
 
     if (!city) return res.status(400).json({ error: 'city is required' })
+    if (!String(vehicleType || '').trim()) return res.status(400).json({ error: 'vehicleType is required' })
 
     const payload = { country, city, routeFrom, routeTo, vehicleType, fixedPrice, pricePerKm, hourlyRate, childSeatPrice, currency, notes }
     const wrapped = await withIdempotency(req, 'pricing.city.create', payload, async () => {
@@ -3949,7 +4198,7 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
           city,
           routeFrom: routeFrom || null,
           routeTo: routeTo || null,
-          vehicleType: vehicleType || null,
+          vehicleType: String(vehicleType).trim(),
           fixedPrice: fixedPrice !== undefined && fixedPrice !== null ? parseFloat(fixedPrice) : null,
           pricePerKm: pricePerKm !== undefined && pricePerKm !== null ? parseFloat(pricePerKm) : null,
           hourlyRate: hourlyRate !== undefined && hourlyRate !== null ? parseFloat(hourlyRate) : null,
@@ -3992,11 +4241,16 @@ app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext,
 }), async (req, res) => {
   try {
     const data = {}
-    const nullableFields = ['country', 'routeFrom', 'routeTo', 'vehicleType', 'notes', 'source']
+    const nullableFields = ['country', 'routeFrom', 'routeTo', 'notes', 'source']
     for (const f of nullableFields) {
       if (req.body[f] !== undefined) data[f] = req.body[f] || null
     }
     if (req.body.city !== undefined) data.city = String(req.body.city || '').trim()
+    if (req.body.vehicleType !== undefined) {
+      const vehicleType = String(req.body.vehicleType || '').trim()
+      if (!vehicleType) return res.status(400).json({ error: 'vehicleType is required' })
+      data.vehicleType = vehicleType
+    }
     if (req.body.currency !== undefined) data.currency = String(req.body.currency || '').trim() || 'EUR'
 
     if (req.body.fixedPrice !== undefined) data.fixedPrice = req.body.fixedPrice === null ? null : parseFloat(req.body.fixedPrice)

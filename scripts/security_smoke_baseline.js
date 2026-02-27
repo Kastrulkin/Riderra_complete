@@ -24,6 +24,7 @@ async function main() {
     companiesNullTenant,
     contactsNullTenant,
     opsDraftsNullTenant,
+    fleetVehiclesNullTenant,
     idemUniqueCheck
   ] = await Promise.all([
     prisma.tenantMembership.count({ where: { tenantId: tenant.id, isActive: true } }),
@@ -38,6 +39,7 @@ async function main() {
     prisma.customerCompany.count({ where: { tenantId: null } }),
     prisma.customerContact.count({ where: { tenantId: null } }),
     prisma.opsEventDraft.count({ where: { tenantId: null } }),
+    prisma.fleetVehicle.count({ where: { tenantId: null } }),
     prisma.idempotencyKey.count()
   ])
 
@@ -54,7 +56,8 @@ async function main() {
     ['pricingNullTenant', pricingNullTenant],
     ['companiesNullTenant', companiesNullTenant],
     ['contactsNullTenant', contactsNullTenant],
-    ['opsDraftsNullTenant', opsDraftsNullTenant]
+    ['opsDraftsNullTenant', opsDraftsNullTenant],
+    ['fleetVehiclesNullTenant', fleetVehiclesNullTenant]
   ]
   const broken = nullTenantChecks.filter(([, count]) => Number(count || 0) !== 0)
   assert(broken.length === 0, `null tenant rows detected: ${broken.map(([name, count]) => `${name}=${count}`).join(', ')}`)
@@ -98,6 +101,7 @@ async function main() {
     companiesNullTenant,
     contactsNullTenant,
     opsDraftsNullTenant,
+    fleetVehiclesNullTenant,
     idempotencyRows: idemUniqueCheck
   }))
 }

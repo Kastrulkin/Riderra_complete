@@ -23,17 +23,17 @@
 
         <div v-if="tab==='base'" class="panel">
           <h3>{{ t.base }}</h3>
-          <div class="grid-head"><div>{{ t.country }}</div><div>{{ t.city }}</div><div>{{ t.route }}</div><div>{{ t.sale }}</div><div>{{ t.perKm }}</div><div>{{ t.hourly }}</div><div>{{ t.childSeat }}</div><div>{{ t.source }}</div></div>
-          <div v-for="r in baseRows" :key="r.id" class="grid-row">
-            <div>{{ r.country || '-' }}</div><div>{{ r.city }}</div><div>{{ r.routeFrom || '-' }} -> {{ r.routeTo || '-' }}</div><div>{{ r.fixedPrice || '-' }} {{ r.currency }}</div><div>{{ r.pricePerKm || '-' }}</div><div>{{ r.hourlyRate || '-' }}</div><div>{{ r.childSeatPrice || '-' }}</div><div>{{ r.source }}</div>
+          <div class="grid-head grid-head--base"><div>{{ t.country }}</div><div>{{ t.city }}</div><div>{{ t.route }}</div><div>{{ t.vehicleClass }}</div><div>{{ t.sale }}</div><div>{{ t.perKm }}</div><div>{{ t.hourly }}</div><div>{{ t.childSeat }}</div><div>{{ t.source }}</div></div>
+          <div v-for="r in baseRows" :key="r.id" class="grid-row grid-row--base">
+            <div>{{ r.country || '-' }}</div><div>{{ r.city }}</div><div>{{ r.routeFrom || '-' }} -> {{ r.routeTo || '-' }}</div><div><span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span></div><div>{{ r.fixedPrice || '-' }} {{ r.currency }}</div><div>{{ r.pricePerKm || '-' }}</div><div>{{ r.hourlyRate || '-' }}</div><div>{{ r.childSeatPrice || '-' }}</div><div>{{ r.source }}</div>
           </div>
         </div>
 
         <div v-if="tab==='counterparty'" class="panel">
           <h3>{{ t.counterparty }}</h3>
-          <div class="grid-head"><div>{{ t.counterpartyName }}</div><div>{{ t.city }}</div><div>{{ t.route }}</div><div>{{ t.sale }}</div><div>{{ t.markup }}</div><div>{{ t.status }}</div></div>
-          <div v-for="r in cpRows" :key="r.id" class="grid-row">
-            <div>{{ r.counterpartyName }}</div><div>{{ r.city || '-' }}</div><div>{{ r.routeFrom || '-' }} -> {{ r.routeTo || '-' }}</div><div>{{ r.sellPrice || '-' }} {{ r.currency }}</div><div>{{ r.markupPercent || '-' }}%</div><div>{{ r.isActive ? 'active' : 'off' }}</div>
+          <div class="grid-head grid-head--counterparty"><div>{{ t.counterpartyName }}</div><div>{{ t.city }}</div><div>{{ t.route }}</div><div>{{ t.vehicleClass }}</div><div>{{ t.sale }}</div><div>{{ t.markup }}</div><div>{{ t.status }}</div></div>
+          <div v-for="r in cpRows" :key="r.id" class="grid-row grid-row--counterparty">
+            <div>{{ r.counterpartyName }}</div><div>{{ r.city || '-' }}</div><div>{{ r.routeFrom || '-' }} -> {{ r.routeTo || '-' }}</div><div><span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span></div><div>{{ r.sellPrice || '-' }} {{ r.currency }}</div><div>{{ r.markupPercent || '-' }}%</div><div>{{ r.isActive ? 'active' : 'off' }}</div>
           </div>
         </div>
 
@@ -69,10 +69,10 @@ export default {
     t () {
       return this.$store.state.language === 'ru'
         ? {
-            title: 'Прайс и контроль маржи', base: 'Продажа (базовый)', counterparty: 'Контрагенты', driver: 'Цены водителей', conflicts: 'Риски/расхождения', refresh: 'Обновить', etaTemplate: 'Шаблон для ETA', recalc: 'Пересчитать риски', city: 'Город', route: 'Маршрут', sale: 'Цена продажи', perKm: 'За км', hourly: 'Почасовая', childSeat: 'Детское кресло', source: 'Источник', counterpartyName: 'Контрагент', markup: 'Наценка', status: 'Статус', name: 'Водитель', country: 'Страна', comment: 'Комментарий', issue: 'Проблема', driverCost: 'Цена водителя', margin: 'Маржа', severity: 'Критичность', loadedRows: 'Загружено строк базового прайса'
+            title: 'Прайс и контроль маржи', base: 'Продажа (базовый)', counterparty: 'Контрагенты', driver: 'Цены водителей', conflicts: 'Риски/расхождения', refresh: 'Обновить', etaTemplate: 'Шаблон для ETA', recalc: 'Пересчитать риски', city: 'Город', route: 'Маршрут', vehicleClass: 'Класс авто', missingClass: 'Класс не задан', sale: 'Цена продажи', perKm: 'За км', hourly: 'Почасовая', childSeat: 'Детское кресло', source: 'Источник', counterpartyName: 'Контрагент', markup: 'Наценка', status: 'Статус', name: 'Водитель', country: 'Страна', comment: 'Комментарий', issue: 'Проблема', driverCost: 'Цена водителя', margin: 'Маржа', severity: 'Критичность', loadedRows: 'Загружено строк базового прайса'
           }
         : {
-            title: 'Pricing & Margin Control', base: 'Base Sell', counterparty: 'Counterparty', driver: 'Driver Prices', conflicts: 'Conflicts', refresh: 'Refresh', etaTemplate: 'ETA Template', recalc: 'Recalculate', city: 'City', route: 'Route', sale: 'Sell price', perKm: 'Per km', hourly: 'Hourly', childSeat: 'Child seat', source: 'Source', counterpartyName: 'Counterparty', markup: 'Markup', status: 'Status', name: 'Driver', country: 'Country', comment: 'Comment', issue: 'Issue', driverCost: 'Driver cost', margin: 'Margin', severity: 'Severity', loadedRows: 'Loaded base price rows'
+            title: 'Pricing & Margin Control', base: 'Base Sell', counterparty: 'Counterparty', driver: 'Driver Prices', conflicts: 'Conflicts', refresh: 'Refresh', etaTemplate: 'ETA Template', recalc: 'Recalculate', city: 'City', route: 'Route', vehicleClass: 'Vehicle class', missingClass: 'Class missing', sale: 'Sell price', perKm: 'Per km', hourly: 'Hourly', childSeat: 'Child seat', source: 'Source', counterpartyName: 'Counterparty', markup: 'Markup', status: 'Status', name: 'Driver', country: 'Country', comment: 'Comment', issue: 'Issue', driverCost: 'Driver cost', margin: 'Margin', severity: 'Severity', loadedRows: 'Loaded base price rows'
           }
     }
   },
@@ -165,6 +165,29 @@ export default {
   gap: 10px;
   min-width: 1260px;
   padding: 9px 6px;
+}
+.grid-head--base,
+.grid-row--base {
+  grid-template-columns: .8fr .9fr 1.2fr .9fr .9fr .7fr .7fr .9fr .8fr;
+  min-width: 1380px;
+}
+.grid-head--counterparty,
+.grid-row--counterparty {
+  grid-template-columns: 1.1fr .8fr 1.1fr .8fr .8fr .7fr .6fr;
+  min-width: 1180px;
+}
+.class-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e5f4ff;
+  color: #0b3a66;
+  font-weight: 600;
+  font-size: 12px;
+}
+.class-badge--missing {
+  background: #ffe8e8;
+  color: #8a1f1f;
 }
 .grid-head {
   font-weight: 700;

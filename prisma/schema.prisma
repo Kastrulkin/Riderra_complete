@@ -37,6 +37,7 @@ model Tenant {
   driverBlocks      DriverUnavailability[]
   opsTasks          OpsTask[]
   telegramLinks     TelegramLink[]
+  fleetVehicles     FleetVehicle[]
 }
 
 model TenantMembership {
@@ -142,11 +143,35 @@ model Driver {
   // Связь с предустановленными маршрутами городов
   cityRoutes     DriverCityRoute[]
   unavailability DriverUnavailability[]
+  vehicles       FleetVehicle[]
   tenant         Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, country, city])
   @@index([country, city])
   @@index([telegramUserId])
+}
+
+model FleetVehicle {
+  id             String   @id @default(cuid())
+  tenantId       String?
+  driverId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  vehicleClass   String
+  brand          String?
+  model          String?
+  plateNumber    String
+  productionYear Int?
+  color          String?
+  seats          Int?
+  notes          String?
+  isActive       Boolean  @default(true)
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  driver         Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, vehicleClass, isActive])
+  @@index([tenantId, driverId, isActive])
+  @@index([tenantId, plateNumber])
 }
 
 model DriverRoute {

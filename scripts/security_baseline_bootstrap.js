@@ -76,6 +76,7 @@ async function main() {
   await prisma.driverUnavailability.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.opsTask.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   await prisma.telegramLink.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+  await prisma.fleetVehicle.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
 
   const [tenants, memberships] = await Promise.all([
     prisma.tenant.count(),
