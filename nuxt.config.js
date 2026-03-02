@@ -3,8 +3,8 @@ module.exports = {
   ** Headers of the page
   */
   server: {
-    port: 3001, // используем порт 3001, так как 3000 занят
-    host: '0.0.0.0', // default: localhost
+    port: Number(process.env.PORT) || 3000,
+    host: process.env.HOST || '0.0.0.0',
   },
   ssr: false,
   target: 'server',
