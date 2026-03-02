@@ -70,8 +70,11 @@
           <input v-model="companyForm.registrationCountry" class="input" placeholder="Страна регистрации" />
           <input v-model="companyForm.registrationCity" class="input" placeholder="Город регистрации" />
           <input v-model="companyForm.registrationAddress" class="input" placeholder="Адрес регистрации" />
-          <input v-model="companyForm.presenceCountries" class="input" placeholder="Страны присутствия" />
-          <input v-model="companyForm.presenceCities" class="input" placeholder="Города присутствия (где работают)" />
+          <textarea
+            v-model="companyForm.presenceMapText"
+            class="input textarea textarea--wide"
+            placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
+          />
           <textarea v-model="companyForm.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div class="row-actions">
@@ -120,6 +123,69 @@ export default {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' }
     },
+    splitPresenceList (raw) {
+      return String(raw || '')
+        .split(/[,\n;|/]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    },
+    buildPresenceMapText (countriesRaw, groupedRaw, flatCitiesRaw) {
+      const groupedText = String(groupedRaw || '').trim()
+      if (groupedText && groupedText.includes(':')) {
+        return groupedText
+          .split(/\n+/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .join('\n')
+      }
+
+      const countries = this.splitPresenceList(countriesRaw)
+      const cities = this.splitPresenceList(flatCitiesRaw || groupedRaw)
+
+      if (!countries.length && !cities.length) return ''
+      if (countries.length === 1 && cities.length) return `${countries[0]}: ${cities.join(', ')}`
+      if (countries.length > 1 && !cities.length) return countries.join('\n')
+      if (!countries.length && cities.length) return `Без страны: ${cities.join(', ')}`
+
+      return [
+        ...countries,
+        cities.length ? `Без страны: ${cities.join(', ')}` : ''
+      ].filter(Boolean).join('\n')
+    },
+    buildPresencePayload () {
+      const rows = String(this.companyForm.presenceMapText || '')
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+
+      const countries = []
+      const cities = []
+      const normalizedRows = []
+
+      for (const row of rows) {
+        const separator = row.indexOf(':')
+        const hasSeparator = separator >= 0
+        const country = (hasSeparator ? row.slice(0, separator) : row).trim()
+        const cityChunk = hasSeparator ? row.slice(separator + 1).trim() : ''
+        const rowCities = this.splitPresenceList(cityChunk)
+
+        if (country && country.toLowerCase() !== 'без страны') countries.push(country)
+        for (const city of rowCities) cities.push(city)
+
+        if (country) {
+          normalizedRows.push(rowCities.length ? `${country}: ${rowCities.join(', ')}` : country)
+        } else if (rowCities.length) {
+          normalizedRows.push(`Без страны: ${rowCities.join(', ')}`)
+        }
+      }
+
+      return {
+        presenceCountries: [...new Set(countries)].join(', '),
+        countryPresence: [...new Set(countries)].join(', '),
+        presenceCities: normalizedRows.join('\n'),
+        cityPresence: [...new Set(cities)].join(', ')
+      }
+    },
     async load () {
       const res = await fetch('/api/admin/crm/directions-matrix', { headers: this.authHeaders() })
       const data = await res.json()
@@ -148,7 +214,13 @@ export default {
         registrationCity: company.registrationCity || '',
         registrationAddress: company.registrationAddress || '',
         presenceCountries: company.presenceCountries || '',
-        presenceCities: company.presenceCities || company.cityPresence || '',
+        presenceCities: company.presenceCities || '',
+        cityPresence: company.cityPresence || '',
+        presenceMapText: this.buildPresenceMapText(
+          company.presenceCountries || company.countryPresence || '',
+          company.presenceCities || '',
+          company.cityPresence || ''
+        ),
         comment: company.comment || ''
       }
     },
@@ -156,7 +228,10 @@ export default {
       await fetch(`/api/admin/crm/companies/${this.companyModal.id}`, {
         method: 'PUT',
         headers: this.authHeaders(),
-        body: JSON.stringify(this.companyForm)
+        body: JSON.stringify({
+          ...this.companyForm,
+          ...this.buildPresencePayload()
+        })
       })
       await this.load()
     }
@@ -169,6 +244,7 @@ export default {
 .toolbar { display: flex; gap: 10px; margin-bottom: 12px; }
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; width: 100%; }
 .textarea { min-height: 90px; resize: vertical; }
+.textarea--wide { grid-column: 1 / -1; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
 .table-head, .table-row { display: grid; grid-template-columns: 190px 220px 1fr 1fr; gap: 10px; min-width: 1100px; padding: 10px 12px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }

@@ -3927,6 +3927,54 @@ function splitPresence(raw) {
     .filter(Boolean)
 }
 
+function parsePresenceCoverage(rawCountries, rawPresenceCities, rawFlatCities) {
+  const groupedRaw = String(rawPresenceCities || '').trim()
+  const pairs = []
+
+  if (groupedRaw && groupedRaw.includes(':')) {
+    const lines = groupedRaw
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+    for (const line of lines) {
+      const separator = line.indexOf(':')
+      const country = (separator >= 0 ? line.slice(0, separator) : line).trim()
+      const cityChunk = separator >= 0 ? line.slice(separator + 1) : ''
+      const cities = splitPresence(cityChunk)
+
+      if (cities.length) {
+        for (const city of cities) {
+          pairs.push({ country, city })
+        }
+      } else {
+        pairs.push({ country, city: '' })
+      }
+    }
+    return pairs
+  }
+
+  const countries = splitPresence(rawCountries)
+  const cities = splitPresence(rawFlatCities || rawPresenceCities)
+
+  if (!cities.length) {
+    if (countries.length) return countries.map((country) => ({ country, city: '' }))
+    return []
+  }
+
+  if (countries.length === 1) {
+    return cities.map((city) => ({ country: countries[0], city }))
+  }
+
+  return cities.map((city) => {
+    const inferredCountry = inferCountryFromCity(city)
+    return {
+      country: inferredCountry || '',
+      city
+    }
+  })
+}
+
 function normalizeCountryName(raw) {
   const value = String(raw || '').trim()
   if (!value || value === '—') return ''
@@ -3986,41 +4034,43 @@ app.get('/api/admin/crm/directions-matrix', authenticateToken, resolveActorConte
       const supplierRole = isSupplier(segs)
       if (!clientRole && !supplierRole) continue
 
-      const countries = splitPresence(company.presenceCountries)
-      const cities = splitPresence(company.presenceCities || company.cityPresence)
-      const safeCities = cities.length ? cities : ['—']
+      const coverage = parsePresenceCoverage(
+        company.presenceCountries,
+        company.presenceCities,
+        company.cityPresence
+      )
+      const safeCoverage = coverage.length ? coverage : [{ country: '', city: '' }]
 
-      for (const city of safeCities) {
-        const scopedCountries = countries.length ? countries : [inferCountryFromCity(city) || '—']
-        for (const country of scopedCountries) {
-          const normalizedCountry = normalizeCountryName(country)
-          const normalizedCity = normalizeCityName(city) || '—'
-          const key = `${normalizedCountry || '—'}||${normalizedCity}`
-          if (!matrixMap.has(key)) {
-            matrixMap.set(key, {
-              country: normalizedCountry || '—',
-              city: String(city || '').trim() || '—',
-              clients: [],
-              suppliers: []
-            })
-          }
-          const row = matrixMap.get(key)
-          if (normalizedCountry && normalizedCity && normalizedCity !== '—') {
-            if (!cityToKnownCountries.has(normalizedCity)) cityToKnownCountries.set(normalizedCity, new Set())
-            cityToKnownCountries.get(normalizedCity).add(normalizedCountry)
-          }
-          const item = {
-            id: company.id,
-            name: company.name,
-            phone: company.phone || null,
-            email: company.email || null
-          }
-          if (clientRole) {
-            if (!row.clients.some((x) => x.id === company.id)) row.clients.push(item)
-          }
-          if (supplierRole) {
-            if (!row.suppliers.some((x) => x.id === company.id)) row.suppliers.push(item)
-          }
+      for (const entry of safeCoverage) {
+        const rawCity = String(entry.city || '').trim()
+        const rawCountry = String(entry.country || '').trim()
+        const normalizedCity = normalizeCityName(rawCity) || '—'
+        const normalizedCountry = normalizeCountryName(rawCountry || inferCountryFromCity(rawCity) || '') || '—'
+        const key = `${normalizedCountry}||${normalizedCity}`
+        if (!matrixMap.has(key)) {
+          matrixMap.set(key, {
+            country: normalizedCountry,
+            city: rawCity || '—',
+            clients: [],
+            suppliers: []
+          })
+        }
+        const row = matrixMap.get(key)
+        if (normalizedCountry !== '—' && normalizedCity !== '—') {
+          if (!cityToKnownCountries.has(normalizedCity)) cityToKnownCountries.set(normalizedCity, new Set())
+          cityToKnownCountries.get(normalizedCity).add(normalizedCountry)
+        }
+        const item = {
+          id: company.id,
+          name: company.name,
+          phone: company.phone || null,
+          email: company.email || null
+        }
+        if (clientRole) {
+          if (!row.clients.some((x) => x.id === company.id)) row.clients.push(item)
+        }
+        if (supplierRole) {
+          if (!row.suppliers.some((x) => x.id === company.id)) row.suppliers.push(item)
         }
       }
     }

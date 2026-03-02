@@ -79,8 +79,11 @@
           <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
           <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
           <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
-          <input v-model="form.presenceCountries" class="input" placeholder="Страны присутствия" />
-          <input v-model="form.presenceCities" class="input" placeholder="Города присутствия (где работают)" />
+          <textarea
+            v-model="form.presenceMapText"
+            class="input textarea textarea--wide"
+            placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
+          />
           <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div v-else class="card-grid">
@@ -92,8 +95,11 @@
           <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
           <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
           <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
-          <input v-model="form.presenceCountries" class="input" placeholder="Страны присутствия" />
-          <input v-model="form.presenceCities" class="input" placeholder="Города присутствия (где работают)" />
+          <textarea
+            v-model="form.presenceMapText"
+            class="input textarea textarea--wide"
+            placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
+          />
           <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
         </div>
         <div class="segments-block">
@@ -206,6 +212,69 @@ export default {
     formatSegments(list) {
       return list.length ? list.map((s) => this.segmentLabel(s.segment)).join(', ') : '-'
     },
+    splitPresenceList(raw) {
+      return String(raw || '')
+        .split(/[,\n;|/]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    },
+    buildPresenceMapText(countriesRaw, groupedRaw, flatCitiesRaw) {
+      const groupedText = String(groupedRaw || '').trim()
+      if (groupedText && groupedText.includes(':')) {
+        return groupedText
+          .split(/\n+/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .join('\n')
+      }
+
+      const countries = this.splitPresenceList(countriesRaw)
+      const cities = this.splitPresenceList(flatCitiesRaw || groupedRaw)
+
+      if (!countries.length && !cities.length) return ''
+      if (countries.length === 1 && cities.length) return `${countries[0]}: ${cities.join(', ')}`
+      if (countries.length > 1 && !cities.length) return countries.join('\n')
+      if (!countries.length && cities.length) return `Без страны: ${cities.join(', ')}`
+
+      return [
+        ...countries,
+        cities.length ? `Без страны: ${cities.join(', ')}` : ''
+      ].filter(Boolean).join('\n')
+    },
+    buildPresencePayload() {
+      const rows = String(this.form.presenceMapText || '')
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+
+      const countries = []
+      const cities = []
+      const normalizedRows = []
+
+      for (const row of rows) {
+        const separator = row.indexOf(':')
+        const hasSeparator = separator >= 0
+        const country = (hasSeparator ? row.slice(0, separator) : row).trim()
+        const cityChunk = hasSeparator ? row.slice(separator + 1).trim() : ''
+        const rowCities = this.splitPresenceList(cityChunk)
+
+        if (country && country.toLowerCase() !== 'без страны') countries.push(country)
+        for (const city of rowCities) cities.push(city)
+
+        if (country) {
+          normalizedRows.push(rowCities.length ? `${country}: ${rowCities.join(', ')}` : country)
+        } else if (rowCities.length) {
+          normalizedRows.push(`Без страны: ${rowCities.join(', ')}`)
+        }
+      }
+
+      return {
+        presenceCountries: [...new Set(countries)].join(', '),
+        countryPresence: [...new Set(countries)].join(', '),
+        presenceCities: normalizedRows.join('\n'),
+        cityPresence: [...new Set(cities)].join(', ')
+      }
+    },
     async reload() {
       this.loading = true
       try {
@@ -241,7 +310,13 @@ export default {
         registrationCity: this.details.registrationCity || '',
         registrationAddress: this.details.registrationAddress || '',
         presenceCountries: this.details.presenceCountries || '',
-        presenceCities: this.details.presenceCities || this.details.cityPresence || '',
+        presenceCities: this.details.presenceCities || '',
+        cityPresence: this.details.cityPresence || '',
+        presenceMapText: this.buildPresenceMapText(
+          this.details.presenceCountries || this.details.countryPresence || '',
+          this.details.presenceCities || '',
+          this.details.cityPresence || ''
+        ),
         comment: this.details.comment || '',
         segments: (this.details.segments || []).map((s) => s.segment)
       }
@@ -262,7 +337,13 @@ export default {
         registrationCity: this.details.registrationCity || '',
         registrationAddress: this.details.registrationAddress || '',
         presenceCountries: this.details.presenceCountries || '',
-        presenceCities: this.details.presenceCities || this.details.cityPresence || '',
+        presenceCities: this.details.presenceCities || '',
+        cityPresence: this.details.cityPresence || '',
+        presenceMapText: this.buildPresenceMapText(
+          this.details.presenceCountries || this.details.countryPresence || '',
+          this.details.presenceCities || '',
+          this.details.cityPresence || ''
+        ),
         comment: this.details.comment || '',
         segments: (this.details.segments || []).map((s) => s.segment)
       }
@@ -274,7 +355,10 @@ export default {
       await fetch(endpoint, {
         method: 'PUT',
         headers: this.authHeaders(),
-        body: JSON.stringify(this.form)
+        body: JSON.stringify({
+          ...this.form,
+          ...this.buildPresencePayload()
+        })
       })
       if (this.detailsMode === 'company') {
         await this.openCompany(this.detailsId)
@@ -311,6 +395,7 @@ export default {
 .modal { width:min(900px,90vw); max-height:80vh; overflow:auto; background:#fff; border-radius:12px; padding:18px; }
 .card-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
 .textarea { min-height:90px; resize:vertical; }
+.textarea--wide { grid-column: 1 / -1; }
 .segments-block { margin: 10px 0 12px; border-top: 1px solid #ececf4; padding-top: 10px; }
 .segments-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .segment-item { display:flex; align-items:center; gap:8px; font-size:14px; color:#2f3e60; }
