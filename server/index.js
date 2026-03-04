@@ -4732,6 +4732,262 @@ function buildCopilotMessage(lines) {
   ].join('\n')
 }
 
+function parseJsonSafe(raw, fallback = {}) {
+  try {
+    return JSON.parse(raw)
+  } catch (_) {
+    return fallback
+  }
+}
+
+function normalizeVehicleType(raw) {
+  const value = String(raw || '').trim()
+  if (!value) return 'sedan'
+  const key = value.toLowerCase()
+  const map = {
+    economy: 'sedan',
+    sedan: 'sedan',
+    comfort: 'comfort',
+    business: 'business',
+    van: 'van',
+    minivan: 'van',
+    suv: 'suv'
+  }
+  return map[key] || value
+}
+
+function normalizeWebhookSignature(raw) {
+  const value = String(raw || '').trim()
+  if (!value) return ''
+  return value.startsWith('sha256=') ? value.slice(7) : value
+}
+
+function verifyOpenClawSignature(payload, signature) {
+  const secret = String(process.env.OPENCLAW_WEBHOOK_SECRET || '').trim()
+  if (!secret) return true
+  const digest = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(payload || {}))
+    .digest('hex')
+  const normalized = normalizeWebhookSignature(signature)
+  if (!normalized) return false
+  try {
+    return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(normalized))
+  } catch (_) {
+    return false
+  }
+}
+
+async function findAuthoritativePriceForDraft({
+  tenantId,
+  city = '',
+  fromPoint = '',
+  toPoint = '',
+  vehicleType = ''
+}) {
+  const cityNorm = String(city || '').trim()
+  const fromNorm = String(fromPoint || '').trim()
+  const toNorm = String(toPoint || '').trim()
+  const vehicleNorm = normalizeVehicleType(vehicleType)
+
+  const rows = await prisma.cityPricing.findMany({
+    where: {
+      tenantId: tenantId || null,
+      isActive: true,
+      ...(cityNorm ? { city: { equals: cityNorm, mode: 'insensitive' } } : {})
+    },
+    orderBy: [{ updatedAt: 'desc' }],
+    take: 200
+  })
+
+  const exact = rows.find((row) =>
+    (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
+    (!row.routeFrom || String(row.routeFrom).trim().toLowerCase() === fromNorm.toLowerCase()) &&
+    (!row.routeTo || String(row.routeTo).trim().toLowerCase() === toNorm.toLowerCase()) &&
+    row.fixedPrice !== null
+  )
+  if (exact) return exact
+
+  const cityOnly = rows.find((row) =>
+    (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
+    !row.routeFrom &&
+    !row.routeTo &&
+    row.fixedPrice !== null
+  )
+  return cityOnly || null
+}
+
+async function buildOpenClawDraftPayload(payload, tenantId) {
+  const draft = payload?.orderDraft && typeof payload.orderDraft === 'object'
+    ? payload.orderDraft
+    : {}
+
+  const extracted = {
+    externalMessageId: String(payload.externalMessageId || payload.messageId || draft.externalMessageId || '').trim() || null,
+    sourceChannel: String(payload.sourceChannel || payload.channel || 'openclaw').trim() || 'openclaw',
+    sourceChatId: String(payload.sourceChatId || payload.chatId || 'openclaw').trim() || 'openclaw',
+    sourceActorId: String(payload.sourceActorId || payload.actorId || 'openclaw').trim() || 'openclaw',
+    sourceType: String(payload.sourceType || 'email').trim() || 'email',
+    rawText: String(payload.rawText || payload.messageText || '').trim(),
+    confidence: Number.isFinite(Number(payload.confidence)) ? Number(payload.confidence) : null,
+    missingFields: Array.isArray(payload.missingFields) ? payload.missingFields.map((x) => String(x || '').trim()).filter(Boolean) : [],
+    proposedActions: Array.isArray(payload.proposedActions) ? payload.proposedActions : [],
+    contractVersion: String(payload.contractVersion || 'v1').trim() || 'v1',
+    customerName: String(draft.customerName || payload.customerName || '').trim() || null,
+    orderNumber: String(draft.orderNumber || payload.orderNumber || '').trim() || null,
+    city: String(draft.city || payload.city || draft.destinationCity || '').trim() || null,
+    fromPoint: String(draft.fromPoint || payload.fromPoint || draft.routeFrom || '').trim() || null,
+    toPoint: String(draft.toPoint || payload.toPoint || draft.routeTo || '').trim() || null,
+    pickupAt: String(draft.pickupAt || payload.pickupAt || draft.serviceAt || '').trim() || null,
+    flightNumber: String(draft.flightNumber || payload.flightNumber || '').trim() || null,
+    vehicleType: normalizeVehicleType(draft.vehicleType || payload.vehicleType || ''),
+    passengers: draft.passengers != null ? Number(draft.passengers) : null,
+    luggage: draft.luggage != null ? Number(draft.luggage) : null,
+    clientPrice: draft.clientPrice != null ? Number(draft.clientPrice) : null,
+    driverPrice: draft.driverPrice != null ? Number(draft.driverPrice) : null,
+    currency: String(draft.currency || payload.currency || 'EUR').trim() || 'EUR',
+    comment: String(draft.comment || payload.comment || '').trim() || null,
+    lang: String(draft.lang || payload.lang || 'ru').trim() || 'ru'
+  }
+
+  const authoritativePricing = await findAuthoritativePriceForDraft({
+    tenantId,
+    city: extracted.city,
+    fromPoint: extracted.fromPoint,
+    toPoint: extracted.toPoint,
+    vehicleType: extracted.vehicleType
+  })
+
+  const authoritativeClientPrice = authoritativePricing?.fixedPrice != null
+    ? Number(authoritativePricing.fixedPrice)
+    : null
+  const priceConflict = (
+    authoritativeClientPrice != null &&
+    extracted.clientPrice != null &&
+    Math.abs(authoritativeClientPrice - extracted.clientPrice) > 0.009
+  )
+
+  return {
+    type: 'openclaw_order_draft',
+    source: 'openclaw',
+    sourceType: extracted.sourceType,
+    contractVersion: extracted.contractVersion,
+    rawText: extracted.rawText,
+    confidence: extracted.confidence,
+    missingFields: extracted.missingFields,
+    proposedActions: extracted.proposedActions,
+    orderDraft: extracted,
+    pricing: {
+      authoritativeClientPrice,
+      authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
+      pricingRuleId: authoritativePricing?.id || null,
+      pricingSource: authoritativePricing ? 'riderra_pricing' : null,
+      conflict: priceConflict
+    }
+  }
+}
+
+async function saveOpsDraftFromOpenClaw({ tenantId, payload }) {
+  const normalizedPayload = await buildOpenClawDraftPayload(payload, tenantId)
+  const orderDraft = normalizedPayload.orderDraft || {}
+  return prisma.opsEventDraft.create({
+    data: {
+      tenantId: tenantId || null,
+      chatId: orderDraft.sourceChatId || 'openclaw',
+      telegramUserId: orderDraft.sourceActorId || 'openclaw',
+      messageText: normalizedPayload.rawText || JSON.stringify(payload || {}),
+      parsedType: 'openclaw_order_draft',
+      payloadJson: JSON.stringify(normalizedPayload),
+      status: 'pending'
+    }
+  })
+}
+
+async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user, comment }) {
+  const parsedPayload = parseJsonSafe(draft.payloadJson || '{}', {})
+  const orderDraft = parsedPayload.orderDraft || {}
+  const pricing = parsedPayload.pricing || {}
+
+  const pickupAt = orderDraft.pickupAt ? new Date(orderDraft.pickupAt) : null
+  const safePickupAt = pickupAt && !Number.isNaN(pickupAt.getTime()) ? pickupAt : null
+  const externalKey = orderDraft.externalMessageId
+    ? `openclaw:${orderDraft.externalMessageId}`
+    : `openclaw:draft:${draft.id}`
+
+  const existingOrder = await prisma.order.findFirst({
+    where: { tenantId, externalKey }
+  })
+
+  const clientPrice = pricing.authoritativeClientPrice != null
+    ? Number(pricing.authoritativeClientPrice)
+    : Number(orderDraft.clientPrice || 0)
+  const driverPrice = orderDraft.driverPrice != null ? Number(orderDraft.driverPrice) : null
+  const commission = driverPrice != null ? clientPrice - driverPrice : null
+
+  const baseComment = [
+    orderDraft.comment || null,
+    orderDraft.flightNumber ? `Flight: ${orderDraft.flightNumber}` : null,
+    pricing.conflict ? 'PRICE_CONFLICT: OpenClaw value differs from Riderra price list' : null,
+    comment || null
+  ].filter(Boolean).join('\n')
+
+  if (existingOrder) {
+    return {
+      order: existingOrder,
+      created: false,
+      payload: {
+        orderId: existingOrder.id,
+        externalKey,
+        pricingConflict: !!pricing.conflict
+      }
+    }
+  }
+
+  const createdOrder = await prisma.order.create({
+    data: {
+      tenantId,
+      source: 'internal',
+      externalKey,
+      pickupAt: safePickupAt,
+      fromPoint: orderDraft.fromPoint || 'TBD',
+      toPoint: orderDraft.toPoint || 'TBD',
+      clientPrice,
+      driverPrice,
+      commission,
+      status: 'draft',
+      vehicleType: normalizeVehicleType(orderDraft.vehicleType),
+      passengers: Number.isFinite(Number(orderDraft.passengers)) ? Number(orderDraft.passengers) : null,
+      luggage: Number.isFinite(Number(orderDraft.luggage)) ? Number(orderDraft.luggage) : null,
+      comment: baseComment || null,
+      lang: orderDraft.lang || 'ru'
+    }
+  })
+
+  await prisma.orderStatusHistory.create({
+    data: {
+      orderId: createdOrder.id,
+      tenantId,
+      fromStatus: 'new',
+      toStatus: 'draft',
+      reason: 'Created from OpenClaw AI draft after human approval',
+      actorUserId: user?.id || null,
+      actorEmail: user?.email || null,
+      source: 'openclaw_approval'
+    }
+  })
+
+  return {
+    order: createdOrder,
+    created: true,
+    payload: {
+      orderId: createdOrder.id,
+      externalKey,
+      pricingConflict: !!pricing.conflict,
+      missingFields: parsedPayload.missingFields || []
+    }
+  }
+}
+
 function sourceLabel(source) {
   const raw = String(source || '').trim().toLowerCase()
   if (!raw) return 'не указан'
@@ -4859,14 +5115,61 @@ async function findAvailabilityConflicts(unavailability, tenantId = null) {
   })
 }
 
+app.post('/api/webhooks/openclaw/order-draft', resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    const signature = req.headers['x-openclaw-signature'] || req.headers['x-signature'] || ''
+    if (!verifyOpenClawSignature(req.body || {}, signature)) {
+      return res.status(401).json({ error: 'Invalid OpenClaw signature' })
+    }
+
+    const payload = req.body || {}
+    const fingerprintPayload = {
+      externalMessageId: payload.externalMessageId || payload.messageId || null,
+      sourceChatId: payload.sourceChatId || payload.chatId || null,
+      sourceType: payload.sourceType || null
+    }
+    ensureIdempotencyKey(req, 'openclaw.order_draft.ingest', fingerprintPayload)
+
+    const wrapped = await withIdempotency(req, 'openclaw.order_draft.ingest', fingerprintPayload, async () => {
+      const draft = await saveOpsDraftFromOpenClaw({
+        tenantId: req.actorContext.tenantId,
+        payload
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: null,
+        actorRole: 'system',
+        action: 'openclaw.order_draft.ingest',
+        resource: 'ops_draft',
+        resourceId: draft.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: fingerprintPayload
+      })
+      return {
+        success: true,
+        draftId: draft.id,
+        status: draft.status
+      }
+    })
+
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error ingesting OpenClaw order draft:', error)
+    res.status(500).json({ error: 'Failed to ingest OpenClaw order draft' })
+  }
+})
+
 app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
-    const { status = 'pending', limit = '100' } = req.query
+    const { status = 'pending', parsedType = '', limit = '100' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 300)
     const rows = await prisma.opsEventDraft.findMany({
       where: {
         tenantId: req.actorContext.tenantId,
-        ...(status ? { status: String(status) } : {})
+        ...(status ? { status: String(status) } : {}),
+        ...(parsedType ? { parsedType: String(parsedType) } : {})
       },
       orderBy: { createdAt: 'desc' },
       take
@@ -4875,6 +5178,26 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
   } catch (error) {
     console.error('Error fetching ops drafts:', error)
     res.status(500).json({ error: 'Failed to fetch ops drafts' })
+  }
+})
+
+app.get('/api/admin/ops/drafts/:draftId', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const { draftId } = req.params
+    const row = await prisma.opsEventDraft.findFirst({
+      where: {
+        id: draftId,
+        tenantId: req.actorContext.tenantId
+      }
+    })
+    if (!row) return res.status(404).json({ error: 'Draft not found' })
+    res.json({
+      ...row,
+      payload: parseJsonSafe(row.payloadJson || '{}', {})
+    })
+  } catch (error) {
+    console.error('Error fetching ops draft detail:', error)
+    res.status(500).json({ error: 'Failed to fetch ops draft detail' })
   }
 })
 
@@ -4967,6 +5290,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
 
       let unavailability = null
       let conflicts = []
+      let promotedOrder = null
       if (draft.parsedType === 'driver_unavailable') {
         const name = String(parsedPayload.driverNameRaw || '').trim()
         const driver = name
@@ -4991,6 +5315,25 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
           }
         })
         conflicts = await findAvailabilityConflicts(unavailability, req.actorContext.tenantId)
+      } else if (draft.parsedType === 'openclaw_order_draft') {
+        const promoted = await promoteOpenClawDraftToOrder({
+          draft,
+          tenantId: req.actorContext.tenantId,
+          actorContext: req.actorContext,
+          user: req.user,
+          comment
+        })
+        promotedOrder = promoted.order
+        const eventPayload = parseJsonSafe(event.payloadJson || '{}', {})
+        await prisma.opsEvent.update({
+          where: { id: event.id },
+          data: {
+            payloadJson: JSON.stringify({
+              ...eventPayload,
+              promotedOrder: promoted.payload
+            })
+          }
+        })
       }
 
       const updatedDraft = await prisma.opsEventDraft.update({
@@ -5027,6 +5370,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
       return {
         draft: updatedDraft,
         event,
+        order: promotedOrder,
         unavailability,
         conflicts
       }
