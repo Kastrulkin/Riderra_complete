@@ -6,7 +6,6 @@
         <div class="crm-header">
           <h1 class="h2">CRM</h1>
           <div class="crm-actions">
-            <button class="btn btn--primary" @click="promoteFromStaging">Импортировать из Staging</button>
             <button class="btn btn--ghost" @click="reload">Обновить</button>
           </div>
         </div>
@@ -367,16 +366,6 @@ export default {
       }
       await this.reload()
     },
-    async promoteFromStaging() {
-      if (!confirm('Перенести данные из временного слоя (staging) в рабочую CRM?')) return
-      const res = await fetch('/api/admin/crm/promote-from-staging', {
-        method: 'POST',
-        headers: this.authHeaders()
-      })
-      const data = await res.json()
-      alert(`Импорт завершён: ${JSON.stringify(data)}`)
-      await this.reload()
-    }
   }
 }
 </script>
