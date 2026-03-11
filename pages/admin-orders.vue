@@ -30,6 +30,7 @@
             <div>{{ t.comment }}</div>
             <div>{{ t.internalOrderNumber }}</div>
             <div>{{ t.status }}</div>
+            <div>{{ t.infoFlag }}</div>
             <div>{{ t.card }}</div>
           </div>
           <div v-for="o in filteredRows" :key="`${o.sourceRow}-${o.id}`" class="table-row main-grid">
@@ -56,6 +57,22 @@
             <div>{{ o.internalOrderNumber || '-' }}</div>
             <div>
               <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
+            </div>
+            <div class="info-flag-cell">
+              <button
+                class="btn btn--small"
+                :class="{ 'btn--warn': o.needsInfo }"
+                @click="openInfoModal(o)"
+              >
+                {{ o.needsInfo ? t.infoFlagged : t.markInfo }}
+              </button>
+              <div
+                v-if="o.infoReason"
+                class="info-reason"
+                :title="infoReasonTooltip(o.infoReason)"
+              >
+                {{ o.infoReason }}
+              </div>
             </div>
             <div>
               <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
@@ -156,6 +173,41 @@
         </div>
       </div>
     </div>
+    <div v-if="infoModal.open" class="modal-backdrop" @click.self="closeInfoModal">
+      <div class="modal-card info-modal-card">
+        <div class="modal-head">
+          <h3>{{ t.infoModalTitle }}</h3>
+          <button class="modal-close" type="button" @click="closeInfoModal">×</button>
+        </div>
+        <div class="info-modal-label">
+          {{ infoModal.label || infoModal.orderId || '-' }}
+        </div>
+        <p v-if="t.infoModalHint" class="hint info-modal-hint">{{ t.infoModalHint }}</p>
+        <label class="info-field">
+          <span>{{ t.infoReasonLabel }}</span>
+          <textarea
+            class="info-textarea"
+            v-model="infoModal.reason"
+            :placeholder="t.infoReasonPlaceholder"
+            rows="4"
+          ></textarea>
+        </label>
+        <label class="info-toggle">
+          <input type="checkbox" v-model="infoModal.needsInfo" />
+          <span>{{ t.infoNeedsInfoLabel }}</span>
+        </label>
+        <div v-if="infoModal.message" class="hint">{{ infoModal.message }}</div>
+        <div v-if="infoModal.error" class="hint hint--error">{{ infoModal.error }}</div>
+        <div class="modal-actions info-modal-actions">
+          <button class="btn btn--primary" type="button" :disabled="infoSaving" @click="saveInfoNote">
+            {{ infoSaving ? t.saving : t.infoSave }}
+          </button>
+          <button class="btn btn--secondary" type="button" @click="closeInfoModal">
+            {{ t.infoCancel }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -184,7 +236,17 @@ export default {
     selectedToStatus: '',
     statusReason: '',
     statusSaving: false,
-    transitionsError: ''
+    transitionsError: '',
+    infoModal: {
+      open: false,
+      orderId: null,
+      needsInfo: true,
+      reason: '',
+      label: '',
+      message: '',
+      error: ''
+    },
+    infoSaving: false
   }),
   computed: {
     t () {
@@ -226,7 +288,20 @@ export default {
             noAllowedTransitions: 'Нет доступных переходов для вашей роли',
             total: 'Всего',
             matchedInDetails: 'Найдено в Подробностях',
-            notFoundInDetails: 'В Подробностях не найдено'
+            notFoundInDetails: 'В Подробностях не найдено',
+            infoFlag: 'Инфо-пометка',
+            markInfo: 'Пометить',
+            infoFlagged: 'Помечено',
+            infoModalTitle: 'Инфо-пометка заказа',
+            infoModalHint: 'Укажите, что уточнить, чтобы чат-очередь знала задачу',
+            infoReasonLabel: 'Что уточнить',
+            infoReasonPlaceholder: 'Например, багаж, место подачи или рейс',
+            infoNeedsInfoLabel: 'Оставить метку «нужна доп. информация»',
+            infoSave: 'Сохранить',
+            infoCancel: 'Отмена',
+            infoMarkedSuccess: 'Пометка сохранена',
+            infoRemovedSuccess: 'Пометка снята',
+            infoModalError: 'Не удалось обновить пометку',
           }
         : {
             title: 'Orders Table',
@@ -265,7 +340,20 @@ export default {
             noAllowedTransitions: 'No transitions available for your role',
             total: 'Total',
             matchedInDetails: 'Found in details',
-            notFoundInDetails: 'Not found in details'
+            notFoundInDetails: 'Not found in details',
+            infoFlag: 'Info',
+            markInfo: 'Mark',
+            infoFlagged: 'Marked',
+            infoModalTitle: 'Info flag',
+            infoModalHint: 'Describe what needs to be clarified for the chat queue',
+            infoReasonLabel: 'Clarification needed',
+            infoReasonPlaceholder: 'e.g. missing luggage, pickup point or flight number',
+            infoNeedsInfoLabel: 'Keep this flagged for more info',
+            infoSave: 'Save',
+            infoCancel: 'Cancel',
+            infoMarkedSuccess: 'Flag saved',
+            infoRemovedSuccess: 'Flag removed',
+            infoModalError: 'Failed to update flag',
           }
     },
     rawGridStyle () {
@@ -492,6 +580,76 @@ export default {
       this.transitionsError = ''
       await this.loadOrderCardData(order.id)
     },
+    openInfoModal (order) {
+      if (!order || !order.id) return
+      this.infoModal.orderId = order.id
+      this.infoModal.needsInfo = Boolean(order.needsInfo)
+      this.infoModal.reason = order.infoReason || ''
+      this.infoModal.label = order.orderNumber || order.internalOrderNumber || order.contractor || order.id
+      this.infoModal.message = ''
+      this.infoModal.error = ''
+      this.infoModal.open = true
+    },
+    closeInfoModal () {
+      this.infoModal.open = false
+      this.infoModal.orderId = null
+      this.infoModal.needsInfo = true
+      this.infoModal.reason = ''
+      this.infoModal.label = ''
+      this.infoModal.message = ''
+      this.infoModal.error = ''
+    },
+    async saveInfoNote () {
+      if (!this.infoModal.orderId || this.infoSaving) return
+      this.infoSaving = true
+      this.infoModal.message = ''
+      this.infoModal.error = ''
+      const reasonValue = String(this.infoModal.reason || '').trim()
+      const payload = {
+        needsInfo: Boolean(this.infoModal.needsInfo),
+        infoReason: reasonValue || null
+      }
+      try {
+        const response = await fetch(`/api/admin/orders/${encodeURIComponent(this.infoModal.orderId)}/info-note`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `order-info-${this.infoModal.orderId}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify(payload)
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data?.error || this.t.infoModalError)
+        }
+        const updated = data?.order
+        if (!updated) {
+          throw new Error(this.t.infoModalError)
+        }
+        this.rows = this.rows.map((row) => (
+          row.id === updated.id
+            ? { ...row, needsInfo: Boolean(updated.needsInfo), infoReason: updated.infoReason || null }
+            : row
+        ))
+        if (this.selectedOrder && this.selectedOrder.id === updated.id) {
+          this.selectedOrder = { ...this.selectedOrder, needsInfo: Boolean(updated.needsInfo), infoReason: updated.infoReason || null }
+        }
+        this.applyFilter()
+        this.infoModal.reason = updated.infoReason || ''
+        this.infoModal.message = updated.needsInfo ? this.t.infoMarkedSuccess : this.t.infoRemovedSuccess
+      } catch (error) {
+        this.infoModal.error = error?.message || this.t.infoModalError
+      } finally {
+        this.infoSaving = false
+      }
+    },
+    infoReasonTooltip (reason) {
+      if (!reason) return ''
+      return this.$store.state.language === 'ru'
+        ? `Причина: ${reason}`
+        : `Reason: ${reason}`
+    },
     async loadOrderCardData (orderId) {
       this.historyLoading = true
       this.historyError = ''
@@ -670,6 +828,23 @@ export default {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.info-flag-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.info-flag-cell .btn {
+  width: 100%;
+}
+.info-reason {
+  font-size: 12px;
+  color: #475569;
+  max-width: 190px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -749,6 +924,51 @@ export default {
 .history-reason {
   margin-top: 6px;
   color: #334155;
+}
+.info-modal-card {
+  width: min(520px, 100%);
+}
+.info-modal-label {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+.info-modal-hint {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+.info-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.info-textarea {
+  min-height: 96px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+.info-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+.info-toggle input {
+  width: 16px;
+  height: 16px;
+}
+.info-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  justify-content: flex-end;
 }
 @media (max-width: 900px) {
   .meta-grid { grid-template-columns: 1fr; }

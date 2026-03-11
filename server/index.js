@@ -2414,6 +2414,78 @@ app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActo
   }
 })
 
+app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+  try {
+    const { orderId } = req.params
+    const { needsInfo, infoReason } = req.body || {}
+    const tenantId = req.actorContext.tenantId
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, tenantId },
+      select: { id: true }
+    })
+    if (!order) return res.status(404).json({ error: 'Order not found' })
+
+    const payload = { orderId, needsInfo: Boolean(needsInfo), infoReason: infoReason || null }
+    ensureIdempotencyKey(req, 'admin.order.info_note', payload)
+
+    const wrapped = await withIdempotency(req, 'admin.order.info_note', payload, async () => {
+      const updated = await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          needsInfo: Boolean(needsInfo),
+          infoReason: needsInfo ? (String(infoReason || '').trim() || null) : null
+        }
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'order.info_note.update',
+        resource: 'order',
+        resourceId: orderId,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { needsInfo: Boolean(needsInfo), infoReason }
+      })
+      return updated
+    })
+    res.json({ order: wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error updating order info note:', error)
+    res.status(500).json({ error: 'Failed to update info note' })
+  }
+})
+
+app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const { limit = '100' } = req.query
+    const take = Math.min(parseInt(limit, 10) || 100, 300)
+    const rows = await prisma.order.findMany({
+      where: { tenantId: req.actorContext.tenantId, needsInfo: true },
+      orderBy: { updatedAt: 'desc' },
+      take,
+      select: {
+        id: true,
+        orderNumber: true,
+        externalKey: true,
+        fromPoint: true,
+        toPoint: true,
+        clientPrice: true,
+        needsInfo: true,
+        infoReason: true,
+        createdAt: true,
+        updatedAt: true,
+        status: true
+      }
+    })
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error fetching chat queue:', error)
+    res.status(500).json({ error: 'Failed to load chat queue' })
+  }
+})
+
 app.put(
   '/api/admin/orders/:orderId/status',
   authenticateToken,
@@ -2720,6 +2792,8 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         comment,
         internalOrderNumber,
         status: snapshot.order?.status || '',
+        needsInfo: Boolean(snapshot.order?.needsInfo),
+        infoReason: snapshot.order?.infoReason || null,
         orderClientPrice: snapshot.order?.clientPrice ?? null,
         orderDriverPrice: snapshot.order?.driverPrice ?? null,
         orderCreatedAt: snapshot.order?.createdAt || null,
