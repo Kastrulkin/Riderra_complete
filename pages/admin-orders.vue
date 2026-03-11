@@ -30,8 +30,7 @@
             <div>{{ t.comment }}</div>
             <div>{{ t.internalOrderNumber }}</div>
             <div>{{ t.status }}</div>
-            <div>{{ t.infoFlag }}</div>
-            <div>{{ t.card }}</div>
+            <div>{{ t.actions }}</div>
           </div>
           <div v-for="o in filteredRows" :key="`${o.sourceRow}-${o.id}`" class="table-row main-grid">
             <div class="tech cell-ellipsis" :title="o.id">{{ o.id || '-' }}</div>
@@ -58,26 +57,20 @@
             <div>
               <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
             </div>
-            <div class="info-flag-cell">
-              <button
-                class="btn btn--small"
-                :class="{ 'btn--warn': o.needsInfo }"
-                @click="openInfoModal(o)"
-              >
-                {{ o.needsInfo ? t.infoFlagged : t.markInfo }}
-              </button>
-              <div
-                v-if="o.infoReason"
-                class="info-reason"
-                :title="infoReasonTooltip(o.infoReason)"
-              >
-                {{ o.infoReason }}
-              </div>
-            </div>
-            <div>
+            <div class="row-actions">
               <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
                 {{ t.openCard }}
               </button>
+              <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
+                <option value="none">{{ t.infoNone }}</option>
+                <option value="baggage">{{ t.infoPresetBaggage }}</option>
+                <option value="pickup">{{ t.infoPresetPickup }}</option>
+                <option value="flight">{{ t.infoPresetFlight }}</option>
+                <option value="other">{{ t.infoPresetOther }}</option>
+              </select>
+              <div v-if="o.needsInfo" class="info-reason" :title="infoReasonTooltip(o.infoReason)">
+                {{ o.infoReason || t.infoFlagged }}
+              </div>
             </div>
           </div>
         </div>
@@ -269,7 +262,7 @@ export default {
             driver: 'Водитель',
             comment: 'Комментарий',
             internalOrderNumber: 'Внутренний номер заказа',
-            card: 'Карточка',
+            actions: 'Действия',
             openCard: 'Открыть',
             orderCard: 'Карточка заказа',
             status: 'Статус',
@@ -292,6 +285,11 @@ export default {
             infoFlag: 'Инфо-пометка',
             markInfo: 'Пометить',
             infoFlagged: 'Помечено',
+            infoNone: 'Без пометки',
+            infoPresetBaggage: 'Уточнить багаж',
+            infoPresetPickup: 'Уточнить место подачи',
+            infoPresetFlight: 'Уточнить рейс',
+            infoPresetOther: 'Другое...',
             infoModalTitle: 'Инфо-пометка заказа',
             infoModalHint: 'Укажите, что уточнить, чтобы чат-очередь знала задачу',
             infoReasonLabel: 'Что уточнить',
@@ -321,7 +319,7 @@ export default {
             driver: 'Driver',
             comment: 'Comment',
             internalOrderNumber: 'Internal Order Number',
-            card: 'Card',
+            actions: 'Actions',
             openCard: 'Open',
             orderCard: 'Order card',
             status: 'Status',
@@ -344,6 +342,11 @@ export default {
             infoFlag: 'Info',
             markInfo: 'Mark',
             infoFlagged: 'Marked',
+            infoNone: 'No flag',
+            infoPresetBaggage: 'Clarify luggage',
+            infoPresetPickup: 'Clarify pickup location',
+            infoPresetFlight: 'Clarify flight',
+            infoPresetOther: 'Other...',
             infoModalTitle: 'Info flag',
             infoModalHint: 'Describe what needs to be clarified for the chat queue',
             infoReasonLabel: 'Clarification needed',
@@ -599,43 +602,72 @@ export default {
       this.infoModal.message = ''
       this.infoModal.error = ''
     },
+    infoPresetFromRow (row) {
+      if (!row || !row.needsInfo) return 'none'
+      const reason = String(row.infoReason || '').toLowerCase()
+      if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('baggage')) return 'baggage'
+      if (reason.includes('место подачи') || reason.includes('pickup')) return 'pickup'
+      if (reason.includes('рейс') || reason.includes('flight')) return 'flight'
+      return 'other'
+    },
+    infoPresetReason (preset) {
+      const map = {
+        baggage: this.t.infoPresetBaggage,
+        pickup: this.t.infoPresetPickup,
+        flight: this.t.infoPresetFlight
+      }
+      return map[preset] || ''
+    },
+    async onInfoQuickChange (order, preset) {
+      if (!order || !order.id || this.infoSaving) return
+      if (preset === 'other') {
+        this.openInfoModal({ ...order, needsInfo: true })
+        return
+      }
+      if (preset === 'none') {
+        await this.updateInfoNote(order.id, false, null)
+        return
+      }
+      const reason = this.infoPresetReason(preset)
+      await this.updateInfoNote(order.id, true, reason || null)
+    },
+    async updateInfoNote (orderId, needsInfo, infoReason) {
+      const payload = {
+        needsInfo: Boolean(needsInfo),
+        infoReason: needsInfo ? (String(infoReason || '').trim() || null) : null
+      }
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/info-note`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `order-info-${orderId}-${Date.now()}`,
+          ...this.headers()
+        },
+        body: JSON.stringify(payload)
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || this.t.infoModalError)
+      const updated = data?.order
+      if (!updated) throw new Error(this.t.infoModalError)
+      this.rows = this.rows.map((row) => (
+        row.id === updated.id
+          ? { ...row, needsInfo: Boolean(updated.needsInfo), infoReason: updated.infoReason || null }
+          : row
+      ))
+      if (this.selectedOrder && this.selectedOrder.id === updated.id) {
+        this.selectedOrder = { ...this.selectedOrder, needsInfo: Boolean(updated.needsInfo), infoReason: updated.infoReason || null }
+      }
+      this.applyFilter()
+      return updated
+    },
     async saveInfoNote () {
       if (!this.infoModal.orderId || this.infoSaving) return
       this.infoSaving = true
       this.infoModal.message = ''
       this.infoModal.error = ''
-      const reasonValue = String(this.infoModal.reason || '').trim()
-      const payload = {
-        needsInfo: Boolean(this.infoModal.needsInfo),
-        infoReason: reasonValue || null
-      }
       try {
-        const response = await fetch(`/api/admin/orders/${encodeURIComponent(this.infoModal.orderId)}/info-note`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `order-info-${this.infoModal.orderId}-${Date.now()}`,
-            ...this.headers()
-          },
-          body: JSON.stringify(payload)
-        })
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data?.error || this.t.infoModalError)
-        }
-        const updated = data?.order
-        if (!updated) {
-          throw new Error(this.t.infoModalError)
-        }
-        this.rows = this.rows.map((row) => (
-          row.id === updated.id
-            ? { ...row, needsInfo: Boolean(updated.needsInfo), infoReason: updated.infoReason || null }
-            : row
-        ))
-        if (this.selectedOrder && this.selectedOrder.id === updated.id) {
-          this.selectedOrder = { ...this.selectedOrder, needsInfo: Boolean(updated.needsInfo), infoReason: updated.infoReason || null }
-        }
-        this.applyFilter()
+        const reasonValue = String(this.infoModal.reason || '').trim()
+        const updated = await this.updateInfoNote(this.infoModal.orderId, this.infoModal.needsInfo, reasonValue || null)
         this.infoModal.reason = updated.infoReason || ''
         this.infoModal.message = updated.needsInfo ? this.t.infoMarkedSuccess : this.t.infoRemovedSuccess
       } catch (error) {
@@ -781,7 +813,7 @@ export default {
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
 .table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
-.main-grid { display: grid; grid-template-columns: 90px 90px 160px 120px 130px 190px 190px 100px 140px 220px 150px 120px 110px; }
+.main-grid { display: grid; grid-template-columns: 80px 90px 150px 120px 120px 170px 170px 90px 120px 200px 140px 120px 280px; }
 .raw-grid { display: grid; }
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -828,19 +860,25 @@ export default {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.info-flag-cell {
+.row-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
 }
-.info-flag-cell .btn {
-  width: 100%;
+.action-select {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #1e293b;
+  border-radius: 8px;
+  padding: 5px 8px;
+  min-width: 170px;
+  max-width: 190px;
 }
 .info-reason {
   font-size: 12px;
   color: #475569;
-  max-width: 190px;
+  max-width: 240px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
