@@ -38,6 +38,8 @@ model Tenant {
   opsTasks          OpsTask[]
   telegramLinks     TelegramLink[]
   fleetVehicles     FleetVehicle[]
+  chatTasks         ChatTask[]
+  chatMessages      ChatMessage[]
 }
 
 model TenantMembership {
@@ -211,6 +213,8 @@ model Order {
   vehicleType String // Тип транспорта
   passengers  Int?
   luggage     Int?
+  needsInfo   Boolean   @default(false)
+  infoReason  String?
   comment     String?
   lang        String?
   updatedAt   DateTime  @updatedAt
@@ -220,6 +224,7 @@ model Order {
   sourceHistory  OrderSourceSnapshot[]
   priceConflicts PriceConflict[]
   statusHistory  OrderStatusHistory[]
+  chatTasks      ChatTask[]
   tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
@@ -739,6 +744,53 @@ model OpsTask {
   @@index([tenantId, status, dueAt])
   @@index([status, dueAt])
   @@index([assignedUserId, status])
+}
+
+model ChatTask {
+  id               String        @id @default(cuid())
+  tenantId         String
+  orderId          String
+  taskType         String // clarification, dispatch_info
+  state            String // missing_data_detected, request_sent, customer_replied, order_complete, ready_to_notify, notify_draft, notify_sent, notify_ack, notify_no_reply, handoff_human, closed
+  priority         Int           @default(100)
+  assignedToUserId String?
+  channel          String? // telegram, whatsapp, email, sms
+  customerActorId  String?
+  openclawThreadId String?
+  lastError        String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  messages         ChatMessage[]
+
+  @@unique([tenantId, orderId, taskType])
+  @@index([tenantId, taskType, state, updatedAt])
+  @@index([tenantId, priority, updatedAt])
+}
+
+model ChatMessage {
+  id                String   @id @default(cuid())
+  tenantId          String
+  chatTaskId        String
+  direction         String // outbound, inbound, internal
+  source            String // operator, openclaw, customer, system
+  channel           String? // telegram, whatsapp, email, sms
+  bodyText          String
+  bodyJson          String?
+  providerMessageId String?
+  confidence        Float?
+  approvalStatus    String? // pending_human, approved, rejected, expired, sent
+  traceId           String?
+  idempotencyKey    String?
+  createdByUserId   String?
+  createdAt         DateTime @default(now())
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chatTask          ChatTask @relation(fields: [chatTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey], map: "uq_chat_message_idempotency")
+  @@index([chatTaskId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model Role {
