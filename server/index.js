@@ -815,11 +815,11 @@ const ORDER_STATUS_TRANSITIONS = {
   draft: ['waiting_info', 'validated', 'pending_dispatch', 'cancelled'],
   waiting_info: ['validated', 'cancelled'],
   validated: ['pending_dispatch', 'cancelled'],
-  pending_dispatch: ['assigned', 'dispatch_risk', 'cancelled'],
+  pending_dispatch: ['assigned', 'dispatch_risk', 'cancelled', 'waiting_info'],
   dispatch_risk: ['pending_dispatch', 'assigned', 'cancelled'],
-  assigned: ['assigned', 'accepted', 'pending_ops_control', 'cancelled'],
+  assigned: ['assigned', 'accepted', 'pending_ops_control', 'cancelled', 'waiting_info'],
   accepted: ['pending_ops_control', 'in_progress', 'completed', 'cancelled'],
-  pending_ops_control: ['confirmed', 'cancelled'],
+  pending_ops_control: ['confirmed', 'cancelled', 'waiting_info'],
   confirmed: ['in_progress', 'incident_open', 'ready_finance', 'cancelled'],
   in_progress: ['incident_open', 'completed', 'ready_finance', 'cancelled'],
   incident_open: ['incident_reported', 'ready_finance', 'cancelled'],
@@ -844,7 +844,14 @@ function canTransitionByPermissions(perms, fromStatus, toStatus) {
   const byDomain = {
     'orders.create_draft': [['new', 'draft']],
     'orders.validate': [['draft', 'waiting_info'], ['draft', 'validated'], ['waiting_info', 'validated'], ['validated', 'pending_dispatch']],
-    'orders.assign': [['pending', 'assigned'], ['pending_dispatch', 'assigned'], ['dispatch_risk', 'assigned']],
+    'orders.assign': [
+      ['pending', 'assigned'],
+      ['pending_dispatch', 'assigned'],
+      ['dispatch_risk', 'assigned'],
+      ['pending_dispatch', 'waiting_info'],
+      ['assigned', 'waiting_info'],
+      ['dispatch_risk', 'waiting_info']
+    ],
     'orders.reassign': [['assigned', 'assigned']],
     'orders.confirmation.manage': [
       ['assigned', 'pending_ops_control'],
@@ -853,7 +860,8 @@ function canTransitionByPermissions(perms, fromStatus, toStatus) {
       ['confirmed', 'in_progress'],
       ['in_progress', 'completed'],
       ['confirmed', 'ready_finance'],
-      ['completed', 'ready_finance']
+      ['completed', 'ready_finance'],
+      ['pending_ops_control', 'waiting_info']
     ],
     'incidents.manage': [
       ['confirmed', 'incident_open'],
