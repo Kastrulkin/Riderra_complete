@@ -20,6 +20,7 @@ export default {
       const ru = [
         { to: '/admin-orders', label: 'Таблица' },
         { to: '/admin-ai-inbox', label: 'AI Inbox' },
+        { to: '/admin-chats', label: 'Чаты' },
         { to: '/admin-drivers', label: 'Водители' },
         { to: '/admin-crm', label: 'CRM' },
         { to: '/admin-directions-matrix', label: 'Матрица направлений' },
@@ -29,6 +30,7 @@ export default {
       const en = [
         { to: '/admin-orders', label: 'Orders' },
         { to: '/admin-ai-inbox', label: 'AI Inbox' },
+        { to: '/admin-chats', label: 'Chats' },
         { to: '/admin-drivers', label: 'Drivers' },
         { to: '/admin-crm', label: 'CRM' },
         { to: '/admin-directions-matrix', label: 'Directions Matrix' },
