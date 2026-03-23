@@ -2422,7 +2422,7 @@ app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActo
   }
 })
 
-app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const { orderId } = req.params
     const { needsInfo, infoReason } = req.body || {}
@@ -2713,7 +2713,7 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
   }
 })
 
-app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const { limit = 500 } = req.body || {}
@@ -2802,7 +2802,7 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
   }
 })
 
-app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const orderId = String(req.body?.orderId || '').trim()
@@ -2837,7 +2837,7 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
   }
 })
 
-app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const orderIds = Array.isArray(req.body?.orderIds)
@@ -2918,7 +2918,7 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const { toState, reason = '' } = req.body || {}
     const target = String(toState || '').trim()
@@ -2965,7 +2965,7 @@ app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const { direction = 'outbound', source = 'operator', channel = 'telegram', bodyText = '', bodyJson = null, approvalStatus = null } = req.body || {}
     if (!String(bodyText || '').trim()) return res.status(400).json({ error: 'bodyText is required' })
@@ -3032,7 +3032,7 @@ app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorC
   }
 })
 
-app.post('/api/admin/chats/messages/:id/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/messages/:id/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
@@ -3051,7 +3051,7 @@ app.post('/api/admin/chats/messages/:id/approve', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/chats/messages/:id/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/messages/:id/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
@@ -3070,7 +3070,7 @@ app.post('/api/admin/chats/messages/:id/reject', authenticateToken, resolveActor
   }
 })
 
-app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
