@@ -34,12 +34,24 @@
           <div class="agent-grid">
             <input v-model="agentForm.name" class="input" placeholder="Название агента" />
             <input v-model="agentForm.code" class="input" placeholder="Код (например copilot_main)" :disabled="Boolean(selectedAgentId)" />
+            <select v-model="agentForm.type" class="input">
+              <option value="order_completion">order_completion</option>
+              <option value="dispatch_notify">dispatch_notify</option>
+              <option value="driver_ops">driver_ops</option>
+            </select>
             <select v-model="agentForm.taskType" class="input">
               <option value="clarification">clarification</option>
               <option value="dispatch_info">dispatch_info</option>
             </select>
             <label class="toggle"><input type="checkbox" v-model="agentForm.isActive" /> <span>Активен</span></label>
             <label class="toggle"><input type="checkbox" v-model="agentForm.requiresApproval" /> <span>Только через approval</span></label>
+          </div>
+          <div class="agent-grid agent-grid--meta">
+            <input v-model="agentForm.description" class="input" placeholder="Описание агента" />
+            <input v-model="agentForm.personality" class="input" placeholder="Personality" />
+            <input v-model="agentForm.identity" class="input" placeholder="Identity" />
+            <input v-model="agentForm.task" class="input" placeholder="Task" />
+            <input v-model="agentForm.speechStyle" class="input" placeholder="Speech style" />
           </div>
 
           <label class="field">
@@ -52,7 +64,21 @@
           </label>
           <label class="field">
             <span>Ограничения (JSON)</span>
-            <textarea v-model="agentForm.constraintsJson" class="input textarea textarea--code" placeholder='{"maxMessagesPerHour":3,"allowedChannels":["telegram"],"requireHumanApproval":true}'></textarea>
+            <textarea v-model="agentForm.restrictionsJson" class="input textarea textarea--code" placeholder='{"maxMessagesPerHour":3,"allowedChannels":["telegram"],"requireHumanApproval":true}'></textarea>
+          </label>
+          <label class="field">
+            <span>Переменные (JSON)</span>
+            <textarea v-model="agentForm.variablesJson" class="input textarea textarea--code" placeholder='{"company_name":"Riderra","timezone":"Europe/Moscow"}'></textarea>
+          </label>
+          <label class="field">
+            <span>Sandbox test (dry_run)</span>
+            <textarea v-model="agentTestInput" class="input textarea" placeholder="Тестовое сообщение для агента"></textarea>
+            <div class="agent-actions">
+              <button class="btn btn--ghost" :disabled="agentTesting || !selectedAgentId" @click="runAgentTest">
+                {{ agentTesting ? 'Тестирую...' : 'Запустить dry_run тест' }}
+              </button>
+            </div>
+            <pre v-if="agentTestOutput" class="test-output">{{ agentTestOutput }}</pre>
           </label>
           <div class="agent-actions">
             <button class="btn btn--primary" :disabled="agentSaving" @click="saveAgent">
@@ -105,7 +131,12 @@
                   <h3>{{ orderLabel(selectedTask.order) }}</h3>
                   <div class="hint">{{ routeLabel(selectedTask.order) }} | {{ formatMoney(selectedTask.order?.clientPrice) }}</div>
                 </div>
-                <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
+                <div class="dialog-head-actions">
+                  <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
+                  <button class="btn btn--small" @click="toggleConversationAgent(selectedTask)">
+                    {{ selectedTask.agentPaused ? 'Возобновить агента' : 'Пауза агента' }}
+                  </button>
+                </div>
               </div>
 
               <div class="messages">
@@ -168,13 +199,24 @@ export default {
     agents: [],
     selectedAgentId: '',
     agentSaving: false,
+    agentTesting: false,
+    agentTestInput: '',
+    agentTestOutput: '',
     agentForm: {
       name: '',
       code: '',
+      type: 'order_completion',
+      description: '',
+      personality: '',
+      identity: '',
+      task: '',
+      speechStyle: '',
       taskType: 'clarification',
       promptText: '',
       workflowJson: '',
+      restrictionsJson: '',
       constraintsJson: '',
+      variablesJson: '',
       isActive: true,
       requiresApproval: true
     }
@@ -254,10 +296,18 @@ export default {
       this.agentForm = {
         name: selected.name || '',
         code: selected.code || '',
+        type: selected.type || 'order_completion',
+        description: selected.description || '',
+        personality: selected.personality || '',
+        identity: selected.identity || '',
+        task: selected.task || '',
+        speechStyle: selected.speechStyle || '',
         taskType: selected.taskType || 'clarification',
         promptText: selected.promptText || '',
-        workflowJson: selected.workflowJson || '',
-        constraintsJson: selected.constraintsJson || '',
+        workflowJson: selected.workflow || selected.workflowJson || '',
+        restrictionsJson: JSON.stringify(selected.restrictions || {}, null, 2),
+        constraintsJson: JSON.stringify(selected.constraints || {}, null, 2),
+        variablesJson: JSON.stringify(selected.variables || {}, null, 2),
         isActive: selected.isActive !== false,
         requiresApproval: selected.requiresApproval !== false
       }
@@ -267,13 +317,23 @@ export default {
       this.agentForm = {
         name: '',
         code: '',
+        type: 'order_completion',
+        description: '',
+        personality: '',
+        identity: '',
+        task: '',
+        speechStyle: '',
         taskType: 'clarification',
         promptText: '',
         workflowJson: '',
+        restrictionsJson: '',
         constraintsJson: '',
+        variablesJson: '',
         isActive: true,
         requiresApproval: true
       }
+      this.agentTestInput = ''
+      this.agentTestOutput = ''
     },
     async saveAgent() {
       if (this.agentSaving) return
@@ -284,10 +344,18 @@ export default {
         const payload = {
           name: this.agentForm.name.trim(),
           code: this.agentForm.code.trim(),
+          type: this.agentForm.type,
+          description: this.agentForm.description.trim() || null,
+          personality: this.agentForm.personality.trim() || null,
+          identity: this.agentForm.identity.trim() || null,
+          task: this.agentForm.task.trim() || null,
+          speechStyle: this.agentForm.speechStyle.trim() || null,
           taskType: this.agentForm.taskType,
           promptText: this.agentForm.promptText.trim(),
           workflowJson: this.agentForm.workflowJson.trim() || null,
+          restrictions: this.agentForm.restrictionsJson.trim() || null,
           constraintsJson: this.agentForm.constraintsJson.trim() || null,
+          variables: this.agentForm.variablesJson.trim() || null,
           isActive: this.agentForm.isActive,
           requiresApproval: this.agentForm.requiresApproval
         }
@@ -308,6 +376,29 @@ export default {
         this.notice = error?.message || 'Ошибка сохранения агента'
       } finally {
         this.agentSaving = false
+      }
+    },
+    async runAgentTest() {
+      if (!this.selectedAgentId || this.agentTesting) return
+      this.agentTesting = true
+      this.notice = ''
+      try {
+        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/test`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({
+            dry_run: true,
+            message: this.agentTestInput || 'Проверка тестового запуска агента',
+            conversation_history: []
+          })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Ошибка dry_run теста')
+        this.agentTestOutput = JSON.stringify(data, null, 2)
+      } catch (error) {
+        this.agentTestOutput = JSON.stringify({ error: error?.message || 'Ошибка теста' }, null, 2)
+      } finally {
+        this.agentTesting = false
       }
     },
     async loadTasks() {
@@ -338,6 +429,23 @@ export default {
       })
       await this.reloadAll()
       this.notice = 'Очередь синхронизирована из заказов'
+    },
+    async toggleConversationAgent(task) {
+      if (!task || !task.id) return
+      try {
+        const response = await fetch(`/api/conversations/${task.id}/toggle-agent`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось переключить агента')
+        this.notice = data.agent_paused ? 'Агент поставлен на паузу' : 'Агент возобновлен'
+        await this.openTask(task.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка переключения агента'
+      }
     },
     async createDraft() {
       if (!this.selectedTask || !this.draftText.trim()) return
@@ -466,13 +574,15 @@ export default {
 .agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
 .agent-head h3 { margin: 0; }
 .agent-head-actions { display: flex; gap: 8px; align-items: center; }
-.agent-grid { display: grid; grid-template-columns: 1.2fr 1fr 180px 140px 220px; gap: 8px; margin-bottom: 8px; }
+.agent-grid { display: grid; grid-template-columns: 1.2fr 1fr 180px 180px 140px 220px; gap: 8px; margin-bottom: 8px; }
+.agent-grid--meta { grid-template-columns: repeat(5, minmax(160px, 1fr)); }
 .compact { min-width: 280px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .field span { font-size: 13px; color: #334155; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; color: #334155; border: 1px solid #d8d9e6; border-radius: 8px; padding: 8px; }
 .textarea--code { font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; min-height: 96px; }
 .agent-actions { display: flex; justify-content: flex-end; }
+.test-output { white-space: pre-wrap; background: #0b1220; color: #e2e8f0; border-radius: 8px; padding: 10px; font-size: 12px; max-height: 220px; overflow: auto; }
 .workspace { display: grid; grid-template-columns: 340px 1fr 320px; gap: 12px; }
 .queue, .dialog, .actions { background: #fff; border: 1px solid #d8d9e6; border-radius: 12px; min-height: 620px; }
 .queue { padding: 10px; overflow: auto; }
@@ -484,6 +594,7 @@ export default {
 .queue-meta { display: flex; gap: 8px; flex-wrap: wrap; color: #64748b; font-size: 12px; }
 .dialog { padding: 12px; display: flex; flex-direction: column; }
 .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid #edf1f6; padding-bottom: 10px; margin-bottom: 10px; }
+.dialog-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .messages { overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .message { border: 1px solid #e5eaf1; border-radius: 10px; padding: 8px 10px; background: #fff; }
 .message--outbound { background: #f0f9ff; border-color: #bae6fd; }
@@ -503,6 +614,7 @@ export default {
 .empty--center { margin: auto; }
 @media (max-width: 1300px) {
   .agent-grid { grid-template-columns: 1fr; }
+  .agent-grid--meta { grid-template-columns: 1fr; }
   .agent-head { flex-direction: column; align-items: flex-start; }
   .agent-head-actions { width: 100%; flex-direction: column; align-items: stretch; }
   .compact { min-width: 0; width: 100%; }

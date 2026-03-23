@@ -2446,6 +2446,7 @@ app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActor
       })
 
       if (updated.needsInfo) {
+        const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
         await prisma.chatTask.upsert({
           where: { tenantId_orderId_taskType: { tenantId, orderId: updated.id, taskType: 'clarification' } },
           create: {
@@ -2453,11 +2454,13 @@ app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActor
             orderId: updated.id,
             taskType: 'clarification',
             state: 'missing_data_detected',
-            priority: 50
+            priority: 50,
+            agentConfigId: defaultAgentId
           },
           update: {
             state: 'missing_data_detected',
-            priority: 50
+            priority: 50,
+            ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {})
           }
         })
       } else {
@@ -2521,13 +2524,257 @@ function parseJsonFieldOrNull(value, fieldName) {
   }
 }
 
+function parseJsonObjectSafe(value, fallback = {}) {
+  if (!value) return fallback
+  if (typeof value === 'object') return value
+  try {
+    return JSON.parse(String(value))
+  } catch (_) {
+    return fallback
+  }
+}
+
+function normalizeAgentType(raw) {
+  const value = String(raw || '').trim().toLowerCase()
+  if (!value) return 'order_completion'
+  const map = {
+    booking: 'order_completion',
+    order: 'order_completion',
+    dispatch: 'dispatch_notify',
+    notification: 'dispatch_notify',
+    driver: 'driver_ops'
+  }
+  return map[value] || value
+}
+
+async function resolveBusinessTenantIdOrThrow(req, businessId) {
+  const actorTenantId = req.actorContext?.tenantId || null
+  if (!actorTenantId) throw new Error('Actor tenant is not resolved')
+  const scope = String(businessId || '').trim()
+  if (!scope) return actorTenantId
+  const tenant = await prisma.tenant.findFirst({
+    where: {
+      OR: [
+        { id: scope },
+        { code: scope }
+      ]
+    },
+    select: { id: true }
+  })
+  if (!tenant) {
+    const err = new Error('Business not found')
+    err.statusCode = 404
+    throw err
+  }
+  if (tenant.id !== actorTenantId) {
+    const err = new Error('No access to this business')
+    err.statusCode = 403
+    throw err
+  }
+  return tenant.id
+}
+
+function serializeAgent(agent) {
+  if (!agent) return null
+  return {
+    id: agent.id,
+    code: agent.code,
+    name: agent.name,
+    type: agent.type,
+    taskType: agent.taskType,
+    description: agent.description || '',
+    personality: agent.personality || '',
+    identity: agent.identity || '',
+    task: agent.task || '',
+    speechStyle: agent.speechStyle || '',
+    promptText: agent.promptText || '',
+    workflow: agent.workflowJson || '',
+    workflowFormat: agent.workflowFormat || 'json',
+    restrictions: parseJsonObjectSafe(agent.restrictionsJson, {}),
+    variables: parseJsonObjectSafe(agent.variablesJson, {}),
+    constraints: parseJsonObjectSafe(agent.constraintsJson, {}),
+    isActive: !!agent.isActive,
+    requiresApproval: !!agent.requiresApproval,
+    createdByUserId: agent.createdByUserId || null,
+    createdAt: agent.createdAt,
+    updatedAt: agent.updatedAt
+  }
+}
+
+async function pickDefaultAgentIdForTaskType(tenantId, taskType) {
+  const agent = await prisma.chatAgentConfig.findFirst({
+    where: {
+      tenantId,
+      isActive: true,
+      taskType: String(taskType || '').trim().toLowerCase() || 'clarification'
+    },
+    orderBy: [{ updatedAt: 'desc' }],
+    select: { id: true }
+  })
+  return agent?.id || null
+}
+
+async function recordAiLearningEvent({
+  tenantId,
+  agentConfigId = null,
+  chatTaskId = null,
+  chatMessageId = null,
+  promptKey = null,
+  promptVersion = null,
+  capability,
+  intent,
+  outcome,
+  editedBeforeSend = null,
+  responseTimeMs = null,
+  context = null
+}) {
+  try {
+    await prisma.aiLearningEvent.create({
+      data: {
+        tenantId,
+        agentConfigId,
+        chatTaskId,
+        chatMessageId,
+        promptKey,
+        promptVersion,
+        capability: String(capability || 'unknown'),
+        intent: String(intent || 'operations'),
+        outcome: String(outcome || 'unknown'),
+        editedBeforeSend,
+        responseTimeMs,
+        contextJson: context ? JSON.stringify(context) : null
+      }
+    })
+  } catch (error) {
+    console.error('Error recording AI learning event:', error)
+  }
+}
+
+function extractAgentPayload(body = {}, { requireCode = true } = {}) {
+  const code = String(body.code || '').trim().toLowerCase()
+  const payload = {
+    code,
+    name: String(body.name || '').trim(),
+    type: normalizeAgentType(body.type),
+    description: String(body.description || '').trim() || null,
+    personality: String(body.personality || '').trim() || null,
+    identity: String(body.identity || '').trim() || null,
+    task: String(body.task || '').trim() || null,
+    speechStyle: String(body.speechStyle || body.speech_style || '').trim() || null,
+    taskType: String(body.taskType || 'clarification').trim().toLowerCase() || 'clarification',
+    promptText: String(body.promptText || '').trim(),
+    workflowJson: parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson'),
+    workflowFormat: String(body.workflowFormat || 'json').trim().toLowerCase() || 'json',
+    restrictionsJson: parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson'),
+    constraintsJson: parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson'),
+    variablesJson: parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson'),
+    isActive: body.isActive !== false,
+    requiresApproval: body.requiresApproval !== false
+  }
+  if ((requireCode && !payload.code) || !payload.name || !payload.promptText) {
+    const err = new Error('code, name and promptText are required')
+    err.statusCode = 400
+    throw err
+  }
+  return payload
+}
+
+function inferIntentFromTaskType(taskType) {
+  const normalized = String(taskType || '').trim().toLowerCase()
+  if (normalized === 'dispatch_info') return 'operations'
+  if (normalized === 'clarification') return 'operations'
+  return 'operations'
+}
+
+async function getActivePromptVersionByKey(tenantId, key) {
+  if (!key) return null
+  const template = await prisma.promptTemplate.findFirst({
+    where: { tenantId, key: String(key), isActive: true },
+    include: {
+      versions: {
+        where: { isActive: true },
+        orderBy: { version: 'desc' },
+        take: 1
+      }
+    }
+  })
+  if (!template || !template.versions?.[0]) return null
+  return { template, version: template.versions[0] }
+}
+
+async function runAgentDryTest({ agent, message, conversationHistory = [], userData = null }) {
+  const endpoint = String(process.env.OPENCLAW_SANDBOX_BRIDGE_URL || '').trim()
+  const token = String(process.env.OPENCLAW_SANDBOX_BRIDGE_TOKEN || process.env.OPENCLAW_LOCALOS_TOKEN || '').trim()
+  if (endpoint && token) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          business_id: agent.tenantId,
+          agent_id: agent.id,
+          message: String(message || ''),
+          conversation_history: Array.isArray(conversationHistory) ? conversationHistory : [],
+          dry_run: true,
+          actor: {
+            user_id: String(userData?.id || ''),
+            role: 'sandbox_operator'
+          }
+        })
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        return {
+          success: false,
+          runtime: 'openclaw_bridge',
+          error: data?.error || `OpenClaw bridge HTTP ${response.status}`
+        }
+      }
+      return {
+        success: true,
+        runtime: 'openclaw_bridge',
+        response: String(data.response || data.message || '').trim(),
+        usage: data.usage || {},
+        decisionTrace: data.decision_trace || data.trace || {},
+        toolCalls: data.tool_calls || []
+      }
+    } catch (error) {
+      return {
+        success: false,
+        runtime: 'openclaw_bridge',
+        error: error.message || 'OpenClaw bridge failed'
+      }
+    }
+  }
+
+  const fallbackPrompt = String(agent.promptText || '').slice(0, 1200)
+  const simulated = [
+    'Я помощник Riderra, работаю в тестовом режиме.',
+    `Агент: ${agent.name}`,
+    `Тип: ${agent.type || 'order_completion'}`,
+    `Сообщение: ${String(message || '').trim() || '-'}`,
+    fallbackPrompt ? `Prompt: ${fallbackPrompt}` : ''
+  ].filter(Boolean).join('\n')
+  return {
+    success: true,
+    runtime: 'local_fallback',
+    response: simulated,
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    decisionTrace: { mode: 'fallback' },
+    toolCalls: []
+  }
+}
+
 app.get('/api/admin/chats/agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const rows = await prisma.chatAgentConfig.findMany({
       where: { tenantId: req.actorContext.tenantId },
       orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
     })
-    res.json({ rows })
+    res.json({ rows: rows.map(serializeAgent) })
   } catch (error) {
     console.error('Error loading chat agents:', error)
     res.status(500).json({ error: 'Failed to load chat agents' })
@@ -2537,33 +2784,30 @@ app.get('/api/admin/chats/agents', authenticateToken, resolveActorContext, requi
 app.post('/api/admin/chats/agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
-    const code = String(req.body?.code || '').trim().toLowerCase()
-    const name = String(req.body?.name || '').trim()
-    const promptText = String(req.body?.promptText || '').trim()
-    const taskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
-    const isActive = req.body?.isActive !== false
-    const requiresApproval = req.body?.requiresApproval !== false
-    const workflowJson = parseJsonFieldOrNull(req.body?.workflowJson, 'workflowJson')
-    const constraintsJson = parseJsonFieldOrNull(req.body?.constraintsJson, 'constraintsJson')
-
-    if (!code || !name || !promptText) {
-      return res.status(400).json({ error: 'code, name and promptText are required' })
-    }
-
-    const payload = { code, name, promptText, taskType, isActive, requiresApproval, workflowJson, constraintsJson }
+    const payload = extractAgentPayload(req.body || {}, { requireCode: true })
     ensureIdempotencyKey(req, 'chat_agent.create', payload)
     const wrapped = await withIdempotency(req, 'chat_agent.create', payload, async () => {
       const created = await prisma.chatAgentConfig.create({
         data: {
           tenantId,
-          code,
-          name,
-          promptText,
-          taskType,
-          isActive,
-          requiresApproval,
-          workflowJson,
-          constraintsJson
+          code: payload.code,
+          name: payload.name,
+          type: payload.type,
+          description: payload.description,
+          personality: payload.personality,
+          identity: payload.identity,
+          task: payload.task,
+          speechStyle: payload.speechStyle,
+          promptText: payload.promptText,
+          taskType: payload.taskType,
+          isActive: payload.isActive,
+          requiresApproval: payload.requiresApproval,
+          workflowJson: payload.workflowJson,
+          workflowFormat: payload.workflowFormat,
+          restrictionsJson: payload.restrictionsJson,
+          constraintsJson: payload.constraintsJson,
+          variablesJson: payload.variablesJson,
+          createdByUserId: req.user?.id || null
         }
       })
       await writeAuditLog({
@@ -2576,11 +2820,11 @@ app.post('/api/admin/chats/agents', authenticateToken, resolveActorContext, requ
         traceId: req.actorContext.traceId,
         decision: 'policy_allowed',
         result: 'ok',
-        context: { code, taskType, isActive, requiresApproval }
+        context: { code: payload.code, taskType: payload.taskType, isActive: payload.isActive, requiresApproval: payload.requiresApproval }
       })
       return created
     })
-    res.json({ agent: wrapped.data, idempotent: wrapped.replayed })
+    res.json({ agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
     if (String(error?.message || '').includes('must be valid JSON')) {
       return res.status(400).json({ error: error.message })
@@ -2600,13 +2844,24 @@ app.put('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorConte
     if (!existing) return res.status(404).json({ error: 'Agent not found' })
 
     const data = {}
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'name')) data.name = String(req.body.name || '').trim()
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'promptText')) data.promptText = String(req.body.promptText || '').trim()
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'taskType')) data.taskType = String(req.body.taskType || '').trim().toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'isActive')) data.isActive = !!req.body.isActive
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'requiresApproval')) data.requiresApproval = !!req.body.requiresApproval
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'workflowJson')) data.workflowJson = parseJsonFieldOrNull(req.body.workflowJson, 'workflowJson')
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(req.body.constraintsJson, 'constraintsJson')
+    const body = req.body || {}
+    if (Object.prototype.hasOwnProperty.call(body, 'code') && String(body.code || '').trim()) data.code = String(body.code || '').trim().toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(body, 'name')) data.name = String(body.name || '').trim()
+    if (Object.prototype.hasOwnProperty.call(body, 'type')) data.type = normalizeAgentType(body.type)
+    if (Object.prototype.hasOwnProperty.call(body, 'description')) data.description = String(body.description || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'personality')) data.personality = String(body.personality || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'identity')) data.identity = String(body.identity || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'task')) data.task = String(body.task || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'speechStyle') || Object.prototype.hasOwnProperty.call(body, 'speech_style')) data.speechStyle = String(body.speechStyle || body.speech_style || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'promptText')) data.promptText = String(body.promptText || '').trim()
+    if (Object.prototype.hasOwnProperty.call(body, 'taskType')) data.taskType = String(body.taskType || '').trim().toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(body, 'isActive')) data.isActive = !!body.isActive
+    if (Object.prototype.hasOwnProperty.call(body, 'requiresApproval')) data.requiresApproval = !!body.requiresApproval
+    if (Object.prototype.hasOwnProperty.call(body, 'workflowJson') || Object.prototype.hasOwnProperty.call(body, 'workflow')) data.workflowJson = parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'workflowFormat')) data.workflowFormat = String(body.workflowFormat || 'json').trim().toLowerCase() || 'json'
+    if (Object.prototype.hasOwnProperty.call(body, 'restrictionsJson') || Object.prototype.hasOwnProperty.call(body, 'restrictions')) data.restrictionsJson = parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'variablesJson') || Object.prototype.hasOwnProperty.call(body, 'variables')) data.variablesJson = parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson')
 
     const payload = { agentId: existing.id, data }
     ensureIdempotencyKey(req, 'chat_agent.update', payload)
@@ -2629,13 +2884,566 @@ app.put('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorConte
       })
       return updated
     })
-    res.json({ agent: wrapped.data, idempotent: wrapped.replayed })
+    res.json({ agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
     if (String(error?.message || '').includes('must be valid JSON')) {
       return res.status(400).json({ error: error.message })
     }
     console.error('Error updating chat agent:', error)
     res.status(500).json({ error: 'Failed to update chat agent' })
+  }
+})
+
+app.get('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId: req.actorContext.tenantId }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    res.json({ agent: serializeAgent(row) })
+  } catch (error) {
+    console.error('Error loading chat agent details:', error)
+    res.status(500).json({ error: 'Failed to load chat agent' })
+  }
+})
+
+app.delete('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    await prisma.chatAgentConfig.delete({ where: { id: row.id } })
+    res.json({ ok: true })
+  } catch (error) {
+    console.error('Error deleting chat agent:', error)
+    res.status(500).json({ error: 'Failed to delete chat agent' })
+  }
+})
+
+app.get('/api/admin/ai-agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const rows = await prisma.chatAgentConfig.findMany({
+      where: { tenantId: req.actorContext.tenantId },
+      orderBy: [{ type: 'asc' }, { name: 'asc' }]
+    })
+    res.json({ agents: rows.map(serializeAgent) })
+  } catch (error) {
+    console.error('Error loading AI agents:', error)
+    res.status(500).json({ error: 'Failed to load AI agents' })
+  }
+})
+
+app.post('/api/admin/ai-agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const payload = extractAgentPayload(req.body || {}, { requireCode: true })
+    ensureIdempotencyKey(req, 'admin.ai_agent.create', payload)
+    const wrapped = await withIdempotency(req, 'admin.ai_agent.create', payload, async () => {
+      return prisma.chatAgentConfig.create({
+        data: {
+          tenantId,
+          code: payload.code,
+          name: payload.name,
+          type: payload.type,
+          description: payload.description,
+          personality: payload.personality,
+          identity: payload.identity,
+          task: payload.task,
+          speechStyle: payload.speechStyle,
+          taskType: payload.taskType,
+          promptText: payload.promptText,
+          workflowJson: payload.workflowJson,
+          workflowFormat: payload.workflowFormat,
+          restrictionsJson: payload.restrictionsJson,
+          constraintsJson: payload.constraintsJson,
+          variablesJson: payload.variablesJson,
+          isActive: payload.isActive,
+          requiresApproval: payload.requiresApproval,
+          createdByUserId: req.user?.id || null
+        }
+      })
+    })
+    res.json({ success: true, agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
+  } catch (error) {
+    const status = error.statusCode || (String(error?.message || '').includes('required') || String(error?.message || '').includes('valid JSON') ? 400 : 500)
+    res.status(status).json({ error: error.message || 'Failed to create AI agent' })
+  }
+})
+
+app.get('/api/admin/ai-agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId: req.actorContext.tenantId }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    res.json({ agent: serializeAgent(row) })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load AI agent' })
+  }
+})
+
+app.put('/api/admin/ai-agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId },
+      select: { id: true }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    const data = {}
+    const body = req.body || {}
+    if (Object.prototype.hasOwnProperty.call(body, 'name')) data.name = String(body.name || '').trim()
+    if (Object.prototype.hasOwnProperty.call(body, 'code') && String(body.code || '').trim()) data.code = String(body.code || '').trim().toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(body, 'type')) data.type = normalizeAgentType(body.type)
+    if (Object.prototype.hasOwnProperty.call(body, 'description')) data.description = String(body.description || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'personality')) data.personality = String(body.personality || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'identity')) data.identity = String(body.identity || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'task')) data.task = String(body.task || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'speechStyle') || Object.prototype.hasOwnProperty.call(body, 'speech_style')) data.speechStyle = String(body.speechStyle || body.speech_style || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'taskType')) data.taskType = String(body.taskType || '').trim().toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(body, 'promptText')) data.promptText = String(body.promptText || '').trim()
+    if (Object.prototype.hasOwnProperty.call(body, 'workflowJson') || Object.prototype.hasOwnProperty.call(body, 'workflow')) data.workflowJson = parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'workflowFormat')) data.workflowFormat = String(body.workflowFormat || 'json').trim().toLowerCase() || 'json'
+    if (Object.prototype.hasOwnProperty.call(body, 'restrictionsJson') || Object.prototype.hasOwnProperty.call(body, 'restrictions')) data.restrictionsJson = parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'variablesJson') || Object.prototype.hasOwnProperty.call(body, 'variables')) data.variablesJson = parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'isActive')) data.isActive = !!body.isActive
+    if (Object.prototype.hasOwnProperty.call(body, 'requiresApproval')) data.requiresApproval = !!body.requiresApproval
+    const updated = await prisma.chatAgentConfig.update({ where: { id: row.id }, data })
+    res.json({ success: true, agent: serializeAgent(updated) })
+  } catch (error) {
+    const status = error.statusCode || (String(error?.message || '').includes('valid JSON') ? 400 : 500)
+    res.status(status).json({ error: error.message || 'Failed to update AI agent' })
+  }
+})
+
+app.delete('/api/admin/ai-agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    await prisma.chatAgentConfig.delete({ where: { id: row.id } })
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete AI agent' })
+  }
+})
+
+app.get('/api/business/:businessId/ai-agents/manage', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
+    const rows = await prisma.chatAgentConfig.findMany({
+      where: { tenantId },
+      orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
+    })
+    res.json({ agents: rows.map(serializeAgent) })
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to load business AI agents' })
+  }
+})
+
+app.post('/api/business/:businessId/ai-agents/manage', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
+    const payload = extractAgentPayload(req.body || {}, { requireCode: true })
+    const created = await prisma.chatAgentConfig.create({
+      data: {
+        tenantId,
+        code: payload.code,
+        name: payload.name,
+        type: payload.type,
+        description: payload.description,
+        personality: payload.personality,
+        identity: payload.identity,
+        task: payload.task,
+        speechStyle: payload.speechStyle,
+        taskType: payload.taskType,
+        promptText: payload.promptText,
+        workflowJson: payload.workflowJson,
+        workflowFormat: payload.workflowFormat,
+        restrictionsJson: payload.restrictionsJson,
+        constraintsJson: payload.constraintsJson,
+        variablesJson: payload.variablesJson,
+        isActive: payload.isActive,
+        requiresApproval: payload.requiresApproval,
+        createdByUserId: req.user?.id || null
+      }
+    })
+    res.status(201).json({ success: true, agent: serializeAgent(created) })
+  } catch (error) {
+    res.status(error.statusCode || (String(error?.message || '').includes('required') || String(error?.message || '').includes('valid JSON') ? 400 : 500)).json({ error: error.message || 'Failed to create business AI agent' })
+  }
+})
+
+app.put('/api/business/:businessId/ai-agents/manage/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId },
+      select: { id: true }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    const body = req.body || {}
+    const data = {}
+    if (Object.prototype.hasOwnProperty.call(body, 'name')) data.name = String(body.name || '').trim()
+    if (Object.prototype.hasOwnProperty.call(body, 'code') && String(body.code || '').trim()) data.code = String(body.code || '').trim().toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(body, 'type')) data.type = normalizeAgentType(body.type)
+    if (Object.prototype.hasOwnProperty.call(body, 'description')) data.description = String(body.description || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'personality')) data.personality = String(body.personality || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'identity')) data.identity = String(body.identity || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'task')) data.task = String(body.task || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'speechStyle') || Object.prototype.hasOwnProperty.call(body, 'speech_style')) data.speechStyle = String(body.speechStyle || body.speech_style || '').trim() || null
+    if (Object.prototype.hasOwnProperty.call(body, 'taskType')) data.taskType = String(body.taskType || '').trim().toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(body, 'promptText')) data.promptText = String(body.promptText || '').trim()
+    if (Object.prototype.hasOwnProperty.call(body, 'workflowJson') || Object.prototype.hasOwnProperty.call(body, 'workflow')) data.workflowJson = parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'workflowFormat')) data.workflowFormat = String(body.workflowFormat || 'json').trim().toLowerCase() || 'json'
+    if (Object.prototype.hasOwnProperty.call(body, 'restrictionsJson') || Object.prototype.hasOwnProperty.call(body, 'restrictions')) data.restrictionsJson = parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'variablesJson') || Object.prototype.hasOwnProperty.call(body, 'variables')) data.variablesJson = parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson')
+    if (Object.prototype.hasOwnProperty.call(body, 'isActive')) data.isActive = !!body.isActive
+    if (Object.prototype.hasOwnProperty.call(body, 'requiresApproval')) data.requiresApproval = !!body.requiresApproval
+    const updated = await prisma.chatAgentConfig.update({ where: { id: row.id }, data })
+    res.json({ success: true, agent: serializeAgent(updated) })
+  } catch (error) {
+    res.status(error.statusCode || (String(error?.message || '').includes('valid JSON') ? 400 : 500)).json({ error: error.message || 'Failed to update business AI agent' })
+  }
+})
+
+app.delete('/api/business/:businessId/ai-agents/manage/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId },
+      select: { id: true }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    await prisma.chatAgentConfig.delete({ where: { id: row.id } })
+    res.json({ success: true })
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to delete business AI agent' })
+  }
+})
+
+app.post('/api/admin/ai-agents/:agentId/test', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId: req.actorContext.tenantId }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    const dryRun = req.body?.dry_run !== false
+    if (!dryRun) return res.status(400).json({ error: 'Only dry_run=true is allowed' })
+    const result = await runAgentDryTest({
+      agent: row,
+      message: req.body?.message || '',
+      conversationHistory: req.body?.conversation_history || [],
+      userData: req.user
+    })
+    await recordAiLearningEvent({
+      tenantId: req.actorContext.tenantId,
+      agentConfigId: row.id,
+      promptKey: `agent:${row.code}`,
+      promptVersion: 1,
+      capability: 'agent.test',
+      intent: inferIntentFromTaskType(row.taskType),
+      outcome: result.success ? 'dry_run_success' : 'dry_run_failed',
+      context: { runtime: result.runtime }
+    })
+    res.json({ dry_run: true, ...result })
+  } catch (error) {
+    console.error('Error testing AI agent:', error)
+    res.status(500).json({ error: 'Failed to test AI agent' })
+  }
+})
+
+app.post('/api/business/:businessId/ai-agents/:agentId/test', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
+    const row = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId }
+    })
+    if (!row) return res.status(404).json({ error: 'Agent not found' })
+    const dryRun = req.body?.dry_run !== false
+    if (!dryRun) return res.status(400).json({ error: 'Only dry_run=true is allowed' })
+    const result = await runAgentDryTest({
+      agent: row,
+      message: req.body?.message || '',
+      conversationHistory: req.body?.conversation_history || [],
+      userData: req.user
+    })
+    await recordAiLearningEvent({
+      tenantId,
+      agentConfigId: row.id,
+      promptKey: `agent:${row.code}`,
+      promptVersion: 1,
+      capability: 'agent.test',
+      intent: inferIntentFromTaskType(row.taskType),
+      outcome: result.success ? 'dry_run_success' : 'dry_run_failed',
+      context: { runtime: result.runtime }
+    })
+    res.json({ dry_run: true, ...result })
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to test business AI agent' })
+  }
+})
+
+app.get('/api/admin/prompts', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const rows = await prisma.promptTemplate.findMany({
+      where: { tenantId: req.actorContext.tenantId },
+      include: {
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: 'desc' },
+          take: 1
+        }
+      },
+      orderBy: [{ updatedAt: 'desc' }]
+    })
+    const templates = rows.map((row) => ({
+      key: row.key,
+      title: row.title,
+      description: row.description || '',
+      isActive: row.isActive,
+      prompt_version: row.versions?.[0]?.version || null,
+      content: row.versions?.[0]?.content || ''
+    }))
+    res.json({ prompts: templates })
+  } catch (error) {
+    console.error('Error loading prompts:', error)
+    res.status(500).json({ error: 'Failed to load prompts' })
+  }
+})
+
+app.put('/api/admin/prompts/:promptKey', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const promptKey = String(req.params.promptKey || '').trim().toLowerCase()
+    const content = String(req.body?.content || req.body?.prompt || '').trim()
+    const title = String(req.body?.title || promptKey).trim() || promptKey
+    const description = String(req.body?.description || '').trim() || null
+    const notes = String(req.body?.notes || '').trim() || null
+    if (!promptKey || !content) {
+      return res.status(400).json({ error: 'promptKey and content are required' })
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      let template = await tx.promptTemplate.findFirst({
+        where: { tenantId, key: promptKey }
+      })
+      if (!template) {
+        template = await tx.promptTemplate.create({
+          data: { tenantId, key: promptKey, title, description, isActive: true }
+        })
+      } else {
+        template = await tx.promptTemplate.update({
+          where: { id: template.id },
+          data: { title, description, isActive: true }
+        })
+      }
+
+      const latest = await tx.promptTemplateVersion.findFirst({
+        where: { templateId: template.id },
+        orderBy: { version: 'desc' },
+        select: { version: true }
+      })
+      const nextVersion = (latest?.version || 0) + 1
+      const version = await tx.promptTemplateVersion.create({
+        data: {
+          templateId: template.id,
+          version: nextVersion,
+          content,
+          notes,
+          isActive: true,
+          createdByUserId: req.user?.id || null
+        }
+      })
+      return { template, version }
+    })
+
+    res.json({
+      success: true,
+      prompt_key: result.template.key,
+      prompt_version: result.version.version,
+      content: result.version.content
+    })
+  } catch (error) {
+    console.error('Error upserting prompt:', error)
+    res.status(500).json({ error: 'Failed to save prompt' })
+  }
+})
+
+app.get('/api/admin/ai/learning-metrics', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const { days = '30' } = req.query
+    const windowDays = Math.min(Math.max(parseInt(days, 10) || 30, 1), 365)
+    const from = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000)
+    const rows = await prisma.aiLearningEvent.findMany({
+      where: { tenantId, createdAt: { gte: from } },
+      orderBy: { createdAt: 'desc' },
+      take: 10000
+    })
+    const byOutcome = {}
+    const byCapability = {}
+    for (const row of rows) {
+      byOutcome[row.outcome] = (byOutcome[row.outcome] || 0) + 1
+      byCapability[row.capability] = (byCapability[row.capability] || 0) + 1
+    }
+    res.json({
+      period_days: windowDays,
+      total_events: rows.length,
+      by_outcome: byOutcome,
+      by_capability: byCapability
+    })
+  } catch (error) {
+    console.error('Error loading AI learning metrics:', error)
+    res.status(500).json({ error: 'Failed to load AI learning metrics' })
+  }
+})
+
+app.get('/api/business/:businessId/conversations', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
+    const { agent_id = '', state = '', taskType = '', limit = '100' } = req.query
+    const take = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 300)
+    const where = {
+      tenantId,
+      ...(agent_id ? { agentConfigId: String(agent_id) } : {}),
+      ...(state ? { state: String(state) } : {}),
+      ...(taskType ? { taskType: String(taskType) } : {})
+    }
+    const tasks = await prisma.chatTask.findMany({
+      where,
+      orderBy: [{ updatedAt: 'desc' }],
+      take,
+      include: {
+        order: {
+          select: {
+            id: true,
+            externalKey: true,
+            fromPoint: true,
+            toPoint: true,
+            clientPrice: true,
+            status: true,
+            comment: true
+          }
+        },
+        agentConfig: true,
+        _count: { select: { messages: true } }
+      }
+    })
+    const conversationIds = tasks.map((x) => x.id)
+    const lastMessages = conversationIds.length
+      ? await prisma.chatMessage.findMany({
+          where: { chatTaskId: { in: conversationIds } },
+          orderBy: [{ createdAt: 'desc' }],
+          select: { chatTaskId: true, bodyText: true, createdAt: true, direction: true }
+        })
+      : []
+    const lastByConversation = {}
+    for (const message of lastMessages) {
+      if (!lastByConversation[message.chatTaskId]) lastByConversation[message.chatTaskId] = message
+    }
+    res.json({
+      rows: tasks.map((task) => ({
+        id: task.id,
+        business_id: tenantId,
+        agent_id: task.agentConfigId || null,
+        agent: task.agentConfig ? serializeAgent(task.agentConfig) : null,
+        state: task.state,
+        task_type: task.taskType,
+        channel: task.channel || 'telegram',
+        agent_paused: !!task.agentPaused,
+        order: task.order,
+        message_count: task._count?.messages || 0,
+        last_message: lastByConversation[task.id] || null,
+        updated_at: task.updatedAt,
+        created_at: task.createdAt
+      }))
+    })
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to load conversations' })
+  }
+})
+
+app.get('/api/conversations/:conversationId/messages', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.conversationId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!task) return res.status(404).json({ error: 'Conversation not found' })
+    const messages = await prisma.chatMessage.findMany({
+      where: { chatTaskId: task.id },
+      orderBy: { createdAt: 'asc' }
+    })
+    res.json({ rows: messages })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load conversation messages' })
+  }
+})
+
+app.post('/api/conversations/:conversationId/send-message', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'ops'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.conversationId, tenantId },
+      include: { agentConfig: true }
+    })
+    if (!task) return res.status(404).json({ error: 'Conversation not found' })
+
+    const bodyText = String(req.body?.bodyText || req.body?.message || '').trim()
+    if (!bodyText) return res.status(400).json({ error: 'bodyText is required' })
+    const message = await prisma.chatMessage.create({
+      data: {
+        tenantId,
+        chatTaskId: task.id,
+        direction: 'outbound',
+        source: 'operator',
+        channel: String(req.body?.channel || task.channel || 'telegram'),
+        bodyText,
+        approvalStatus: task.agentConfig?.requiresApproval ? 'pending_human' : 'approved',
+        createdByUserId: req.user?.id || null,
+        traceId: req.actorContext.traceId
+      }
+    })
+    await recordAiLearningEvent({
+      tenantId,
+      agentConfigId: task.agentConfigId || null,
+      chatTaskId: task.id,
+      chatMessageId: message.id,
+      promptKey: task.agentConfig ? `agent:${task.agentConfig.code}` : null,
+      promptVersion: 1,
+      capability: 'riderra.customer.message.compose',
+      intent: inferIntentFromTaskType(task.taskType),
+      outcome: 'draft_created',
+      editedBeforeSend: true
+    })
+    res.json({ success: true, message })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to send conversation message' })
+  }
+})
+
+app.post('/api/conversations/:conversationId/toggle-agent', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'ops'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.conversationId, tenantId },
+      select: { id: true, agentPaused: true }
+    })
+    if (!task) return res.status(404).json({ error: 'Conversation not found' })
+    const updated = await prisma.chatTask.update({
+      where: { id: task.id },
+      data: { agentPaused: !task.agentPaused }
+    })
+    res.json({ success: true, agent_paused: updated.agentPaused })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle agent for conversation' })
   }
 })
 
@@ -2653,6 +3461,7 @@ app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActor
       orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
       take,
       include: {
+        agentConfig: true,
         order: {
           select: {
             id: true,
@@ -2688,6 +3497,7 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
       orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
       take,
       include: {
+        agentConfig: true,
         order: {
           select: {
             id: true,
@@ -2736,6 +3546,7 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
 
     for (const order of orders) {
       if (order.needsInfo) {
+        const defaultClarificationAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
         const existing = await prisma.chatTask.findFirst({
           where: { tenantId, orderId: order.id, taskType: 'clarification' },
           select: { id: true }
@@ -2747,11 +3558,13 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
             orderId: order.id,
             taskType: 'clarification',
             state: 'missing_data_detected',
-            priority: 50
+            priority: 50,
+            agentConfigId: defaultClarificationAgentId
           },
           update: {
             state: 'missing_data_detected',
-            priority: 50
+            priority: 50,
+            ...(defaultClarificationAgentId ? { agentConfigId: defaultClarificationAgentId } : {})
           }
         })
         if (existing) clarificationUpdated += 1
@@ -2759,6 +3572,7 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
       }
 
       if (!order.needsInfo && dispatchReadyStatuses.has(String(order.status || '').toLowerCase())) {
+        const defaultDispatchAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'dispatch_info')
         const existing = await prisma.chatTask.findFirst({
           where: { tenantId, orderId: order.id, taskType: 'dispatch_info' },
           select: { id: true, state: true }
@@ -2770,11 +3584,13 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
             orderId: order.id,
             taskType: 'dispatch_info',
             state: 'ready_to_notify',
-            priority: 80
+            priority: 80,
+            agentConfigId: defaultDispatchAgentId
           },
           update: {
             state: ['notify_sent', 'notify_ack', 'closed'].includes(existing?.state) ? existing.state : 'ready_to_notify',
-            priority: 80
+            priority: 80,
+            ...(defaultDispatchAgentId ? { agentConfigId: defaultDispatchAgentId } : {})
           }
         })
         if (existing) dispatchUpdated += 1
@@ -2820,13 +3636,14 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
 
     const state = taskType === 'clarification' ? 'missing_data_detected' : 'ready_to_notify'
     const priority = taskType === 'clarification' ? 50 : 80
-    const payload = { orderId, taskType, state, priority }
+    const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, taskType)
+    const payload = { orderId, taskType, state, priority, agentConfigId: defaultAgentId }
     ensureIdempotencyKey(req, 'chat_task.queue_one', payload)
     const wrapped = await withIdempotency(req, 'chat_task.queue_one', payload, async () => {
       return prisma.chatTask.upsert({
         where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } },
-        create: { tenantId, orderId, taskType, state, priority },
-        update: { state, priority }
+        create: { tenantId, orderId, taskType, state, priority, agentConfigId: defaultAgentId },
+        update: { state, priority, ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {}) }
       })
     })
 
@@ -2856,6 +3673,7 @@ app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext
     let created = 0
     let updated = 0
     for (const order of markedOrders) {
+      const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
       const existing = await prisma.chatTask.findFirst({
         where: { tenantId, orderId: order.id, taskType: 'clarification' },
         select: { id: true }
@@ -2867,11 +3685,13 @@ app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext
           orderId: order.id,
           taskType: 'clarification',
           state: 'missing_data_detected',
-          priority: 50
+          priority: 50,
+          agentConfigId: defaultAgentId
         },
         update: {
           state: 'missing_data_detected',
-          priority: 50
+          priority: 50,
+          ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {})
         }
       })
       if (existing) updated += 1
@@ -2890,6 +3710,7 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
     const task = await prisma.chatTask.findFirst({
       where: { id: req.params.id, tenantId: req.actorContext.tenantId },
       include: {
+        agentConfig: true,
         order: {
           select: {
             id: true,
@@ -3075,7 +3896,7 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
       where: { id: req.params.id, tenantId },
-      include: { chatTask: { select: { id: true, taskType: true } } }
+      include: { chatTask: { include: { agentConfig: true } } }
     })
     if (!message) return res.status(404).json({ error: 'Message not found' })
     if (String(message.direction || '') !== 'outbound') {
@@ -3110,6 +3931,17 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       decision: 'policy_allowed',
       result: 'ok',
       context: { taskId: message.chatTask.id, nextState }
+    })
+    await recordAiLearningEvent({
+      tenantId,
+      agentConfigId: message.chatTask.agentConfigId || null,
+      chatTaskId: message.chatTask.id,
+      chatMessageId: message.id,
+      promptKey: message.chatTask.agentConfig ? `agent:${message.chatTask.agentConfig.code}` : null,
+      promptVersion: 1,
+      capability: 'riderra.customer.message.send',
+      intent: inferIntentFromTaskType(message.chatTask.taskType),
+      outcome: 'sent'
     })
     res.json({ message: updated, taskState: nextState })
   } catch (error) {
