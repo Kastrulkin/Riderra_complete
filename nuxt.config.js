@@ -54,6 +54,11 @@ module.exports = {
 ** Build configuration
 */
   build: {
+    splitChunks: {
+      layouts: false,
+      pages: false,
+      commons: false
+    },
     /*
     ** Run ESLint on save
     */
