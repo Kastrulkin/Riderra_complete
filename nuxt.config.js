@@ -1,3 +1,17 @@
+const mapsKey = String(process.env.GOOGLE_MAPS_API_KEY || '').trim()
+
+const modules = [
+  ['@nuxtjs/axios', { rejectUnauthorized: false }],
+  'vue-scrollto/nuxt'
+]
+
+if (mapsKey) {
+  modules.push([
+    'nuxt-google-maps-module',
+    { key: mapsKey }
+  ])
+}
+
 module.exports = {
   /*
   ** Headers of the page
@@ -27,21 +41,13 @@ module.exports = {
   /*
   ** Customize the progress bar color
   */
-  modules: [
-    ['@nuxtjs/axios', {rejectUnauthorized: false}],
-    'vue-scrollto/nuxt',
-    ['nuxt-google-maps-module', {
-      key: process.env.GOOGLE_MAPS_API_KEY || '',
-    }],
-  ],
+  modules,
   axios: {
     // proxyHeaders: false
     rejectUnauthorized: false,
     baseURL: process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : ''
   },
-  maps: {
-    key: process.env.GOOGLE_MAPS_API_KEY || '',
-  },
+  ...(mapsKey ? { maps: { key: mapsKey } } : {}),
   loading: { color: '#3B8070' },
 
   plugins: [
