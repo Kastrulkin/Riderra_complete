@@ -16,8 +16,11 @@
           <button class="btn btn--ghost" :disabled="queueBulkSaving" @click="queueAllMarked">
             {{ queueBulkSaving ? t.queueing : t.queueAllMarked }}
           </button>
-          <button class="btn btn--primary" @click="load">{{ t.refresh }}</button>
+          <button class="btn btn--primary" :disabled="loading" @click="load">
+            {{ loading ? t.loading : t.refresh }}
+          </button>
         </div>
+        <div v-if="loadError" class="hint hint--error">{{ loadError }}</div>
         <div v-if="queueNotice" class="hint">{{ queueNotice }}</div>
 
         <div v-if="mode === 'table'" class="table-wrap">
@@ -249,7 +252,9 @@ export default {
     infoSaving: false,
     queueSavingByOrder: {},
     queueBulkSaving: false,
-    queueNotice: ''
+    queueNotice: '',
+    loading: false,
+    loadError: ''
   }),
   computed: {
     t () {
@@ -260,6 +265,7 @@ export default {
             rawTab: 'Подробности',
             search: 'Поиск по заказам',
             refresh: 'Обновить',
+            loading: 'Загрузка...',
             queueOne: 'В рассылку',
             queueAllMarked: 'Добавить все отмеченные к рассылке',
             queueing: 'Добавляю...',
@@ -322,6 +328,7 @@ export default {
             rawTab: 'Details',
             search: 'Search',
             refresh: 'Refresh',
+            loading: 'Loading...',
             queueOne: 'Queue',
             queueAllMarked: 'Queue all flagged',
             queueing: 'Queueing...',
@@ -384,22 +391,46 @@ export default {
       return { gridTemplateColumns: `170px 120px 80px repeat(${cols}, minmax(180px, 1fr))` }
     }
   },
-  mounted () { this.load() },
+  mounted () { this.load().catch(() => {}) },
   methods: {
     headers () {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '' }
     },
     async load () {
-      const response = await fetch('/api/admin/orders-sheet-view', { headers: this.headers() })
-      const data = await response.json()
-      this.rows = data.rows || []
-      this.rawRows = data.rawRows || []
-      this.rawHeaders = data.headers || []
-      this.drilldownNotice = ''
-      this.drilldownToken = ''
-      this.queueNotice = ''
-      this.applyFilter()
+      this.loading = true
+      this.loadError = ''
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 20000) : null
+      try {
+        const response = await fetch('/api/admin/orders-sheet-view', {
+          headers: this.headers(),
+          ...(controller ? { signal: controller.signal } : {})
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          throw new Error(data?.error || `HTTP ${response.status}`)
+        }
+        this.rows = data.rows || []
+        this.rawRows = data.rawRows || []
+        this.rawHeaders = data.headers || []
+        this.drilldownNotice = ''
+        this.drilldownToken = ''
+        this.queueNotice = ''
+        this.applyFilter()
+      } catch (error) {
+        this.rows = []
+        this.rawRows = []
+        this.rawHeaders = []
+        this.filteredRows = []
+        this.filteredRawRows = []
+        this.loadError = this.$store.state.language === 'ru'
+          ? `Не удалось загрузить таблицу заказов: ${error?.message || 'unknown'}`
+          : `Failed to load orders table: ${error?.message || 'unknown'}`
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId)
+        this.loading = false
+      }
     },
     async queueOrder (order) {
       if (!order || !order.id || this.queueSavingByOrder[order.id]) return
