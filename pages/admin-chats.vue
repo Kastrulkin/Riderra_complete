@@ -13,8 +13,53 @@
             <button class="btn btn--primary" @click="reloadAll">Обновить</button>
           </div>
         </div>
+        <div v-if="notice" class="hint">{{ notice }}</div>
 
         <admin-tabs />
+
+        <div class="agent-card">
+          <div class="agent-head">
+            <h3>Настройки агента Copilot</h3>
+            <div class="agent-head-actions">
+              <select v-model="selectedAgentId" class="input compact" @change="applyAgentSelection">
+                <option value="">Новый агент</option>
+                <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+                  {{ agent.name }} ({{ agent.code }})
+                </option>
+              </select>
+              <button class="btn btn--ghost" @click="startNewAgent">Создать нового</button>
+            </div>
+          </div>
+
+          <div class="agent-grid">
+            <input v-model="agentForm.name" class="input" placeholder="Название агента" />
+            <input v-model="agentForm.code" class="input" placeholder="Код (например copilot_main)" :disabled="Boolean(selectedAgentId)" />
+            <select v-model="agentForm.taskType" class="input">
+              <option value="clarification">clarification</option>
+              <option value="dispatch_info">dispatch_info</option>
+            </select>
+            <label class="toggle"><input type="checkbox" v-model="agentForm.isActive" /> <span>Активен</span></label>
+            <label class="toggle"><input type="checkbox" v-model="agentForm.requiresApproval" /> <span>Только через approval</span></label>
+          </div>
+
+          <label class="field">
+            <span>Prompt</span>
+            <textarea v-model="agentForm.promptText" class="input textarea" placeholder="Системный prompt агента"></textarea>
+          </label>
+          <label class="field">
+            <span>Workflow (JSON: состояния и переходы)</span>
+            <textarea v-model="agentForm.workflowJson" class="input textarea textarea--code" placeholder='{"states":["missing_data_detected","request_sent"],"transitions":{"missing_data_detected":["request_sent"]}}'></textarea>
+          </label>
+          <label class="field">
+            <span>Ограничения (JSON)</span>
+            <textarea v-model="agentForm.constraintsJson" class="input textarea textarea--code" placeholder='{"maxMessagesPerHour":3,"allowedChannels":["telegram"],"requireHumanApproval":true}'></textarea>
+          </label>
+          <div class="agent-actions">
+            <button class="btn btn--primary" :disabled="agentSaving" @click="saveAgent">
+              {{ agentSaving ? 'Сохраняю...' : (selectedAgentId ? 'Сохранить агента' : 'Создать агента') }}
+            </button>
+          </div>
+        </div>
 
         <div class="filters">
           <select v-model="taskType" class="input" @change="loadTasks">
@@ -118,7 +163,21 @@ export default {
     taskType: '',
     state: '',
     draftText: '',
-    nextState: ''
+    nextState: '',
+    notice: '',
+    agents: [],
+    selectedAgentId: '',
+    agentSaving: false,
+    agentForm: {
+      name: '',
+      code: '',
+      taskType: 'clarification',
+      promptText: '',
+      workflowJson: '',
+      constraintsJson: '',
+      isActive: true,
+      requiresApproval: true
+    }
   }),
   computed: {
     availableStates() {
@@ -160,6 +219,7 @@ export default {
   },
   mounted() {
     this.loadTasks()
+    this.loadAgents()
   },
   methods: {
     headers() {
@@ -171,8 +231,84 @@ export default {
       }
     },
     async reloadAll() {
+      this.notice = ''
       await this.loadTasks()
+      await this.loadAgents()
       if (this.selectedTask?.id) await this.openTask(this.selectedTask.id)
+    },
+    async loadAgents() {
+      const res = await fetch('/api/admin/chats/agents', { headers: this.headers() })
+      const data = await res.json()
+      this.agents = data.rows || []
+      if (this.selectedAgentId && !this.agents.some((a) => a.id === this.selectedAgentId)) {
+        this.startNewAgent()
+      }
+    },
+    applyAgentSelection() {
+      if (!this.selectedAgentId) {
+        this.startNewAgent()
+        return
+      }
+      const selected = this.agents.find((a) => a.id === this.selectedAgentId)
+      if (!selected) return
+      this.agentForm = {
+        name: selected.name || '',
+        code: selected.code || '',
+        taskType: selected.taskType || 'clarification',
+        promptText: selected.promptText || '',
+        workflowJson: selected.workflowJson || '',
+        constraintsJson: selected.constraintsJson || '',
+        isActive: selected.isActive !== false,
+        requiresApproval: selected.requiresApproval !== false
+      }
+    },
+    startNewAgent() {
+      this.selectedAgentId = ''
+      this.agentForm = {
+        name: '',
+        code: '',
+        taskType: 'clarification',
+        promptText: '',
+        workflowJson: '',
+        constraintsJson: '',
+        isActive: true,
+        requiresApproval: true
+      }
+    },
+    async saveAgent() {
+      if (this.agentSaving) return
+      this.agentSaving = true
+      this.notice = ''
+      try {
+        const creating = !this.selectedAgentId
+        const payload = {
+          name: this.agentForm.name.trim(),
+          code: this.agentForm.code.trim(),
+          taskType: this.agentForm.taskType,
+          promptText: this.agentForm.promptText.trim(),
+          workflowJson: this.agentForm.workflowJson.trim() || null,
+          constraintsJson: this.agentForm.constraintsJson.trim() || null,
+          isActive: this.agentForm.isActive,
+          requiresApproval: this.agentForm.requiresApproval
+        }
+        const method = this.selectedAgentId ? 'PUT' : 'POST'
+        const url = this.selectedAgentId ? `/api/admin/chats/agents/${this.selectedAgentId}` : '/api/admin/chats/agents'
+        const res = await fetch(url, {
+          method,
+          headers: this.headers(),
+          body: JSON.stringify(payload)
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.error || 'Не удалось сохранить агента')
+        await this.loadAgents()
+        if (!this.selectedAgentId && data?.agent?.id) this.selectedAgentId = data.agent.id
+        this.applyAgentSelection()
+        this.notice = creating ? 'Агент создан' : 'Агент сохранен'
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка сохранения агента'
+      } finally {
+        this.agentSaving = false
+      }
     },
     async loadTasks() {
       const query = new URLSearchParams()
@@ -201,6 +337,7 @@ export default {
         body: JSON.stringify({})
       })
       await this.reloadAll()
+      this.notice = 'Очередь синхронизирована из заказов'
     },
     async createDraft() {
       if (!this.selectedTask || !this.draftText.trim()) return
@@ -325,6 +462,17 @@ export default {
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
 .page-actions { display: flex; gap: 8px; }
 .filters { display: flex; gap: 10px; margin-bottom: 12px; }
+.agent-card { border: 1px solid #d8d9e6; border-radius: 12px; background: #fff; padding: 12px; margin-bottom: 12px; }
+.agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.agent-head h3 { margin: 0; }
+.agent-head-actions { display: flex; gap: 8px; align-items: center; }
+.agent-grid { display: grid; grid-template-columns: 1.2fr 1fr 180px 140px 220px; gap: 8px; margin-bottom: 8px; }
+.compact { min-width: 280px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.field span { font-size: 13px; color: #334155; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; color: #334155; border: 1px solid #d8d9e6; border-radius: 8px; padding: 8px; }
+.textarea--code { font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; min-height: 96px; }
+.agent-actions { display: flex; justify-content: flex-end; }
 .workspace { display: grid; grid-template-columns: 340px 1fr 320px; gap: 12px; }
 .queue, .dialog, .actions { background: #fff; border: 1px solid #d8d9e6; border-radius: 12px; min-height: 620px; }
 .queue { padding: 10px; overflow: auto; }
@@ -354,6 +502,10 @@ export default {
 .empty { color: #64748b; padding: 14px; }
 .empty--center { margin: auto; }
 @media (max-width: 1300px) {
+  .agent-grid { grid-template-columns: 1fr; }
+  .agent-head { flex-direction: column; align-items: flex-start; }
+  .agent-head-actions { width: 100%; flex-direction: column; align-items: stretch; }
+  .compact { min-width: 0; width: 100%; }
   .workspace { grid-template-columns: 1fr; }
   .queue, .dialog, .actions { min-height: auto; }
 }

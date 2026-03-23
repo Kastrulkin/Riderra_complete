@@ -13,8 +13,12 @@
 
         <div class="toolbar">
           <input v-model="q" class="input" :placeholder="t.search" @input="applyFilter" />
+          <button class="btn btn--ghost" :disabled="queueBulkSaving" @click="queueAllMarked">
+            {{ queueBulkSaving ? t.queueing : t.queueAllMarked }}
+          </button>
           <button class="btn btn--primary" @click="load">{{ t.refresh }}</button>
         </div>
+        <div v-if="queueNotice" class="hint">{{ queueNotice }}</div>
 
         <div v-if="mode === 'table'" class="table-wrap">
           <div class="table-head main-grid">
@@ -60,6 +64,9 @@
             <div class="row-actions">
               <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
                 {{ t.openCard }}
+              </button>
+              <button class="card-link" type="button" :disabled="!o.id || queueSavingByOrder[o.id]" @click="queueOrder(o)">
+                {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
               </button>
               <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
                 <option value="none">{{ t.infoNone }}</option>
@@ -239,7 +246,10 @@ export default {
       message: '',
       error: ''
     },
-    infoSaving: false
+    infoSaving: false,
+    queueSavingByOrder: {},
+    queueBulkSaving: false,
+    queueNotice: ''
   }),
   computed: {
     t () {
@@ -250,6 +260,9 @@ export default {
             rawTab: 'Подробности',
             search: 'Поиск по заказам',
             refresh: 'Обновить',
+            queueOne: 'В рассылку',
+            queueAllMarked: 'Добавить все отмеченные к рассылке',
+            queueing: 'Добавляю...',
             source: 'Источник',
             sourceRow: 'Строка',
             orderBlock: 'Блок заказа',
@@ -300,6 +313,8 @@ export default {
             infoMarkedSuccess: 'Пометка сохранена',
             infoRemovedSuccess: 'Пометка снята',
             infoModalError: 'Не удалось обновить пометку',
+            queueOneDone: 'Заказ добавлен в очередь чатов',
+            queueBulkDone: 'В очередь чатов добавлено/обновлено',
           }
         : {
             title: 'Orders Table',
@@ -307,6 +322,9 @@ export default {
             rawTab: 'Details',
             search: 'Search',
             refresh: 'Refresh',
+            queueOne: 'Queue',
+            queueAllMarked: 'Queue all flagged',
+            queueing: 'Queueing...',
             source: 'Source',
             sourceRow: 'Row',
             orderBlock: 'Order Block',
@@ -357,6 +375,8 @@ export default {
             infoMarkedSuccess: 'Flag saved',
             infoRemovedSuccess: 'Flag removed',
             infoModalError: 'Failed to update flag',
+            queueOneDone: 'Order queued for chats',
+            queueBulkDone: 'Chat queue updated',
           }
     },
     rawGridStyle () {
@@ -378,7 +398,64 @@ export default {
       this.rawHeaders = data.headers || []
       this.drilldownNotice = ''
       this.drilldownToken = ''
+      this.queueNotice = ''
       this.applyFilter()
+    },
+    async queueOrder (order) {
+      if (!order || !order.id || this.queueSavingByOrder[order.id]) return
+      this.queueNotice = ''
+      this.$set(this.queueSavingByOrder, order.id, true)
+      try {
+        const taskType = order.needsInfo ? 'clarification' : 'dispatch_info'
+        const response = await fetch('/api/admin/chats/queue-order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `chat-queue-order-${order.id}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({ orderId: order.id, taskType })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'queue_failed')
+        this.queueNotice = `${this.t.queueOneDone}: ${order.orderNumber || order.internalOrderNumber || order.id}`
+      } catch (error) {
+        this.queueNotice = error?.message || 'Failed to queue order'
+      } finally {
+        this.$set(this.queueSavingByOrder, order.id, false)
+      }
+    },
+    async queueAllMarked () {
+      if (this.queueBulkSaving) return
+      this.queueBulkSaving = true
+      this.queueNotice = ''
+      try {
+        const markedIds = this.filteredRows
+          .filter((row) => row.id && row.needsInfo)
+          .map((row) => row.id)
+        if (!markedIds.length) {
+          this.queueNotice = this.$store.state.language === 'ru'
+            ? 'В текущем списке нет отмеченных заказов с ID'
+            : 'No flagged orders with ID in current list'
+          return
+        }
+        const response = await fetch('/api/admin/chats/queue-marked', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `chat-queue-marked-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({ orderIds: markedIds })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'bulk_queue_failed')
+        this.queueNotice = `${this.t.queueBulkDone}: total=${data.totalMarked || 0}, created=${data.created || 0}, updated=${data.updated || 0}`
+      } catch (error) {
+        this.queueNotice = error?.message || 'Failed to queue marked orders'
+      } finally {
+        this.queueBulkSaving = false
+      }
     },
     formatDateTime (value) {
       if (!value) return '-'

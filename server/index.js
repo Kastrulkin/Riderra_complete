@@ -2509,6 +2509,136 @@ const CHAT_STATE_TRANSITIONS = {
   closed: []
 }
 
+function parseJsonFieldOrNull(value, fieldName) {
+  if (value === undefined || value === null || value === '') return null
+  if (typeof value === 'object') return JSON.stringify(value)
+  const raw = String(value)
+  try {
+    JSON.parse(raw)
+    return raw
+  } catch (_) {
+    throw new Error(`${fieldName} must be valid JSON`)
+  }
+}
+
+app.get('/api/admin/chats/agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const rows = await prisma.chatAgentConfig.findMany({
+      where: { tenantId: req.actorContext.tenantId },
+      orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
+    })
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error loading chat agents:', error)
+    res.status(500).json({ error: 'Failed to load chat agents' })
+  }
+})
+
+app.post('/api/admin/chats/agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const code = String(req.body?.code || '').trim().toLowerCase()
+    const name = String(req.body?.name || '').trim()
+    const promptText = String(req.body?.promptText || '').trim()
+    const taskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
+    const isActive = req.body?.isActive !== false
+    const requiresApproval = req.body?.requiresApproval !== false
+    const workflowJson = parseJsonFieldOrNull(req.body?.workflowJson, 'workflowJson')
+    const constraintsJson = parseJsonFieldOrNull(req.body?.constraintsJson, 'constraintsJson')
+
+    if (!code || !name || !promptText) {
+      return res.status(400).json({ error: 'code, name and promptText are required' })
+    }
+
+    const payload = { code, name, promptText, taskType, isActive, requiresApproval, workflowJson, constraintsJson }
+    ensureIdempotencyKey(req, 'chat_agent.create', payload)
+    const wrapped = await withIdempotency(req, 'chat_agent.create', payload, async () => {
+      const created = await prisma.chatAgentConfig.create({
+        data: {
+          tenantId,
+          code,
+          name,
+          promptText,
+          taskType,
+          isActive,
+          requiresApproval,
+          workflowJson,
+          constraintsJson
+        }
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_agent.create',
+        resource: 'chat_agent',
+        resourceId: created.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { code, taskType, isActive, requiresApproval }
+      })
+      return created
+    })
+    res.json({ agent: wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    if (String(error?.message || '').includes('must be valid JSON')) {
+      return res.status(400).json({ error: error.message })
+    }
+    console.error('Error creating chat agent:', error)
+    res.status(500).json({ error: 'Failed to create chat agent' })
+  }
+})
+
+app.put('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const existing = await prisma.chatAgentConfig.findFirst({
+      where: { id: req.params.agentId, tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Agent not found' })
+
+    const data = {}
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'name')) data.name = String(req.body.name || '').trim()
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'promptText')) data.promptText = String(req.body.promptText || '').trim()
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'taskType')) data.taskType = String(req.body.taskType || '').trim().toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'isActive')) data.isActive = !!req.body.isActive
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'requiresApproval')) data.requiresApproval = !!req.body.requiresApproval
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'workflowJson')) data.workflowJson = parseJsonFieldOrNull(req.body.workflowJson, 'workflowJson')
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(req.body.constraintsJson, 'constraintsJson')
+
+    const payload = { agentId: existing.id, data }
+    ensureIdempotencyKey(req, 'chat_agent.update', payload)
+    const wrapped = await withIdempotency(req, 'chat_agent.update', payload, async () => {
+      const updated = await prisma.chatAgentConfig.update({
+        where: { id: existing.id },
+        data
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_agent.update',
+        resource: 'chat_agent',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: data
+      })
+      return updated
+    })
+    res.json({ agent: wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    if (String(error?.message || '').includes('must be valid JSON')) {
+      return res.status(400).json({ error: error.message })
+    }
+    console.error('Error updating chat agent:', error)
+    res.status(500).json({ error: 'Failed to update chat agent' })
+  }
+})
+
 app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const { limit = '100', state = '', taskType = '' } = req.query
@@ -2669,6 +2799,89 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
   } catch (error) {
     console.error('Error syncing chat tasks from orders:', error)
     res.status(500).json({ error: 'Failed to sync chat tasks from orders' })
+  }
+})
+
+app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const orderId = String(req.body?.orderId || '').trim()
+    const taskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
+    if (!orderId) return res.status(400).json({ error: 'orderId is required' })
+    if (!['clarification', 'dispatch_info'].includes(taskType)) {
+      return res.status(400).json({ error: 'Unsupported taskType' })
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, tenantId },
+      select: { id: true }
+    })
+    if (!order) return res.status(404).json({ error: 'Order not found' })
+
+    const state = taskType === 'clarification' ? 'missing_data_detected' : 'ready_to_notify'
+    const priority = taskType === 'clarification' ? 50 : 80
+    const payload = { orderId, taskType, state, priority }
+    ensureIdempotencyKey(req, 'chat_task.queue_one', payload)
+    const wrapped = await withIdempotency(req, 'chat_task.queue_one', payload, async () => {
+      return prisma.chatTask.upsert({
+        where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } },
+        create: { tenantId, orderId, taskType, state, priority },
+        update: { state, priority }
+      })
+    })
+
+    res.json({ task: wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error queueing single chat order:', error)
+    res.status(500).json({ error: 'Failed to queue order for chats' })
+  }
+})
+
+app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const orderIds = Array.isArray(req.body?.orderIds)
+      ? req.body.orderIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : []
+    const where = {
+      tenantId,
+      needsInfo: true,
+      ...(orderIds.length ? { id: { in: orderIds } } : {})
+    }
+    const markedOrders = await prisma.order.findMany({
+      where,
+      select: { id: true }
+    })
+
+    let created = 0
+    let updated = 0
+    for (const order of markedOrders) {
+      const existing = await prisma.chatTask.findFirst({
+        where: { tenantId, orderId: order.id, taskType: 'clarification' },
+        select: { id: true }
+      })
+      await prisma.chatTask.upsert({
+        where: { tenantId_orderId_taskType: { tenantId, orderId: order.id, taskType: 'clarification' } },
+        create: {
+          tenantId,
+          orderId: order.id,
+          taskType: 'clarification',
+          state: 'missing_data_detected',
+          priority: 50
+        },
+        update: {
+          state: 'missing_data_detected',
+          priority: 50
+        }
+      })
+      if (existing) updated += 1
+      else created += 1
+    }
+
+    res.json({ totalMarked: markedOrders.length, created, updated })
+  } catch (error) {
+    console.error('Error queueing marked orders:', error)
+    res.status(500).json({ error: 'Failed to queue marked orders' })
   }
 })
 
