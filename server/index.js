@@ -2768,6 +2768,101 @@ async function runAgentDryTest({ agent, message, conversationHistory = [], userD
   }
 }
 
+function getOpenClawRuntimeConfig() {
+  const baseUrl = String(
+    process.env.OPENCLAW_RUNTIME_BASE_URL ||
+    process.env.OPENCLAW_INTERNAL_BASE_URL ||
+    ''
+  ).trim().replace(/\/+$/, '')
+  const token = String(
+    process.env.OPENCLAW_RUNTIME_TOKEN ||
+    process.env.OPENCLAW_INTERNAL_TOKEN ||
+    ''
+  ).trim()
+  const timeoutMs = Math.max(1000, Number(process.env.OPENCLAW_RUNTIME_TIMEOUT_MS || 20000) || 20000)
+  const buildPath = String(process.env.OPENCLAW_RUNTIME_BUILD_PATH || '/riderra/order-draft/build').trim() || '/riderra/order-draft/build'
+  const sendPath = String(process.env.OPENCLAW_RUNTIME_SEND_PATH || '/riderra/order-draft/send').trim() || '/riderra/order-draft/send'
+  return { baseUrl, token, timeoutMs, buildPath, sendPath }
+}
+
+function normalizeOpenClawPath(pathValue, fallbackPath) {
+  const raw = String(pathValue || fallbackPath || '').trim()
+  if (!raw) return fallbackPath
+  return raw.startsWith('/') ? raw : `/${raw}`
+}
+
+async function callOpenClawRuntime({
+  path,
+  payload,
+  traceId = null,
+  idempotencyKey = null
+}) {
+  const { baseUrl, token, timeoutMs } = getOpenClawRuntimeConfig()
+  if (!baseUrl || !token) {
+    return {
+      configured: false,
+      ok: false,
+      status: 0,
+      error: 'OpenClaw runtime is not configured',
+      data: null
+    }
+  }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(`${baseUrl}${normalizeOpenClawPath(path, '/riderra/order-draft/build')}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-OpenClaw-Internal-Token': token,
+        ...(traceId ? { 'X-Trace-Id': String(traceId) } : {}),
+        ...(idempotencyKey ? { 'Idempotency-Key': String(idempotencyKey) } : {})
+      },
+      body: JSON.stringify(payload || {}),
+      signal: controller.signal
+    })
+    const data = await response.json().catch(() => ({}))
+    return {
+      configured: true,
+      ok: response.ok,
+      status: response.status,
+      error: response.ok ? null : (data?.error || `OpenClaw HTTP ${response.status}`),
+      data
+    }
+  } catch (error) {
+    return {
+      configured: true,
+      ok: false,
+      status: 0,
+      error: error?.name === 'AbortError' ? 'OpenClaw timeout' : (error.message || 'OpenClaw request failed'),
+      data: null
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function extractTextFromOpenClawResponse(data = {}) {
+  const variants = [
+    data?.text,
+    data?.message,
+    data?.response,
+    data?.draft,
+    data?.result?.text,
+    data?.result?.message,
+    data?.result?.response,
+    data?.result?.draft,
+    data?.payload?.text,
+    data?.payload?.message,
+    data?.payload?.draft
+  ]
+  for (const value of variants) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+  return ''
+}
+
 app.get('/api/admin/chats/agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const rows = await prisma.chatAgentConfig.findMany({
@@ -3786,6 +3881,173 @@ app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActo
   }
 })
 
+app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.id, tenantId },
+      include: {
+        agentConfig: true,
+        order: {
+          select: {
+            id: true,
+            externalKey: true,
+            source: true,
+            sourceRow: true,
+            fromPoint: true,
+            toPoint: true,
+            clientPrice: true,
+            status: true,
+            needsInfo: true,
+            infoReason: true,
+            comment: true
+          }
+        },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          take: 12,
+          select: {
+            id: true,
+            direction: true,
+            source: true,
+            channel: true,
+            bodyText: true,
+            createdAt: true
+          }
+        }
+      }
+    })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+    if (!task.agentConfigId || !task.agentConfig || !task.agentConfig.isActive) {
+      return res.status(409).json({ error: 'No active agent configured for this task' })
+    }
+
+    const buildBody = String(req.body?.message || req.body?.bodyText || '').trim()
+    const capabilityPayload = {
+      tenant_id: tenantId,
+      trace_id: req.actorContext.traceId,
+      idempotency_key: req.idempotencyKey || null,
+      actor: {
+        id: req.actorContext.actorId || req.user?.id || null,
+        role: req.actorContext.actorRole || 'staff'
+      },
+      capability: 'riderra.customer.message.compose',
+      approval: { mode: 'human_required' },
+      billing: { mode: 'track_only', unit: 'message' },
+      task: {
+        id: task.id,
+        type: task.taskType,
+        state: task.state,
+        channel: task.channel || 'telegram'
+      },
+      order: {
+        id: task.order?.id || null,
+        external_key: task.order?.externalKey || null,
+        route_from: task.order?.fromPoint || null,
+        route_to: task.order?.toPoint || null,
+        client_price: task.order?.clientPrice ?? null,
+        status: task.order?.status || null,
+        needs_info: !!task.order?.needsInfo,
+        info_reason: task.order?.infoReason || null,
+        comment: task.order?.comment || null
+      },
+      agent: {
+        id: task.agentConfig.id,
+        code: task.agentConfig.code,
+        name: task.agentConfig.name,
+        type: task.agentConfig.type || null,
+        task_type: task.agentConfig.taskType || null,
+        prompt: task.agentConfig.promptText || '',
+        workflow: task.agentConfig.workflowJson || null,
+        restrictions: parseJsonSafe(task.agentConfig.restrictionsJson || '{}', {}),
+        variables: parseJsonSafe(task.agentConfig.variablesJson || '{}', {})
+      },
+      conversation_history: (task.messages || []).map((m) => ({
+        id: m.id,
+        role: m.direction === 'inbound' ? 'customer' : 'staff',
+        source: m.source || null,
+        channel: m.channel || null,
+        text: m.bodyText || '',
+        created_at: m.createdAt
+      })),
+      input: buildBody || null
+    }
+    const runtimeConfig = getOpenClawRuntimeConfig()
+    const runtimeResult = await callOpenClawRuntime({
+      path: runtimeConfig.buildPath,
+      payload: capabilityPayload,
+      traceId: req.actorContext.traceId,
+      idempotencyKey: req.idempotencyKey || null
+    })
+
+    let draftText = extractTextFromOpenClawResponse(runtimeResult.data || {})
+    if (!draftText) {
+      const lines = ['Я помощник Riderra, работаю в тестовом режиме.']
+      if (task.taskType === 'clarification') {
+        lines.push('Проверяю детали заказа. Уточните, пожалуйста, недостающие данные по поездке.')
+      } else {
+        lines.push('Передаю подтвержденные детали вашей поездки.')
+      }
+      if (task.order?.infoReason) lines.push(`Нужно уточнить: ${task.order.infoReason}.`)
+      if (task.order?.externalKey) lines.push(`Номер заказа: ${task.order.externalKey}.`)
+      draftText = lines.join(' ')
+    }
+
+    const message = await prisma.chatMessage.create({
+      data: {
+        tenantId,
+        chatTaskId: task.id,
+        direction: 'outbound',
+        source: runtimeResult.configured ? 'openclaw' : 'system',
+        channel: task.channel || 'telegram',
+        bodyText: draftText,
+        approvalStatus: task.agentConfig.requiresApproval ? 'pending_human' : 'approved',
+        traceId: req.actorContext.traceId,
+        idempotencyKey: req.idempotencyKey || null,
+        createdByUserId: req.user?.id || null
+      }
+    })
+
+    if (task.state === 'ready_to_notify') {
+      await prisma.chatTask.update({
+        where: { id: task.id },
+        data: { state: 'notify_draft' }
+      })
+    }
+
+    await recordAiLearningEvent({
+      tenantId,
+      agentConfigId: task.agentConfig.id,
+      chatTaskId: task.id,
+      chatMessageId: message.id,
+      promptKey: `agent:${task.agentConfig.code}`,
+      promptVersion: 1,
+      capability: 'riderra.customer.message.compose',
+      intent: inferIntentFromTaskType(task.taskType),
+      outcome: runtimeResult.ok ? 'draft_created' : 'fallback_draft',
+      context: {
+        runtime: runtimeResult.configured ? 'openclaw' : 'local_fallback',
+        runtimeOk: runtimeResult.ok,
+        runtimeStatus: runtimeResult.status,
+        runtimeError: runtimeResult.error || null
+      }
+    })
+
+    res.json({
+      message,
+      runtime: {
+        configured: runtimeResult.configured,
+        ok: runtimeResult.ok,
+        status: runtimeResult.status,
+        error: runtimeResult.error || null
+      }
+    })
+  } catch (error) {
+    console.error('Error building chat draft via OpenClaw:', error)
+    res.status(500).json({ error: 'Failed to build chat draft' })
+  }
+})
+
 app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const { direction = 'outbound', source = 'operator', channel = 'telegram', bodyText = '', bodyJson = null, approvalStatus = null } = req.body || {}
@@ -3896,7 +4158,7 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
       where: { id: req.params.id, tenantId },
-      include: { chatTask: { include: { agentConfig: true } } }
+      include: { chatTask: { include: { agentConfig: true, order: true } } }
     })
     if (!message) return res.status(404).json({ error: 'Message not found' })
     if (String(message.direction || '') !== 'outbound') {
@@ -3906,46 +4168,122 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       return res.status(409).json({ error: 'Message must be approved before send' })
     }
 
-    const updated = await prisma.chatMessage.update({
-      where: { id: message.id },
-      data: {
-        approvalStatus: 'sent',
-        providerMessageId: message.providerMessageId || `manual:${Date.now()}`
+    const runtimePayload = {
+      tenant_id: tenantId,
+      trace_id: req.actorContext.traceId,
+      idempotency_key: req.idempotencyKey || null,
+      actor: {
+        id: req.actorContext.actorId || req.user?.id || null,
+        role: req.actorContext.actorRole || 'staff'
+      },
+      capability: 'riderra.customer.message.send',
+      approval: { mode: 'approved' },
+      billing: { mode: 'track_only', unit: 'message' },
+      task: {
+        id: message.chatTask.id,
+        type: message.chatTask.taskType,
+        state: message.chatTask.state,
+        channel: message.channel || message.chatTask.channel || 'telegram'
+      },
+      order: {
+        id: message.chatTask.orderId || null,
+        external_key: message.chatTask.order?.externalKey || null,
+        route_from: message.chatTask.order?.fromPoint || null,
+        route_to: message.chatTask.order?.toPoint || null
+      },
+      message: {
+        id: message.id,
+        channel: message.channel || message.chatTask.channel || 'telegram',
+        text: message.bodyText || ''
+      }
+    }
+    const payload = { messageId: message.id, taskId: message.chatTask.id, bodyText: message.bodyText || '' }
+    ensureIdempotencyKey(req, 'admin.chat_message.send', payload)
+
+    const wrapped = await withIdempotency(req, 'admin.chat_message.send', payload, async () => {
+      const runtimeConfig = getOpenClawRuntimeConfig()
+      const runtimeResult = await callOpenClawRuntime({
+        path: runtimeConfig.sendPath,
+        payload: runtimePayload,
+        traceId: req.actorContext.traceId,
+        idempotencyKey: req.idempotencyKey || null
+      })
+      if (runtimeResult.configured && !runtimeResult.ok) {
+        const error = new Error(runtimeResult.error || 'OpenClaw send failed')
+        error.statusCode = 502
+        error.details = { runtimeStatus: runtimeResult.status || 0 }
+        throw error
+      }
+      const providerMessageId = String(
+        runtimeResult.data?.provider_message_id ||
+        runtimeResult.data?.providerMessageId ||
+        runtimeResult.data?.message_id ||
+        runtimeResult.data?.id ||
+        ''
+      ).trim() || `manual:${Date.now()}`
+
+      const updated = await prisma.chatMessage.update({
+        where: { id: message.id },
+        data: {
+          approvalStatus: 'sent',
+          providerMessageId: message.providerMessageId || providerMessageId,
+          source: runtimeResult.configured ? 'openclaw' : message.source
+        }
+      })
+
+      const nextState = message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent'
+      await prisma.chatTask.update({
+        where: { id: message.chatTask.id },
+        data: { state: nextState }
+      })
+
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_message.send',
+        resource: 'chat_message',
+        resourceId: message.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { taskId: message.chatTask.id, nextState }
+      })
+      await recordAiLearningEvent({
+        tenantId,
+        agentConfigId: message.chatTask.agentConfigId || null,
+        chatTaskId: message.chatTask.id,
+        chatMessageId: message.id,
+        promptKey: message.chatTask.agentConfig ? `agent:${message.chatTask.agentConfig.code}` : null,
+        promptVersion: 1,
+        capability: 'riderra.customer.message.send',
+        intent: inferIntentFromTaskType(message.chatTask.taskType),
+        outcome: 'sent',
+        context: {
+          runtime: runtimeResult.configured ? 'openclaw' : 'manual',
+          runtimeOk: runtimeResult.ok,
+          runtimeStatus: runtimeResult.status,
+          runtimeError: runtimeResult.error || null
+        }
+      })
+      return { updated, nextState, runtimeResult }
+    })
+
+    res.json({
+      message: wrapped.data.updated,
+      taskState: wrapped.data.nextState,
+      runtime: {
+        configured: wrapped.data.runtimeResult.configured,
+        ok: wrapped.data.runtimeResult.ok,
+        status: wrapped.data.runtimeResult.status,
+        error: wrapped.data.runtimeResult.error || null
       }
     })
-
-    const nextState = message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent'
-    await prisma.chatTask.update({
-      where: { id: message.chatTask.id },
-      data: { state: nextState }
-    })
-
-    await writeAuditLog({
-      tenantId,
-      actorId: req.actorContext.actorId,
-      actorRole: req.actorContext.actorRole,
-      action: 'chat_message.send',
-      resource: 'chat_message',
-      resourceId: message.id,
-      traceId: req.actorContext.traceId,
-      decision: 'policy_allowed',
-      result: 'ok',
-      context: { taskId: message.chatTask.id, nextState }
-    })
-    await recordAiLearningEvent({
-      tenantId,
-      agentConfigId: message.chatTask.agentConfigId || null,
-      chatTaskId: message.chatTask.id,
-      chatMessageId: message.id,
-      promptKey: message.chatTask.agentConfig ? `agent:${message.chatTask.agentConfig.code}` : null,
-      promptVersion: 1,
-      capability: 'riderra.customer.message.send',
-      intent: inferIntentFromTaskType(message.chatTask.taskType),
-      outcome: 'sent'
-    })
-    res.json({ message: updated, taskState: nextState })
   } catch (error) {
     console.error('Error sending chat message:', error)
+    if (error.statusCode === 502) {
+      return res.status(502).json({ error: 'OpenClaw send failed', details: error.message, ...(error.details || {}) })
+    }
     res.status(500).json({ error: 'Failed to send chat message' })
   }
 })

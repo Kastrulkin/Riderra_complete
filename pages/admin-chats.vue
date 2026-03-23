@@ -87,6 +87,28 @@
           </div>
         </div>
 
+        <div class="agent-card">
+          <div class="agent-head">
+            <h3>Prompt Registry</h3>
+          </div>
+          <div class="agent-grid" style="grid-template-columns: 280px 160px 1fr;">
+            <select v-model="selectedPromptKey" class="input" @change="applyPromptSelection">
+              <option v-for="key in promptKeys" :key="key" :value="key">{{ key }}</option>
+            </select>
+            <input class="input" :value="selectedPromptVersionLabel" disabled />
+            <input v-model="promptDescription" class="input" placeholder="Описание prompt" />
+          </div>
+          <label class="field">
+            <span>Текст prompt</span>
+            <textarea v-model="promptText" class="input textarea textarea--code" placeholder="Введите рабочий prompt"></textarea>
+          </label>
+          <div class="agent-actions">
+            <button class="btn btn--primary" :disabled="promptSaving || !selectedPromptKey" @click="savePromptTemplate">
+              {{ promptSaving ? 'Сохраняю...' : 'Сохранить новую версию' }}
+            </button>
+          </div>
+        </div>
+
         <div class="filters">
           <select v-model="taskType" class="input" @change="loadTasks">
             <option value="">Все типы</option>
@@ -163,7 +185,10 @@
             <div class="actions-block">
               <h4>Новое сообщение</h4>
               <textarea v-model="draftText" class="input textarea" placeholder="Черновик сообщения клиенту"></textarea>
-              <button class="btn btn--primary" @click="createDraft">Создать черновик</button>
+              <div class="message-draft-actions">
+                <button class="btn btn--ghost" @click="buildDraftWithAi">AI черновик</button>
+                <button class="btn btn--primary" @click="createDraft">Создать черновик</button>
+              </div>
             </div>
 
             <div class="actions-block">
@@ -202,6 +227,13 @@ export default {
     agentTesting: false,
     agentTestInput: '',
     agentTestOutput: '',
+    promptTemplates: [],
+    promptKeys: ['order_missing_data_prompt', 'reply_interpretation_prompt', 'esim_offer_prompt', 'followup_prompt'],
+    selectedPromptKey: 'order_missing_data_prompt',
+    selectedPromptVersionLabel: '-',
+    promptText: '',
+    promptDescription: '',
+    promptSaving: false,
     agentForm: {
       name: '',
       code: '',
@@ -262,6 +294,7 @@ export default {
   mounted() {
     this.loadTasks()
     this.loadAgents()
+    this.loadPrompts()
   },
   methods: {
     headers() {
@@ -414,12 +447,70 @@ export default {
         if (!exists) this.selectedTask = null
       }
     },
+    async loadPrompts() {
+      try {
+        const res = await fetch('/api/admin/prompts', { headers: this.headers() })
+        const data = await res.json()
+        this.promptTemplates = data.prompts || []
+        this.applyPromptSelection()
+      } catch (_) {}
+    },
+    applyPromptSelection() {
+      const key = this.selectedPromptKey
+      const row = (this.promptTemplates || []).find((x) => x.key === key)
+      this.selectedPromptVersionLabel = row ? `v${row.prompt_version || 1}` : 'new'
+      this.promptText = row?.content || ''
+      this.promptDescription = row?.description || ''
+    },
+    async savePromptTemplate() {
+      if (!this.selectedPromptKey || this.promptSaving) return
+      this.promptSaving = true
+      try {
+        const response = await fetch(`/api/admin/prompts/${encodeURIComponent(this.selectedPromptKey)}`, {
+          method: 'PUT',
+          headers: this.headers(),
+          body: JSON.stringify({
+            content: this.promptText || '',
+            description: this.promptDescription || null
+          })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось сохранить prompt')
+        this.notice = `Prompt ${this.selectedPromptKey} сохранен, версия v${data.prompt_version || '?'}`
+        await this.loadPrompts()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка сохранения prompt'
+      } finally {
+        this.promptSaving = false
+      }
+    },
     async openTask(id) {
       const res = await fetch(`/api/admin/chats/tasks/${id}`, { headers: this.headers() })
       const data = await res.json()
       this.selectedTask = data.task || null
       this.nextState = ''
       this.draftText = ''
+    },
+    async buildDraftWithAi() {
+      if (!this.selectedTask?.id) return
+      try {
+        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/build`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({
+            message: this.draftText || ''
+          })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось собрать AI-черновик')
+        this.notice = data?.runtime?.configured
+          ? 'AI-черновик добавлен (OpenClaw)'
+          : 'AI-черновик добавлен (локальный fallback)'
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка AI-черновика'
+      }
     },
     async syncFromOrders() {
       await fetch('/api/admin/chats/sync-from-orders', {
@@ -605,6 +696,7 @@ export default {
 .actions { padding: 12px; }
 .actions-block { border: 1px solid #e5eaf1; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
 .actions-block h4 { margin: 0 0 8px; }
+.message-draft-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; width: 100%; background: #fff; color: #1e2a44; }
 .textarea { min-height: 110px; resize: vertical; margin-bottom: 8px; }
 .badge { display: inline-flex; align-items: center; border: 1px solid #cbd5e1; border-radius: 999px; padding: 2px 8px; font-size: 12px; color: #334155; background: #fff; }

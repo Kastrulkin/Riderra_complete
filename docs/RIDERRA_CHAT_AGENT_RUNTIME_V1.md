@@ -51,3 +51,13 @@ Business-scoped aliases:
 - All risky outbound actions keep human approval flow (`pending_human`).
 - Conversation state stays in Riderra (`ChatTask.state`), OpenClaw is runtime executor.
 - Learning events are written on dry-run tests, draft creation and message send.
+
+## OpenClaw Runtime ENV
+
+- `OPENCLAW_RUNTIME_BASE_URL` (for example `http://192.168.0.177:8092`)
+- `OPENCLAW_RUNTIME_TOKEN` (sent as `X-OpenClaw-Internal-Token`)
+- `OPENCLAW_RUNTIME_TIMEOUT_MS` (default `20000`)
+- `OPENCLAW_RUNTIME_BUILD_PATH` (default `/riderra/order-draft/build`)
+- `OPENCLAW_RUNTIME_SEND_PATH` (default `/riderra/order-draft/send`)
+
+If these vars are not configured, chat draft build uses local fallback text and send works in manual mode.
