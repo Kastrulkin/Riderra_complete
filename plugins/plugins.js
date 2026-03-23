@@ -1,5 +1,4 @@
 import Vue from 'vue'
-import * as VueGoogleMaps from 'vue2-google-maps'
 // import Datepicker from 'vuejs-datepicker';
 import VueAwesomeSwiper from 'vue-awesome-swiper/dist/ssr'
 import moment from 'moment'
@@ -11,17 +10,6 @@ import ClickOutside from 'vue-click-outside'
 import DatePicker from 'vue2-datepicker'
 import VueScrollactive from 'vue-scrollactive'
 import VScrollLock from 'v-scroll-lock'
-
-
-// Maps ( + our map key)
-Vue.use(VueGoogleMaps, {
-  load: {
-    key: process.env.GOOGLE_MAPS_API_KEY || '',
-    libraries: 'places, drawing',
-    region: ['ru']
-  }
-});
-
 
 // Datepicker
 Vue.use(DatePicker);
