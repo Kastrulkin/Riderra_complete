@@ -2902,6 +2902,7 @@ function computeNextChatStateForInbound({ taskType, currentState, classification
   const cls = String(classification?.class || '').toLowerCase()
   const requiresHuman = Boolean(classification?.requiresHuman)
   if (agentPaused) return currentState
+  if (!cls || cls === 'unclassified') return 'customer_replied'
 
   if (taskType === 'dispatch_info') {
     if (requiresHuman || cls === 'negative' || cls === 'question') return 'handoff_human'
@@ -4428,7 +4429,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         }))
       }
 
-      let classification = { class: 'irrelevant', confidence: null, requiresHuman: false }
+      let classification = { class: 'unclassified', confidence: null, requiresHuman: false }
       let classifyRuntime = { configured: false, ok: false, status: 0, error: null }
       if (!task.agentPaused) {
         const classifyResult = await callOpenClawRuntime({
