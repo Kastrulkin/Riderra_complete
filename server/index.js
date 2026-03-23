@@ -2923,6 +2923,26 @@ function computeNextChatStateForInbound({ taskType, currentState, classification
   return 'customer_replied'
 }
 
+function explainInboundDecision({ taskType, currentState, classification, extraction, agentPaused, candidateState }) {
+  if (agentPaused) return 'Агент на паузе, авто-переходы отключены.'
+  const cls = String(classification?.class || '').toLowerCase()
+  if (taskType === 'clarification') {
+    if (cls === 'answer' && extraction?.valid) return 'Ответ классифицирован как валидный и поле подтверждено.'
+    if (cls === 'answer' && extraction && !extraction.valid) return 'Ответ получен, но извлечение/валидация не подтвердили поле.'
+    if (cls === 'question') return 'Клиент задал вопрос, требуется ручная обработка.'
+    if (classification?.requiresHuman) return 'Классификация пометила кейс как требующий human-in-the-loop.'
+    return `Переход выбран по классу ответа: ${cls || 'unclassified'}.`
+  }
+  if (taskType === 'dispatch_info') {
+    if (cls === 'ack') return 'Клиент подтвердил получение деталей.'
+    if (cls === 'question') return 'Клиент задал вопрос по рассылке.'
+    if (cls === 'no_reply') return 'Нет признаков ответа/подтверждения.'
+    return `Переход выбран по классу ответа: ${cls || 'unclassified'}.`
+  }
+  if (candidateState === currentState) return 'Состояние не изменилось: подходящий переход не найден.'
+  return 'Переход выбран по базовым правилам state machine.'
+}
+
 async function transitionChatTaskIfAllowed(taskId, currentState, targetState) {
   const from = String(currentState || '')
   const to = String(targetState || '')
@@ -3904,7 +3924,21 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
       }
     })
     if (!task) return res.status(404).json({ error: 'Chat task not found' })
-    res.json({ task })
+    let lastTrace = null
+    const traceMessage = [...(task.messages || [])]
+      .reverse()
+      .find((m) => m.direction === 'internal' && m.source === 'system' && String(m.bodyJson || '').includes('"kind":"inbound_trace"'))
+    if (traceMessage?.bodyJson) {
+      const parsed = parseJsonSafe(traceMessage.bodyJson, null)
+      if (parsed && parsed.kind === 'inbound_trace') {
+        lastTrace = {
+          ...parsed,
+          messageId: traceMessage.id,
+          createdAt: traceMessage.createdAt
+        }
+      }
+    }
+    res.json({ task, lastTrace })
   } catch (error) {
     console.error('Error loading chat task details:', error)
     res.status(500).json({ error: 'Failed to load chat task details' })
@@ -4497,6 +4531,14 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         extraction,
         agentPaused: task.agentPaused
       })
+      const decisionReason = explainInboundDecision({
+        taskType: task.taskType,
+        currentState,
+        classification,
+        extraction,
+        agentPaused: task.agentPaused,
+        candidateState
+      })
       const finalTransition = await transitionChatTaskIfAllowed(task.id, currentState, candidateState)
       if (finalTransition.changed) currentState = finalTransition.state
 
@@ -4513,6 +4555,43 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         const completeTransition = await transitionChatTaskIfAllowed(task.id, currentState, 'order_complete')
         if (completeTransition.changed) currentState = completeTransition.state
       }
+
+      const trace = {
+        kind: 'inbound_trace',
+        taskType: task.taskType,
+        fromState: String(task.state || ''),
+        interimState: toCustomerReplied.changed ? toCustomerReplied.state : null,
+        candidateState,
+        finalState: currentState,
+        decisionReason,
+        capabilities: [
+          {
+            name: 'riderra.customer.reply.classify',
+            runtime: classifyRuntime,
+            output: classification
+          },
+          {
+            name: 'riderra.order.field.extract_validate',
+            runtime: extractRuntime,
+            output: extraction
+          }
+        ]
+      }
+
+      await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'internal',
+          source: 'system',
+          channel: task.channel || 'telegram',
+          bodyText: `TRACE: ${decisionReason} (${String(task.state || '')} -> ${currentState})`,
+          bodyJson: JSON.stringify(trace),
+          traceId: req.actorContext.traceId,
+          idempotencyKey: null,
+          createdByUserId: req.user?.id || null
+        }
+      })
 
       await writeAuditLog({
         tenantId,
@@ -4550,6 +4629,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         taskState: currentState,
         classification,
         extraction,
+        trace,
         orderUpdate,
         runtime: {
           classify: classifyRuntime,

@@ -207,6 +207,28 @@
               </select>
               <button class="btn btn--ghost" :disabled="!nextState" @click="applyTransition">Применить</button>
             </div>
+
+            <div class="actions-block">
+              <h4>Трейс шага</h4>
+              <div v-if="lastStepTrace" class="trace-wrap">
+                <div class="trace-row"><strong>Откуда:</strong> {{ stateLabel(lastStepTrace.fromState) }}</div>
+                <div class="trace-row"><strong>Кандидат:</strong> {{ stateLabel(lastStepTrace.candidateState) }}</div>
+                <div class="trace-row"><strong>Итог:</strong> {{ stateLabel(lastStepTrace.finalState) }}</div>
+                <div class="trace-row"><strong>Почему:</strong> {{ lastStepTrace.decisionReason || '-' }}</div>
+                <div class="trace-row trace-row--caps"><strong>Capabilities:</strong></div>
+                <div v-for="cap in lastStepTrace.capabilities || []" :key="cap.name" class="trace-cap">
+                  <div class="trace-cap-name">{{ cap.name }}</div>
+                  <div class="trace-cap-meta">
+                    runtime: {{ cap.runtime?.configured ? 'configured' : 'fallback' }},
+                    ok: {{ cap.runtime?.ok ? 'yes' : 'no' }},
+                    status: {{ cap.runtime?.status || 0 }}
+                  </div>
+                  <pre class="trace-json">{{ stringifyTrace(cap.output) }}</pre>
+                </div>
+                <div class="trace-row trace-time">{{ formatDate(lastStepTrace.createdAt) }}</div>
+              </div>
+              <div v-else class="hint">Трейс появится после обработки входящего ответа.</div>
+            </div>
           </aside>
         </div>
       </div>
@@ -244,6 +266,7 @@ export default {
     promptSaving: false,
     inboundText: '',
     inboundProcessing: false,
+    lastStepTrace: null,
     agentForm: {
       name: '',
       code: '',
@@ -498,6 +521,7 @@ export default {
       const res = await fetch(`/api/admin/chats/tasks/${id}`, { headers: this.headers() })
       const data = await res.json()
       this.selectedTask = data.task || null
+      this.lastStepTrace = data.lastTrace || null
       this.nextState = ''
       this.draftText = ''
       this.inboundText = ''
@@ -580,6 +604,7 @@ export default {
         const cls = data?.classification?.class || '-'
         const next = data?.taskState || '-'
         this.notice = `Входящее обработано: class=${cls}, state=${next}`
+        this.lastStepTrace = data?.trace || null
         this.inboundText = ''
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
@@ -685,6 +710,13 @@ export default {
     formatMoney(value) {
       const n = Number(value)
       return Number.isFinite(n) ? `${n.toFixed(2)} EUR` : '-'
+    },
+    stringifyTrace(value) {
+      try {
+        return JSON.stringify(value || {}, null, 2)
+      } catch (_) {
+        return '{}'
+      }
     }
   }
 }
@@ -730,6 +762,14 @@ export default {
 .actions { padding: 12px; }
 .actions-block { border: 1px solid #e5eaf1; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
 .actions-block h4 { margin: 0 0 8px; }
+.trace-wrap { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #1e293b; }
+.trace-row { line-height: 1.35; }
+.trace-row--caps { margin-top: 4px; }
+.trace-cap { border: 1px solid #d8e1ef; border-radius: 8px; background: #f8fbff; padding: 8px; }
+.trace-cap-name { font-weight: 700; font-size: 12px; color: #0f172a; }
+.trace-cap-meta { font-size: 12px; color: #475569; margin: 4px 0; }
+.trace-json { white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #dbeafe; border-radius: 6px; padding: 6px; font-size: 11px; max-height: 160px; overflow: auto; margin: 0; }
+.trace-time { color: #64748b; font-size: 12px; margin-top: 4px; }
 .message-draft-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; width: 100%; background: #fff; color: #1e2a44; }
 .textarea { min-height: 110px; resize: vertical; margin-bottom: 8px; }
