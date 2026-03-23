@@ -192,6 +192,14 @@
             </div>
 
             <div class="actions-block">
+              <h4>Ответ клиента</h4>
+              <textarea v-model="inboundText" class="input textarea" placeholder="Вставьте входящее сообщение клиента"></textarea>
+              <button class="btn btn--ghost" :disabled="inboundProcessing || !inboundText.trim()" @click="processInboundMessage">
+                {{ inboundProcessing ? 'Обрабатываю...' : 'Обработать ответ (AI classify/extract)' }}
+              </button>
+            </div>
+
+            <div class="actions-block">
               <h4>Смена статуса</h4>
               <select v-model="nextState" class="input">
                 <option value="">Выберите статус</option>
@@ -234,6 +242,8 @@ export default {
     promptText: '',
     promptDescription: '',
     promptSaving: false,
+    inboundText: '',
+    inboundProcessing: false,
     agentForm: {
       name: '',
       code: '',
@@ -490,6 +500,7 @@ export default {
       this.selectedTask = data.task || null
       this.nextState = ''
       this.draftText = ''
+      this.inboundText = ''
     },
     async buildDraftWithAi() {
       if (!this.selectedTask?.id) return
@@ -554,6 +565,29 @@ export default {
       this.draftText = ''
       await this.openTask(this.selectedTask.id)
       await this.loadTasks()
+    },
+    async processInboundMessage() {
+      if (!this.selectedTask?.id || this.inboundProcessing || !this.inboundText.trim()) return
+      this.inboundProcessing = true
+      try {
+        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/inbound`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ bodyText: this.inboundText.trim() })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось обработать входящее')
+        const cls = data?.classification?.class || '-'
+        const next = data?.taskState || '-'
+        this.notice = `Входящее обработано: class=${cls}, state=${next}`
+        this.inboundText = ''
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка обработки входящего'
+      } finally {
+        this.inboundProcessing = false
+      }
     },
     async applyTransition() {
       if (!this.selectedTask || !this.nextState) return

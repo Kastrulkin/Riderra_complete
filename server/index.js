@@ -2782,7 +2782,9 @@ function getOpenClawRuntimeConfig() {
   const timeoutMs = Math.max(1000, Number(process.env.OPENCLAW_RUNTIME_TIMEOUT_MS || 20000) || 20000)
   const buildPath = String(process.env.OPENCLAW_RUNTIME_BUILD_PATH || '/riderra/order-draft/build').trim() || '/riderra/order-draft/build'
   const sendPath = String(process.env.OPENCLAW_RUNTIME_SEND_PATH || '/riderra/order-draft/send').trim() || '/riderra/order-draft/send'
-  return { baseUrl, token, timeoutMs, buildPath, sendPath }
+  const classifyPath = String(process.env.OPENCLAW_RUNTIME_CLASSIFY_PATH || '/riderra/order-draft/classify').trim() || '/riderra/order-draft/classify'
+  const extractPath = String(process.env.OPENCLAW_RUNTIME_EXTRACT_PATH || '/riderra/order-draft/extract-validate').trim() || '/riderra/order-draft/extract-validate'
+  return { baseUrl, token, timeoutMs, buildPath, sendPath, classifyPath, extractPath }
 }
 
 function normalizeOpenClawPath(pathValue, fallbackPath) {
@@ -2861,6 +2863,80 @@ function extractTextFromOpenClawResponse(data = {}) {
     if (text) return text
   }
   return ''
+}
+
+function extractClassificationFromOpenClawResponse(data = {}) {
+  const result = data?.result || data?.payload?.result || data
+  const cls = String(
+    result?.class ||
+    result?.classification ||
+    result?.label ||
+    ''
+  ).trim().toLowerCase()
+  const confidence = Number(result?.confidence)
+  const requiresHuman = Boolean(
+    result?.requires_human ||
+    result?.requiresHuman ||
+    result?.human_required
+  )
+  return {
+    class: cls || 'irrelevant',
+    confidence: Number.isFinite(confidence) ? confidence : null,
+    requiresHuman
+  }
+}
+
+function extractValidationFromOpenClawResponse(data = {}) {
+  const result = data?.result || data?.payload?.result || data
+  const confidence = Number(result?.confidence)
+  return {
+    valid: Boolean(result?.valid || result?.is_valid || result?.validated),
+    confidence: Number.isFinite(confidence) ? confidence : null,
+    field: String(result?.field || result?.field_name || '').trim() || null,
+    value: result?.value ?? result?.normalized_value ?? null,
+    reason: String(result?.reason || result?.error || '').trim() || null
+  }
+}
+
+function computeNextChatStateForInbound({ taskType, currentState, classification, extraction, agentPaused }) {
+  const cls = String(classification?.class || '').toLowerCase()
+  const requiresHuman = Boolean(classification?.requiresHuman)
+  if (agentPaused) return currentState
+
+  if (taskType === 'dispatch_info') {
+    if (requiresHuman || cls === 'negative' || cls === 'question') return 'handoff_human'
+    if (cls === 'answer') return 'notify_ack'
+    if (cls === 'irrelevant') return 'notify_no_reply'
+    return currentState
+  }
+
+  if (requiresHuman || cls === 'negative' || cls === 'question' || cls === 'irrelevant') {
+    return 'handoff_human'
+  }
+  if (cls === 'answer') {
+    if (extraction?.valid && (extraction?.confidence == null || extraction.confidence >= 0.7)) {
+      return 'field_validated'
+    }
+    return 'field_rejected'
+  }
+  return 'customer_replied'
+}
+
+async function transitionChatTaskIfAllowed(taskId, currentState, targetState) {
+  const from = String(currentState || '')
+  const to = String(targetState || '')
+  if (!to || from === to) {
+    return { changed: false, state: from }
+  }
+  const allowed = CHAT_STATE_TRANSITIONS[from] || []
+  if (!allowed.includes(to)) {
+    return { changed: false, state: from }
+  }
+  const updated = await prisma.chatTask.update({
+    where: { id: taskId },
+    data: { state: to }
+  })
+  return { changed: true, state: updated.state }
 }
 
 app.get('/api/admin/chats/agents', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
@@ -4285,6 +4361,206 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       return res.status(502).json({ error: 'OpenClaw send failed', details: error.message, ...(error.details || {}) })
     }
     res.status(500).json({ error: 'Failed to send chat message' })
+  }
+})
+
+app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.id, tenantId },
+      include: {
+        agentConfig: true,
+        order: true,
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          take: 20,
+          select: { id: true, direction: true, source: true, bodyText: true, createdAt: true }
+        }
+      }
+    })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+    const bodyText = String(req.body?.bodyText || req.body?.message || '').trim()
+    if (!bodyText) return res.status(400).json({ error: 'bodyText is required' })
+
+    const payload = { taskId: task.id, bodyText, channel: task.channel || 'telegram' }
+    ensureIdempotencyKey(req, 'admin.chat_task.inbound', payload)
+
+    const wrapped = await withIdempotency(req, 'admin.chat_task.inbound', payload, async () => {
+      const inboundMessage = await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'inbound',
+          source: 'customer',
+          channel: task.channel || 'telegram',
+          bodyText,
+          traceId: req.actorContext.traceId,
+          idempotencyKey: req.idempotencyKey || null,
+          createdByUserId: req.user?.id || null
+        }
+      })
+
+      const runtimeConfig = getOpenClawRuntimeConfig()
+      const classifyPayload = {
+        tenant_id: tenantId,
+        trace_id: req.actorContext.traceId,
+        idempotency_key: req.idempotencyKey || null,
+        actor: { id: req.actorContext.actorId || req.user?.id || null, role: req.actorContext.actorRole || 'staff' },
+        capability: 'riderra.customer.reply.classify',
+        task: { id: task.id, type: task.taskType, state: task.state },
+        order: {
+          id: task.order?.id || null,
+          external_key: task.order?.externalKey || null,
+          needs_info: Boolean(task.order?.needsInfo),
+          info_reason: task.order?.infoReason || null
+        },
+        message: {
+          id: inboundMessage.id,
+          text: bodyText,
+          channel: task.channel || 'telegram'
+        },
+        conversation_history: (task.messages || []).map((m) => ({
+          id: m.id,
+          role: m.direction === 'inbound' ? 'customer' : 'staff',
+          text: m.bodyText || '',
+          created_at: m.createdAt
+        }))
+      }
+
+      let classification = { class: 'irrelevant', confidence: null, requiresHuman: false }
+      let classifyRuntime = { configured: false, ok: false, status: 0, error: null }
+      if (!task.agentPaused) {
+        const classifyResult = await callOpenClawRuntime({
+          path: runtimeConfig.classifyPath,
+          payload: classifyPayload,
+          traceId: req.actorContext.traceId,
+          idempotencyKey: req.idempotencyKey || null
+        })
+        classifyRuntime = {
+          configured: classifyResult.configured,
+          ok: classifyResult.ok,
+          status: classifyResult.status,
+          error: classifyResult.error || null
+        }
+        if (classifyResult.ok) {
+          classification = extractClassificationFromOpenClawResponse(classifyResult.data || {})
+        }
+      }
+
+      let extraction = null
+      let extractRuntime = { configured: false, ok: false, status: 0, error: null }
+      if (!task.agentPaused && task.taskType === 'clarification' && classification.class === 'answer') {
+        const extractPayload = {
+          tenant_id: tenantId,
+          trace_id: req.actorContext.traceId,
+          idempotency_key: req.idempotencyKey || null,
+          actor: { id: req.actorContext.actorId || req.user?.id || null, role: req.actorContext.actorRole || 'staff' },
+          capability: 'riderra.order.field.extract_validate',
+          task: { id: task.id, type: task.taskType, state: task.state },
+          order: {
+            id: task.order?.id || null,
+            external_key: task.order?.externalKey || null,
+            from: task.order?.fromPoint || null,
+            to: task.order?.toPoint || null,
+            pickup_at: task.order?.pickupAt || null,
+            info_reason: task.order?.infoReason || null
+          },
+          message: { id: inboundMessage.id, text: bodyText, channel: task.channel || 'telegram' }
+        }
+        const extractResult = await callOpenClawRuntime({
+          path: runtimeConfig.extractPath,
+          payload: extractPayload,
+          traceId: req.actorContext.traceId,
+          idempotencyKey: req.idempotencyKey || null
+        })
+        extractRuntime = {
+          configured: extractResult.configured,
+          ok: extractResult.ok,
+          status: extractResult.status,
+          error: extractResult.error || null
+        }
+        if (extractResult.ok) {
+          extraction = extractValidationFromOpenClawResponse(extractResult.data || {})
+        }
+      }
+
+      let currentState = String(task.state || '')
+      const toCustomerReplied = await transitionChatTaskIfAllowed(task.id, currentState, 'customer_replied')
+      if (toCustomerReplied.changed) currentState = toCustomerReplied.state
+
+      const candidateState = computeNextChatStateForInbound({
+        taskType: task.taskType,
+        currentState,
+        classification,
+        extraction,
+        agentPaused: task.agentPaused
+      })
+      const finalTransition = await transitionChatTaskIfAllowed(task.id, currentState, candidateState)
+      if (finalTransition.changed) currentState = finalTransition.state
+
+      let orderUpdate = null
+      if (task.taskType === 'clarification' && currentState === 'field_validated' && task.orderId) {
+        orderUpdate = await prisma.order.update({
+          where: { id: task.orderId },
+          data: {
+            needsInfo: false,
+            infoReason: null
+          },
+          select: { id: true, needsInfo: true, infoReason: true, status: true }
+        })
+        const completeTransition = await transitionChatTaskIfAllowed(task.id, currentState, 'order_complete')
+        if (completeTransition.changed) currentState = completeTransition.state
+      }
+
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_task.inbound',
+        resource: 'chat_task',
+        resourceId: task.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          inboundMessageId: inboundMessage.id,
+          classification,
+          extraction,
+          state: currentState,
+          taskType: task.taskType
+        }
+      })
+      await recordAiLearningEvent({
+        tenantId,
+        agentConfigId: task.agentConfigId || null,
+        chatTaskId: task.id,
+        chatMessageId: inboundMessage.id,
+        promptKey: task.agentConfig ? `agent:${task.agentConfig.code}` : null,
+        promptVersion: 1,
+        capability: 'riderra.customer.reply.classify',
+        intent: inferIntentFromTaskType(task.taskType),
+        outcome: 'inbound_processed',
+        context: { classification, extraction, state: currentState }
+      })
+
+      return {
+        message: inboundMessage,
+        taskState: currentState,
+        classification,
+        extraction,
+        orderUpdate,
+        runtime: {
+          classify: classifyRuntime,
+          extract: extractRuntime
+        }
+      }
+    })
+
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error processing inbound chat message:', error)
+    res.status(500).json({ error: 'Failed to process inbound message' })
   }
 })
 

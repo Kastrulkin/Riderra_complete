@@ -31,6 +31,7 @@ Business-scoped aliases:
 - `GET /api/conversations/:conversationId/messages`
 - `POST /api/conversations/:conversationId/send-message`
 - `POST /api/conversations/:conversationId/toggle-agent`
+- `POST /api/admin/chats/tasks/:id/inbound` (save inbound + classify/extract + state transition)
 
 ## Prompt Registry APIs
 
@@ -59,5 +60,7 @@ Business-scoped aliases:
 - `OPENCLAW_RUNTIME_TIMEOUT_MS` (default `20000`)
 - `OPENCLAW_RUNTIME_BUILD_PATH` (default `/riderra/order-draft/build`)
 - `OPENCLAW_RUNTIME_SEND_PATH` (default `/riderra/order-draft/send`)
+- `OPENCLAW_RUNTIME_CLASSIFY_PATH` (default `/riderra/order-draft/classify`)
+- `OPENCLAW_RUNTIME_EXTRACT_PATH` (default `/riderra/order-draft/extract-validate`)
 
 If these vars are not configured, chat draft build uses local fallback text and send works in manual mode.
