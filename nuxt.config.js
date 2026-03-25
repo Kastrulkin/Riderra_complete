@@ -60,6 +60,19 @@ module.exports = {
 ** Build configuration
 */
   build: {
+    optimization: {
+      splitChunks: {
+        chunks: 'all',
+        automaticNameDelimiter: '.',
+        cacheGroups: {
+          commons: false,
+          vendors: false,
+          default: false,
+          styles: false
+        }
+      },
+      runtimeChunk: 'single'
+    },
     /*
     ** Run ESLint on save
     */
