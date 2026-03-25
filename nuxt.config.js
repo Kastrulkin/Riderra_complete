@@ -54,10 +54,12 @@ module.exports = {
 ** Build configuration
 */
   build: {
-    splitChunks: {
-      layouts: false,
-      pages: false,
-      commons: false
+    optimization: {
+      splitChunks: {
+        chunks: 'all',
+        minSize: 30000,
+        maxSize: 220000
+      }
     },
     /*
     ** Run ESLint on save
