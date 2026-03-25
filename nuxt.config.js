@@ -8,6 +8,12 @@ module.exports = {
   },
   ssr: false,
   target: 'server',
+  router: {
+    prefetchLinks: false
+  },
+  render: {
+    resourceHints: false
+  },
   head: {
     title: 'Riderra - a network of fleets',
     meta: [
@@ -54,13 +60,6 @@ module.exports = {
 ** Build configuration
 */
   build: {
-    optimization: {
-      splitChunks: {
-        chunks: 'all',
-        minSize: 30000,
-        maxSize: 220000
-      }
-    },
     /*
     ** Run ESLint on save
     */
