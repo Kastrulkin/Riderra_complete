@@ -187,6 +187,13 @@
               <textarea v-model="draftText" class="input textarea" placeholder="Черновик сообщения клиенту"></textarea>
               <div class="message-draft-actions">
                 <button class="btn btn--ghost" @click="buildDraftWithAi">AI черновик</button>
+                <button
+                  class="btn btn--ghost"
+                  :disabled="quickSendLoading || !selectedTask || selectedTask.taskType !== 'clarification'"
+                  @click="sendClarificationQuick"
+                >
+                  {{ quickSendLoading ? 'Отправляю...' : 'Уточнение в 1 клик' }}
+                </button>
                 <button class="btn btn--primary" @click="createDraft">Создать черновик</button>
               </div>
             </div>
@@ -266,6 +273,7 @@ export default {
     promptSaving: false,
     inboundText: '',
     inboundProcessing: false,
+    quickSendLoading: false,
     lastStepTrace: null,
     agentForm: {
       name: '',
@@ -545,6 +553,53 @@ export default {
         await this.loadTasks()
       } catch (error) {
         this.notice = error?.message || 'Ошибка AI-черновика'
+      }
+    },
+    async sendClarificationQuick() {
+      if (!this.selectedTask?.id || this.quickSendLoading) return
+      if (this.selectedTask.taskType !== 'clarification') {
+        this.notice = 'Быстрая отправка доступна только для уточнений'
+        return
+      }
+      this.quickSendLoading = true
+      this.notice = ''
+      try {
+        const buildResponse = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/build`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ message: this.draftText || '' })
+        })
+        const buildData = await buildResponse.json()
+        if (!buildResponse.ok) throw new Error(buildData?.error || 'Не удалось собрать уточнение')
+        const messageId = buildData?.message?.id
+        if (!messageId) throw new Error('Не найден ID сообщения после сборки')
+
+        const approveResponse = await fetch(`/api/admin/chats/messages/${messageId}/approve`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const approveData = await approveResponse.json()
+        if (!approveResponse.ok) throw new Error(approveData?.error || 'Не удалось одобрить уточнение')
+
+        const sendResponse = await fetch(`/api/admin/chats/messages/${messageId}/send`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const sendData = await sendResponse.json()
+        if (!sendResponse.ok) throw new Error(sendData?.error || 'Не удалось отправить уточнение')
+
+        this.notice = sendData?.runtime?.configured
+          ? 'Уточнение отправлено через OpenClaw'
+          : 'Уточнение отправлено (fallback)'
+        this.draftText = ''
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка быстрой отправки уточнения'
+      } finally {
+        this.quickSendLoading = false
       }
     },
     async syncFromOrders() {
