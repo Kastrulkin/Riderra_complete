@@ -140,6 +140,7 @@
                 <span class="badge">{{ taskTypeLabel(task.taskType) }}</span>
               </div>
               <div class="queue-route">{{ routeLabel(task.order) }}</div>
+              <div class="queue-agent">{{ agentLabel(task) }}</div>
               <div class="queue-meta">
                 <span class="badge badge--state">{{ stateLabel(task.state) }}</span>
                 <span>{{ formatDate(task.updatedAt) }}</span>
@@ -156,6 +157,7 @@
                 <div>
                   <h3>{{ orderLabel(selectedTask.order) }}</h3>
                   <div class="hint">{{ routeLabel(selectedTask.order) }} | {{ formatMoney(selectedTask.order?.clientPrice) }}</div>
+                  <div class="hint">{{ agentLabel(selectedTask) }}</div>
                 </div>
                 <div class="dialog-head-actions">
                   <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
@@ -897,6 +899,12 @@ export default {
       const map = { operator: 'Оператор', openclaw: 'OpenClaw', customer: 'Клиент', system: 'Система' }
       return map[code] || code
     },
+    agentLabel(task) {
+      const agent = task?.agentConfig
+      if (!agent) return 'Агент: без назначения'
+      const name = agent.name || agent.code || 'agent'
+      return agent.isActive === false ? `Агент: ${name} (inactive)` : `Агент: ${name}`
+    },
     approvalLabel(code) {
       const map = {
         pending_human: 'Ожидает одобрения',
@@ -980,6 +988,7 @@ export default {
 .queue-item--active { border-color: #0ea5e9; box-shadow: 0 0 0 1px #0ea5e9 inset; }
 .queue-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 700; }
 .queue-route { color: #31456f; margin-bottom: 6px; font-size: 13px; }
+.queue-agent { color: #475569; margin-bottom: 6px; font-size: 12px; }
 .queue-meta { display: flex; gap: 8px; flex-wrap: wrap; color: #64748b; font-size: 12px; }
 .dialog { padding: 12px; display: flex; flex-direction: column; }
 .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid #edf1f6; padding-bottom: 10px; margin-bottom: 10px; }
