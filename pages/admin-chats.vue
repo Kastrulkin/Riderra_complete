@@ -233,6 +233,19 @@
             </div>
 
             <div class="actions-block">
+              <h4>Агент задачи</h4>
+              <select v-model="selectedTaskAgentId" class="input">
+                <option value="">Без агента</option>
+                <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+                  {{ agent.name }} ({{ agent.code }}){{ agent.isActive ? '' : ' [inactive]' }}
+                </option>
+              </select>
+              <button class="btn btn--ghost" :disabled="assigningAgent || !selectedTask" @click="assignAgentToTask">
+                {{ assigningAgent ? 'Сохраняю...' : 'Применить агента' }}
+              </button>
+            </div>
+
+            <div class="actions-block">
               <h4>Трейс шага</h4>
               <div v-if="lastStepTrace" class="trace-wrap">
                 <div class="trace-row"><strong>Откуда:</strong> {{ stateLabel(lastStepTrace.fromState) }}</div>
@@ -292,6 +305,8 @@ export default {
     inboundProcessing: false,
     quickSendLoading: false,
     quickDispatchLoading: false,
+    selectedTaskAgentId: '',
+    assigningAgent: false,
     lastStepTrace: null,
     agentForm: {
       name: '',
@@ -604,10 +619,34 @@ export default {
       const res = await fetch(`/api/admin/chats/tasks/${id}`, { headers: this.headers() })
       const data = await res.json()
       this.selectedTask = data.task || null
+      this.selectedTaskAgentId = this.selectedTask?.agentConfigId || ''
       this.lastStepTrace = data.lastTrace || null
       this.nextState = ''
       this.draftText = ''
       this.inboundText = ''
+    },
+    async assignAgentToTask() {
+      if (!this.selectedTask?.id || this.assigningAgent) return
+      this.assigningAgent = true
+      this.notice = ''
+      try {
+        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/assign-agent`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({
+            agentConfigId: this.selectedTaskAgentId || null
+          })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось назначить агента')
+        this.notice = this.selectedTaskAgentId ? 'Агент назначен на задачу' : 'Агент снят с задачи'
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка назначения агента'
+      } finally {
+        this.assigningAgent = false
+      }
     },
     async buildDraftWithAi() {
       if (!this.selectedTask?.id) return

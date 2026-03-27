@@ -3992,6 +3992,61 @@ app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActo
   }
 })
 
+app.post('/api/admin/chats/tasks/:id/assign-agent', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const taskId = String(req.params.id || '').trim()
+    if (!taskId) return res.status(400).json({ error: 'Task id is required' })
+
+    const task = await prisma.chatTask.findFirst({
+      where: { id: taskId, tenantId },
+      select: { id: true, agentConfigId: true }
+    })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+
+    const rawAgentConfigId = req.body?.agentConfigId
+    const nextAgentConfigId = rawAgentConfigId === undefined || rawAgentConfigId === null || String(rawAgentConfigId).trim() === ''
+      ? null
+      : String(rawAgentConfigId).trim()
+
+    let targetAgent = null
+    if (nextAgentConfigId) {
+      targetAgent = await prisma.chatAgentConfig.findFirst({
+        where: { id: nextAgentConfigId, tenantId },
+        select: { id: true, code: true, name: true, isActive: true }
+      })
+      if (!targetAgent) return res.status(404).json({ error: 'Agent not found for this tenant' })
+    }
+
+    const updatedTask = await prisma.chatTask.update({
+      where: { id: task.id },
+      data: { agentConfigId: targetAgent?.id || null },
+      include: { agentConfig: true }
+    })
+
+    await writeAuditLog({
+      tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'chat_task.assign_agent',
+      resource: 'chat_task',
+      resourceId: task.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: {
+        previousAgentConfigId: task.agentConfigId || null,
+        nextAgentConfigId: targetAgent?.id || null
+      }
+    })
+
+    res.json({ task: updatedTask, agent: updatedTask.agentConfig ? serializeAgent(updatedTask.agentConfig) : null })
+  } catch (error) {
+    console.error('Error assigning agent to chat task:', error)
+    res.status(500).json({ error: 'Failed to assign agent to chat task' })
+  }
+})
+
 app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
