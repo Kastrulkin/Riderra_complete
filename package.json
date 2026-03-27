@@ -22,7 +22,8 @@
     "security:api-tenant-mismatch": "node scripts/security_api_tenant_mismatch_smoke.js",
     "security:api-idempotency": "node scripts/security_api_idempotency_smoke.js",
     "security:api-human-in-loop": "node scripts/security_api_human_in_loop_smoke.js",
-    "security:api-audit-trace": "node scripts/security_api_audit_trace_smoke.js"
+    "security:api-audit-trace": "node scripts/security_api_audit_trace_smoke.js",
+    "smoke:chat-inbound-e2e": "node scripts/chat_inbound_e2e_smoke.js"
   },
   "dependencies": {
     "@nuxtjs/axios": "^5.8.0",
