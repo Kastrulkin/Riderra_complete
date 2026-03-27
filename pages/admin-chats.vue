@@ -123,6 +123,13 @@
             <option value="">Все статусы</option>
             <option v-for="s in availableStates" :key="s" :value="s">{{ stateLabel(s) }}</option>
           </select>
+          <select v-model="agentFilter" class="input" @change="loadTasks">
+            <option value="">Все агенты</option>
+            <option value="none">Без агента</option>
+            <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+              {{ agent.name }} ({{ agent.code }})
+            </option>
+          </select>
         </div>
 
         <div class="workspace">
@@ -226,6 +233,19 @@
             </div>
 
             <div class="actions-block">
+              <h4>Результат AI разбора</h4>
+              <div v-if="inboundOutcome" class="trace-wrap">
+                <div class="trace-row"><strong>Класс ответа:</strong> {{ inboundOutcome.classLabel }}</div>
+                <div class="trace-row"><strong>Уверенность:</strong> {{ inboundOutcome.confidenceLabel }}</div>
+                <div class="trace-row"><strong>Валидация поля:</strong> {{ inboundOutcome.validationLabel }}</div>
+                <div class="trace-row"><strong>Извлеченное значение:</strong> {{ inboundOutcome.valueLabel }}</div>
+                <div class="trace-row"><strong>Следующий статус:</strong> {{ stateLabel(inboundOutcome.nextState) }}</div>
+                <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
+              </div>
+              <div v-else class="hint">Результат появится после “Обработать ответ”.</div>
+            </div>
+
+            <div class="actions-block">
               <h4>Смена статуса</h4>
               <select v-model="nextState" class="input">
                 <option value="">Выберите статус</option>
@@ -287,6 +307,7 @@ export default {
     selectedTask: null,
     taskType: '',
     state: '',
+    agentFilter: '',
     draftText: '',
     nextState: '',
     notice: '',
@@ -365,6 +386,33 @@ export default {
       }
       const state = this.selectedTask ? this.selectedTask.state : ''
       return map[state] || []
+    },
+    inboundOutcome() {
+      if (!this.lastStepTrace) return null
+      const classifyOutput = this.getCapabilityOutput('riderra.customer.reply.classify')
+      const extractOutput = this.getCapabilityOutput('riderra.order.field.extract_validate')
+      const cls = String(classifyOutput?.class || 'unclassified')
+      const clsMap = {
+        answer: 'Ответ',
+        question: 'Вопрос',
+        negative: 'Негатив',
+        unclassified: 'Не классифицировано'
+      }
+      const conf = Number(classifyOutput?.confidence)
+      const confidenceLabel = Number.isFinite(conf) ? `${Math.round(conf * 100)}%` : '—'
+      const valid = extractOutput?.valid
+      let validationLabel = '—'
+      if (valid === true) validationLabel = 'Подтверждено'
+      if (valid === false) validationLabel = 'Не подтверждено'
+      const extractedValue = extractOutput?.value ?? extractOutput?.normalizedValue ?? extractOutput?.extractedValue ?? null
+      return {
+        classLabel: clsMap[cls] || cls,
+        confidenceLabel,
+        validationLabel,
+        valueLabel: extractedValue == null || String(extractedValue).trim() === '' ? '—' : String(extractedValue),
+        nextState: String(this.lastStepTrace.finalState || this.lastStepTrace.candidateState || ''),
+        reasonLabel: String(this.lastStepTrace.decisionReason || '—')
+      }
     }
   },
   mounted() {
@@ -571,6 +619,7 @@ export default {
       const query = new URLSearchParams()
       if (this.taskType) query.set('taskType', this.taskType)
       if (this.state) query.set('state', this.state)
+      if (this.agentFilter) query.set('agentId', this.agentFilter)
       query.set('limit', '300')
       const res = await fetch(`/api/admin/chats/tasks?${query.toString()}`, { headers: this.headers() })
       const data = await res.json()
@@ -956,6 +1005,12 @@ export default {
       } catch (_) {
         return '{}'
       }
+    },
+    getCapabilityOutput(name) {
+      if (!this.lastStepTrace) return null
+      const rows = Array.isArray(this.lastStepTrace.capabilities) ? this.lastStepTrace.capabilities : []
+      const row = rows.find((item) => item && item.name === name)
+      return row?.output || null
     }
   }
 }
@@ -965,7 +1020,7 @@ export default {
 .chat-section { padding-top: 140px; padding-bottom: 40px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
 .page-actions { display: flex; gap: 8px; }
-.filters { display: flex; gap: 10px; margin-bottom: 12px; }
+.filters { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
 .agent-card { border: 1px solid #d8d9e6; border-radius: 12px; background: #fff; padding: 12px; margin-bottom: 12px; }
 .agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
 .agent-head h3 { margin: 0; }
@@ -1029,5 +1084,6 @@ export default {
   .compact { min-width: 0; width: 100%; }
   .workspace { grid-template-columns: 1fr; }
   .queue, .dialog, .actions { min-height: auto; }
+  .filters { grid-template-columns: 1fr; }
 }
 </style>

@@ -3677,12 +3677,16 @@ app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActor
 
 app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
-    const { limit = '200', state = '', taskType = '' } = req.query
+    const { limit = '200', state = '', taskType = '', agentId = '' } = req.query
     const take = Math.min(parseInt(limit, 10) || 200, 500)
+    const agentFilter = String(agentId || '').trim()
     const where = {
       tenantId: req.actorContext.tenantId,
       ...(state ? { state: String(state) } : {}),
-      ...(taskType ? { taskType: String(taskType) } : {})
+      ...(taskType ? { taskType: String(taskType) } : {}),
+      ...(agentFilter === 'none'
+        ? { agentConfigId: null }
+        : (agentFilter ? { agentConfigId: agentFilter } : {}))
     }
     const rows = await prisma.chatTask.findMany({
       where,
