@@ -184,6 +184,12 @@
           <aside class="actions" v-if="selectedTask">
             <div class="actions-block">
               <h4>Новое сообщение</h4>
+              <div v-if="selectedTask.taskType === 'clarification'" class="quick-templates">
+                <button class="btn btn--tiny" @click="applyClarificationTemplate('generic')">Общее уточнение</button>
+                <button class="btn btn--tiny" @click="applyClarificationTemplate('luggage')">Уточнить багаж</button>
+                <button class="btn btn--tiny" @click="applyClarificationTemplate('flight')">Уточнить рейс</button>
+                <button class="btn btn--tiny" @click="applyClarificationTemplate('pickup')">Уточнить место подачи</button>
+              </div>
               <textarea v-model="draftText" class="input textarea" placeholder="Черновик сообщения клиенту"></textarea>
               <div class="message-draft-actions">
                 <button class="btn btn--ghost" @click="buildDraftWithAi">AI черновик</button>
@@ -766,6 +772,21 @@ export default {
       const n = Number(value)
       return Number.isFinite(n) ? `${n.toFixed(2)} EUR` : '-'
     },
+    applyClarificationTemplate(template) {
+      const order = this.selectedTask?.order || {}
+      const orderKey = order.externalKey ? `Номер заказа: ${order.externalKey}. ` : ''
+      const route = this.routeLabel(order)
+      const infoReason = String(order.infoReason || '').trim()
+      const base = 'Я помощник Riderra, работаю в тестовом режиме. '
+      const closing = 'Спасибо! После ответа сразу подтвердим детали поездки.'
+      const map = {
+        generic: `${base}${orderKey}Уточните, пожалуйста, недостающие данные по поездке${route && route !== '-' ? ` (${route})` : ''}. ${infoReason ? `Нужно уточнить: ${infoReason}. ` : ''}${closing}`,
+        luggage: `${base}${orderKey}Подскажите, пожалуйста, количество багажа и габариты (если есть крупные чемоданы). ${closing}`,
+        flight: `${base}${orderKey}Уточните, пожалуйста, номер рейса и точное время прилета. ${closing}`,
+        pickup: `${base}${orderKey}Уточните, пожалуйста, точное место подачи (адрес/терминал/вход). ${closing}`
+      }
+      this.draftText = map[template] || map.generic
+    },
     stringifyTrace(value) {
       try {
         return JSON.stringify(value || {}, null, 2)
@@ -813,6 +834,8 @@ export default {
 .message--inbound { background: #f8fafc; }
 .message-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: #64748b; font-size: 12px; margin-bottom: 6px; }
 .message-body { white-space: pre-wrap; color: #1f2937; }
+.quick-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.btn--tiny { padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; }
 .message-actions { margin-top: 8px; display: flex; gap: 6px; }
 .actions { padding: 12px; }
 .actions-block { border: 1px solid #e5eaf1; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
