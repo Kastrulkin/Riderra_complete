@@ -12,6 +12,7 @@ const steps = [
   { name: 'apiIdempotency', cmd: ['node', 'scripts/security_api_idempotency_smoke.js'] },
   { name: 'apiHumanInLoop', cmd: ['node', 'scripts/security_api_human_in_loop_smoke.js'] },
   { name: 'apiAuditTrace', cmd: ['node', 'scripts/security_api_audit_trace_smoke.js'] },
+  { name: 'chatInboundE2E', cmd: ['node', 'scripts/chat_inbound_e2e_smoke.js'] },
   { name: 'gate', cmd: ['node', 'scripts/security_gate_checks.js'] }
 ]
 
@@ -49,7 +50,8 @@ function main() {
       policy: false,
       idempotency: false,
       humanInLoop: false,
-      audit: false
+      audit: false,
+      chatInboundE2E: false
     }
   }
 
@@ -82,6 +84,7 @@ function main() {
   const apiIdempotency = report.steps.apiIdempotency?.parsed || {}
   const apiHumanInLoop = report.steps.apiHumanInLoop?.parsed || {}
   const apiAuditTrace = report.steps.apiAuditTrace?.parsed || {}
+  const chatInboundE2E = report.steps.chatInboundE2E?.parsed || {}
 
   const nullTenantOk = [
     smoke.ordersNullTenant,
@@ -102,6 +105,7 @@ function main() {
   report.criteria.idempotency = Boolean(gate.idempotency) && Boolean(apiIdempotency.ok)
   report.criteria.humanInLoop = Boolean(gate.humanInLoop) && Boolean(apiHumanInLoop.ok)
   report.criteria.audit = Boolean(gate.audit) && Boolean(apiAuditTrace.ok)
+  report.criteria.chatInboundE2E = Boolean(chatInboundE2E.ok)
 
   const allOk = Object.values(report.criteria).every(Boolean)
   report.ok = allOk
