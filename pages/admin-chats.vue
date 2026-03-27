@@ -46,6 +46,10 @@
             <label class="toggle"><input type="checkbox" v-model="agentForm.isActive" /> <span>Активен</span></label>
             <label class="toggle"><input type="checkbox" v-model="agentForm.requiresApproval" /> <span>Только через approval</span></label>
           </div>
+          <div class="preset-row">
+            <button class="btn btn--tiny" @click="applyAgentPreset('clarification')">Пресет: Уточнения</button>
+            <button class="btn btn--tiny" @click="applyAgentPreset('dispatch')">Пресет: Рассылка</button>
+          </div>
           <div class="agent-grid agent-grid--meta">
             <input v-model="agentForm.description" class="input" placeholder="Описание агента" />
             <input v-model="agentForm.personality" class="input" placeholder="Personality" />
@@ -200,6 +204,13 @@
                 >
                   {{ quickSendLoading ? 'Отправляю...' : 'Уточнение в 1 клик' }}
                 </button>
+                <button
+                  class="btn btn--ghost"
+                  :disabled="quickDispatchLoading || !selectedTask || selectedTask.taskType !== 'dispatch_info'"
+                  @click="sendDispatchQuick"
+                >
+                  {{ quickDispatchLoading ? 'Отправляю...' : 'Детали поездки в 1 клик' }}
+                </button>
                 <button class="btn btn--primary" @click="createDraft">Создать черновик</button>
               </div>
             </div>
@@ -280,6 +291,7 @@ export default {
     inboundText: '',
     inboundProcessing: false,
     quickSendLoading: false,
+    quickDispatchLoading: false,
     lastStepTrace: null,
     agentForm: {
       name: '',
@@ -481,6 +493,63 @@ export default {
         this.agentTesting = false
       }
     },
+    applyAgentPreset(kind) {
+      if (kind === 'clarification') {
+        this.agentForm.type = 'order_completion'
+        this.agentForm.taskType = 'clarification'
+        this.agentForm.requiresApproval = true
+        this.agentForm.promptText = [
+          'Ты ассистент Riderra в тестовом режиме.',
+          'Задача: вежливо и коротко уточнять только недостающие данные заказа.',
+          'За одно сообщение запрашивай 1-2 критичных поля.',
+          'Не выдумывай факты, при нехватке данных — спроси уточнение.',
+          'Всегда указывай, что сообщение требует подтверждения оператором.'
+        ].join('\n')
+        this.agentForm.workflowJson = JSON.stringify({
+          states: ['missing_data_detected', 'request_sent', 'customer_replied', 'field_validated', 'order_complete', 'handoff_human'],
+          transitions: {
+            missing_data_detected: ['request_sent', 'handoff_human'],
+            request_sent: ['customer_replied', 'handoff_human'],
+            customer_replied: ['field_validated', 'handoff_human'],
+            field_validated: ['missing_data_detected', 'order_complete', 'handoff_human'],
+            order_complete: ['closed'],
+            handoff_human: ['request_sent', 'closed']
+          }
+        }, null, 2)
+        this.agentForm.restrictionsJson = JSON.stringify({
+          maxMessagesPerHour: 3,
+          allowedChannels: ['telegram', 'whatsapp'],
+          requireHumanApproval: true
+        }, null, 2)
+      } else if (kind === 'dispatch') {
+        this.agentForm.type = 'dispatch_notify'
+        this.agentForm.taskType = 'dispatch_info'
+        this.agentForm.requiresApproval = true
+        this.agentForm.promptText = [
+          'Ты ассистент Riderra в тестовом режиме.',
+          'Задача: отправить клиенту подтвержденные детали поездки.',
+          'Укажи маршрут, дату/время, контакт водителя (если есть), и полезные инструкции.',
+          'Тон: коротко, делово, без давления.',
+          'Всегда добавляй дисклеймер о тестовом режиме.'
+        ].join('\n')
+        this.agentForm.workflowJson = JSON.stringify({
+          states: ['ready_to_notify', 'notify_draft', 'notify_sent', 'notify_ack', 'handoff_human', 'closed'],
+          transitions: {
+            ready_to_notify: ['notify_draft', 'notify_sent', 'handoff_human'],
+            notify_draft: ['notify_sent', 'handoff_human'],
+            notify_sent: ['notify_ack', 'notify_no_reply', 'handoff_human'],
+            notify_no_reply: ['notify_sent', 'handoff_human'],
+            notify_ack: ['closed'],
+            handoff_human: ['notify_draft', 'closed']
+          }
+        }, null, 2)
+        this.agentForm.restrictionsJson = JSON.stringify({
+          maxMessagesPerHour: 2,
+          allowedChannels: ['telegram', 'whatsapp'],
+          requireHumanApproval: true
+        }, null, 2)
+      }
+    },
     async loadTasks() {
       const query = new URLSearchParams()
       if (this.taskType) query.set('taskType', this.taskType)
@@ -606,6 +675,53 @@ export default {
         this.notice = error?.message || 'Ошибка быстрой отправки уточнения'
       } finally {
         this.quickSendLoading = false
+      }
+    },
+    async sendDispatchQuick() {
+      if (!this.selectedTask?.id || this.quickDispatchLoading) return
+      if (this.selectedTask.taskType !== 'dispatch_info') {
+        this.notice = 'Быстрая рассылка доступна только для задач dispatch_info'
+        return
+      }
+      this.quickDispatchLoading = true
+      this.notice = ''
+      try {
+        const buildResponse = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/build`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ message: this.draftText || '' })
+        })
+        const buildData = await buildResponse.json()
+        if (!buildResponse.ok) throw new Error(buildData?.error || 'Не удалось собрать сообщение')
+        const messageId = buildData?.message?.id
+        if (!messageId) throw new Error('Не найден ID сообщения после сборки')
+
+        const approveResponse = await fetch(`/api/admin/chats/messages/${messageId}/approve`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const approveData = await approveResponse.json()
+        if (!approveResponse.ok) throw new Error(approveData?.error || 'Не удалось одобрить сообщение')
+
+        const sendResponse = await fetch(`/api/admin/chats/messages/${messageId}/send`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const sendData = await sendResponse.json()
+        if (!sendResponse.ok) throw new Error(sendData?.error || 'Не удалось отправить сообщение')
+
+        this.notice = sendData?.runtime?.configured
+          ? 'Детали поездки отправлены через OpenClaw'
+          : 'Детали поездки отправлены (fallback)'
+        this.draftText = ''
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка быстрой рассылки'
+      } finally {
+        this.quickDispatchLoading = false
       }
     },
     async syncFromOrders() {
@@ -809,6 +925,7 @@ export default {
 .agent-head-actions { display: flex; gap: 8px; align-items: center; }
 .agent-grid { display: grid; grid-template-columns: 1.2fr 1fr 180px 180px 140px 220px; gap: 8px; margin-bottom: 8px; }
 .agent-grid--meta { grid-template-columns: repeat(5, minmax(160px, 1fr)); }
+.preset-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
 .compact { min-width: 280px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .field span { font-size: 13px; color: #334155; }
