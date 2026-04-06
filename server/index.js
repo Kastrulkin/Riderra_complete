@@ -2637,6 +2637,28 @@ function buildOrderChatPrefill(order = null, taskType = 'clarification') {
   return lines.join(' ')
 }
 
+async function buildTaskOwnerMap(taskRows = []) {
+  const ids = [...new Set((taskRows || []).map((row) => String(row?.assignedToUserId || '').trim()).filter(Boolean))]
+  if (!ids.length) return {}
+  const users = await prisma.user.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, email: true }
+  })
+  return users.reduce((acc, user) => {
+    acc[user.id] = { id: user.id, email: user.email || null }
+    return acc
+  }, {})
+}
+
+function attachTaskOwner(row, ownerMap = {}) {
+  const ownerId = String(row?.assignedToUserId || '').trim()
+  if (!ownerId) return { ...row, assignedOwner: null }
+  return {
+    ...row,
+    assignedOwner: ownerMap[ownerId] || { id: ownerId, email: null }
+  }
+}
+
 async function recordAiLearningEvent({
   tenantId,
   agentConfigId = null,
@@ -3711,7 +3733,7 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
         ? { agentConfigId: null }
         : (agentFilter ? { agentConfigId: agentFilter } : {}))
     }
-    const rows = await prisma.chatTask.findMany({
+    const rowsRaw = await prisma.chatTask.findMany({
       where,
       orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
       take,
@@ -3735,6 +3757,8 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
         _count: { select: { messages: true } }
       }
     })
+    const ownerMap = await buildTaskOwnerMap(rowsRaw)
+    const rows = rowsRaw.map((row) => attachTaskOwner(row, ownerMap))
     res.json({ rows })
   } catch (error) {
     console.error('Error loading chat tasks:', error)
@@ -3897,6 +3921,183 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
   }
 })
 
+app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const orderId = String(req.body?.orderId || '').trim()
+    const confirmed = req.body?.confirmed === true
+    const messageText = String(req.body?.messageText || '').trim()
+    if (!orderId) return res.status(400).json({ error: 'orderId is required' })
+    if (!confirmed) return res.status(400).json({ error: 'human_confirmation_required' })
+    if (!messageText) return res.status(400).json({ error: 'messageText is required' })
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, tenantId },
+      select: {
+        id: true,
+        externalKey: true,
+        fromPoint: true,
+        toPoint: true,
+        infoReason: true
+      }
+    })
+    if (!order) return res.status(404).json({ error: 'Order not found' })
+
+    ensureIdempotencyKey(req, 'chat_dispatch.one_click_send', { orderId, messageText })
+    const wrapped = await withIdempotency(req, 'chat_dispatch.one_click_send', { orderId, messageText }, async () => {
+      const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'dispatch_info')
+      const task = await prisma.chatTask.upsert({
+        where: { tenantId_orderId_taskType: { tenantId, orderId, taskType: 'dispatch_info' } },
+        create: {
+          tenantId,
+          orderId,
+          taskType: 'dispatch_info',
+          state: 'ready_to_notify',
+          priority: 80,
+          agentConfigId: defaultAgentId,
+          assignedToUserId: req.user?.id || null
+        },
+        update: {
+          ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {}),
+          assignedToUserId: req.user?.id || null,
+          priority: 80
+        }
+      })
+
+      if (task.state === 'ready_to_notify') {
+        await prisma.chatTask.update({
+          where: { id: task.id },
+          data: { state: 'notify_draft' }
+        })
+      }
+
+      const message = await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'outbound',
+          source: 'operator',
+          channel: 'telegram',
+          bodyText: messageText,
+          approvalStatus: 'pending_human',
+          traceId: req.actorContext.traceId,
+          idempotencyKey: `${req.idempotencyKey || ''}:msg`,
+          createdByUserId: req.user?.id || null
+        }
+      })
+
+      await prisma.chatMessage.update({
+        where: { id: message.id },
+        data: { approvalStatus: 'approved' }
+      })
+
+      const runtimePayload = {
+        tenant_id: tenantId,
+        trace_id: req.actorContext.traceId,
+        idempotency_key: req.idempotencyKey || null,
+        actor: {
+          id: req.actorContext.actorId || req.user?.id || null,
+          role: req.actorContext.actorRole || 'staff'
+        },
+        capability: 'riderra.customer.message.send',
+        approval: { mode: 'approved' },
+        billing: { mode: 'track_only', unit: 'message' },
+        task: {
+          id: task.id,
+          type: task.taskType,
+          state: task.state,
+          channel: 'telegram'
+        },
+        order: {
+          id: order.id,
+          external_key: order.externalKey || null,
+          route_from: order.fromPoint || null,
+          route_to: order.toPoint || null
+        },
+        message: {
+          id: message.id,
+          channel: 'telegram',
+          text: messageText
+        }
+      }
+
+      const runtimeConfig = getOpenClawRuntimeConfig()
+      const runtimeResult = await callOpenClawRuntime({
+        path: runtimeConfig.sendPath,
+        payload: runtimePayload,
+        traceId: req.actorContext.traceId,
+        idempotencyKey: req.idempotencyKey || null
+      })
+      if (runtimeResult.configured && !runtimeResult.ok) {
+        await prisma.chatMessage.update({
+          where: { id: message.id },
+          data: { approvalStatus: 'rejected' }
+        })
+        const currentTask = await prisma.chatTask.findFirst({
+          where: { id: task.id },
+          select: { id: true, state: true }
+        })
+        if (currentTask) {
+          await transitionChatTaskIfAllowed(task.id, currentTask.state, 'handoff_human')
+          await prisma.chatTask.update({
+            where: { id: task.id },
+            data: {
+              lastError: runtimeResult.error || `OpenClaw send failed (${runtimeResult.status || 0})`
+            }
+          })
+        }
+        const err = new Error(runtimeResult.error || 'OpenClaw send failed')
+        err.statusCode = 502
+        err.details = { runtimeStatus: runtimeResult.status || 0, rollbackDone: true }
+        throw err
+      }
+
+      const providerMessageId = String(
+        runtimeResult.data?.provider_message_id ||
+        runtimeResult.data?.providerMessageId ||
+        runtimeResult.data?.message_id ||
+        runtimeResult.data?.id ||
+        ''
+      ).trim() || `manual:${Date.now()}`
+
+      const sentMessage = await prisma.chatMessage.update({
+        where: { id: message.id },
+        data: {
+          approvalStatus: 'sent',
+          providerMessageId,
+          source: runtimeResult.configured ? 'openclaw' : 'operator'
+        }
+      })
+
+      await prisma.chatTask.update({
+        where: { id: task.id },
+        data: {
+          state: 'notify_sent',
+          lastError: null
+        }
+      })
+      return {
+        taskId: task.id,
+        messageId: sentMessage.id,
+        runtime: {
+          configured: runtimeResult.configured,
+          ok: runtimeResult.ok,
+          status: runtimeResult.status,
+          error: runtimeResult.error || null
+        }
+      }
+    })
+
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error in one-click dispatch send:', error)
+    if (error.statusCode === 502) {
+      return res.status(502).json({ error: 'dispatch_send_failed', details: error.message, ...(error.details || {}) })
+    }
+    res.status(500).json({ error: 'Failed to send dispatch in one click' })
+  }
+})
+
 app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
@@ -3948,6 +4149,82 @@ app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext
   }
 })
 
+app.post('/api/admin/chats/tasks/bulk/assign-to-me', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const actorUserId = req.user?.id || null
+    if (!actorUserId) return res.status(401).json({ error: 'Actor user is not resolved' })
+    const taskIds = Array.isArray(req.body?.taskIds) ? req.body.taskIds.map((id) => String(id || '').trim()).filter(Boolean) : []
+    if (!taskIds.length) return res.status(400).json({ error: 'taskIds is required' })
+
+    const result = await prisma.chatTask.updateMany({
+      where: { tenantId, id: { in: taskIds } },
+      data: { assignedToUserId: actorUserId }
+    })
+    res.json({ updated: result.count || 0 })
+  } catch (error) {
+    console.error('Error bulk assigning chat tasks:', error)
+    res.status(500).json({ error: 'Failed to bulk assign chat tasks' })
+  }
+})
+
+app.post('/api/admin/chats/tasks/bulk/transition', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const toState = String(req.body?.toState || '').trim()
+    const reason = String(req.body?.reason || '').trim()
+    const taskIds = Array.isArray(req.body?.taskIds) ? req.body.taskIds.map((id) => String(id || '').trim()).filter(Boolean) : []
+    if (!taskIds.length) return res.status(400).json({ error: 'taskIds is required' })
+    if (!toState) return res.status(400).json({ error: 'toState is required' })
+
+    const tasks = await prisma.chatTask.findMany({
+      where: { tenantId, id: { in: taskIds } },
+      select: { id: true, state: true }
+    })
+    if (!tasks.length) return res.json({ updated: 0, skipped: taskIds.length, skippedIds: taskIds })
+
+    let updated = 0
+    const skippedIds = []
+    for (const task of tasks) {
+      const fromState = String(task.state || '')
+      if (fromState === toState) {
+        skippedIds.push(task.id)
+        continue
+      }
+      const allowed = CHAT_STATE_TRANSITIONS[fromState] || []
+      if (!allowed.includes(toState)) {
+        skippedIds.push(task.id)
+        continue
+      }
+      await prisma.chatTask.update({
+        where: { id: task.id },
+        data: { state: toState }
+      })
+      updated += 1
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_task.bulk_transition',
+        resource: 'chat_task',
+        resourceId: task.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { fromState, toState, reason: reason || null }
+      })
+    }
+    res.json({
+      updated,
+      skipped: tasks.length - updated,
+      skippedIds
+    })
+  } catch (error) {
+    console.error('Error bulk transitioning chat tasks:', error)
+    res.status(500).json({ error: 'Failed to bulk transition chat tasks' })
+  }
+})
+
 app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const task = await prisma.chatTask.findFirst({
@@ -3989,7 +4266,15 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
         }
       }
     }
-    res.json({ task, lastTrace })
+    let assignedOwner = null
+    if (task?.assignedToUserId) {
+      const owner = await prisma.user.findFirst({
+        where: { id: task.assignedToUserId },
+        select: { id: true, email: true }
+      })
+      assignedOwner = owner ? { id: owner.id, email: owner.email || null } : { id: task.assignedToUserId, email: null }
+    }
+    res.json({ task: { ...task, assignedOwner }, lastTrace })
   } catch (error) {
     console.error('Error loading chat task details:', error)
     res.status(500).json({ error: 'Failed to load chat task details' })

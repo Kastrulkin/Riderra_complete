@@ -130,6 +130,14 @@
               {{ agent.name }} ({{ agent.code }})
             </option>
           </select>
+          <select v-model="ownerFilter" class="input">
+            <option value="">Все владельцы</option>
+            <option value="__mine">Только мои (owner)</option>
+            <option value="__unassigned">Без владельца</option>
+            <option v-for="owner in owners" :key="owner.id" :value="owner.id">
+              {{ owner.email || owner.id }}
+            </option>
+          </select>
           <label class="quick-filter"><input type="checkbox" v-model="myOnly" /> Только мои</label>
           <label class="quick-filter"><input type="checkbox" v-model="urgentOnly" /> Только срочные</label>
           <select v-model="sortMode" class="input">
@@ -141,7 +149,20 @@
 
         <div class="workspace">
           <aside class="queue">
-            <div class="queue-head">Очередь ({{ displayedTasks.length }})</div>
+            <div class="queue-head">
+              <span>Очередь ({{ displayedTasks.length }})</span>
+              <span class="queue-head-meta">автообновление: 20с</span>
+            </div>
+            <div class="queue-bulk">
+              <button class="btn btn--tiny" type="button" @click="selectAllDisplayed">Выбрать все</button>
+              <button class="btn btn--tiny" type="button" @click="clearSelection">Снять выбор</button>
+              <button class="btn btn--tiny" type="button" :disabled="!selectedTaskIds.length || bulkLoading" @click="bulkAssignToMe">
+                {{ bulkLoading ? '...' : 'Назначить на себя' }}
+              </button>
+              <button class="btn btn--tiny" type="button" :disabled="!selectedTaskIds.length || bulkLoading" @click="bulkMoveToHandoff">
+                {{ bulkLoading ? '...' : 'В handoff' }}
+              </button>
+            </div>
             <button
               v-for="task in displayedTasks"
               :key="task.id"
@@ -149,12 +170,22 @@
               :class="{ 'queue-item--active': selectedTask && selectedTask.id === task.id }"
               @click="openTask(task.id)"
             >
+              <label class="queue-check" @click.stop>
+                <input
+                  type="checkbox"
+                  :checked="isTaskSelected(task.id)"
+                  @click.stop
+                  @change="toggleTaskSelection(task.id, $event.target.checked)"
+                />
+                <span>в выборке</span>
+              </label>
               <div class="queue-title">
                 <span>{{ orderLabel(task.order) }}</span>
                 <span class="badge">{{ taskTypeLabel(task.taskType) }}</span>
               </div>
               <div class="queue-route">{{ routeLabel(task.order) }}</div>
               <div class="queue-agent">{{ agentLabel(task) }}</div>
+              <div class="queue-owner">Владелец: {{ ownerLabel(task) }}</div>
               <div class="queue-meta">
                 <span class="badge badge--state">{{ stateLabel(task.state) }}</span>
                 <span v-if="isTaskMine(task)" class="badge badge--mine">Моё</span>
@@ -317,10 +348,16 @@ export default {
     taskType: '',
     state: '',
     agentFilter: '',
+    ownerFilter: '',
+    owners: [],
     myOnly: false,
     urgentOnly: false,
     sortMode: 'priority',
     currentUserId: '',
+    selectedTaskIds: [],
+    bulkLoading: false,
+    autoRefreshMs: 20000,
+    autoRefreshTimer: null,
     draftText: '',
     nextState: '',
     notice: '',
@@ -429,6 +466,13 @@ export default {
     },
     displayedTasks() {
       let rows = Array.isArray(this.tasks) ? this.tasks.slice() : []
+      if (this.ownerFilter === '__mine') {
+        rows = rows.filter((task) => this.isTaskMine(task))
+      } else if (this.ownerFilter === '__unassigned') {
+        rows = rows.filter((task) => !String(task?.assignedToUserId || '').trim())
+      } else if (this.ownerFilter) {
+        rows = rows.filter((task) => String(task?.assignedToUserId || '').trim() === this.ownerFilter)
+      }
       if (this.myOnly) rows = rows.filter((task) => this.isTaskMine(task))
       if (this.urgentOnly) {
         rows = rows.filter((task) => {
@@ -443,6 +487,9 @@ export default {
   mounted() {
     this.initPage().catch(() => {})
   },
+  beforeDestroy() {
+    this.stopAutoRefresh()
+  },
   methods: {
     async initPage() {
       this.currentUserId = this.extractCurrentUserId()
@@ -450,6 +497,26 @@ export default {
       await this.loadAgents()
       await this.loadPrompts()
       await this.openTaskFromRouteIfNeeded()
+      this.startAutoRefresh()
+    },
+    startAutoRefresh() {
+      this.stopAutoRefresh()
+      this.autoRefreshTimer = setInterval(() => {
+        this.refreshQueueSilently().catch(() => {})
+      }, this.autoRefreshMs)
+    },
+    stopAutoRefresh() {
+      if (this.autoRefreshTimer) {
+        clearInterval(this.autoRefreshTimer)
+        this.autoRefreshTimer = null
+      }
+    },
+    async refreshQueueSilently() {
+      await this.loadTasks()
+      if (this.selectedTask?.id) {
+        const stillExists = this.tasks.some((task) => task.id === this.selectedTask.id)
+        if (!stillExists) this.selectedTask = null
+      }
     },
     headers() {
       const token = localStorage.getItem('authToken')
@@ -683,9 +750,23 @@ export default {
       const res = await fetch(`/api/admin/chats/tasks?${query.toString()}`, { headers: this.headers() })
       const data = await res.json()
       this.tasks = data.rows || []
+      this.refreshOwnersFromTasks()
+      this.selectedTaskIds = this.selectedTaskIds.filter((id) => this.tasks.some((task) => task.id === id))
       if (this.selectedTask?.id) {
         const exists = this.tasks.some((t) => t.id === this.selectedTask.id)
         if (!exists) this.selectedTask = null
+      }
+    },
+    refreshOwnersFromTasks() {
+      const seen = new Map()
+      for (const task of this.tasks || []) {
+        const owner = task?.assignedOwner
+        if (!owner?.id || seen.has(owner.id)) continue
+        seen.set(owner.id, { id: owner.id, email: owner.email || owner.id })
+      }
+      this.owners = Array.from(seen.values()).sort((a, b) => String(a.email || '').localeCompare(String(b.email || '')))
+      if (this.ownerFilter && !['__mine', '__unassigned'].includes(this.ownerFilter) && !seen.has(this.ownerFilter)) {
+        this.ownerFilter = ''
       }
     },
     async loadPrompts() {
@@ -1018,6 +1099,73 @@ export default {
       const assigned = String(task?.assignedToUserId || '').trim()
       return Boolean(mineId && assigned && mineId === assigned)
     },
+    ownerLabel(task) {
+      const owner = task?.assignedOwner
+      if (!owner?.id) return '—'
+      if (this.isTaskMine(task)) return `${owner.email || owner.id} (я)`
+      return owner.email || owner.id
+    },
+    isTaskSelected(taskId) {
+      return this.selectedTaskIds.includes(taskId)
+    },
+    toggleTaskSelection(taskId, checked) {
+      if (!taskId) return
+      if (checked) {
+        if (!this.selectedTaskIds.includes(taskId)) this.selectedTaskIds.push(taskId)
+      } else {
+        this.selectedTaskIds = this.selectedTaskIds.filter((id) => id !== taskId)
+      }
+    },
+    selectAllDisplayed() {
+      this.selectedTaskIds = this.displayedTasks.map((task) => task.id)
+    },
+    clearSelection() {
+      this.selectedTaskIds = []
+    },
+    async bulkAssignToMe() {
+      if (!this.selectedTaskIds.length || this.bulkLoading) return
+      this.bulkLoading = true
+      try {
+        const response = await fetch('/api/admin/chats/tasks/bulk/assign-to-me', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ taskIds: this.selectedTaskIds })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось назначить задачи')
+        this.notice = `Назначено на вас: ${data.updated || 0}`
+        await this.loadTasks()
+        if (this.selectedTask?.id) await this.openTask(this.selectedTask.id)
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка массового назначения'
+      } finally {
+        this.bulkLoading = false
+      }
+    },
+    async bulkMoveToHandoff() {
+      if (!this.selectedTaskIds.length || this.bulkLoading) return
+      this.bulkLoading = true
+      try {
+        const response = await fetch('/api/admin/chats/tasks/bulk/transition', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({
+            taskIds: this.selectedTaskIds,
+            toState: 'handoff_human',
+            reason: 'bulk_handoff_from_queue'
+          })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось перевести задачи в handoff')
+        this.notice = `В handoff: ${data.updated || 0}, пропущено: ${data.skipped || 0}`
+        await this.loadTasks()
+        if (this.selectedTask?.id) await this.openTask(this.selectedTask.id)
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка массового перехода'
+      } finally {
+        this.bulkLoading = false
+      }
+    },
     getSlaMeta(task) {
       const updatedMs = new Date(task?.updatedAt || 0).getTime()
       if (!Number.isFinite(updatedMs) || updatedMs <= 0) return { code: 'unknown', label: 'SLA: —', weight: 0 }
@@ -1130,7 +1278,7 @@ export default {
 .chat-section { padding-top: 140px; padding-bottom: 40px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
 .page-actions { display: flex; gap: 8px; }
-.filters { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; align-items: center; }
+.filters { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; align-items: center; }
 .quick-filter {
   display: inline-flex;
   align-items: center;
@@ -1160,9 +1308,13 @@ export default {
 .workspace { display: grid; grid-template-columns: 340px 1fr 320px; gap: 12px; }
 .queue, .dialog, .actions { background: #fff; border: 1px solid #d8d9e6; border-radius: 12px; min-height: 620px; }
 .queue { padding: 10px; overflow: auto; }
-.queue-head { font-weight: 700; margin-bottom: 10px; }
+.queue-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 700; margin-bottom: 10px; }
+.queue-head-meta { font-size: 12px; font-weight: 500; color: #64748b; }
+.queue-bulk { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .queue-item { width: 100%; border: 1px solid #d6dceb; border-radius: 10px; background: #f8fbff; padding: 10px; margin-bottom: 8px; text-align: left; }
 .queue-item--active { border-color: #0ea5e9; box-shadow: 0 0 0 1px #0ea5e9 inset; }
+.queue-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; margin-bottom: 6px; }
+.queue-owner { color: #334155; margin-bottom: 6px; font-size: 12px; }
 .queue-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 700; }
 .queue-route { color: #31456f; margin-bottom: 6px; font-size: 13px; }
 .queue-agent { color: #475569; margin-bottom: 6px; font-size: 12px; }

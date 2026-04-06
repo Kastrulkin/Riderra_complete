@@ -78,7 +78,7 @@
                 class="card-link card-link--success"
                 type="button"
                 :disabled="!o.id || o.needsInfo || quickDispatchSavingByOrder[o.id]"
-                @click="sendDispatchNow(o)"
+                @click="openDispatchModal(o)"
               >
                 {{ quickDispatchSavingByOrder[o.id] ? t.sendingDispatchNow : t.sendDispatchNow }}
               </button>
@@ -222,6 +222,44 @@
         </div>
       </div>
     </div>
+
+    <div v-if="dispatchModal.open" class="modal-backdrop" @click.self="closeDispatchModal">
+      <div class="modal-card info-modal-card">
+        <div class="modal-head">
+          <h3>{{ t.dispatchModalTitle }}</h3>
+          <button class="modal-close" type="button" @click="closeDispatchModal">×</button>
+        </div>
+        <div class="info-modal-label">{{ dispatchModal.label || '-' }}</div>
+        <p class="hint info-modal-hint">{{ t.dispatchModalHint }}</p>
+        <label class="info-field">
+          <span>{{ t.dispatchMessageLabel }}</span>
+          <textarea
+            class="info-textarea"
+            v-model="dispatchModal.text"
+            rows="6"
+          ></textarea>
+        </label>
+        <label class="info-toggle">
+          <input type="checkbox" v-model="dispatchModal.confirmed" />
+          <span>{{ t.dispatchConfirmLabel }}</span>
+        </label>
+        <div v-if="dispatchModal.message" class="hint">{{ dispatchModal.message }}</div>
+        <div v-if="dispatchModal.error" class="hint hint--error">{{ dispatchModal.error }}</div>
+        <div class="modal-actions info-modal-actions">
+          <button
+            class="btn btn--primary"
+            type="button"
+            :disabled="quickDispatchSavingByOrder[dispatchModal.orderId] || !dispatchModal.confirmed || !dispatchModal.text.trim()"
+            @click="sendDispatchNow"
+          >
+            {{ quickDispatchSavingByOrder[dispatchModal.orderId] ? t.sendingDispatchNow : t.dispatchSendButton }}
+          </button>
+          <button class="btn btn--secondary" type="button" @click="closeDispatchModal">
+            {{ t.infoCancel }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -257,6 +295,15 @@ export default {
       needsInfo: true,
       reason: '',
       label: '',
+      message: '',
+      error: ''
+    },
+    dispatchModal: {
+      open: false,
+      orderId: null,
+      label: '',
+      text: '',
+      confirmed: false,
       message: '',
       error: ''
     },
@@ -339,6 +386,12 @@ export default {
             queueOneDone: 'Заказ добавлен в очередь чатов',
             sendToChatDone: 'Открываю задачу в Чатах',
             sendDispatchDone: 'Детали поездки отправлены клиенту',
+            dispatchModalTitle: 'Отправить клиенту (проверка перед отправкой)',
+            dispatchModalHint: 'Проверьте текст сообщения и подтвердите отправку вручную.',
+            dispatchMessageLabel: 'Текст сообщения',
+            dispatchConfirmLabel: 'Подтверждаю отправку этого сообщения клиенту',
+            dispatchSendButton: 'Подтвердить и отправить',
+            dispatchRollbackError: 'Отправка не прошла. Сообщение откатили в handoff человеку.',
             queueBulkDone: 'В очередь чатов добавлено/обновлено',
           }
         : {
@@ -408,6 +461,12 @@ export default {
             queueOneDone: 'Order queued for chats',
             sendToChatDone: 'Opening task in Chats',
             sendDispatchDone: 'Trip details sent to client',
+            dispatchModalTitle: 'Send to client (review before send)',
+            dispatchModalHint: 'Review the message and confirm sending manually.',
+            dispatchMessageLabel: 'Message text',
+            dispatchConfirmLabel: 'I confirm sending this message to client',
+            dispatchSendButton: 'Confirm and send',
+            dispatchRollbackError: 'Send failed. Message was rolled back to human handoff.',
             queueBulkDone: 'Chat queue updated',
           }
     },
@@ -505,65 +564,73 @@ export default {
         this.$set(this.sendToChatSavingByOrder, order.id, false)
       }
     },
-    async sendDispatchNow (order) {
+    buildDispatchPrefill (order) {
+      const route = [order?.fromPoint, order?.toPoint].filter(Boolean).join(' -> ')
+      const parts = [
+        'Я помощник Riderra, работаю в тестовом режиме.',
+        'Подтверждаем детали поездки.'
+      ]
+      if (order?.orderNumber) parts.push(`Номер заказа: ${order.orderNumber}.`)
+      if (route) parts.push(`Маршрут: ${route}.`)
+      parts.push('Если нужно, уточните дополнительные детали в ответ на это сообщение.')
+      return parts.join(' ')
+    },
+    openDispatchModal (order) {
       if (!order || !order.id || order.needsInfo || this.quickDispatchSavingByOrder[order.id]) return
+      this.dispatchModal.open = true
+      this.dispatchModal.orderId = order.id
+      this.dispatchModal.label = order.orderNumber || order.internalOrderNumber || order.contractor || order.id
+      this.dispatchModal.text = this.buildDispatchPrefill(order)
+      this.dispatchModal.confirmed = false
+      this.dispatchModal.message = ''
+      this.dispatchModal.error = ''
+    },
+    closeDispatchModal () {
+      this.dispatchModal.open = false
+      this.dispatchModal.orderId = null
+      this.dispatchModal.label = ''
+      this.dispatchModal.text = ''
+      this.dispatchModal.confirmed = false
+      this.dispatchModal.message = ''
+      this.dispatchModal.error = ''
+    },
+    async sendDispatchNow () {
+      const orderId = this.dispatchModal.orderId
+      if (!orderId || !this.dispatchModal.confirmed || !this.dispatchModal.text.trim()) return
+      this.dispatchModal.error = ''
+      this.dispatchModal.message = ''
       this.queueNotice = ''
-      this.$set(this.quickDispatchSavingByOrder, order.id, true)
+      this.$set(this.quickDispatchSavingByOrder, orderId, true)
       try {
-        const queued = await this.queueOrderRequest({ ...order, needsInfo: false }, { assignToMe: true })
-        const taskId = queued?.task?.id
-        if (!taskId) throw new Error('task_id_missing')
-
-        const prefillText = String(queued?.prefillText || '').trim()
-        const draftResponse = await fetch(`/api/admin/chats/tasks/${taskId}/messages`, {
+        const response = await fetch('/api/admin/chats/dispatch-one-click', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Idempotency-Key': `chat-dispatch-draft-${order.id}-${Date.now()}`,
+            'Idempotency-Key': `chat-dispatch-oneclick-${orderId}-${Date.now()}`,
             ...this.headers()
           },
           body: JSON.stringify({
-            direction: 'outbound',
-            source: 'operator',
-            channel: 'telegram',
-            bodyText: prefillText || 'Подтверждаем детали вашей поездки. Если нужно, уточните дополнительные данные в ответе на это сообщение.',
-            approvalStatus: 'pending_human'
+            orderId,
+            messageText: this.dispatchModal.text.trim(),
+            confirmed: true
           })
         })
-        const draftData = await draftResponse.json()
-        if (!draftResponse.ok) throw new Error(draftData?.error || 'dispatch_draft_failed')
-        const messageId = draftData?.message?.id
-        if (!messageId) throw new Error('dispatch_message_id_missing')
-
-        const approveResponse = await fetch(`/api/admin/chats/messages/${messageId}/approve`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `chat-dispatch-approve-${messageId}-${Date.now()}`,
-            ...this.headers()
-          },
-          body: JSON.stringify({})
-        })
-        const approveData = await approveResponse.json()
-        if (!approveResponse.ok) throw new Error(approveData?.error || 'dispatch_approve_failed')
-
-        const sendResponse = await fetch(`/api/admin/chats/messages/${messageId}/send`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `chat-dispatch-send-${messageId}-${Date.now()}`,
-            ...this.headers()
-          },
-          body: JSON.stringify({})
-        })
-        const sendData = await sendResponse.json()
-        if (!sendResponse.ok) throw new Error(sendData?.error || 'dispatch_send_failed')
-
-        this.queueNotice = `${this.t.sendDispatchDone}: ${order.orderNumber || order.internalOrderNumber || order.id}`
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          if (response.status === 502) {
+            throw new Error(this.t.dispatchRollbackError)
+          }
+          throw new Error(data?.error || 'dispatch_send_failed')
+        }
+        const row = this.rows.find((item) => item.id === orderId)
+        this.queueNotice = `${this.t.sendDispatchDone}: ${row?.orderNumber || row?.internalOrderNumber || orderId}`
+        this.closeDispatchModal()
       } catch (error) {
-        this.queueNotice = error?.message || 'Failed to send dispatch info'
+        const message = error?.message || 'Failed to send dispatch info'
+        this.queueNotice = message
+        this.dispatchModal.error = message
       } finally {
-        this.$set(this.quickDispatchSavingByOrder, order.id, false)
+        this.$set(this.quickDispatchSavingByOrder, orderId, false)
       }
     },
     async queueAllMarked () {
