@@ -74,6 +74,14 @@
               <button class="card-link card-link--primary" type="button" :disabled="!o.id || sendToChatSavingByOrder[o.id]" @click="sendToChat(o)">
                 {{ sendToChatSavingByOrder[o.id] ? t.sendingToChat : t.sendToChat }}
               </button>
+              <button
+                class="card-link card-link--success"
+                type="button"
+                :disabled="!o.id || o.needsInfo || quickDispatchSavingByOrder[o.id]"
+                @click="sendDispatchNow(o)"
+              >
+                {{ quickDispatchSavingByOrder[o.id] ? t.sendingDispatchNow : t.sendDispatchNow }}
+              </button>
               <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
                 <option value="none">{{ t.infoNone }}</option>
                 <option value="baggage">{{ t.infoPresetBaggage }}</option>
@@ -255,6 +263,7 @@ export default {
     infoSaving: false,
     queueSavingByOrder: {},
     sendToChatSavingByOrder: {},
+    quickDispatchSavingByOrder: {},
     queueBulkSaving: false,
     queueNotice: '',
     loading: false,
@@ -273,6 +282,8 @@ export default {
             queueOne: 'В рассылку',
             sendToChat: 'Отправить в чат',
             sendingToChat: 'Открываю чат...',
+            sendDispatchNow: 'Отправить клиенту',
+            sendingDispatchNow: 'Отправляю...',
             queueAllMarked: 'Добавить все отмеченные к рассылке',
             queueing: 'Добавляю...',
             source: 'Источник',
@@ -327,6 +338,7 @@ export default {
             infoModalError: 'Не удалось обновить пометку',
             queueOneDone: 'Заказ добавлен в очередь чатов',
             sendToChatDone: 'Открываю задачу в Чатах',
+            sendDispatchDone: 'Детали поездки отправлены клиенту',
             queueBulkDone: 'В очередь чатов добавлено/обновлено',
           }
         : {
@@ -339,6 +351,8 @@ export default {
             queueOne: 'Queue',
             sendToChat: 'Send to chat',
             sendingToChat: 'Opening chat...',
+            sendDispatchNow: 'Send to client',
+            sendingDispatchNow: 'Sending...',
             queueAllMarked: 'Queue all flagged',
             queueing: 'Queueing...',
             source: 'Source',
@@ -393,6 +407,7 @@ export default {
             infoModalError: 'Failed to update flag',
             queueOneDone: 'Order queued for chats',
             sendToChatDone: 'Opening task in Chats',
+            sendDispatchDone: 'Trip details sent to client',
             queueBulkDone: 'Chat queue updated',
           }
     },
@@ -488,6 +503,67 @@ export default {
         this.queueNotice = error?.message || 'Failed to open chat task'
       } finally {
         this.$set(this.sendToChatSavingByOrder, order.id, false)
+      }
+    },
+    async sendDispatchNow (order) {
+      if (!order || !order.id || order.needsInfo || this.quickDispatchSavingByOrder[order.id]) return
+      this.queueNotice = ''
+      this.$set(this.quickDispatchSavingByOrder, order.id, true)
+      try {
+        const queued = await this.queueOrderRequest({ ...order, needsInfo: false }, { assignToMe: true })
+        const taskId = queued?.task?.id
+        if (!taskId) throw new Error('task_id_missing')
+
+        const prefillText = String(queued?.prefillText || '').trim()
+        const draftResponse = await fetch(`/api/admin/chats/tasks/${taskId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `chat-dispatch-draft-${order.id}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({
+            direction: 'outbound',
+            source: 'operator',
+            channel: 'telegram',
+            bodyText: prefillText || 'Подтверждаем детали вашей поездки. Если нужно, уточните дополнительные данные в ответе на это сообщение.',
+            approvalStatus: 'pending_human'
+          })
+        })
+        const draftData = await draftResponse.json()
+        if (!draftResponse.ok) throw new Error(draftData?.error || 'dispatch_draft_failed')
+        const messageId = draftData?.message?.id
+        if (!messageId) throw new Error('dispatch_message_id_missing')
+
+        const approveResponse = await fetch(`/api/admin/chats/messages/${messageId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `chat-dispatch-approve-${messageId}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({})
+        })
+        const approveData = await approveResponse.json()
+        if (!approveResponse.ok) throw new Error(approveData?.error || 'dispatch_approve_failed')
+
+        const sendResponse = await fetch(`/api/admin/chats/messages/${messageId}/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `chat-dispatch-send-${messageId}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({})
+        })
+        const sendData = await sendResponse.json()
+        if (!sendResponse.ok) throw new Error(sendData?.error || 'dispatch_send_failed')
+
+        this.queueNotice = `${this.t.sendDispatchDone}: ${order.orderNumber || order.internalOrderNumber || order.id}`
+      } catch (error) {
+        this.queueNotice = error?.message || 'Failed to send dispatch info'
+      } finally {
+        this.$set(this.quickDispatchSavingByOrder, order.id, false)
       }
     },
     async queueAllMarked () {
@@ -984,6 +1060,11 @@ export default {
   border-color: #0ea5e9;
   background: #e0f2fe;
   color: #0c4a6e;
+}
+.card-link--success {
+  border-color: #16a34a;
+  background: #dcfce7;
+  color: #166534;
 }
 .status-pill {
   display: inline-flex;
