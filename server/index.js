@@ -2614,6 +2614,29 @@ async function pickDefaultAgentIdForTaskType(tenantId, taskType) {
   return agent?.id || null
 }
 
+function buildOrderChatPrefill(order = null, taskType = 'clarification') {
+  const route = [order?.fromPoint, order?.toPoint].filter(Boolean).join(' -> ')
+  const orderKey = String(order?.externalKey || '').trim()
+  const infoReason = String(order?.infoReason || '').trim()
+  if (taskType === 'dispatch_info') {
+    const lines = [
+      'Я помощник Riderra, работаю в тестовом режиме.',
+      'Подтверждаем детали поездки:'
+    ]
+    if (orderKey) lines.push(`Номер заказа: ${orderKey}.`)
+    if (route) lines.push(`Маршрут: ${route}.`)
+    lines.push('При необходимости уточните дополнительную информацию в ответ на это сообщение.')
+    return lines.join(' ')
+  }
+  const lines = ['Я помощник Riderra, работаю в тестовом режиме.']
+  if (orderKey) lines.push(`Номер заказа: ${orderKey}.`)
+  if (route) lines.push(`Маршрут: ${route}.`)
+  if (infoReason) lines.push(`Нужно уточнить: ${infoReason}.`)
+  else lines.push('Уточните, пожалуйста, недостающие детали по заказу.')
+  lines.push('Спасибо! После ответа сразу подтвердим детали поездки.')
+  return lines.join(' ')
+}
+
 async function recordAiLearningEvent({
   tenantId,
   agentConfigId = null,
@@ -3819,6 +3842,7 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
     const tenantId = req.actorContext.tenantId
     const orderId = String(req.body?.orderId || '').trim()
     const taskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
+    const assignToMe = req.body?.assignToMe !== false
     if (!orderId) return res.status(400).json({ error: 'orderId is required' })
     if (!['clarification', 'dispatch_info'].includes(taskType)) {
       return res.status(400).json({ error: 'Unsupported taskType' })
@@ -3826,7 +3850,13 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
 
     const order = await prisma.order.findFirst({
       where: { id: orderId, tenantId },
-      select: { id: true }
+      select: {
+        id: true,
+        externalKey: true,
+        fromPoint: true,
+        toPoint: true,
+        infoReason: true
+      }
     })
     if (!order) return res.status(404).json({ error: 'Order not found' })
 
@@ -3838,12 +3868,29 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
     const wrapped = await withIdempotency(req, 'chat_task.queue_one', payload, async () => {
       return prisma.chatTask.upsert({
         where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } },
-        create: { tenantId, orderId, taskType, state, priority, agentConfigId: defaultAgentId },
-        update: { state, priority, ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {}) }
+        create: {
+          tenantId,
+          orderId,
+          taskType,
+          state,
+          priority,
+          agentConfigId: defaultAgentId,
+          ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {})
+        },
+        update: {
+          state,
+          priority,
+          ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {}),
+          ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {})
+        }
       })
     })
 
-    res.json({ task: wrapped.data, idempotent: wrapped.replayed })
+    res.json({
+      task: wrapped.data,
+      prefillText: buildOrderChatPrefill(order, taskType),
+      idempotent: wrapped.replayed
+    })
   } catch (error) {
     console.error('Error queueing single chat order:', error)
     res.status(500).json({ error: 'Failed to queue order for chats' })

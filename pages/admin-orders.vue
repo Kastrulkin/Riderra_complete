@@ -71,6 +71,9 @@
               <button class="card-link" type="button" :disabled="!o.id || queueSavingByOrder[o.id]" @click="queueOrder(o)">
                 {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
               </button>
+              <button class="card-link card-link--primary" type="button" :disabled="!o.id || sendToChatSavingByOrder[o.id]" @click="sendToChat(o)">
+                {{ sendToChatSavingByOrder[o.id] ? t.sendingToChat : t.sendToChat }}
+              </button>
               <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
                 <option value="none">{{ t.infoNone }}</option>
                 <option value="baggage">{{ t.infoPresetBaggage }}</option>
@@ -251,6 +254,7 @@ export default {
     },
     infoSaving: false,
     queueSavingByOrder: {},
+    sendToChatSavingByOrder: {},
     queueBulkSaving: false,
     queueNotice: '',
     loading: false,
@@ -267,6 +271,8 @@ export default {
             refresh: 'Обновить',
             loading: 'Загрузка...',
             queueOne: 'В рассылку',
+            sendToChat: 'Отправить в чат',
+            sendingToChat: 'Открываю чат...',
             queueAllMarked: 'Добавить все отмеченные к рассылке',
             queueing: 'Добавляю...',
             source: 'Источник',
@@ -320,6 +326,7 @@ export default {
             infoRemovedSuccess: 'Пометка снята',
             infoModalError: 'Не удалось обновить пометку',
             queueOneDone: 'Заказ добавлен в очередь чатов',
+            sendToChatDone: 'Открываю задачу в Чатах',
             queueBulkDone: 'В очередь чатов добавлено/обновлено',
           }
         : {
@@ -330,6 +337,8 @@ export default {
             refresh: 'Refresh',
             loading: 'Loading...',
             queueOne: 'Queue',
+            sendToChat: 'Send to chat',
+            sendingToChat: 'Opening chat...',
             queueAllMarked: 'Queue all flagged',
             queueing: 'Queueing...',
             source: 'Source',
@@ -383,6 +392,7 @@ export default {
             infoRemovedSuccess: 'Flag removed',
             infoModalError: 'Failed to update flag',
             queueOneDone: 'Order queued for chats',
+            sendToChatDone: 'Opening task in Chats',
             queueBulkDone: 'Chat queue updated',
           }
     },
@@ -432,28 +442,52 @@ export default {
         this.loading = false
       }
     },
+    async queueOrderRequest (order, { assignToMe = false } = {}) {
+      const taskType = order.needsInfo ? 'clarification' : 'dispatch_info'
+      const response = await fetch('/api/admin/chats/queue-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `chat-queue-order-${order.id}-${Date.now()}`,
+          ...this.headers()
+        },
+        body: JSON.stringify({ orderId: order.id, taskType, assignToMe })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || 'queue_failed')
+      return data
+    },
     async queueOrder (order) {
       if (!order || !order.id || this.queueSavingByOrder[order.id]) return
       this.queueNotice = ''
       this.$set(this.queueSavingByOrder, order.id, true)
       try {
-        const taskType = order.needsInfo ? 'clarification' : 'dispatch_info'
-        const response = await fetch('/api/admin/chats/queue-order', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `chat-queue-order-${order.id}-${Date.now()}`,
-            ...this.headers()
-          },
-          body: JSON.stringify({ orderId: order.id, taskType })
-        })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data?.error || 'queue_failed')
+        await this.queueOrderRequest(order, { assignToMe: false })
         this.queueNotice = `${this.t.queueOneDone}: ${order.orderNumber || order.internalOrderNumber || order.id}`
       } catch (error) {
         this.queueNotice = error?.message || 'Failed to queue order'
       } finally {
         this.$set(this.queueSavingByOrder, order.id, false)
+      }
+    },
+    async sendToChat (order) {
+      if (!order || !order.id || this.sendToChatSavingByOrder[order.id]) return
+      this.queueNotice = ''
+      this.$set(this.sendToChatSavingByOrder, order.id, true)
+      try {
+        const data = await this.queueOrderRequest(order, { assignToMe: true })
+        const taskId = data?.task?.id
+        if (!taskId) throw new Error('task_id_missing')
+        const prefillText = String(data?.prefillText || '').trim()
+        if (prefillText && typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem(`chat-prefill-${taskId}`, prefillText)
+        }
+        this.queueNotice = `${this.t.sendToChatDone}: ${order.orderNumber || order.internalOrderNumber || order.id}`
+        await this.$router.push({ path: '/admin-chats', query: { taskId } })
+      } catch (error) {
+        this.queueNotice = error?.message || 'Failed to open chat task'
+      } finally {
+        this.$set(this.sendToChatSavingByOrder, order.id, false)
       }
     },
     async queueAllMarked () {
@@ -945,6 +979,11 @@ export default {
   padding: 4px 10px;
   border-radius: 8px;
   font-weight: 600;
+}
+.card-link--primary {
+  border-color: #0ea5e9;
+  background: #e0f2fe;
+  color: #0c4a6e;
 }
 .status-pill {
   display: inline-flex;

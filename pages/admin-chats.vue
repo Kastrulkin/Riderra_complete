@@ -130,13 +130,20 @@
               {{ agent.name }} ({{ agent.code }})
             </option>
           </select>
+          <label class="quick-filter"><input type="checkbox" v-model="myOnly" /> Только мои</label>
+          <label class="quick-filter"><input type="checkbox" v-model="urgentOnly" /> Только срочные</label>
+          <select v-model="sortMode" class="input">
+            <option value="priority">Приоритет (SLA + важность)</option>
+            <option value="updated_desc">Сначала новые</option>
+            <option value="updated_asc">Сначала старые</option>
+          </select>
         </div>
 
         <div class="workspace">
           <aside class="queue">
-            <div class="queue-head">Очередь ({{ tasks.length }})</div>
+            <div class="queue-head">Очередь ({{ displayedTasks.length }})</div>
             <button
-              v-for="task in tasks"
+              v-for="task in displayedTasks"
               :key="task.id"
               class="queue-item"
               :class="{ 'queue-item--active': selectedTask && selectedTask.id === task.id }"
@@ -150,11 +157,13 @@
               <div class="queue-agent">{{ agentLabel(task) }}</div>
               <div class="queue-meta">
                 <span class="badge badge--state">{{ stateLabel(task.state) }}</span>
+                <span v-if="isTaskMine(task)" class="badge badge--mine">Моё</span>
+                <span class="badge" :class="slaBadgeClass(task)">{{ slaLabel(task) }}</span>
                 <span>{{ formatDate(task.updatedAt) }}</span>
                 <span>msg: {{ task._count?.messages || 0 }}</span>
               </div>
             </button>
-            <div v-if="!tasks.length" class="empty">Нет задач по выбранным фильтрам</div>
+            <div v-if="!displayedTasks.length" class="empty">Нет задач по выбранным фильтрам</div>
           </aside>
 
           <main class="dialog">
@@ -308,6 +317,10 @@ export default {
     taskType: '',
     state: '',
     agentFilter: '',
+    myOnly: false,
+    urgentOnly: false,
+    sortMode: 'priority',
+    currentUserId: '',
     draftText: '',
     nextState: '',
     notice: '',
@@ -413,14 +426,31 @@ export default {
         nextState: String(this.lastStepTrace.finalState || this.lastStepTrace.candidateState || ''),
         reasonLabel: String(this.lastStepTrace.decisionReason || '—')
       }
+    },
+    displayedTasks() {
+      let rows = Array.isArray(this.tasks) ? this.tasks.slice() : []
+      if (this.myOnly) rows = rows.filter((task) => this.isTaskMine(task))
+      if (this.urgentOnly) {
+        rows = rows.filter((task) => {
+          const code = this.getSlaMeta(task).code
+          return code === 'overdue' || code === 'no_reply'
+        })
+      }
+      rows.sort((a, b) => this.compareBySortMode(a, b))
+      return rows
     }
   },
   mounted() {
-    this.loadTasks()
-    this.loadAgents()
-    this.loadPrompts()
+    this.initPage().catch(() => {})
   },
   methods: {
+    async initPage() {
+      this.currentUserId = this.extractCurrentUserId()
+      await this.loadTasks()
+      await this.loadAgents()
+      await this.loadPrompts()
+      await this.openTaskFromRouteIfNeeded()
+    },
     headers() {
       const token = localStorage.getItem('authToken')
       return {
@@ -428,6 +458,35 @@ export default {
         'Content-Type': 'application/json',
         'Idempotency-Key': `chat-ui-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
       }
+    },
+    extractCurrentUserId() {
+      try {
+        const token = localStorage.getItem('authToken')
+        if (!token) return ''
+        const payload = token.split('.')[1]
+        if (!payload) return ''
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+        const decoded = JSON.parse(atob(normalized))
+        return String(decoded?.id || '').trim()
+      } catch (_) {
+        return ''
+      }
+    },
+    async openTaskFromRouteIfNeeded() {
+      const taskId = String(this.$route?.query?.taskId || '').trim()
+      if (!taskId) return
+      await this.openTask(taskId)
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          const key = `chat-prefill-${taskId}`
+          const prefill = String(window.sessionStorage.getItem(key) || '').trim()
+          if (prefill) {
+            this.draftText = prefill
+            this.notice = 'Открыта задача из Таблицы заказов, черновик подготовлен'
+            window.sessionStorage.removeItem(key)
+          }
+        }
+      } catch (_) {}
     },
     async reloadAll() {
       this.notice = ''
@@ -954,6 +1013,57 @@ export default {
       const name = agent.name || agent.code || 'agent'
       return agent.isActive === false ? `Агент: ${name} (inactive)` : `Агент: ${name}`
     },
+    isTaskMine(task) {
+      const mineId = String(this.currentUserId || '').trim()
+      const assigned = String(task?.assignedToUserId || '').trim()
+      return Boolean(mineId && assigned && mineId === assigned)
+    },
+    getSlaMeta(task) {
+      const updatedMs = new Date(task?.updatedAt || 0).getTime()
+      if (!Number.isFinite(updatedMs) || updatedMs <= 0) return { code: 'unknown', label: 'SLA: —', weight: 0 }
+      const elapsedMin = Math.floor((Date.now() - updatedMs) / 60000)
+      const state = String(task?.state || '')
+      const taskType = String(task?.taskType || '')
+
+      if (state === 'request_sent' && elapsedMin >= 60) return { code: 'no_reply', label: `Нет ответа ${elapsedMin}м`, weight: 4 }
+      if (state === 'notify_sent' && elapsedMin >= 30) return { code: 'no_reply', label: `Нет ответа ${elapsedMin}м`, weight: 4 }
+
+      const dueByState = {
+        missing_data_detected: 15,
+        customer_replied: 10,
+        ready_to_notify: 15,
+        notify_draft: 15,
+        handoff_human: 20
+      }
+      const due = dueByState[state] || (taskType === 'clarification' ? 45 : 60)
+      if (elapsedMin > due) return { code: 'overdue', label: `Просрочка +${elapsedMin - due}м`, weight: 3 }
+      if (elapsedMin > Math.floor(due * 0.7)) return { code: 'warning', label: `SLA скоро (${elapsedMin}/${due}м)`, weight: 2 }
+      return { code: 'ok', label: `SLA ок (${elapsedMin}м)`, weight: 1 }
+    },
+    slaLabel(task) {
+      return this.getSlaMeta(task).label
+    },
+    slaBadgeClass(task) {
+      const code = this.getSlaMeta(task).code
+      if (code === 'no_reply' || code === 'overdue') return 'badge--sla-critical'
+      if (code === 'warning') return 'badge--sla-warning'
+      if (code === 'ok') return 'badge--sla-ok'
+      return ''
+    },
+    compareBySortMode(a, b) {
+      const updatedA = new Date(a?.updatedAt || 0).getTime()
+      const updatedB = new Date(b?.updatedAt || 0).getTime()
+      if (this.sortMode === 'updated_desc') return updatedB - updatedA
+      if (this.sortMode === 'updated_asc') return updatedA - updatedB
+
+      const slaA = this.getSlaMeta(a).weight
+      const slaB = this.getSlaMeta(b).weight
+      if (slaB !== slaA) return slaB - slaA
+      const pA = Number(a?.priority ?? 999)
+      const pB = Number(b?.priority ?? 999)
+      if (pA !== pB) return pA - pB
+      return updatedB - updatedA
+    },
     approvalLabel(code) {
       const map = {
         pending_human: 'Ожидает одобрения',
@@ -1020,7 +1130,19 @@ export default {
 .chat-section { padding-top: 140px; padding-bottom: 40px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
 .page-actions { display: flex; gap: 8px; }
-.filters { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.filters { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; align-items: center; }
+.quick-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #334155;
+  border: 1px solid #d8d9e6;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+.quick-filter input { margin: 0; }
 .agent-card { border: 1px solid #d8d9e6; border-radius: 12px; background: #fff; padding: 12px; margin-bottom: 12px; }
 .agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
 .agent-head h3 { margin: 0; }
@@ -1073,6 +1195,10 @@ export default {
 .textarea { min-height: 110px; resize: vertical; margin-bottom: 8px; }
 .badge { display: inline-flex; align-items: center; border: 1px solid #cbd5e1; border-radius: 999px; padding: 2px 8px; font-size: 12px; color: #334155; background: #fff; }
 .badge--state { border-color: #bae6fd; color: #0c4a6e; background: #e0f2fe; }
+.badge--mine { border-color: #86efac; background: #dcfce7; color: #166534; }
+.badge--sla-ok { border-color: #bbf7d0; background: #dcfce7; color: #166534; }
+.badge--sla-warning { border-color: #fde68a; background: #fef3c7; color: #92400e; }
+.badge--sla-critical { border-color: #fecaca; background: #fee2e2; color: #991b1b; }
 .hint { color: #64748b; }
 .empty { color: #64748b; padding: 14px; }
 .empty--center { margin: auto; }
