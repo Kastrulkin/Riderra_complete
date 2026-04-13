@@ -5,8 +5,17 @@
         <language :data="langData"></language>
         <a class="mobile-menu__tel" href="tel:88009543212">8-800-954-32-12</a>
         <nav class="nav">
-
-          <a class="nav__link" href="" v-for="(item,i) in navList" :key="i" @click.prevent="scrollTo(item.to)">{{item.title}}</a>
+          <component
+            :is="item.link ? 'nuxt-link' : 'a'"
+            v-for="(item,i) in navList"
+            :key="i"
+            class="nav__link"
+            :to="item.link || null"
+            href=""
+            @click.prevent="handleNavClick(item)"
+          >
+            {{item.title}}
+          </component>
         </nav>
         <nuxt-link to="/account" class="mobile-menu__signin">{{$store.getters.textData.enter || 'Sign in'}}</nuxt-link>
       </div>
@@ -29,8 +38,16 @@
     methods:{
       scrollTo(id){
         const el = document.getElementById(id)
+        if (!el) return
         el.scrollIntoView({block: "start", inline: "nearest", behavior: "smooth"});
         this.$store.commit('toggleMenu', false)
+      },
+      handleNavClick(item) {
+        if (item.link) {
+          this.$store.commit('toggleMenu', false)
+          return
+        }
+        this.scrollTo(item.to)
       }
     },
     data() {
@@ -50,10 +67,10 @@
             to: 'reviews'
           },{
             title: 'Условия перевозки',
-            to: ''
+            link: '/transport'
           },{
             title: 'Политика конфиденциальности',
-            to: ''
+            link: '/privacy-policy'
           },
         ]
       }

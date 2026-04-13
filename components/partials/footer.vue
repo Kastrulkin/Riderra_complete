@@ -12,8 +12,8 @@
       </div>
       </div>
       <ul class="footer__col col-xs-12 col-sm-3 ">
-        <li><a href="" class="footer__link">Условия перевозки</a></li>
-        <li><a href="" class="footer__link">Политика конфиденциальности</a></li>
+        <li><nuxt-link to="/transport" class="footer__link">Условия перевозки</nuxt-link></li>
+        <li><nuxt-link to="/privacy-policy" class="footer__link">Политика конфиденциальности</nuxt-link></li>
             <li><nuxt-link to="/request" class="footer__link">{{$store.state.language === 'ru' ? 'Заявка' : 'Request'}}</nuxt-link></li>
             <li><nuxt-link to="/drivers" class="footer__link">{{$store.state.language === 'ru' ? 'Водителям' : 'Drivers'}}</nuxt-link></li>
       </ul>
