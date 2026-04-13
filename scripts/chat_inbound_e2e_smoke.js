@@ -5,6 +5,7 @@ const crypto = require('crypto')
 const http = require('http')
 const jwt = require('jsonwebtoken')
 const { PrismaClient } = require('@prisma/client')
+const { OPENCLAW_CONTRACT_VERSION } = require('../server/openclaw_contract')
 
 const prisma = new PrismaClient()
 
@@ -60,13 +61,17 @@ function startOpenClawMock(expectedToken) {
 
       if (req.url === '/riderra/order-draft/classify') {
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify({ result: { class: 'answer', confidence: 0.93, requires_human: false } }))
+        res.end(JSON.stringify({
+          contract_version: OPENCLAW_CONTRACT_VERSION,
+          result: { class: 'answer', confidence: 0.93, requires_human: false }
+        }))
         return
       }
 
       if (req.url === '/riderra/order-draft/extract-validate') {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({
+          contract_version: OPENCLAW_CONTRACT_VERSION,
           result: {
             valid: true,
             confidence: 0.94,
