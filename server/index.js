@@ -43,6 +43,133 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json())
 
+function renderPrivacyPolicyHtml() {
+  return `<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Политика конфиденциальности | Riderra</title>
+    <meta name="description" content="Политика конфиденциальности Riderra.">
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --text: #122033;
+        --muted: #5c667a;
+        --accent: #2948a3;
+        --line: rgba(18, 32, 51, 0.12);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #f5f7fb 0%, #ffffff 100%);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 48px 20px 64px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 24px;
+        box-shadow: 0 24px 80px rgba(20, 35, 90, 0.12);
+        padding: 40px 48px;
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-size: 40px;
+        line-height: 1.08;
+      }
+      .updated {
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      h2 {
+        margin: 28px 0 10px;
+        font-size: 24px;
+        line-height: 1.25;
+      }
+      p {
+        margin: 0 0 16px;
+        font-size: 17px;
+        line-height: 1.7;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      a:hover { text-decoration: underline; }
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 24px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .back:before {
+        content: "←";
+      }
+      @media (max-width: 767px) {
+        .wrap { padding-top: 24px; padding-bottom: 36px; }
+        .card { padding: 28px 20px; border-radius: 18px; }
+        h1 { font-size: 30px; }
+        h2 { font-size: 21px; }
+        p { font-size: 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a class="back" href="https://riderra.com/">На главную Riderra</a>
+      <section class="card">
+        <p class="eyebrow">Riderra</p>
+        <h1>Политика конфиденциальности</h1>
+        <p class="updated">Дата обновления: 13 апреля 2026</p>
+
+        <h2>1. Какие данные мы собираем</h2>
+        <p>Мы можем обрабатывать имя, номер телефона, адрес электронной почты, детали поездки, маршрут, дату и время трансфера, информацию о рейсе, платежные и договорные данные, а также переписку по заказу и служебные комментарии.</p>
+
+        <h2>2. Для чего мы используем данные</h2>
+        <p>Данные используются для обработки заявок, организации трансферов, связи с клиентом, подбора водителя, контроля качества сервиса, финансовых сверок, предотвращения ошибок и исполнения юридических обязательств.</p>
+
+        <h2>3. С кем мы можем делиться данными</h2>
+        <p>Мы передаем только необходимый минимум данных исполнителям поездок, диспетчерским системам, платежным и техническим провайдерам, если это требуется для выполнения заказа или работы сервиса.</p>
+
+        <h2>4. Хранение и защита</h2>
+        <p>Riderra применяет организационные и технические меры защиты для ограничения доступа к данным, их утраты, несанкционированного изменения или раскрытия. Доступ к рабочим данным предоставляется только уполномоченным сотрудникам и подрядчикам.</p>
+
+        <h2>5. Ваши права</h2>
+        <p>Вы можете запросить уточнение, обновление или удаление персональных данных, если это не противоречит договорным, бухгалтерским или иным обязательствам по хранению информации.</p>
+
+        <h2>6. Контакты</h2>
+        <p>По вопросам обработки данных и конфиденциальности можно написать на <a href="mailto:info@riderra.com">info@riderra.com</a>.</p>
+      </section>
+    </main>
+  </body>
+</html>`
+}
+
+app.get('/privacy-policy', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.status(200).send(renderPrivacyPolicyHtml())
+})
+
 // JWT секрет
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
