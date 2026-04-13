@@ -43,14 +43,76 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json())
 
-function renderPrivacyPolicyHtml() {
+function renderPrivacyPolicyHtml(lang = 'ru') {
+  const isEn = String(lang || '').toLowerCase() === 'en'
+  const pageLang = isEn ? 'en' : 'ru'
+  const title = isEn ? 'Privacy Policy | Riderra' : 'Политика конфиденциальности | Riderra'
+  const description = isEn ? 'Riderra privacy policy.' : 'Политика конфиденциальности Riderra.'
+  const homeLabel = isEn ? 'Back to Riderra homepage' : 'На главную Riderra'
+  const eyebrow = 'Riderra'
+  const h1 = isEn ? 'Privacy Policy' : 'Политика конфиденциальности'
+  const updated = isEn ? 'Last updated: April 13, 2026' : 'Дата обновления: 13 апреля 2026'
+  const sections = isEn
+    ? [
+        {
+          title: '1. Data we collect',
+          body: 'We may process names, phone numbers, email addresses, trip details, routes, transfer date and time, flight information, payment and contract data, as well as order-related communication and operational notes.'
+        },
+        {
+          title: '2. Why we use data',
+          body: 'We use this data to process requests, organize transfers, communicate with customers, assign drivers, maintain service quality, reconcile payments, prevent errors, and comply with legal obligations.'
+        },
+        {
+          title: '3. Who we may share data with',
+          body: 'We share only the minimum necessary data with trip executors, dispatch systems, payment providers, and technical service providers where required to deliver the service.'
+        },
+        {
+          title: '4. Storage and protection',
+          body: 'Riderra applies organizational and technical safeguards to protect data against unauthorized access, loss, alteration, or disclosure. Access to operational data is restricted to authorized employees and contractors.'
+        },
+        {
+          title: '5. Your rights',
+          body: 'You may request clarification, correction, or deletion of personal data unless we are required to retain it for contractual, accounting, or other legal reasons.'
+        },
+        {
+          title: '6. Contact',
+          body: 'For privacy-related questions, contact '
+        }
+      ]
+    : [
+        {
+          title: '1. Какие данные мы собираем',
+          body: 'Мы можем обрабатывать имя, номер телефона, адрес электронной почты, детали поездки, маршрут, дату и время трансфера, информацию о рейсе, платежные и договорные данные, а также переписку по заказу и служебные комментарии.'
+        },
+        {
+          title: '2. Для чего мы используем данные',
+          body: 'Данные используются для обработки заявок, организации трансферов, связи с клиентом, подбора водителя, контроля качества сервиса, финансовых сверок, предотвращения ошибок и исполнения юридических обязательств.'
+        },
+        {
+          title: '3. С кем мы можем делиться данными',
+          body: 'Мы передаем только необходимый минимум данных исполнителям поездок, диспетчерским системам, платежным и техническим провайдерам, если это требуется для выполнения заказа или работы сервиса.'
+        },
+        {
+          title: '4. Хранение и защита',
+          body: 'Riderra применяет организационные и технические меры защиты для ограничения доступа к данным, их утраты, несанкционированного изменения или раскрытия. Доступ к рабочим данным предоставляется только уполномоченным сотрудникам и подрядчикам.'
+        },
+        {
+          title: '5. Ваши права',
+          body: 'Вы можете запросить уточнение, обновление или удаление персональных данных, если это не противоречит договорным, бухгалтерским или иным обязательствам по хранению информации.'
+        },
+        {
+          title: '6. Контакты',
+          body: 'По вопросам обработки данных и конфиденциальности можно написать на '
+        }
+      ]
+
   return `<!doctype html>
-<html lang="ru">
+<html lang="${pageLang}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Политика конфиденциальности | Riderra</title>
-    <meta name="description" content="Политика конфиденциальности Riderra.">
+    <title>${title}</title>
+    <meta name="description" content="${description}">
     <style>
       :root {
         color-scheme: light;
@@ -124,40 +186,75 @@ function renderPrivacyPolicyHtml() {
       .back:before {
         content: "←";
       }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .lang-switch {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px;
+        background: rgba(18, 32, 51, 0.06);
+        border-radius: 999px;
+        border: 1px solid var(--line);
+      }
+      .lang-switch a,
+      .lang-switch span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        height: 36px;
+        padding: 0 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .lang-switch a {
+        color: var(--muted);
+      }
+      .lang-switch span {
+        background: #fff;
+        color: var(--accent);
+        box-shadow: 0 4px 18px rgba(20, 35, 90, 0.12);
+      }
       @media (max-width: 767px) {
         .wrap { padding-top: 24px; padding-bottom: 36px; }
         .card { padding: 28px 20px; border-radius: 18px; }
         h1 { font-size: 30px; }
         h2 { font-size: 21px; }
         p { font-size: 16px; }
+        .toolbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
       }
     </style>
   </head>
   <body>
     <main class="wrap">
-      <a class="back" href="https://riderra.com/">На главную Riderra</a>
+      <div class="toolbar">
+        <a class="back" href="https://riderra.com/">${homeLabel}</a>
+        <div class="lang-switch" aria-label="Language switcher">
+          ${isEn ? '<a href="/privacy-policy">RU</a><span>EN</span>' : '<span>RU</span><a href="/privacy-policy?lang=en">EN</a>'}
+        </div>
+      </div>
       <section class="card">
-        <p class="eyebrow">Riderra</p>
-        <h1>Политика конфиденциальности</h1>
-        <p class="updated">Дата обновления: 13 апреля 2026</p>
+        <p class="eyebrow">${eyebrow}</p>
+        <h1>${h1}</h1>
+        <p class="updated">${updated}</p>
 
-        <h2>1. Какие данные мы собираем</h2>
-        <p>Мы можем обрабатывать имя, номер телефона, адрес электронной почты, детали поездки, маршрут, дату и время трансфера, информацию о рейсе, платежные и договорные данные, а также переписку по заказу и служебные комментарии.</p>
-
-        <h2>2. Для чего мы используем данные</h2>
-        <p>Данные используются для обработки заявок, организации трансферов, связи с клиентом, подбора водителя, контроля качества сервиса, финансовых сверок, предотвращения ошибок и исполнения юридических обязательств.</p>
-
-        <h2>3. С кем мы можем делиться данными</h2>
-        <p>Мы передаем только необходимый минимум данных исполнителям поездок, диспетчерским системам, платежным и техническим провайдерам, если это требуется для выполнения заказа или работы сервиса.</p>
-
-        <h2>4. Хранение и защита</h2>
-        <p>Riderra применяет организационные и технические меры защиты для ограничения доступа к данным, их утраты, несанкционированного изменения или раскрытия. Доступ к рабочим данным предоставляется только уполномоченным сотрудникам и подрядчикам.</p>
-
-        <h2>5. Ваши права</h2>
-        <p>Вы можете запросить уточнение, обновление или удаление персональных данных, если это не противоречит договорным, бухгалтерским или иным обязательствам по хранению информации.</p>
-
-        <h2>6. Контакты</h2>
-        <p>По вопросам обработки данных и конфиденциальности можно написать на <a href="mailto:info@riderra.com">info@riderra.com</a>.</p>
+        ${sections.map((section, index) => {
+          if (index === sections.length - 1) {
+            return `<h2>${section.title}</h2><p>${section.body}<a href="mailto:info@riderra.com">info@riderra.com</a>.</p>`
+          }
+          return `<h2>${section.title}</h2><p>${section.body}</p>`
+        }).join('')}
       </section>
     </main>
   </body>
@@ -165,9 +262,10 @@ function renderPrivacyPolicyHtml() {
 }
 
 app.get('/privacy-policy', (req, res) => {
+  const lang = req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
-  res.status(200).send(renderPrivacyPolicyHtml())
+  res.status(200).send(renderPrivacyPolicyHtml(lang))
 })
 
 // JWT секрет
