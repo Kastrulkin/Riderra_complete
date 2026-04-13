@@ -1,88 +1,148 @@
-# OpenClaw -> Riderra Payload Contract (Required)
+# OpenClaw <-> Riderra Runtime Contract (Required)
 
 ## Why needed
-Riderra должна принимать от OpenClaw структурированные draft-действия, которые идут в approval pipeline.
+Riderra и OpenClaw должны обмениваться строго-валидируемыми runtime payload-ами для build/send/classify/extract без дрейфа схемы между релизами.
 
-## Minimal envelope
+## Version discipline
+- Current required version: `1.0.0`
+- Field `contract_version` is mandatory in every request and every response.
+- Riderra rejects:
+  - request without `contract_version`
+  - request with unsupported `contract_version`
+  - response from OpenClaw without `contract_version`
+  - response from OpenClaw with unsupported `contract_version`
+- Supported versions are enforced in code by `server/openclaw_contract.js`.
+
+## Request envelope
 ```json
 {
   "contract_version": "1.0.0",
+  "tenant_id": "riderra",
   "trace_id": "uuid",
-  "source": "openclaw",
-  "intent": "create_order_draft | request_missing_info | whatsapp_draft | driver_checklist_step",
-  "confidence": 0.0,
-  "risk_level": "low | medium | high",
-  "requires_approval": true,
-  "proposed_by": "agent_id",
-  "created_at": "ISO-8601",
-  "payload": {}
+  "idempotency_key": "uuid-or-stable-key",
+  "actor": {
+    "id": "user-or-system-id",
+    "role": "staff | system | owner | dispatcher"
+  },
+  "capability": "riderra.customer.message.compose",
+  "approval": {
+    "mode": "human_required | approved | not_required"
+  },
+  "billing": {
+    "mode": "track_only",
+    "unit": "message | classification | extraction"
+  }
 }
 ```
 
-## Intent payloads
-### create_order_draft
+## Supported capabilities
+### `riderra.customer.message.compose` (`build`)
 ```json
 {
-  "external_ref": "email_id_or_thread",
-  "client": {"name":"", "phone":"", "email":"", "lang":""},
-  "trip": {
+  "task": {"id":"", "type":"clarification", "state":"missing_data_detected", "channel":"telegram"},
+  "order": {
+    "id":"",
+    "external_key":"",
+    "route_from":"",
+    "route_to":"",
+    "client_price": 0,
+    "status":"draft",
+    "needs_info": true,
+    "info_reason":"Уточнить багаж"
+  },
+  "agent": {
+    "id":"",
+    "code":"clarification_default",
+    "name":"Clarification Agent",
+    "prompt":"..."
+  },
+  "conversation_history": [],
+  "input":"optional operator hint"
+}
+```
+
+### `riderra.customer.message.send` (`send`)
+```json
+{
+  "task": {"id":"", "type":"clarification", "state":"ready_to_notify", "channel":"telegram"},
+  "order": {"id":"", "external_key":"", "route_from":"", "route_to":""},
+  "message": {"id":"", "channel":"telegram", "text":"..."}
+}
+```
+
+### `riderra.customer.reply.classify` (`classify`)
+```json
+{
+  "task": {"id":"", "type":"clarification", "state":"request_sent"},
+  "order": {"id":"", "external_key":"", "needs_info":true, "info_reason":"..."},
+  "message": {"id":"", "text":"Ответ клиента", "channel":"telegram"},
+  "conversation_history": []
+}
+```
+
+### `riderra.order.field.extract_validate` (`extract`)
+```json
+{
+  "task": {"id":"", "type":"clarification", "state":"customer_replied"},
+  "order": {
+    "id":"",
+    "external_key":"",
     "from":"",
     "to":"",
-    "pickup_datetime_local":"ISO-8601",
-    "flight_no":"",
-    "pax":0,
-    "bags":0,
-    "vehicle_class":""
+    "pickup_at":"ISO-8601",
+    "info_reason":"Уточнить багаж"
   },
-  "pricing": {
-    "source":"price_book|dispatch|unknown",
-    "quoted_price":0,
-    "currency":"EUR",
-    "price_rule_id":"optional"
-  },
-  "missing_fields": ["phone", "pickup_datetime_local"]
+  "message": {"id":"", "text":"2 suitcases", "channel":"telegram"}
 }
 ```
 
-### request_missing_info
+## Response contracts
+### build
 ```json
 {
-  "order_ref":"",
-  "channel":"whatsapp|email|telegram",
-  "message_draft":"",
-  "missing_fields":["flight_no","bags"]
+  "contract_version": "1.0.0",
+  "result": {
+    "text": "Здравствуйте! Пожалуйста, уточните багаж по поездке."
+  }
 }
 ```
 
-### whatsapp_draft
+### send
 ```json
 {
-  "order_ref":"",
-  "recipient":{"phone":"", "name":""},
-  "template":"trip_confirmation|upsell_sim|missing_info",
-  "message_draft":"",
-  "variables":{}
+  "contract_version": "1.0.0",
+  "accepted": true,
+  "provider_message_id": "provider-123"
 }
 ```
 
-### driver_checklist_step
+### classify
 ```json
 {
-  "order_ref":"",
-  "driver_ref":"",
-  "checklist_code":"client_no_show",
-  "step":"collect_photo|collect_geo|call_client|wait_15m",
-  "instructions":"",
-  "required_evidence":["photo","geolocation","timestamp"]
+  "contract_version": "1.0.0",
+  "result": {
+    "class": "answer",
+    "confidence": 0.92,
+    "requires_human": false
+  }
 }
 ```
 
-## Response from Riderra
-- `202 Accepted` + `approval_task_id` если payload валиден и создан draft.
-- `400` schema validation error.
-- `409` duplicate (same trace_id/external_ref).
+### extract
+```json
+{
+  "contract_version": "1.0.0",
+  "result": {
+    "valid": true,
+    "confidence": 0.93,
+    "field": "luggage",
+    "value": "2 suitcases"
+  }
+}
+```
 
 ## Hard requirements
-- `requires_approval` must be `true` in MVP-1.
-- `confidence` and `risk_level` are mandatory.
-- Idempotency key: `trace_id`.
+- All requests must include stable `trace_id` and optional `idempotency_key`.
+- Riderra validates outgoing request payloads before calling OpenClaw.
+- Riderra validates incoming OpenClaw responses before accepting runtime success.
+- Contract regressions are covered by `scripts/openclaw_runtime_contract_smoke.js`.

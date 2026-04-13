@@ -15,6 +15,11 @@ const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
 const fs = require('fs/promises')
 const crypto = require('crypto')
+const {
+  buildOpenClawEnvelope,
+  validateOpenClawPayload,
+  validateOpenClawResponse
+} = require('./openclaw_contract')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -3294,9 +3299,24 @@ function normalizeOpenClawPath(pathValue, fallbackPath) {
 async function callOpenClawRuntime({
   path,
   payload,
+  kind,
   traceId = null,
   idempotencyKey = null
 }) {
+  const requestErrors = validateOpenClawPayload(kind, payload)
+  if (requestErrors.length) {
+    return {
+      configured: true,
+      ok: false,
+      status: 0,
+      error: `OpenClaw request validation failed: ${requestErrors.join('; ')}`,
+      data: null,
+      validation: {
+        request: requestErrors,
+        response: []
+      }
+    }
+  }
   const { baseUrl, token, timeoutMs } = getOpenClawRuntimeConfig()
   if (!baseUrl || !token) {
     return {
@@ -3304,7 +3324,11 @@ async function callOpenClawRuntime({
       ok: false,
       status: 0,
       error: 'OpenClaw runtime is not configured',
-      data: null
+      data: null,
+      validation: {
+        request: [],
+        response: []
+      }
     }
   }
   const controller = new AbortController()
@@ -3322,12 +3346,19 @@ async function callOpenClawRuntime({
       signal: controller.signal
     })
     const data = await response.json().catch(() => ({}))
+    const responseErrors = response.ok ? validateOpenClawResponse(kind, data) : []
     return {
       configured: true,
-      ok: response.ok,
+      ok: response.ok && responseErrors.length === 0,
       status: response.status,
-      error: response.ok ? null : (data?.error || `OpenClaw HTTP ${response.status}`),
-      data
+      error: response.ok
+        ? (responseErrors.length ? `OpenClaw response validation failed: ${responseErrors.join('; ')}` : null)
+        : (data?.error || `OpenClaw HTTP ${response.status}`),
+      data,
+      validation: {
+        request: [],
+        response: responseErrors
+      }
     }
   } catch (error) {
     return {
@@ -3335,7 +3366,11 @@ async function callOpenClawRuntime({
       ok: false,
       status: 0,
       error: error?.name === 'AbortError' ? 'OpenClaw timeout' : (error.message || 'OpenClaw request failed'),
-      data: null
+      data: null,
+      validation: {
+        request: [],
+        response: []
+      }
     }
   } finally {
     clearTimeout(timer)
@@ -4444,10 +4479,10 @@ app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorC
         data: { approvalStatus: 'approved' }
       })
 
-      const runtimePayload = {
-        tenant_id: tenantId,
-        trace_id: req.actorContext.traceId,
-        idempotency_key: req.idempotencyKey || null,
+      const runtimePayload = buildOpenClawEnvelope({
+        tenantId,
+        traceId: req.actorContext.traceId,
+        idempotencyKey: req.idempotencyKey || null,
         actor: {
           id: req.actorContext.actorId || req.user?.id || null,
           role: req.actorContext.actorRole || 'staff'
@@ -4455,29 +4490,32 @@ app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorC
         capability: 'riderra.customer.message.send',
         approval: { mode: 'approved' },
         billing: { mode: 'track_only', unit: 'message' },
-        task: {
-          id: task.id,
-          type: task.taskType,
-          state: task.state,
-          channel: 'telegram'
-        },
-        order: {
-          id: order.id,
-          external_key: order.externalKey || null,
-          route_from: order.fromPoint || null,
-          route_to: order.toPoint || null
-        },
-        message: {
-          id: message.id,
-          channel: 'telegram',
-          text: messageText
+        extra: {
+          task: {
+            id: task.id,
+            type: task.taskType,
+            state: task.state,
+            channel: 'telegram'
+          },
+          order: {
+            id: order.id,
+            external_key: order.externalKey || null,
+            route_from: order.fromPoint || null,
+            route_to: order.toPoint || null
+          },
+          message: {
+            id: message.id,
+            channel: 'telegram',
+            text: messageText
+          }
         }
-      }
+      })
 
       const runtimeConfig = getOpenClawRuntimeConfig()
       const runtimeResult = await callOpenClawRuntime({
         path: runtimeConfig.sendPath,
         payload: runtimePayload,
+        kind: 'send',
         traceId: req.actorContext.traceId,
         idempotencyKey: req.idempotencyKey || null
       })
@@ -4878,10 +4916,10 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
     }
 
     const buildBody = String(req.body?.message || req.body?.bodyText || '').trim()
-    const capabilityPayload = {
-      tenant_id: tenantId,
-      trace_id: req.actorContext.traceId,
-      idempotency_key: req.idempotencyKey || null,
+    const capabilityPayload = buildOpenClawEnvelope({
+      tenantId,
+      traceId: req.actorContext.traceId,
+      idempotencyKey: req.idempotencyKey || null,
       actor: {
         id: req.actorContext.actorId || req.user?.id || null,
         role: req.actorContext.actorRole || 'staff'
@@ -4889,48 +4927,51 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
       capability: 'riderra.customer.message.compose',
       approval: { mode: 'human_required' },
       billing: { mode: 'track_only', unit: 'message' },
-      task: {
-        id: task.id,
-        type: task.taskType,
-        state: task.state,
-        channel: task.channel || 'telegram'
-      },
-      order: {
-        id: task.order?.id || null,
-        external_key: task.order?.externalKey || null,
-        route_from: task.order?.fromPoint || null,
-        route_to: task.order?.toPoint || null,
-        client_price: task.order?.clientPrice ?? null,
-        status: task.order?.status || null,
-        needs_info: !!task.order?.needsInfo,
-        info_reason: task.order?.infoReason || null,
-        comment: task.order?.comment || null
-      },
-      agent: {
-        id: task.agentConfig.id,
-        code: task.agentConfig.code,
-        name: task.agentConfig.name,
-        type: task.agentConfig.type || null,
-        task_type: task.agentConfig.taskType || null,
-        prompt: task.agentConfig.promptText || '',
-        workflow: task.agentConfig.workflowJson || null,
-        restrictions: parseJsonSafe(task.agentConfig.restrictionsJson || '{}', {}),
-        variables: parseJsonSafe(task.agentConfig.variablesJson || '{}', {})
-      },
-      conversation_history: (task.messages || []).map((m) => ({
-        id: m.id,
-        role: m.direction === 'inbound' ? 'customer' : 'staff',
-        source: m.source || null,
-        channel: m.channel || null,
-        text: m.bodyText || '',
-        created_at: m.createdAt
-      })),
-      input: buildBody || null
-    }
+      extra: {
+        task: {
+          id: task.id,
+          type: task.taskType,
+          state: task.state,
+          channel: task.channel || 'telegram'
+        },
+        order: {
+          id: task.order?.id || null,
+          external_key: task.order?.externalKey || null,
+          route_from: task.order?.fromPoint || null,
+          route_to: task.order?.toPoint || null,
+          client_price: task.order?.clientPrice ?? null,
+          status: task.order?.status || null,
+          needs_info: !!task.order?.needsInfo,
+          info_reason: task.order?.infoReason || null,
+          comment: task.order?.comment || null
+        },
+        agent: {
+          id: task.agentConfig.id,
+          code: task.agentConfig.code,
+          name: task.agentConfig.name,
+          type: task.agentConfig.type || null,
+          task_type: task.agentConfig.taskType || null,
+          prompt: task.agentConfig.promptText || '',
+          workflow: task.agentConfig.workflowJson || null,
+          restrictions: parseJsonSafe(task.agentConfig.restrictionsJson || '{}', {}),
+          variables: parseJsonSafe(task.agentConfig.variablesJson || '{}', {})
+        },
+        conversation_history: (task.messages || []).map((m) => ({
+          id: m.id,
+          role: m.direction === 'inbound' ? 'customer' : 'staff',
+          source: m.source || null,
+          channel: m.channel || null,
+          text: m.bodyText || '',
+          created_at: m.createdAt
+        })),
+        input: buildBody || null
+      }
+    })
     const runtimeConfig = getOpenClawRuntimeConfig()
     const runtimeResult = await callOpenClawRuntime({
       path: runtimeConfig.buildPath,
       payload: capabilityPayload,
+      kind: 'build',
       traceId: req.actorContext.traceId,
       idempotencyKey: req.idempotencyKey || null
     })
@@ -5123,10 +5164,10 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       return res.status(409).json({ error: 'Message must be approved before send' })
     }
 
-    const runtimePayload = {
-      tenant_id: tenantId,
-      trace_id: req.actorContext.traceId,
-      idempotency_key: req.idempotencyKey || null,
+    const runtimePayload = buildOpenClawEnvelope({
+      tenantId,
+      traceId: req.actorContext.traceId,
+      idempotencyKey: req.idempotencyKey || null,
       actor: {
         id: req.actorContext.actorId || req.user?.id || null,
         role: req.actorContext.actorRole || 'staff'
@@ -5134,24 +5175,26 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       capability: 'riderra.customer.message.send',
       approval: { mode: 'approved' },
       billing: { mode: 'track_only', unit: 'message' },
-      task: {
-        id: message.chatTask.id,
-        type: message.chatTask.taskType,
-        state: message.chatTask.state,
-        channel: message.channel || message.chatTask.channel || 'telegram'
-      },
-      order: {
-        id: message.chatTask.orderId || null,
-        external_key: message.chatTask.order?.externalKey || null,
-        route_from: message.chatTask.order?.fromPoint || null,
-        route_to: message.chatTask.order?.toPoint || null
-      },
-      message: {
-        id: message.id,
-        channel: message.channel || message.chatTask.channel || 'telegram',
-        text: message.bodyText || ''
+      extra: {
+        task: {
+          id: message.chatTask.id,
+          type: message.chatTask.taskType,
+          state: message.chatTask.state,
+          channel: message.channel || message.chatTask.channel || 'telegram'
+        },
+        order: {
+          id: message.chatTask.orderId || null,
+          external_key: message.chatTask.order?.externalKey || null,
+          route_from: message.chatTask.order?.fromPoint || null,
+          route_to: message.chatTask.order?.toPoint || null
+        },
+        message: {
+          id: message.id,
+          channel: message.channel || message.chatTask.channel || 'telegram',
+          text: message.bodyText || ''
+        }
       }
-    }
+    })
     const payload = { messageId: message.id, taskId: message.chatTask.id, bodyText: message.bodyText || '' }
     ensureIdempotencyKey(req, 'admin.chat_message.send', payload)
 
@@ -5160,6 +5203,7 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       const runtimeResult = await callOpenClawRuntime({
         path: runtimeConfig.sendPath,
         payload: runtimePayload,
+        kind: 'send',
         traceId: req.actorContext.traceId,
         idempotencyKey: req.idempotencyKey || null
       })
@@ -5281,31 +5325,35 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
       })
 
       const runtimeConfig = getOpenClawRuntimeConfig()
-      const classifyPayload = {
-        tenant_id: tenantId,
-        trace_id: req.actorContext.traceId,
-        idempotency_key: req.idempotencyKey || null,
+      const classifyPayload = buildOpenClawEnvelope({
+        tenantId,
+        traceId: req.actorContext.traceId,
+        idempotencyKey: req.idempotencyKey || null,
         actor: { id: req.actorContext.actorId || req.user?.id || null, role: req.actorContext.actorRole || 'staff' },
         capability: 'riderra.customer.reply.classify',
-        task: { id: task.id, type: task.taskType, state: task.state },
-        order: {
-          id: task.order?.id || null,
-          external_key: task.order?.externalKey || null,
-          needs_info: Boolean(task.order?.needsInfo),
-          info_reason: task.order?.infoReason || null
-        },
-        message: {
-          id: inboundMessage.id,
-          text: bodyText,
-          channel: task.channel || 'telegram'
-        },
-        conversation_history: (task.messages || []).map((m) => ({
-          id: m.id,
-          role: m.direction === 'inbound' ? 'customer' : 'staff',
-          text: m.bodyText || '',
-          created_at: m.createdAt
-        }))
-      }
+        approval: { mode: 'not_required' },
+        billing: { mode: 'track_only', unit: 'classification' },
+        extra: {
+          task: { id: task.id, type: task.taskType, state: task.state },
+          order: {
+            id: task.order?.id || null,
+            external_key: task.order?.externalKey || null,
+            needs_info: Boolean(task.order?.needsInfo),
+            info_reason: task.order?.infoReason || null
+          },
+          message: {
+            id: inboundMessage.id,
+            text: bodyText,
+            channel: task.channel || 'telegram'
+          },
+          conversation_history: (task.messages || []).map((m) => ({
+            id: m.id,
+            role: m.direction === 'inbound' ? 'customer' : 'staff',
+            text: m.bodyText || '',
+            created_at: m.createdAt
+          }))
+        }
+      })
 
       let classification = { class: 'unclassified', confidence: null, requiresHuman: false }
       let classifyRuntime = { configured: false, ok: false, status: 0, error: null }
@@ -5313,6 +5361,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         const classifyResult = await callOpenClawRuntime({
           path: runtimeConfig.classifyPath,
           payload: classifyPayload,
+          kind: 'classify',
           traceId: req.actorContext.traceId,
           idempotencyKey: req.idempotencyKey || null
         })
@@ -5330,26 +5379,31 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
       let extraction = null
       let extractRuntime = { configured: false, ok: false, status: 0, error: null }
       if (!task.agentPaused && task.taskType === 'clarification' && classification.class === 'answer') {
-        const extractPayload = {
-          tenant_id: tenantId,
-          trace_id: req.actorContext.traceId,
-          idempotency_key: req.idempotencyKey || null,
+        const extractPayload = buildOpenClawEnvelope({
+          tenantId,
+          traceId: req.actorContext.traceId,
+          idempotencyKey: req.idempotencyKey || null,
           actor: { id: req.actorContext.actorId || req.user?.id || null, role: req.actorContext.actorRole || 'staff' },
           capability: 'riderra.order.field.extract_validate',
-          task: { id: task.id, type: task.taskType, state: task.state },
-          order: {
-            id: task.order?.id || null,
-            external_key: task.order?.externalKey || null,
-            from: task.order?.fromPoint || null,
-            to: task.order?.toPoint || null,
-            pickup_at: task.order?.pickupAt || null,
-            info_reason: task.order?.infoReason || null
-          },
-          message: { id: inboundMessage.id, text: bodyText, channel: task.channel || 'telegram' }
-        }
+          approval: { mode: 'not_required' },
+          billing: { mode: 'track_only', unit: 'extraction' },
+          extra: {
+            task: { id: task.id, type: task.taskType, state: task.state },
+            order: {
+              id: task.order?.id || null,
+              external_key: task.order?.externalKey || null,
+              from: task.order?.fromPoint || null,
+              to: task.order?.toPoint || null,
+              pickup_at: task.order?.pickupAt || null,
+              info_reason: task.order?.infoReason || null
+            },
+            message: { id: inboundMessage.id, text: bodyText, channel: task.channel || 'telegram' }
+          }
+        })
         const extractResult = await callOpenClawRuntime({
           path: runtimeConfig.extractPath,
           payload: extractPayload,
+          kind: 'extract',
           traceId: req.actorContext.traceId,
           idempotencyKey: req.idempotencyKey || null
         })
