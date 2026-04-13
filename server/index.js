@@ -246,7 +246,7 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
       <div class="toolbar">
         <a class="back" href="https://riderra.com/">${homeLabel}</a>
         <div class="lang-switch" aria-label="Language switcher">
-          ${isEn ? '<a href="/privacy-policy">RU</a><span>EN</span>' : '<span>RU</span><a href="/privacy-policy?lang=en">EN</a>'}
+          ${isEn ? '<a href="/privacy-policy">RU</a><span>EN</span>' : '<span>RU</span><a href="/privacy-policy/en">EN</a>'}
         </div>
       </div>
       <section class="card">
@@ -266,8 +266,8 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
 </html>`
 }
 
-app.get('/privacy-policy', (req, res) => {
-  const lang = req.query.lang === 'en' ? 'en' : 'ru'
+app.get(['/privacy-policy', '/privacy-policy/en'], (req, res) => {
+  const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderPrivacyPolicyHtml(lang))
@@ -475,7 +475,7 @@ function renderTermsHtml(lang = 'ru') {
       <div class="toolbar">
         <a class="back" href="https://riderra.com/">${homeLabel}</a>
         <div class="lang-switch" aria-label="Language switcher">
-          ${isEn ? '<a href="/terms">RU</a><span>EN</span>' : '<span>RU</span><a href="/terms?lang=en">EN</a>'}
+          ${isEn ? '<a href="/terms">RU</a><span>EN</span>' : '<span>RU</span><a href="/terms/en">EN</a>'}
         </div>
       </div>
       <section class="card">
@@ -494,8 +494,8 @@ function renderTermsHtml(lang = 'ru') {
 </html>`
 }
 
-app.get(['/terms', '/terms-and-conditions', '/user-agreement'], (req, res) => {
-  const lang = req.query.lang === 'en' ? 'en' : 'ru'
+app.get(['/terms', '/terms/en', '/terms-and-conditions', '/user-agreement'], (req, res) => {
+  const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderTermsHtml(lang))
