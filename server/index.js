@@ -268,6 +268,234 @@ app.get('/privacy-policy', (req, res) => {
   res.status(200).send(renderPrivacyPolicyHtml(lang))
 })
 
+function renderTermsHtml(lang = 'ru') {
+  const isEn = String(lang || '').toLowerCase() === 'en'
+  const pageLang = isEn ? 'en' : 'ru'
+  const title = isEn ? 'Terms and Conditions | Riderra' : 'Пользовательское соглашение | Riderra'
+  const description = isEn
+    ? 'Riderra terms and conditions.'
+    : 'Пользовательское соглашение Riderra.'
+  const homeLabel = isEn ? 'Back to Riderra homepage' : 'На главную Riderra'
+  const h1 = isEn ? 'Terms and Conditions' : 'Пользовательское соглашение'
+  const updated = isEn ? 'Last updated: April 13, 2026' : 'Дата обновления: 13 апреля 2026'
+  const sections = isEn
+    ? [
+        {
+          title: '1. Scope',
+          body: 'These Terms govern the use of Riderra websites, forms, communication channels, and transfer booking services. By submitting a request or using the service, the user agrees to these Terms.'
+        },
+        {
+          title: '2. Service',
+          body: 'Riderra arranges passenger transportation and related support services through its own operational team and partner executors. Service availability depends on route, city, vehicle class, timing, and confirmation.'
+        },
+        {
+          title: '3. Booking information',
+          body: 'The user is responsible for providing accurate booking details, including pickup and drop-off points, date and time, flight information where relevant, passenger count, luggage details, and any special requirements.'
+        },
+        {
+          title: '4. Changes and cancellation',
+          body: 'Booking changes and cancellations are subject to service conditions, timing, route specifics, and partner rules. Additional charges may apply if the user changes confirmed trip details after assignment.'
+        },
+        {
+          title: '5. Pricing and payment',
+          body: 'The final price is confirmed by Riderra at the time of booking or confirmation. Prices may depend on route, class of vehicle, extras, waiting time, and local conditions. Payment terms may vary by customer segment and contract.'
+        },
+        {
+          title: '6. Liability',
+          body: 'Riderra uses reasonable efforts to organize the requested service but is not liable for delays, changes, or failures caused by incorrect customer data, force majeure, airport disruptions, third-party actions, or conditions beyond reasonable control.'
+        },
+        {
+          title: '7. Data and communication',
+          body: 'By using the service, the user agrees that Riderra may process booking-related data and contact the user regarding the booking, operational clarifications, support, and service updates.'
+        },
+        {
+          title: '8. Contact',
+          body: 'For questions regarding these Terms, contact '
+        }
+      ]
+    : [
+        {
+          title: '1. Предмет соглашения',
+          body: 'Настоящее Пользовательское соглашение регулирует использование сайтов, форм, каналов связи и сервиса бронирования трансферов Riderra. Отправляя заявку или используя сервис, пользователь принимает условия настоящего соглашения.'
+        },
+        {
+          title: '2. Описание сервиса',
+          body: 'Riderra организует пассажирские перевозки и сопутствующие сервисы с использованием собственной операционной команды и партнерских исполнителей. Возможность выполнения услуги зависит от маршрута, города, класса автомобиля, времени и подтверждения.'
+        },
+        {
+          title: '3. Данные бронирования',
+          body: 'Пользователь обязан предоставлять корректные данные по заказу: точку подачи и назначения, дату и время, информацию о рейсе при необходимости, количество пассажиров, багаж и специальные требования.'
+        },
+        {
+          title: '4. Изменение и отмена',
+          body: 'Изменения и отмена заказа регулируются условиями услуги, сроками, особенностями маршрута и правилами партнеров. При изменении подтвержденных деталей поездки после назначения возможны дополнительные расходы.'
+        },
+        {
+          title: '5. Стоимость и оплата',
+          body: 'Итоговая стоимость подтверждается Riderra при бронировании или подтверждении заказа. Цена может зависеть от маршрута, класса автомобиля, дополнительных услуг, ожидания и локальных условий. Платежные условия могут отличаться в зависимости от сегмента клиента и договоренностей.'
+        },
+        {
+          title: '6. Ограничение ответственности',
+          body: 'Riderra предпринимает разумные усилия для организации услуги, но не несет ответственность за задержки, изменения или невозможность оказания услуги, вызванные некорректными данными клиента, форс-мажором, сбоями аэропортов, действиями третьих лиц или обстоятельствами вне разумного контроля.'
+        },
+        {
+          title: '7. Данные и коммуникация',
+          body: 'Используя сервис, пользователь соглашается с тем, что Riderra может обрабатывать данные, связанные с бронированием, и связываться с пользователем по вопросам заказа, уточнений, поддержки и уведомлений по услуге.'
+        },
+        {
+          title: '8. Контакты',
+          body: 'По вопросам, связанным с условиями использования сервиса, можно написать на '
+        }
+      ]
+
+  return `<!doctype html>
+<html lang="${pageLang}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${title}</title>
+    <meta name="description" content="${description}">
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --text: #122033;
+        --muted: #5c667a;
+        --accent: #2948a3;
+        --line: rgba(18, 32, 51, 0.12);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #f5f7fb 0%, #ffffff 100%);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 48px 20px 64px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 24px;
+        box-shadow: 0 24px 80px rgba(20, 35, 90, 0.12);
+        padding: 40px 48px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .back:before { content: "←"; }
+      .lang-switch {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px;
+        background: rgba(18, 32, 51, 0.06);
+        border-radius: 999px;
+        border: 1px solid var(--line);
+      }
+      .lang-switch a,
+      .lang-switch span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        height: 36px;
+        padding: 0 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .lang-switch a { color: var(--muted); text-decoration: none; }
+      .lang-switch span {
+        background: #fff;
+        color: var(--accent);
+        box-shadow: 0 4px 18px rgba(20, 35, 90, 0.12);
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-size: 40px;
+        line-height: 1.08;
+      }
+      .updated {
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      h2 {
+        margin: 28px 0 10px;
+        font-size: 24px;
+        line-height: 1.25;
+      }
+      p {
+        margin: 0 0 16px;
+        font-size: 17px;
+        line-height: 1.7;
+      }
+      a { color: var(--accent); }
+      @media (max-width: 767px) {
+        .wrap { padding-top: 24px; padding-bottom: 36px; }
+        .card { padding: 28px 20px; border-radius: 18px; }
+        .toolbar { align-items: flex-start; flex-direction: column; }
+        h1 { font-size: 30px; }
+        h2 { font-size: 21px; }
+        p { font-size: 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="toolbar">
+        <a class="back" href="https://riderra.com/">${homeLabel}</a>
+        <div class="lang-switch" aria-label="Language switcher">
+          ${isEn ? '<a href="/terms">RU</a><span>EN</span>' : '<span>RU</span><a href="/terms?lang=en">EN</a>'}
+        </div>
+      </div>
+      <section class="card">
+        <p class="eyebrow">Riderra</p>
+        <h1>${h1}</h1>
+        <p class="updated">${updated}</p>
+        ${sections.map((section, index) => {
+          if (index === sections.length - 1) {
+            return `<h2>${section.title}</h2><p>${section.body}<a href="mailto:info@riderra.com">info@riderra.com</a>.</p>`
+          }
+          return `<h2>${section.title}</h2><p>${section.body}</p>`
+        }).join('')}
+      </section>
+    </main>
+  </body>
+</html>`
+}
+
+app.get(['/terms', '/terms-and-conditions', '/user-agreement'], (req, res) => {
+  const lang = req.query.lang === 'en' ? 'en' : 'ru'
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.status(200).send(renderTermsHtml(lang))
+})
+
 // JWT секрет
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
