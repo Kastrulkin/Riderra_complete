@@ -3182,6 +3182,131 @@ function extractAgentPayload(body = {}, { requireCode = true } = {}) {
   return payload
 }
 
+function extractAgentUpdateData(body = {}) {
+  const data = {}
+  if (Object.prototype.hasOwnProperty.call(body, 'code') && String(body.code || '').trim()) data.code = String(body.code || '').trim().toLowerCase()
+  if (Object.prototype.hasOwnProperty.call(body, 'name')) data.name = String(body.name || '').trim()
+  if (Object.prototype.hasOwnProperty.call(body, 'type')) data.type = normalizeAgentType(body.type)
+  if (Object.prototype.hasOwnProperty.call(body, 'description')) data.description = String(body.description || '').trim() || null
+  if (Object.prototype.hasOwnProperty.call(body, 'personality')) data.personality = String(body.personality || '').trim() || null
+  if (Object.prototype.hasOwnProperty.call(body, 'identity')) data.identity = String(body.identity || '').trim() || null
+  if (Object.prototype.hasOwnProperty.call(body, 'task')) data.task = String(body.task || '').trim() || null
+  if (Object.prototype.hasOwnProperty.call(body, 'speechStyle') || Object.prototype.hasOwnProperty.call(body, 'speech_style')) data.speechStyle = String(body.speechStyle || body.speech_style || '').trim() || null
+  if (Object.prototype.hasOwnProperty.call(body, 'taskType')) data.taskType = String(body.taskType || '').trim().toLowerCase()
+  if (Object.prototype.hasOwnProperty.call(body, 'promptText')) data.promptText = String(body.promptText || '').trim()
+  if (Object.prototype.hasOwnProperty.call(body, 'workflowJson') || Object.prototype.hasOwnProperty.call(body, 'workflow')) data.workflowJson = parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson')
+  if (Object.prototype.hasOwnProperty.call(body, 'workflowFormat')) data.workflowFormat = String(body.workflowFormat || 'json').trim().toLowerCase() || 'json'
+  if (Object.prototype.hasOwnProperty.call(body, 'restrictionsJson') || Object.prototype.hasOwnProperty.call(body, 'restrictions')) data.restrictionsJson = parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson')
+  if (Object.prototype.hasOwnProperty.call(body, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson')
+  if (Object.prototype.hasOwnProperty.call(body, 'variablesJson') || Object.prototype.hasOwnProperty.call(body, 'variables')) data.variablesJson = parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson')
+  if (Object.prototype.hasOwnProperty.call(body, 'isActive')) data.isActive = !!body.isActive
+  if (Object.prototype.hasOwnProperty.call(body, 'requiresApproval')) data.requiresApproval = !!body.requiresApproval
+  return data
+}
+
+async function createAgentConfigForTenant({ req, tenantId, payload, action }) {
+  const created = await prisma.chatAgentConfig.create({
+    data: {
+      tenantId,
+      code: payload.code,
+      name: payload.name,
+      type: payload.type,
+      description: payload.description,
+      personality: payload.personality,
+      identity: payload.identity,
+      task: payload.task,
+      speechStyle: payload.speechStyle,
+      taskType: payload.taskType,
+      promptText: payload.promptText,
+      workflowJson: payload.workflowJson,
+      workflowFormat: payload.workflowFormat,
+      restrictionsJson: payload.restrictionsJson,
+      constraintsJson: payload.constraintsJson,
+      variablesJson: payload.variablesJson,
+      isActive: payload.isActive,
+      requiresApproval: payload.requiresApproval,
+      createdByUserId: req.user?.id || null
+    }
+  })
+  await writeAuditLog({
+    tenantId,
+    actorId: req.actorContext.actorId,
+    actorRole: req.actorContext.actorRole,
+    action,
+    resource: 'chat_agent',
+    resourceId: created.id,
+    traceId: req.actorContext.traceId,
+    decision: 'policy_allowed',
+    result: 'ok',
+    context: {
+      code: payload.code,
+      taskType: payload.taskType,
+      isActive: payload.isActive,
+      requiresApproval: payload.requiresApproval
+    }
+  })
+  return created
+}
+
+async function updateAgentConfigForTenant({ req, tenantId, agentId, body, action }) {
+  const existing = await prisma.chatAgentConfig.findFirst({
+    where: { id: agentId, tenantId },
+    select: { id: true }
+  })
+  if (!existing) {
+    const err = new Error('Agent not found')
+    err.statusCode = 404
+    throw err
+  }
+  const data = extractAgentUpdateData(body || {})
+  const updated = await prisma.chatAgentConfig.update({
+    where: { id: existing.id },
+    data
+  })
+  await writeAuditLog({
+    tenantId,
+    actorId: req.actorContext.actorId,
+    actorRole: req.actorContext.actorRole,
+    action,
+    resource: 'chat_agent',
+    resourceId: updated.id,
+    traceId: req.actorContext.traceId,
+    decision: 'policy_allowed',
+    result: 'ok',
+    context: data
+  })
+  return updated
+}
+
+async function deleteAgentConfigForTenant({ req, tenantId, agentId, action }) {
+  const existing = await prisma.chatAgentConfig.findFirst({
+    where: { id: agentId, tenantId },
+    select: { id: true, code: true, taskType: true }
+  })
+  if (!existing) {
+    const err = new Error('Agent not found')
+    err.statusCode = 404
+    throw err
+  }
+  await prisma.chatAgentConfig.delete({ where: { id: existing.id } })
+  await writeAuditLog({
+    tenantId,
+    actorId: req.actorContext.actorId,
+    actorRole: req.actorContext.actorRole,
+    action,
+    resource: 'chat_agent',
+    resourceId: existing.id,
+    traceId: req.actorContext.traceId,
+    decision: 'policy_allowed',
+    result: 'ok',
+    context: {
+      code: existing.code,
+      taskType: existing.taskType
+    }
+  })
+  return existing
+}
+
 function inferIntentFromTaskType(taskType) {
   const normalized = String(taskType || '').trim().toLowerCase()
   if (normalized === 'dispatch_info') return 'operations'
@@ -3512,42 +3637,7 @@ app.post('/api/admin/chats/agents', authenticateToken, resolveActorContext, requ
     const payload = extractAgentPayload(req.body || {}, { requireCode: true })
     ensureIdempotencyKey(req, 'chat_agent.create', payload)
     const wrapped = await withIdempotency(req, 'chat_agent.create', payload, async () => {
-      const created = await prisma.chatAgentConfig.create({
-        data: {
-          tenantId,
-          code: payload.code,
-          name: payload.name,
-          type: payload.type,
-          description: payload.description,
-          personality: payload.personality,
-          identity: payload.identity,
-          task: payload.task,
-          speechStyle: payload.speechStyle,
-          promptText: payload.promptText,
-          taskType: payload.taskType,
-          isActive: payload.isActive,
-          requiresApproval: payload.requiresApproval,
-          workflowJson: payload.workflowJson,
-          workflowFormat: payload.workflowFormat,
-          restrictionsJson: payload.restrictionsJson,
-          constraintsJson: payload.constraintsJson,
-          variablesJson: payload.variablesJson,
-          createdByUserId: req.user?.id || null
-        }
-      })
-      await writeAuditLog({
-        tenantId,
-        actorId: req.actorContext.actorId,
-        actorRole: req.actorContext.actorRole,
-        action: 'chat_agent.create',
-        resource: 'chat_agent',
-        resourceId: created.id,
-        traceId: req.actorContext.traceId,
-        decision: 'policy_allowed',
-        result: 'ok',
-        context: { code: payload.code, taskType: payload.taskType, isActive: payload.isActive, requiresApproval: payload.requiresApproval }
-      })
-      return created
+      return createAgentConfigForTenant({ req, tenantId, payload, action: 'chat_agent.create' })
     })
     res.json({ agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
@@ -3562,52 +3652,17 @@ app.post('/api/admin/chats/agents', authenticateToken, resolveActorContext, requ
 app.put('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
-    const existing = await prisma.chatAgentConfig.findFirst({
-      where: { id: req.params.agentId, tenantId },
-      select: { id: true }
-    })
-    if (!existing) return res.status(404).json({ error: 'Agent not found' })
-
-    const data = {}
-    const body = req.body || {}
-    if (Object.prototype.hasOwnProperty.call(body, 'code') && String(body.code || '').trim()) data.code = String(body.code || '').trim().toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(body, 'name')) data.name = String(body.name || '').trim()
-    if (Object.prototype.hasOwnProperty.call(body, 'type')) data.type = normalizeAgentType(body.type)
-    if (Object.prototype.hasOwnProperty.call(body, 'description')) data.description = String(body.description || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'personality')) data.personality = String(body.personality || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'identity')) data.identity = String(body.identity || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'task')) data.task = String(body.task || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'speechStyle') || Object.prototype.hasOwnProperty.call(body, 'speech_style')) data.speechStyle = String(body.speechStyle || body.speech_style || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'promptText')) data.promptText = String(body.promptText || '').trim()
-    if (Object.prototype.hasOwnProperty.call(body, 'taskType')) data.taskType = String(body.taskType || '').trim().toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(body, 'isActive')) data.isActive = !!body.isActive
-    if (Object.prototype.hasOwnProperty.call(body, 'requiresApproval')) data.requiresApproval = !!body.requiresApproval
-    if (Object.prototype.hasOwnProperty.call(body, 'workflowJson') || Object.prototype.hasOwnProperty.call(body, 'workflow')) data.workflowJson = parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'workflowFormat')) data.workflowFormat = String(body.workflowFormat || 'json').trim().toLowerCase() || 'json'
-    if (Object.prototype.hasOwnProperty.call(body, 'restrictionsJson') || Object.prototype.hasOwnProperty.call(body, 'restrictions')) data.restrictionsJson = parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'variablesJson') || Object.prototype.hasOwnProperty.call(body, 'variables')) data.variablesJson = parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson')
-
-    const payload = { agentId: existing.id, data }
+    const data = extractAgentUpdateData(req.body || {})
+    const payload = { agentId: req.params.agentId, data }
     ensureIdempotencyKey(req, 'chat_agent.update', payload)
     const wrapped = await withIdempotency(req, 'chat_agent.update', payload, async () => {
-      const updated = await prisma.chatAgentConfig.update({
-        where: { id: existing.id },
-        data
-      })
-      await writeAuditLog({
+      return updateAgentConfigForTenant({
+        req,
         tenantId,
-        actorId: req.actorContext.actorId,
-        actorRole: req.actorContext.actorRole,
-        action: 'chat_agent.update',
-        resource: 'chat_agent',
-        resourceId: updated.id,
-        traceId: req.actorContext.traceId,
-        decision: 'policy_allowed',
-        result: 'ok',
-        context: data
+        agentId: req.params.agentId,
+        body: req.body || {},
+        action: 'chat_agent.update'
       })
-      return updated
     })
     res.json({ agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
@@ -3634,14 +3689,15 @@ app.get('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorConte
 
 app.delete('/api/admin/chats/agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
-    const row = await prisma.chatAgentConfig.findFirst({
-      where: { id: req.params.agentId, tenantId: req.actorContext.tenantId },
-      select: { id: true }
+    await deleteAgentConfigForTenant({
+      req,
+      tenantId: req.actorContext.tenantId,
+      agentId: req.params.agentId,
+      action: 'chat_agent.delete'
     })
-    if (!row) return res.status(404).json({ error: 'Agent not found' })
-    await prisma.chatAgentConfig.delete({ where: { id: row.id } })
     res.json({ ok: true })
   } catch (error) {
+    if (error.statusCode === 404) return res.status(404).json({ error: error.message })
     console.error('Error deleting chat agent:', error)
     res.status(500).json({ error: 'Failed to delete chat agent' })
   }
@@ -3666,29 +3722,7 @@ app.post('/api/admin/ai-agents', authenticateToken, resolveActorContext, require
     const payload = extractAgentPayload(req.body || {}, { requireCode: true })
     ensureIdempotencyKey(req, 'admin.ai_agent.create', payload)
     const wrapped = await withIdempotency(req, 'admin.ai_agent.create', payload, async () => {
-      return prisma.chatAgentConfig.create({
-        data: {
-          tenantId,
-          code: payload.code,
-          name: payload.name,
-          type: payload.type,
-          description: payload.description,
-          personality: payload.personality,
-          identity: payload.identity,
-          task: payload.task,
-          speechStyle: payload.speechStyle,
-          taskType: payload.taskType,
-          promptText: payload.promptText,
-          workflowJson: payload.workflowJson,
-          workflowFormat: payload.workflowFormat,
-          restrictionsJson: payload.restrictionsJson,
-          constraintsJson: payload.constraintsJson,
-          variablesJson: payload.variablesJson,
-          isActive: payload.isActive,
-          requiresApproval: payload.requiresApproval,
-          createdByUserId: req.user?.id || null
-        }
-      })
+      return createAgentConfigForTenant({ req, tenantId, payload, action: 'admin.ai_agent.create' })
     })
     res.json({ success: true, agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
@@ -3712,33 +3746,21 @@ app.get('/api/admin/ai-agents/:agentId', authenticateToken, resolveActorContext,
 app.put('/api/admin/ai-agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
-    const row = await prisma.chatAgentConfig.findFirst({
-      where: { id: req.params.agentId, tenantId },
-      select: { id: true }
+    const data = extractAgentUpdateData(req.body || {})
+    const payload = { agentId: req.params.agentId, data }
+    ensureIdempotencyKey(req, 'admin.ai_agent.update', payload)
+    const wrapped = await withIdempotency(req, 'admin.ai_agent.update', payload, async () => {
+      return updateAgentConfigForTenant({
+        req,
+        tenantId,
+        agentId: req.params.agentId,
+        body: req.body || {},
+        action: 'admin.ai_agent.update'
+      })
     })
-    if (!row) return res.status(404).json({ error: 'Agent not found' })
-    const data = {}
-    const body = req.body || {}
-    if (Object.prototype.hasOwnProperty.call(body, 'name')) data.name = String(body.name || '').trim()
-    if (Object.prototype.hasOwnProperty.call(body, 'code') && String(body.code || '').trim()) data.code = String(body.code || '').trim().toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(body, 'type')) data.type = normalizeAgentType(body.type)
-    if (Object.prototype.hasOwnProperty.call(body, 'description')) data.description = String(body.description || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'personality')) data.personality = String(body.personality || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'identity')) data.identity = String(body.identity || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'task')) data.task = String(body.task || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'speechStyle') || Object.prototype.hasOwnProperty.call(body, 'speech_style')) data.speechStyle = String(body.speechStyle || body.speech_style || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'taskType')) data.taskType = String(body.taskType || '').trim().toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(body, 'promptText')) data.promptText = String(body.promptText || '').trim()
-    if (Object.prototype.hasOwnProperty.call(body, 'workflowJson') || Object.prototype.hasOwnProperty.call(body, 'workflow')) data.workflowJson = parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'workflowFormat')) data.workflowFormat = String(body.workflowFormat || 'json').trim().toLowerCase() || 'json'
-    if (Object.prototype.hasOwnProperty.call(body, 'restrictionsJson') || Object.prototype.hasOwnProperty.call(body, 'restrictions')) data.restrictionsJson = parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'variablesJson') || Object.prototype.hasOwnProperty.call(body, 'variables')) data.variablesJson = parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'isActive')) data.isActive = !!body.isActive
-    if (Object.prototype.hasOwnProperty.call(body, 'requiresApproval')) data.requiresApproval = !!body.requiresApproval
-    const updated = await prisma.chatAgentConfig.update({ where: { id: row.id }, data })
-    res.json({ success: true, agent: serializeAgent(updated) })
+    res.json({ success: true, agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
+    if (error.statusCode === 404) return res.status(404).json({ error: error.message })
     const status = error.statusCode || (String(error?.message || '').includes('valid JSON') ? 400 : 500)
     res.status(status).json({ error: error.message || 'Failed to update AI agent' })
   }
@@ -3746,14 +3768,19 @@ app.put('/api/admin/ai-agents/:agentId', authenticateToken, resolveActorContext,
 
 app.delete('/api/admin/ai-agents/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
-    const row = await prisma.chatAgentConfig.findFirst({
-      where: { id: req.params.agentId, tenantId: req.actorContext.tenantId },
-      select: { id: true }
+    const payload = { agentId: req.params.agentId }
+    ensureIdempotencyKey(req, 'admin.ai_agent.delete', payload)
+    const wrapped = await withIdempotency(req, 'admin.ai_agent.delete', payload, async () => {
+      return deleteAgentConfigForTenant({
+        req,
+        tenantId: req.actorContext.tenantId,
+        agentId: req.params.agentId,
+        action: 'admin.ai_agent.delete'
+      })
     })
-    if (!row) return res.status(404).json({ error: 'Agent not found' })
-    await prisma.chatAgentConfig.delete({ where: { id: row.id } })
-    res.json({ success: true })
+    res.json({ success: true, idempotent: wrapped.replayed })
   } catch (error) {
+    if (error.statusCode === 404) return res.status(404).json({ error: error.message })
     res.status(500).json({ error: 'Failed to delete AI agent' })
   }
 })
@@ -3775,30 +3802,11 @@ app.post('/api/business/:businessId/ai-agents/manage', authenticateToken, resolv
   try {
     const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
     const payload = extractAgentPayload(req.body || {}, { requireCode: true })
-    const created = await prisma.chatAgentConfig.create({
-      data: {
-        tenantId,
-        code: payload.code,
-        name: payload.name,
-        type: payload.type,
-        description: payload.description,
-        personality: payload.personality,
-        identity: payload.identity,
-        task: payload.task,
-        speechStyle: payload.speechStyle,
-        taskType: payload.taskType,
-        promptText: payload.promptText,
-        workflowJson: payload.workflowJson,
-        workflowFormat: payload.workflowFormat,
-        restrictionsJson: payload.restrictionsJson,
-        constraintsJson: payload.constraintsJson,
-        variablesJson: payload.variablesJson,
-        isActive: payload.isActive,
-        requiresApproval: payload.requiresApproval,
-        createdByUserId: req.user?.id || null
-      }
+    ensureIdempotencyKey(req, 'business.ai_agent.create', payload)
+    const wrapped = await withIdempotency(req, 'business.ai_agent.create', payload, async () => {
+      return createAgentConfigForTenant({ req, tenantId, payload, action: 'business.ai_agent.create' })
     })
-    res.status(201).json({ success: true, agent: serializeAgent(created) })
+    res.status(201).json({ success: true, agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
     res.status(error.statusCode || (String(error?.message || '').includes('required') || String(error?.message || '').includes('valid JSON') ? 400 : 500)).json({ error: error.message || 'Failed to create business AI agent' })
   }
@@ -3807,32 +3815,18 @@ app.post('/api/business/:businessId/ai-agents/manage', authenticateToken, resolv
 app.put('/api/business/:businessId/ai-agents/manage/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
-    const row = await prisma.chatAgentConfig.findFirst({
-      where: { id: req.params.agentId, tenantId },
-      select: { id: true }
+    const data = extractAgentUpdateData(req.body || {})
+    ensureIdempotencyKey(req, 'business.ai_agent.update', { agentId: req.params.agentId, data })
+    const wrapped = await withIdempotency(req, 'business.ai_agent.update', { agentId: req.params.agentId, data }, async () => {
+      return updateAgentConfigForTenant({
+        req,
+        tenantId,
+        agentId: req.params.agentId,
+        body: req.body || {},
+        action: 'business.ai_agent.update'
+      })
     })
-    if (!row) return res.status(404).json({ error: 'Agent not found' })
-    const body = req.body || {}
-    const data = {}
-    if (Object.prototype.hasOwnProperty.call(body, 'name')) data.name = String(body.name || '').trim()
-    if (Object.prototype.hasOwnProperty.call(body, 'code') && String(body.code || '').trim()) data.code = String(body.code || '').trim().toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(body, 'type')) data.type = normalizeAgentType(body.type)
-    if (Object.prototype.hasOwnProperty.call(body, 'description')) data.description = String(body.description || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'personality')) data.personality = String(body.personality || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'identity')) data.identity = String(body.identity || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'task')) data.task = String(body.task || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'speechStyle') || Object.prototype.hasOwnProperty.call(body, 'speech_style')) data.speechStyle = String(body.speechStyle || body.speech_style || '').trim() || null
-    if (Object.prototype.hasOwnProperty.call(body, 'taskType')) data.taskType = String(body.taskType || '').trim().toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(body, 'promptText')) data.promptText = String(body.promptText || '').trim()
-    if (Object.prototype.hasOwnProperty.call(body, 'workflowJson') || Object.prototype.hasOwnProperty.call(body, 'workflow')) data.workflowJson = parseJsonFieldOrNull(body.workflowJson || body.workflow, 'workflowJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'workflowFormat')) data.workflowFormat = String(body.workflowFormat || 'json').trim().toLowerCase() || 'json'
-    if (Object.prototype.hasOwnProperty.call(body, 'restrictionsJson') || Object.prototype.hasOwnProperty.call(body, 'restrictions')) data.restrictionsJson = parseJsonFieldOrNull(body.restrictionsJson || body.restrictions, 'restrictionsJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'constraintsJson')) data.constraintsJson = parseJsonFieldOrNull(body.constraintsJson, 'constraintsJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'variablesJson') || Object.prototype.hasOwnProperty.call(body, 'variables')) data.variablesJson = parseJsonFieldOrNull(body.variablesJson || body.variables, 'variablesJson')
-    if (Object.prototype.hasOwnProperty.call(body, 'isActive')) data.isActive = !!body.isActive
-    if (Object.prototype.hasOwnProperty.call(body, 'requiresApproval')) data.requiresApproval = !!body.requiresApproval
-    const updated = await prisma.chatAgentConfig.update({ where: { id: row.id }, data })
-    res.json({ success: true, agent: serializeAgent(updated) })
+    res.json({ success: true, agent: serializeAgent(wrapped.data), idempotent: wrapped.replayed })
   } catch (error) {
     res.status(error.statusCode || (String(error?.message || '').includes('valid JSON') ? 400 : 500)).json({ error: error.message || 'Failed to update business AI agent' })
   }
@@ -3841,13 +3835,16 @@ app.put('/api/business/:businessId/ai-agents/manage/:agentId', authenticateToken
 app.delete('/api/business/:businessId/ai-agents/manage/:agentId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
-    const row = await prisma.chatAgentConfig.findFirst({
-      where: { id: req.params.agentId, tenantId },
-      select: { id: true }
+    ensureIdempotencyKey(req, 'business.ai_agent.delete', { agentId: req.params.agentId })
+    const wrapped = await withIdempotency(req, 'business.ai_agent.delete', { agentId: req.params.agentId }, async () => {
+      return deleteAgentConfigForTenant({
+        req,
+        tenantId,
+        agentId: req.params.agentId,
+        action: 'business.ai_agent.delete'
+      })
     })
-    if (!row) return res.status(404).json({ error: 'Agent not found' })
-    await prisma.chatAgentConfig.delete({ where: { id: row.id } })
-    res.json({ success: true })
+    res.json({ success: true, idempotent: wrapped.replayed })
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message || 'Failed to delete business AI agent' })
   }

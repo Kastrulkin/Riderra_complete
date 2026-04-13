@@ -14,6 +14,7 @@ const steps = [
   { name: 'apiAuditTrace', cmd: ['node', 'scripts/security_api_audit_trace_smoke.js'] },
   { name: 'chatInboundE2E', cmd: ['node', 'scripts/chat_inbound_e2e_smoke.js'] },
   { name: 'openclawContract', cmd: ['node', 'scripts/openclaw_runtime_contract_smoke.js'] },
+  { name: 'agentRouteConsistency', cmd: ['node', 'scripts/ai_agent_route_consistency_smoke.js'] },
   { name: 'gate', cmd: ['node', 'scripts/security_gate_checks.js'] }
 ]
 
@@ -53,7 +54,8 @@ function main() {
       humanInLoop: false,
       audit: false,
       chatInboundE2E: false,
-      openclawContract: false
+      openclawContract: false,
+      agentRouteConsistency: false
     }
   }
 
@@ -88,6 +90,7 @@ function main() {
   const apiAuditTrace = report.steps.apiAuditTrace?.parsed || {}
   const chatInboundE2E = report.steps.chatInboundE2E?.parsed || {}
   const openclawContract = report.steps.openclawContract?.parsed || {}
+  const agentRouteConsistency = report.steps.agentRouteConsistency?.parsed || {}
 
   const nullTenantOk = [
     smoke.ordersNullTenant,
@@ -110,6 +113,7 @@ function main() {
   report.criteria.audit = Boolean(gate.audit) && Boolean(apiAuditTrace.ok)
   report.criteria.chatInboundE2E = Boolean(chatInboundE2E.ok)
   report.criteria.openclawContract = Boolean(openclawContract.ok)
+  report.criteria.agentRouteConsistency = Boolean(agentRouteConsistency.ok)
 
   const allOk = Object.values(report.criteria).every(Boolean)
   report.ok = allOk
