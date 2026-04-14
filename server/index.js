@@ -501,6 +501,184 @@ app.get(['/terms', '/terms/en', '/terms-and-conditions', '/user-agreement'], (re
   res.status(200).send(renderTermsHtml(lang))
 })
 
+function renderDataDeletionHtml(lang = 'ru') {
+  const isEn = String(lang || '').toLowerCase() === 'en'
+  const pageLang = isEn ? 'en' : 'ru'
+  const title = isEn ? 'Data Deletion Instructions | Riderra' : 'Удаление данных пользователей | Riderra'
+  const description = isEn
+    ? 'How to request deletion or anonymization of personal data processed by Riderra.'
+    : 'Как запросить удаление или обезличивание персональных данных, обрабатываемых Riderra.'
+  const homeLabel = isEn ? 'Back to Riderra homepage' : 'На главную Riderra'
+  const h1 = isEn ? 'Data Deletion Instructions' : 'Удаление данных пользователей'
+  const updated = isEn ? 'Last updated: April 14, 2026' : 'Дата обновления: 14 апреля 2026'
+  const sections = isEn
+    ? [
+        {
+          title: '1. How to submit a request',
+          body: 'Send a request to info@riderra.com with the subject line "Data deletion request". Please include your full name, contact details used with Riderra, and any booking number, email thread, or phone number that helps identify the data to be removed.'
+        },
+        {
+          title: '2. Verification',
+          body: 'Riderra may ask for additional information to verify the identity of the requester and prevent accidental or unauthorized deletion of data.'
+        },
+        {
+          title: '3. Processing timeline',
+          body: 'After verification, Riderra reviews the request and processes it within a reasonable operational period. If certain records must be retained due to legal, accounting, anti-fraud, or contractual obligations, Riderra may keep the minimum amount of data required for compliance.'
+        },
+        {
+          title: '4. Contact',
+          body: 'For data deletion or privacy requests, contact '
+        }
+      ]
+    : [
+        {
+          title: '1. Как подать запрос',
+          body: 'Отправьте запрос на info@riderra.com с темой письма «Запрос на удаление данных». Укажите ваше полное имя, контактные данные, которые использовались при работе с Riderra, а также номер заказа, email-переписку или номер телефона, если они помогают идентифицировать данные.'
+        },
+        {
+          title: '2. Проверка личности',
+          body: 'Riderra может запросить дополнительную информацию для подтверждения личности заявителя и предотвращения случайного или несанкционированного удаления данных.'
+        },
+        {
+          title: '3. Срок обработки',
+          body: 'После подтверждения личности Riderra рассматривает запрос и исполняет его в разумный операционный срок. Если часть записей должна храниться по закону, для бухгалтерии, антифрода или исполнения договора, Riderra может сохранить минимально необходимый объём данных.'
+        },
+        {
+          title: '4. Контакты',
+          body: 'По вопросам удаления данных и конфиденциальности напишите на '
+        }
+      ]
+
+  return `<!doctype html>
+<html lang="${pageLang}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${title}</title>
+    <meta name="description" content="${description}">
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --card: #fff;
+        --text: #14235a;
+        --muted: #5b6884;
+        --accent: #2948a3;
+        --line: rgba(20, 35, 90, 0.12);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #edf3ff 0%, #f8fbff 100%);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 42px 20px 60px;
+      }
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .back {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .lang-switch {
+        display: flex;
+        gap: 10px;
+        font-size: 14px;
+      }
+      .lang-switch span {
+        font-weight: 700;
+      }
+      .lang-switch a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .card {
+        padding: 34px 34px 28px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(20, 35, 90, 0.08);
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-size: 40px;
+        line-height: 1.08;
+      }
+      .updated {
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      h2 {
+        margin: 28px 0 10px;
+        font-size: 24px;
+        line-height: 1.25;
+      }
+      p {
+        margin: 0 0 16px;
+        font-size: 17px;
+        line-height: 1.7;
+      }
+      a { color: var(--accent); }
+      @media (max-width: 767px) {
+        .wrap { padding-top: 24px; padding-bottom: 36px; }
+        .card { padding: 28px 20px; border-radius: 18px; }
+        .toolbar { align-items: flex-start; flex-direction: column; }
+        h1 { font-size: 30px; }
+        h2 { font-size: 21px; }
+        p { font-size: 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="toolbar">
+        <a class="back" href="https://riderra.com/">${homeLabel}</a>
+        <div class="lang-switch" aria-label="Language switcher">
+          ${isEn ? '<a href="/data-deletion">RU</a><span>EN</span>' : '<span>RU</span><a href="/data-deletion/en">EN</a>'}
+        </div>
+      </div>
+      <section class="card">
+        <p class="eyebrow">Riderra</p>
+        <h1>${h1}</h1>
+        <p class="updated">${updated}</p>
+        ${sections.map((section, index) => {
+          if (index === sections.length - 1) {
+            return `<h2>${section.title}</h2><p>${section.body}<a href="mailto:info@riderra.com">info@riderra.com</a>.</p>`
+          }
+          return `<h2>${section.title}</h2><p>${section.body}</p>`
+        }).join('')}
+      </section>
+    </main>
+  </body>
+</html>`
+}
+
+app.get(['/data-deletion', '/data-deletion/en', '/data-deletion-instructions'], (req, res) => {
+  const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.status(200).send(renderDataDeletionHtml(lang))
+})
+
 // JWT секрет
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
