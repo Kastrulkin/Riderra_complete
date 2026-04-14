@@ -672,7 +672,7 @@ function renderDataDeletionHtml(lang = 'ru') {
 </html>`
 }
 
-app.get(['/data-deletion', '/data-deletion/en', '/data-deletion-instructions'], (req, res) => {
+app.get(['/data-deletion', '/data-deletion/en', '/data-deletion-instructions', '/facebook-data-deletion', '/facebook-data-deletion/en'], (req, res) => {
   const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
