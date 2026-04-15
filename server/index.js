@@ -8137,6 +8137,168 @@ function normalizeFlightNumber(raw) {
   return `${code}${num}${suffix || ''}`
 }
 
+function splitFlightNumber(raw) {
+  const normalized = normalizeFlightNumber(raw)
+  if (!normalized) return null
+  const match = normalized.match(/^([A-Z0-9]{2,3})(\d{1,5})([A-Z]?)$/)
+  if (!match) return { normalized, airlineIata: null, flightNumberOnly: null }
+  return {
+    normalized,
+    airlineIata: match[1],
+    flightNumberOnly: `${match[2]}${match[3] || ''}`
+  }
+}
+
+function formatDateYmd(value) {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function parseDateMaybe(value) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date
+}
+
+function getAviationStackConfig() {
+  const apiKey = String(process.env.AVIATIONSTACK_API_KEY || '').trim()
+  const baseUrl = String(process.env.AVIATIONSTACK_BASE_URL || 'https://api.aviationstack.com/v1').trim()
+  return {
+    configured: Boolean(apiKey),
+    apiKey,
+    baseUrl: baseUrl.replace(/\/+$/, '')
+  }
+}
+
+function normalizeAviationStackFlightRow(row = {}) {
+  return {
+    flightDate: row.flight_date || null,
+    flightStatus: row.flight_status || null,
+    airlineName: row.airline?.name || null,
+    airlineIata: row.airline?.iata || null,
+    flightNumber: row.flight?.number || null,
+    flightIata: row.flight?.iata || null,
+    departureAirport: row.departure?.airport || null,
+    departureIata: row.departure?.iata || null,
+    departureScheduled: row.departure?.scheduled || null,
+    departureEstimated: row.departure?.estimated || null,
+    departureActual: row.departure?.actual || null,
+    arrivalAirport: row.arrival?.airport || null,
+    arrivalIata: row.arrival?.iata || null,
+    arrivalScheduled: row.arrival?.scheduled || null,
+    arrivalEstimated: row.arrival?.estimated || null,
+    arrivalActual: row.arrival?.actual || null,
+    raw: row
+  }
+}
+
+function scoreAviationStackFlightRow(row, flightRef, pickupAt = null) {
+  let score = 0
+  const flightIata = String(row.flightIata || '').trim().toUpperCase()
+  if (flightRef?.normalized && flightIata === flightRef.normalized) score += 100
+  const airlineIata = String(row.airlineIata || '').trim().toUpperCase()
+  if (flightRef?.airlineIata && airlineIata === String(flightRef.airlineIata).toUpperCase()) score += 20
+  const flightNumber = String(row.flightNumber || '').trim()
+  if (flightRef?.flightNumberOnly && flightNumber === flightRef.flightNumberOnly) score += 30
+
+  if (pickupAt) {
+    const pickup = parseDateMaybe(pickupAt)
+    const arrivalCandidates = [row.arrivalEstimated, row.arrivalScheduled, row.arrivalActual]
+      .map(parseDateMaybe)
+      .filter(Boolean)
+    if (pickup && arrivalCandidates.length) {
+      const minDiffMs = Math.min(...arrivalCandidates.map((candidate) => Math.abs(candidate.getTime() - pickup.getTime())))
+      const minDiffHours = minDiffMs / (1000 * 60 * 60)
+      if (minDiffHours <= 3) score += 40
+      else if (minDiffHours <= 12) score += 20
+      else if (minDiffHours <= 24) score += 5
+    }
+  }
+
+  return score
+}
+
+async function fetchAviationStackFlightCheck({ flightNumber, pickupAt = null }) {
+  const config = getAviationStackConfig()
+  if (!config.configured) {
+    const error = new Error('AVIATIONSTACK_API_KEY is not configured')
+    error.statusCode = 503
+    throw error
+  }
+
+  const flightRef = splitFlightNumber(flightNumber)
+  if (!flightRef?.normalized) {
+    const error = new Error('flightNumber is required')
+    error.statusCode = 400
+    throw error
+  }
+
+  const flightDate = formatDateYmd(pickupAt || new Date())
+  const url = new URL(`${config.baseUrl}/flights`)
+  url.searchParams.set('access_key', config.apiKey)
+  url.searchParams.set('flight_iata', flightRef.normalized)
+  if (flightDate) url.searchParams.set('flight_date', flightDate)
+  url.searchParams.set('limit', '10')
+
+  const response = await fetch(url.toString())
+  const json = await response.json().catch(() => ({}))
+  if (!response.ok || json?.error) {
+    const details = json?.error?.message || json?.error?.info || JSON.stringify(json)
+    const error = new Error(`AviationStack request failed: ${details}`)
+    error.statusCode = 502
+    throw error
+  }
+
+  const rawRows = Array.isArray(json?.data) ? json.data : Array.isArray(json?.results) ? json.results : []
+  const rows = rawRows.map(normalizeAviationStackFlightRow)
+  const sorted = rows
+    .map((row) => ({ row, score: scoreAviationStackFlightRow(row, flightRef, pickupAt) }))
+    .sort((a, b) => b.score - a.score)
+
+  const best = sorted[0]?.row || null
+  return {
+    provider: 'aviationstack',
+    checkedAt: new Date().toISOString(),
+    query: {
+      flightNumber: flightRef.normalized,
+      flightDate
+    },
+    found: Boolean(best),
+    bestMatch: best,
+    alternatives: sorted.slice(1, 5).map((item) => item.row),
+    resultCount: rows.length
+  }
+}
+
+function mergeFlightCheckIntoPayload(payload = {}, flightCheck = null) {
+  const next = { ...payload, flightCheck }
+  const qualityChecks = Array.isArray(payload.qualityChecks) ? payload.qualityChecks.filter((item) => item?.key !== 'flightLive') : []
+  if (flightCheck?.found && flightCheck?.bestMatch) {
+    const match = flightCheck.bestMatch
+    const arrival = match.arrivalEstimated || match.arrivalScheduled || match.arrivalActual || null
+    qualityChecks.push({
+      key: 'flightLive',
+      level: 'ok',
+      message: `AviationStack: ${match.flightStatus || 'status unknown'}${arrival ? `, прилёт ${arrival}` : ''}`
+    })
+  } else {
+    qualityChecks.push({
+      key: 'flightLive',
+      level: 'warn',
+      message: 'AviationStack не нашёл рейс по указанному номеру и дате'
+    })
+  }
+  next.qualityChecks = qualityChecks
+  next.infoReason = buildInfoReasonFromDraftChecks(qualityChecks, payload.missingFields || [])
+  return next
+}
+
 function hasAirportLikePoint(value) {
   const raw = String(value || '').trim().toLowerCase()
   if (!raw) return false
@@ -8785,6 +8947,62 @@ app.get('/api/admin/ops/drafts/:draftId', authenticateToken, resolveActorContext
   } catch (error) {
     console.error('Error fetching ops draft detail:', error)
     res.status(500).json({ error: 'Failed to fetch ops draft detail' })
+  }
+})
+
+app.post('/api/admin/ops/drafts/:draftId/flight-check', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const row = await prisma.opsEventDraft.findFirst({
+      where: {
+        id: req.params.draftId,
+        tenantId: req.actorContext.tenantId
+      }
+    })
+    if (!row) return res.status(404).json({ error: 'Draft not found' })
+
+    const payload = parseJsonSafe(row.payloadJson || '{}', {})
+    const orderDraft = payload.orderDraft || {}
+    const flightNumber = normalizeFlightNumber(orderDraft.flightNumber || req.body?.flightNumber)
+    const pickupAt = orderDraft.pickupAt || req.body?.pickupAt || null
+    if (!flightNumber) return res.status(400).json({ error: 'flightNumber is missing in draft' })
+
+    const flightCheck = await fetchAviationStackFlightCheck({ flightNumber, pickupAt })
+    const nextPayload = mergeFlightCheckIntoPayload(payload, flightCheck)
+
+    const updated = await prisma.opsEventDraft.update({
+      where: { id: row.id },
+      data: { payloadJson: JSON.stringify(nextPayload) }
+    })
+
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'ops.draft.flight_check',
+      resource: 'ops_draft',
+      resourceId: row.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: {
+        flightNumber,
+        pickupAt,
+        provider: 'aviationstack',
+        found: flightCheck.found
+      }
+    })
+
+    res.json({
+      success: true,
+      draft: {
+        ...updated,
+        payload: nextPayload
+      },
+      flightCheck
+    })
+  } catch (error) {
+    console.error('Error checking flight for draft:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to check flight' })
   }
 })
 

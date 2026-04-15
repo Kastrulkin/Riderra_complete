@@ -91,6 +91,37 @@
             <strong>Комментарий:</strong>
             <pre>{{ orderDraft.comment }}</pre>
           </div>
+          <div class="section-actions">
+            <button
+              class="btn btn--small btn--ghost"
+              type="button"
+              :disabled="flightChecking || !orderDraft.flightNumber"
+              @click="runFlightCheck"
+            >
+              {{ flightChecking ? 'Проверяю рейс...' : 'Проверить рейс' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="section-card" v-if="flightCheck">
+          <h4>Проверка рейса</h4>
+          <div class="meta-grid">
+            <div><strong>Провайдер:</strong> {{ flightCheck.provider || '-' }}</div>
+            <div><strong>Проверен:</strong> {{ formatDate(flightCheck.checkedAt) }}</div>
+            <div><strong>Рейс:</strong> {{ flightCheck.query?.flightNumber || orderDraft.flightNumber || '-' }}</div>
+            <div><strong>Дата:</strong> {{ flightCheck.query?.flightDate || '-' }}</div>
+            <div><strong>Найден:</strong> {{ flightCheck.found ? 'Да' : 'Нет' }}</div>
+            <div><strong>Совпадений:</strong> {{ flightCheck.resultCount == null ? '-' : flightCheck.resultCount }}</div>
+          </div>
+          <div v-if="flightCheck.bestMatch" class="meta-grid" style="margin-top: 10px;">
+            <div><strong>Статус:</strong> {{ flightCheck.bestMatch.flightStatus || '-' }}</div>
+            <div><strong>Авиакомпания:</strong> {{ flightCheck.bestMatch.airlineName || '-' }}</div>
+            <div><strong>Вылет:</strong> {{ formatDate(flightCheck.bestMatch.departureScheduled || flightCheck.bestMatch.departureEstimated || flightCheck.bestMatch.departureActual) }}</div>
+            <div><strong>Прилёт:</strong> {{ formatDate(flightCheck.bestMatch.arrivalEstimated || flightCheck.bestMatch.arrivalScheduled || flightCheck.bestMatch.arrivalActual) }}</div>
+            <div><strong>Из:</strong> {{ flightCheck.bestMatch.departureAirport || flightCheck.bestMatch.departureIata || '-' }}</div>
+            <div><strong>В:</strong> {{ flightCheck.bestMatch.arrivalAirport || flightCheck.bestMatch.arrivalIata || '-' }}</div>
+          </div>
+          <div v-if="flightCheckError" class="hint hint--error">{{ flightCheckError }}</div>
         </div>
 
         <div class="section-card">
@@ -186,7 +217,9 @@ export default {
     draft: null,
     reviewComment: '',
     actionResult: '',
-    saving: false
+    saving: false,
+    flightChecking: false,
+    flightCheckError: ''
   }),
   computed: {
     payload () {
@@ -209,6 +242,9 @@ export default {
     },
     sheetRowPreview () {
       return this.payload.sheetRowPreview || {}
+    },
+    flightCheck () {
+      return this.payload.flightCheck || null
     }
   },
   mounted () {
@@ -279,12 +315,34 @@ export default {
       this.draft = data
       this.reviewComment = ''
       this.actionResult = ''
+      this.flightCheckError = ''
     },
     closeDraft () {
       this.draft = null
       this.reviewComment = ''
       this.actionResult = ''
       this.saving = false
+      this.flightChecking = false
+      this.flightCheckError = ''
+    },
+    async runFlightCheck () {
+      if (!this.draft) return
+      this.flightChecking = true
+      this.flightCheckError = ''
+      try {
+        const res = await fetch(`/api/admin/ops/drafts/${this.draft.id}/flight-check`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Flight check failed')
+        this.draft = data.draft || this.draft
+      } catch (error) {
+        this.flightCheckError = error.message || 'Flight check failed'
+      } finally {
+        this.flightChecking = false
+      }
     },
     async approve () {
       if (!this.draft) return
