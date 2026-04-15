@@ -6034,6 +6034,67 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
 
     }
 
+    const existingOrderIds = new Set(rows.map((row) => String(row.id || '')).filter(Boolean))
+
+    const approvedDrafts = await prisma.opsEventDraft.findMany({
+      where: {
+        tenantId: req.actorContext.tenantId,
+        parsedType: 'openclaw_order_draft',
+        status: 'approved'
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500
+    })
+
+    let syntheticSourceRow = -1
+    for (const draft of approvedDrafts) {
+      const payload = parseJsonSafe(draft.payloadJson || '{}', {})
+      const promotedOrderId = String(payload?.promotedOrder?.orderId || '').trim()
+      const preview = payload?.sheetRowPreview && typeof payload.sheetRowPreview === 'object'
+        ? payload.sheetRowPreview
+        : buildSheetRowPreviewFromDraft(payload?.orderDraft || {}, payload?.pricing || {})
+
+      if (promotedOrderId && existingOrderIds.has(promotedOrderId)) continue
+
+      const order = promotedOrderId
+        ? await prisma.order.findFirst({
+            where: { id: promotedOrderId, tenantId: req.actorContext.tenantId },
+            select: {
+              id: true,
+              status: true,
+              needsInfo: true,
+              infoReason: true,
+              driverPrice: true,
+              clientPrice: true,
+              updatedAt: true,
+              createdAt: true
+            }
+          })
+        : null
+
+      rows.push({
+        id: order?.id || '',
+        source: 'ai_inbox',
+        sourceRow: syntheticSourceRow--,
+        contractor: String(preview.contractor || ''),
+        orderNumber: String(preview.orderNumber || ''),
+        date: String(preview.date || ''),
+        fromPoint: String(preview.fromPoint || ''),
+        toPoint: String(preview.toPoint || ''),
+        sum: String(preview.sum || ''),
+        driver: String(preview.driver || ''),
+        comment: String(preview.comment || ''),
+        internalOrderNumber: String(preview.internalOrderNumber || draft.id),
+        status: order?.status || 'draft',
+        needsInfo: Boolean(order?.needsInfo),
+        infoReason: order?.infoReason || payload?.infoReason || null,
+        orderClientPrice: order?.clientPrice ?? payload?.pricing?.authoritativeClientPrice ?? payload?.orderDraft?.clientPrice ?? null,
+        orderDriverPrice: order?.driverPrice ?? payload?.orderDraft?.driverPrice ?? null,
+        orderCreatedAt: order?.createdAt || draft.createdAt || null,
+        orderUpdatedAt: order?.updatedAt || draft.updatedAt || null
+      })
+    }
+
     let headers = []
     let rawRows = []
     try {
@@ -6090,6 +6151,27 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
           sourceRow: snapshot.sourceRow,
           values: raw
         })
+      }
+    }
+
+    for (const draft of approvedDrafts) {
+      const payload = parseJsonSafe(draft.payloadJson || '{}', {})
+      const rawText = String(payload?.rawText || draft.messageText || '').trim()
+      if (!rawText) continue
+      rawRows.push({
+        id: String(payload?.promotedOrder?.orderId || ''),
+        source: 'ai_inbox',
+        sourceRow: syntheticSourceRow--,
+        values: {
+          Source: 'OpenClaw email',
+          MessageId: String(payload?.orderDraft?.externalMessageId || ''),
+          Customer: String(payload?.orderDraft?.customerName || ''),
+          Route: [payload?.orderDraft?.fromPoint, payload?.orderDraft?.toPoint].filter(Boolean).join(' -> '),
+          RawText: rawText
+        }
+      })
+      for (const key of ['Source', 'MessageId', 'Customer', 'Route', 'RawText']) {
+        if (!headers.includes(key)) headers.push(key)
       }
     }
 
@@ -8046,6 +8128,161 @@ function parseJsonSafe(raw, fallback = {}) {
   }
 }
 
+function normalizeFlightNumber(raw) {
+  const value = String(raw || '').trim().toUpperCase().replace(/\s+/g, '')
+  if (!value) return null
+  const match = value.match(/^([A-Z0-9]{2,3})(\d{1,5})([A-Z]?)$/)
+  if (!match) return value
+  const [, code, num, suffix] = match
+  return `${code}${num}${suffix || ''}`
+}
+
+function hasAirportLikePoint(value) {
+  const raw = String(value || '').trim().toLowerCase()
+  if (!raw) return false
+  return [
+    'airport',
+    'аэропорт',
+    'terminal',
+    'терминал',
+    'iata',
+    'arrivals',
+    'departures'
+  ].some((token) => raw.includes(token))
+}
+
+function validateAddressLikePoint(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return { level: 'error', code: 'missing', message: 'Поле не заполнено' }
+  if (['tbd', 'unknown', 'n/a', '-', '?'].includes(raw.toLowerCase())) {
+    return { level: 'error', code: 'placeholder', message: 'Указан временный плейсхолдер вместо адреса' }
+  }
+  if (raw.length < 5) {
+    return { level: 'warn', code: 'too_short', message: 'Адрес выглядит слишком коротким' }
+  }
+  if (raw.split(/\s+/).length < 2 && !hasAirportLikePoint(raw)) {
+    return { level: 'warn', code: 'low_detail', message: 'В адресе мало деталей' }
+  }
+  return { level: 'ok', code: 'ok', message: 'Адрес выглядит пригодным' }
+}
+
+function buildOrderDraftQualityChecks(extracted, pricing = {}) {
+  const checks = []
+  const pickupAtRaw = String(extracted?.pickupAt || '').trim()
+  const parsedPickupAt = pickupAtRaw ? new Date(pickupAtRaw) : null
+  const pickupValid = parsedPickupAt && !Number.isNaN(parsedPickupAt.getTime())
+
+  checks.push({
+    key: 'pickupAt',
+    level: pickupValid ? 'ok' : 'error',
+    message: pickupValid ? 'Дата и время подачи распознаны' : 'Дата и время подачи не распознаны'
+  })
+
+  const fromCheck = validateAddressLikePoint(extracted?.fromPoint)
+  checks.push({
+    key: 'fromPoint',
+    level: fromCheck.level,
+    message: `Откуда: ${fromCheck.message}`
+  })
+
+  const toCheck = validateAddressLikePoint(extracted?.toPoint)
+  checks.push({
+    key: 'toPoint',
+    level: toCheck.level,
+    message: `Куда: ${toCheck.message}`
+  })
+
+  const flightNumber = normalizeFlightNumber(extracted?.flightNumber)
+  const flightRequired = hasAirportLikePoint(extracted?.fromPoint) || hasAirportLikePoint(extracted?.toPoint)
+  if (flightRequired) {
+    checks.push({
+      key: 'flightNumber',
+      level: flightNumber ? 'ok' : 'warn',
+      message: flightNumber ? `Рейс указан: ${flightNumber}` : 'Похоже на аэропортовый трансфер, но номер рейса не указан'
+    })
+  } else if (flightNumber) {
+    checks.push({
+      key: 'flightNumber',
+      level: 'ok',
+      message: `Рейс указан: ${flightNumber}`
+    })
+  }
+
+  const extractedPrice = Number.isFinite(Number(extracted?.clientPrice)) ? Number(extracted.clientPrice) : null
+  const authoritativePrice = Number.isFinite(Number(pricing?.authoritativeClientPrice))
+    ? Number(pricing.authoritativeClientPrice)
+    : null
+  if (authoritativePrice != null && extractedPrice != null) {
+    checks.push({
+      key: 'price',
+      level: pricing?.conflict ? 'warn' : 'ok',
+      message: pricing?.conflict
+        ? `Цена расходится: письмо ${extractedPrice.toFixed(2)}, прайс Riderra ${authoritativePrice.toFixed(2)}`
+        : `Цена совпадает с прайсом Riderra: ${authoritativePrice.toFixed(2)}`
+    })
+  } else if (authoritativePrice != null) {
+    checks.push({
+      key: 'price',
+      level: 'ok',
+      message: `Используется цена Riderra: ${authoritativePrice.toFixed(2)}`
+    })
+  } else if (extractedPrice != null) {
+    checks.push({
+      key: 'price',
+      level: 'warn',
+      message: `Цена взята только из письма: ${extractedPrice.toFixed(2)}`
+    })
+  } else {
+    checks.push({
+      key: 'price',
+      level: 'error',
+      message: 'Цена не определена'
+    })
+  }
+
+  return checks
+}
+
+function buildSheetRowPreviewFromDraft(extracted, pricing = {}) {
+  const displayDate = extracted?.pickupAt
+    ? String(extracted.pickupAt).replace('T', ' ').slice(0, 16)
+    : ''
+  const price = pricing?.authoritativeClientPrice != null
+    ? Number(pricing.authoritativeClientPrice)
+    : (Number.isFinite(Number(extracted?.clientPrice)) ? Number(extracted.clientPrice) : null)
+  const commentParts = [
+    extracted?.comment || null,
+    extracted?.flightNumber ? `рейс ${normalizeFlightNumber(extracted.flightNumber)}` : null,
+    pricing?.conflict ? 'расхождение с прайсом Riderra' : null
+  ].filter(Boolean)
+
+  return {
+    contractor: extracted?.customerName || '',
+    orderNumber: extracted?.orderNumber || '',
+    date: displayDate,
+    fromPoint: extracted?.fromPoint || '',
+    toPoint: extracted?.toPoint || '',
+    sum: price != null ? `${price.toFixed(2)} ${pricing?.authoritativeCurrency || extracted?.currency || 'EUR'}` : '',
+    driver: '',
+    comment: commentParts.join('; '),
+    internalOrderNumber: extracted?.externalMessageId || ''
+  }
+}
+
+function buildInfoReasonFromDraftChecks(checks = [], missingFields = []) {
+  const parts = []
+  for (const field of missingFields || []) {
+    const normalized = String(field || '').trim()
+    if (normalized) parts.push(`не заполнено: ${normalized}`)
+  }
+  for (const check of checks || []) {
+    if (check?.level === 'error' || check?.level === 'warn') {
+      parts.push(String(check.message || '').trim())
+    }
+  }
+  return [...new Set(parts.filter(Boolean))].join('; ') || null
+}
+
 function normalizeVehicleType(raw) {
   const value = String(raw || '').trim()
   if (!value) return 'sedan'
@@ -8172,6 +8409,18 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     extracted.clientPrice != null &&
     Math.abs(authoritativeClientPrice - extracted.clientPrice) > 0.009
   )
+  extracted.flightNumber = normalizeFlightNumber(extracted.flightNumber)
+  const qualityChecks = buildOrderDraftQualityChecks(extracted, {
+    authoritativeClientPrice,
+    authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
+    conflict: priceConflict
+  })
+  const infoReason = buildInfoReasonFromDraftChecks(qualityChecks, extracted.missingFields)
+  const sheetRowPreview = buildSheetRowPreviewFromDraft(extracted, {
+    authoritativeClientPrice,
+    authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
+    conflict: priceConflict
+  })
 
   return {
     type: 'openclaw_order_draft',
@@ -8183,6 +8432,10 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     missingFields: extracted.missingFields,
     proposedActions: extracted.proposedActions,
     orderDraft: extracted,
+    qualityChecks,
+    sheetRowPreview,
+    readyForTable: !qualityChecks.some((item) => item.level === 'error'),
+    infoReason,
     pricing: {
       authoritativeClientPrice,
       authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
@@ -8213,6 +8466,7 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
   const parsedPayload = parseJsonSafe(draft.payloadJson || '{}', {})
   const orderDraft = parsedPayload.orderDraft || {}
   const pricing = parsedPayload.pricing || {}
+  const qualityChecks = Array.isArray(parsedPayload.qualityChecks) ? parsedPayload.qualityChecks : []
 
   const pickupAt = orderDraft.pickupAt ? new Date(orderDraft.pickupAt) : null
   const safePickupAt = pickupAt && !Number.isNaN(pickupAt.getTime()) ? pickupAt : null
@@ -8229,6 +8483,8 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
     : Number(orderDraft.clientPrice || 0)
   const driverPrice = orderDraft.driverPrice != null ? Number(orderDraft.driverPrice) : null
   const commission = driverPrice != null ? clientPrice - driverPrice : null
+  const infoReason = buildInfoReasonFromDraftChecks(qualityChecks, parsedPayload.missingFields || [])
+  const needsInfo = Boolean(infoReason)
 
   const baseComment = [
     orderDraft.comment || null,
@@ -8264,6 +8520,8 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       vehicleType: normalizeVehicleType(orderDraft.vehicleType),
       passengers: Number.isFinite(Number(orderDraft.passengers)) ? Number(orderDraft.passengers) : null,
       luggage: Number.isFinite(Number(orderDraft.luggage)) ? Number(orderDraft.luggage) : null,
+      needsInfo,
+      infoReason,
       comment: baseComment || null,
       lang: orderDraft.lang || 'ru'
     }
@@ -8282,17 +8540,40 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
     }
   })
 
+  if (needsInfo) {
+    const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
+    await prisma.chatTask.upsert({
+      where: { tenantId_orderId_taskType: { tenantId, orderId: createdOrder.id, taskType: 'clarification' } },
+      create: {
+        tenantId,
+        orderId: createdOrder.id,
+        taskType: 'clarification',
+        state: 'missing_data_detected',
+        priority: 50,
+        agentConfigId: defaultAgentId
+      },
+      update: {
+        state: 'missing_data_detected',
+        priority: 50,
+        ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {})
+      }
+    })
+  }
+
   return {
     order: createdOrder,
     created: true,
     payload: {
-      orderId: createdOrder.id,
-      externalKey,
-      pricingConflict: !!pricing.conflict,
-      missingFields: parsedPayload.missingFields || []
+        orderId: createdOrder.id,
+        externalKey,
+        pricingConflict: !!pricing.conflict,
+        missingFields: parsedPayload.missingFields || [],
+        qualityChecks,
+        sheetRowPreview: parsedPayload.sheetRowPreview || null,
+        infoReason
+      }
     }
   }
-}
 
 function sourceLabel(source) {
   const raw = String(source || '').trim().toLowerCase()
@@ -8597,6 +8878,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
       let unavailability = null
       let conflicts = []
       let promotedOrder = null
+      let draftPayloadForSave = parsedPayload
       if (draft.parsedType === 'driver_unavailable') {
         const name = String(parsedPayload.driverNameRaw || '').trim()
         const driver = name
@@ -8631,6 +8913,10 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
         })
         promotedOrder = promoted.order
         const eventPayload = parseJsonSafe(event.payloadJson || '{}', {})
+        draftPayloadForSave = {
+          ...parsedPayload,
+          promotedOrder: promoted.payload
+        }
         await prisma.opsEvent.update({
           where: { id: event.id },
           data: {
@@ -8651,7 +8937,8 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
           reviewedAt: new Date(),
           reviewComment: comment || null,
           promotedEventId: event.id,
-          promotedUnavailabilityId: unavailability?.id || null
+          promotedUnavailabilityId: unavailability?.id || null,
+          payloadJson: JSON.stringify(draftPayloadForSave)
         }
       })
 

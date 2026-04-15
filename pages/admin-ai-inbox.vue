@@ -103,6 +103,37 @@
           </div>
         </div>
 
+        <div class="section-card" v-if="qualityChecks.length">
+          <h4>Проверка полей</h4>
+          <div class="checks-list">
+            <div v-for="check in qualityChecks" :key="`${check.key}-${check.message}`" class="check-row">
+              <span class="pill" :class="checkPillClass(check.level)">{{ checkLevelLabel(check.level) }}</span>
+              <span>{{ check.message }}</span>
+            </div>
+          </div>
+          <div v-if="payload.infoReason" class="hint hint--warn">
+            Нужно уточнить: {{ payload.infoReason }}
+          </div>
+        </div>
+
+        <div class="section-card" v-if="sheetRowPreview && Object.keys(sheetRowPreview).length">
+          <h4>Строка для таблицы</h4>
+          <div class="meta-grid">
+            <div><strong>Контрагент:</strong> {{ sheetRowPreview.contractor || '-' }}</div>
+            <div><strong>Номер заказа:</strong> {{ sheetRowPreview.orderNumber || '-' }}</div>
+            <div><strong>Дата:</strong> {{ sheetRowPreview.date || '-' }}</div>
+            <div><strong>Откуда:</strong> {{ sheetRowPreview.fromPoint || '-' }}</div>
+            <div><strong>Куда:</strong> {{ sheetRowPreview.toPoint || '-' }}</div>
+            <div><strong>Сумма:</strong> {{ sheetRowPreview.sum || '-' }}</div>
+            <div><strong>Водитель:</strong> {{ sheetRowPreview.driver || '-' }}</div>
+            <div><strong>Внутренний номер:</strong> {{ sheetRowPreview.internalOrderNumber || '-' }}</div>
+          </div>
+          <div v-if="sheetRowPreview.comment" class="note-block">
+            <strong>Комментарий для таблицы:</strong>
+            <pre>{{ sheetRowPreview.comment }}</pre>
+          </div>
+        </div>
+
         <div class="section-card" v-if="missingFields.length || proposedActions.length">
           <h4>Проверить перед подтверждением</h4>
           <div v-if="missingFields.length" class="pill-list">
@@ -172,6 +203,12 @@ export default {
     },
     proposedActions () {
       return Array.isArray(this.payload.proposedActions) ? this.payload.proposedActions : []
+    },
+    qualityChecks () {
+      return Array.isArray(this.payload.qualityChecks) ? this.payload.qualityChecks : []
+    },
+    sheetRowPreview () {
+      return this.payload.sheetRowPreview || {}
     }
   },
   mounted () {
@@ -216,6 +253,17 @@ export default {
       const n = Number(value)
       if (!Number.isFinite(n)) return '-'
       return `${n.toFixed(2)} ${currency || 'EUR'}`
+    },
+    checkLevelLabel (level) {
+      const map = { ok: 'OK', warn: 'Warn', error: 'Error' }
+      return map[level] || level || '-'
+    },
+    checkPillClass (level) {
+      return {
+        'pill--ok': level === 'ok',
+        'pill--warn': level === 'warn',
+        'pill--danger': level === 'error'
+      }
     },
     async load () {
       const params = new URLSearchParams()
@@ -309,7 +357,12 @@ export default {
 .note-block pre, .section-card pre { white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; font-family: inherit; }
 .pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; }
+.pill--ok { background: #dcfce7; color: #166534; }
 .pill--warn { background: #fff7ed; color: #9a3412; }
+.pill--danger { background: #fee2e2; color: #991b1b; }
+.checks-list { display: grid; gap: 10px; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; line-height: 1.45; }
+.hint--warn { color: #9a3412; }
 .actions { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
 .comment-input { flex: 1; min-width: 280px; }
 .hint { color: #64748b; }
