@@ -172,6 +172,28 @@
           </div>
         </div>
 
+        <div v-if="selectedOrder.addressVerification" class="status-history">
+          <div class="section-head">
+            <h4>{{ t.addressCheckTitle }}</h4>
+            <button
+              class="btn btn--ghost btn--sm"
+              type="button"
+              :disabled="addressCheckSaving"
+              @click="runOrderAddressCheck"
+            >
+              {{ addressCheckSaving ? t.addressChecking : t.addressCheckRun }}
+            </button>
+          </div>
+          <div class="meta-grid">
+            <div><strong>{{ t.addressCheckedAtLabel }}:</strong> {{ formatDateTime(selectedOrder.addressVerification && selectedOrder.addressVerification.checkedAt) }}</div>
+            <div><strong>{{ t.addressSourceLabel }}:</strong> {{ selectedOrder.addressVerification && selectedOrder.addressVerification.provider || '-' }}</div>
+            <div><strong>{{ t.fromNormalizedLabel }}:</strong> {{ addressNormalizedValue(selectedOrder.addressVerification, 'fromPoint') }}</div>
+            <div><strong>{{ t.toNormalizedLabel }}:</strong> {{ addressNormalizedValue(selectedOrder.addressVerification, 'toPoint') }}</div>
+            <div><strong>{{ t.fromCoordsLabel }}:</strong> {{ addressCoordsValue(selectedOrder.addressVerification, 'fromPoint') }}</div>
+            <div><strong>{{ t.toCoordsLabel }}:</strong> {{ addressCoordsValue(selectedOrder.addressVerification, 'toPoint') }}</div>
+          </div>
+        </div>
+
         <div v-if="selectedOrder.qualityChecks && selectedOrder.qualityChecks.length" class="status-history">
           <h4>{{ t.qualityChecksTitle }}</h4>
           <div class="checks-list">
@@ -328,6 +350,7 @@ export default {
     statusReason: '',
     statusSaving: false,
     flightCheckSaving: false,
+    addressCheckSaving: false,
     transitionsError: '',
     infoModal: {
       open: false,
@@ -401,6 +424,15 @@ export default {
             flightStatusLabel: 'Статус рейса',
             flightArrivalLabel: 'Прилёт',
             flightRouteLabel: 'Маршрут',
+            addressCheckTitle: 'Проверка адресов',
+            addressCheckRun: 'Проверить адреса',
+            addressChecking: 'Проверяю...',
+            addressCheckedAtLabel: 'Проверено',
+            addressSourceLabel: 'Источник',
+            fromNormalizedLabel: 'Нормализованное “Откуда”',
+            toNormalizedLabel: 'Нормализованное “Куда”',
+            fromCoordsLabel: 'Координаты “Откуда”',
+            toCoordsLabel: 'Координаты “Куда”',
             qualityChecksTitle: 'Проверка полей',
             findInDetails: 'Найти в Подробностях',
             updatedAt: 'Обновлено',
@@ -486,6 +518,15 @@ export default {
             flightStatusLabel: 'Flight status',
             flightArrivalLabel: 'Arrival',
             flightRouteLabel: 'Route',
+            addressCheckTitle: 'Address verification',
+            addressCheckRun: 'Check addresses',
+            addressChecking: 'Checking...',
+            addressCheckedAtLabel: 'Checked at',
+            addressSourceLabel: 'Source',
+            fromNormalizedLabel: 'Normalized from',
+            toNormalizedLabel: 'Normalized to',
+            fromCoordsLabel: 'From coords',
+            toCoordsLabel: 'To coords',
             qualityChecksTitle: 'Field checks',
             findInDetails: 'Find in details',
             updatedAt: 'Updated at',
@@ -1064,6 +1105,7 @@ export default {
             ...this.selectedOrder,
             flightNumber: detail.flightNumber || null,
             flightCheck: detail.flightCheck || null,
+            addressVerification: detail.addressVerification || null,
             qualityChecks: Array.isArray(detail.qualityChecks) ? detail.qualityChecks : [],
             sourceType: detail.sourceType || null,
             orderComment: detail.comment || null
@@ -1113,6 +1155,34 @@ export default {
           : 'Failed to check flight')
       } finally {
         this.flightCheckSaving = false
+      }
+    },
+    async runOrderAddressCheck () {
+      if (!this.selectedOrder || !this.selectedOrder.id || this.addressCheckSaving) return
+      this.addressCheckSaving = true
+      this.orderCardDetailError = ''
+      try {
+        const response = await fetch(`/api/admin/orders/${encodeURIComponent(this.selectedOrder.id)}/address-check`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...this.headers()
+          }
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data?.error || 'failed')
+        const payload = data?.draft?.payload || {}
+        this.selectedOrder = {
+          ...this.selectedOrder,
+          addressVerification: payload.addressVerification || data?.addressVerification || null,
+          qualityChecks: Array.isArray(payload.qualityChecks) ? payload.qualityChecks : (this.selectedOrder.qualityChecks || [])
+        }
+      } catch (error) {
+        this.orderCardDetailError = error?.message || (this.$store.state.language === 'ru'
+          ? 'Не удалось проверить адреса'
+          : 'Failed to check addresses')
+      } finally {
+        this.addressCheckSaving = false
       }
     },
     async applyStatusChange () {
@@ -1171,6 +1241,7 @@ export default {
       this.statusReason = ''
       this.statusSaving = false
       this.flightCheckSaving = false
+      this.addressCheckSaving = false
       this.transitionsError = ''
     },
     flightArrivalValue (flightCheck) {
@@ -1181,6 +1252,20 @@ export default {
       const match = flightCheck && flightCheck.bestMatch ? flightCheck.bestMatch : null
       if (!match) return '-'
       return [match.departureIata || match.departureAirport || null, match.arrivalIata || match.arrivalAirport || null].filter(Boolean).join(' → ') || '-'
+    },
+    addressNormalizedValue (addressVerification, pointKey) {
+      const match = addressVerification && addressVerification[pointKey] && addressVerification[pointKey].bestMatch
+        ? addressVerification[pointKey].bestMatch
+        : null
+      return match ? (match.displayName || '-') : '-'
+    },
+    addressCoordsValue (addressVerification, pointKey) {
+      const match = addressVerification && addressVerification[pointKey] && addressVerification[pointKey].bestMatch
+        ? addressVerification[pointKey].bestMatch
+        : null
+      if (!match) return '-'
+      if (match.lat == null || match.lon == null) return '-'
+      return `${Number(match.lat).toFixed(5)}, ${Number(match.lon).toFixed(5)}`
     },
     openRawFromCard () {
       const selected = this.selectedOrder

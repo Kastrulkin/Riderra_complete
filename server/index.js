@@ -5876,6 +5876,23 @@ app.get(
           luggage: true,
           needsInfo: true,
           infoReason: true,
+          flightNumber: true,
+          flightStatus: true,
+          flightProvider: true,
+          flightCheckedAt: true,
+          flightArrivalScheduled: true,
+          flightArrivalEstimated: true,
+          flightArrivalActual: true,
+          flightVerificationJson: true,
+          addressProvider: true,
+          addressCheckedAt: true,
+          fromPointNormalized: true,
+          fromPointLat: true,
+          fromPointLon: true,
+          toPointNormalized: true,
+          toPointLat: true,
+          toPointLon: true,
+          addressVerificationJson: true,
           lang: true,
           updatedAt: true,
           createdAt: true
@@ -5886,7 +5903,12 @@ app.get(
       const draft = await findLinkedOpenClawDraftForOrder(order, req.actorContext.tenantId)
       const draftPayload = draft ? parseJsonSafe(draft.payloadJson || '{}', {}) : {}
       const orderDraft = draftPayload.orderDraft || {}
-      const flightCheck = draftPayload.flightCheck || null
+      const flightCheck = order.flightVerificationJson
+        ? parseJsonSafe(order.flightVerificationJson, null)
+        : (draftPayload.flightCheck || null)
+      const addressVerification = order.addressVerificationJson
+        ? parseJsonSafe(order.addressVerificationJson, null)
+        : (draftPayload.addressVerification || null)
       const qualityChecks = Array.isArray(draftPayload.qualityChecks) ? draftPayload.qualityChecks : []
       const latestSnapshot = await prisma.orderSourceSnapshot.findFirst({
         where: { orderId: order.id, tenantId: req.actorContext.tenantId },
@@ -5917,8 +5939,9 @@ app.get(
           lang: order.lang,
           sourceExternalKey: order.externalKey,
           aiDraftId: draft?.id || null,
-          flightNumber: orderDraft.flightNumber || null,
+          flightNumber: order.flightNumber || orderDraft.flightNumber || null,
           flightCheck,
+          addressVerification,
           qualityChecks,
           sourceType: orderDraft.sourceType || draftPayload.sourceType || null,
           customerName: orderDraft.customerName || null,
@@ -5970,10 +5993,17 @@ app.post(
       const flightCheck = await fetchAviationStackFlightCheck({ flightNumber, pickupAt })
       const nextPayload = mergeFlightCheckIntoPayload(payload, flightCheck)
 
-      const updatedDraft = await prisma.opsEventDraft.update({
-        where: { id: draft.id },
-        data: { payloadJson: JSON.stringify(nextPayload) }
-      })
+      const flightPersistence = buildOrderFlightPersistence(nextPayload)
+      const [updatedDraft] = await prisma.$transaction([
+        prisma.opsEventDraft.update({
+          where: { id: draft.id },
+          data: { payloadJson: JSON.stringify(nextPayload) }
+        }),
+        prisma.order.update({
+          where: { id: order.id },
+          data: flightPersistence
+        })
+      ])
 
       await writeAuditLog({
         tenantId: req.actorContext.tenantId,
@@ -6006,6 +6036,91 @@ app.post(
     } catch (error) {
       console.error('Error checking flight for order:', error)
       res.status(error.statusCode || 500).json({ error: error.message || 'Failed to check flight' })
+    }
+  }
+)
+
+app.post(
+  '/api/admin/orders/:orderId/address-check',
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requireCan('ops.read', 'ops'),
+  async (req, res) => {
+    try {
+      const order = await prisma.order.findFirst({
+        where: { id: req.params.orderId, tenantId: req.actorContext.tenantId },
+        select: {
+          id: true,
+          tenantId: true,
+          fromPoint: true,
+          toPoint: true,
+          lang: true
+        }
+      })
+      if (!order) return res.status(404).json({ error: 'Order not found' })
+
+      const draft = await findLinkedOpenClawDraftForOrder(order, req.actorContext.tenantId)
+      const payload = draft ? parseJsonSafe(draft.payloadJson || '{}', {}) : {}
+      const orderDraft = payload.orderDraft || {}
+      const fromPoint = String(order.fromPoint || orderDraft.fromPoint || req.body?.fromPoint || '').trim()
+      const toPoint = String(order.toPoint || orderDraft.toPoint || req.body?.toPoint || '').trim()
+      if (!fromPoint && !toPoint) return res.status(400).json({ error: 'No addresses available for order' })
+
+      const [fromGeo, toGeo] = await Promise.all([
+        fromPoint ? geocodeAddress(fromPoint, { language: order.lang || orderDraft.lang || 'en' }) : Promise.resolve(null),
+        toPoint ? geocodeAddress(toPoint, { language: order.lang || orderDraft.lang || 'en' }) : Promise.resolve(null)
+      ])
+      const verification = {
+        provider: 'nominatim',
+        checkedAt: new Date().toISOString(),
+        fromPoint: fromGeo,
+        toPoint: toGeo
+      }
+      const nextPayload = draft ? mergeAddressVerificationIntoPayload(payload, verification) : payload
+      const addressPersistence = buildOrderAddressPersistence({ addressVerification: verification })
+
+      const ops = [
+        prisma.order.update({
+          where: { id: order.id },
+          data: addressPersistence
+        })
+      ]
+      if (draft) {
+        ops.unshift(prisma.opsEventDraft.update({
+          where: { id: draft.id },
+          data: { payloadJson: JSON.stringify(nextPayload) }
+        }))
+      }
+      const txResult = await prisma.$transaction(ops)
+      const updatedDraft = draft ? txResult[0] : null
+
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'order.address_check',
+        resource: 'order',
+        resourceId: order.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          provider: 'nominatim',
+          fromFound: Boolean(fromGeo?.found),
+          toFound: Boolean(toGeo?.found)
+        }
+      })
+
+      res.json({
+        success: true,
+        orderId: order.id,
+        draft: updatedDraft ? { ...updatedDraft, payload: nextPayload } : null,
+        addressVerification: verification
+      })
+    } catch (error) {
+      console.error('Error checking addresses for order:', error)
+      res.status(error.statusCode || 500).json({ error: error.message || 'Failed to check addresses' })
     }
   }
 )
@@ -8338,6 +8453,132 @@ function getAviationStackConfig() {
   }
 }
 
+function getGeocodingConfig() {
+  const baseUrl = String(process.env.GEOCODING_BASE_URL || 'https://nominatim.openstreetmap.org').trim()
+  const userAgent = String(process.env.GEOCODING_USER_AGENT || 'Riderra/1.0 (ops@riderra.com)').trim()
+  const referer = String(process.env.GEOCODING_REFERER || 'https://riderra.com').trim()
+  return {
+    baseUrl: baseUrl.replace(/\/+$/, ''),
+    userAgent,
+    referer
+  }
+}
+
+let geocodeNextAllowedAt = 0
+const geocodeCache = new Map()
+
+async function waitForGeocodeSlot() {
+  const now = Date.now()
+  const waitMs = Math.max(0, geocodeNextAllowedAt - now)
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs))
+  }
+  geocodeNextAllowedAt = Date.now() + 1100
+}
+
+function normalizeGeocodingResult(row = {}) {
+  return {
+    displayName: row.display_name || null,
+    lat: row.lat != null ? Number(row.lat) : null,
+    lon: row.lon != null ? Number(row.lon) : null,
+    type: row.type || null,
+    className: row.class || null,
+    importance: row.importance != null ? Number(row.importance) : null,
+    address: row.address || null,
+    raw: row
+  }
+}
+
+async function geocodeAddress(query, options = {}) {
+  const rawQuery = String(query || '').trim()
+  if (!rawQuery) {
+    const error = new Error('address query is required')
+    error.statusCode = 400
+    throw error
+  }
+
+  const cacheKey = `${rawQuery.toLowerCase()}::${String(options.language || 'en')}`
+  const cached = geocodeCache.get(cacheKey)
+  if (cached && (Date.now() - cached.ts) < (1000 * 60 * 60 * 12)) {
+    return cached.value
+  }
+
+  const config = getGeocodingConfig()
+  await waitForGeocodeSlot()
+
+  const url = new URL(`${config.baseUrl}/search`)
+  url.searchParams.set('q', rawQuery)
+  url.searchParams.set('format', 'jsonv2')
+  url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('limit', '5')
+  if (options.language) url.searchParams.set('accept-language', options.language)
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      'User-Agent': config.userAgent,
+      'Referer': config.referer
+    }
+  })
+  const json = await response.json().catch(() => [])
+  if (!response.ok) {
+    const error = new Error(`Geocoding request failed: HTTP ${response.status}`)
+    error.statusCode = 502
+    throw error
+  }
+
+  const rows = Array.isArray(json) ? json.map(normalizeGeocodingResult) : []
+  const bestMatch = rows[0] || null
+  const value = {
+    provider: 'nominatim',
+    checkedAt: new Date().toISOString(),
+    query: rawQuery,
+    found: Boolean(bestMatch),
+    bestMatch,
+    resultCount: rows.length
+  }
+  geocodeCache.set(cacheKey, { ts: Date.now(), value })
+  return value
+}
+
+function mergeAddressVerificationIntoPayload(payload = {}, addressVerification = null) {
+  const next = { ...payload, addressVerification }
+  const qualityChecks = Array.isArray(payload.qualityChecks) ? payload.qualityChecks.filter((item) => !['fromPointGeo', 'toPointGeo'].includes(item?.key)) : []
+  for (const pointKey of ['fromPoint', 'toPoint']) {
+    const geo = addressVerification?.[pointKey]
+    if (!geo) continue
+    const label = pointKey === 'fromPoint' ? 'Откуда' : 'Куда'
+    if (geo.found && geo.bestMatch) {
+      qualityChecks.push({
+        key: `${pointKey}Geo`,
+        level: 'ok',
+        message: `${label}: адрес подтверждён (${geo.bestMatch.displayName || 'match found'})`
+      })
+    } else {
+      qualityChecks.push({
+        key: `${pointKey}Geo`,
+        level: 'warn',
+        message: `${label}: геокодер не подтвердил адрес`
+      })
+    }
+  }
+  next.qualityChecks = qualityChecks
+  next.infoReason = buildInfoReasonFromDraftChecks(qualityChecks, payload.missingFields || [])
+  return next
+}
+
+function mergeAddressVerificationErrorIntoPayload(payload = {}, error) {
+  const next = { ...payload }
+  const qualityChecks = Array.isArray(payload.qualityChecks) ? payload.qualityChecks.filter((item) => !['fromPointGeo', 'toPointGeo'].includes(item?.key)) : []
+  qualityChecks.push({
+    key: 'fromPointGeo',
+    level: 'warn',
+    message: `Геокодинг адресов недоступен (${error?.message || 'unknown error'})`
+  })
+  next.qualityChecks = qualityChecks
+  next.infoReason = buildInfoReasonFromDraftChecks(qualityChecks, payload.missingFields || [])
+  return next
+}
+
 function normalizeAviationStackFlightRow(row = {}) {
   return {
     flightDate: row.flight_date || null,
@@ -8498,6 +8739,28 @@ async function maybeAutoAttachFlightCheck(payload = {}) {
       flightNumber,
       flightDate: formatDateYmd(pickupAt || new Date())
     })
+  }
+}
+
+async function maybeAutoAttachAddressVerification(payload = {}) {
+  const orderDraft = payload.orderDraft || {}
+  const fromPoint = String(orderDraft.fromPoint || '').trim()
+  const toPoint = String(orderDraft.toPoint || '').trim()
+  if (!fromPoint && !toPoint) return payload
+  try {
+    const [fromGeo, toGeo] = await Promise.all([
+      fromPoint ? geocodeAddress(fromPoint, { language: orderDraft.lang || 'en' }) : Promise.resolve(null),
+      toPoint ? geocodeAddress(toPoint, { language: orderDraft.lang || 'en' }) : Promise.resolve(null)
+    ])
+    return mergeAddressVerificationIntoPayload(payload, {
+      provider: 'nominatim',
+      checkedAt: new Date().toISOString(),
+      fromPoint: fromGeo,
+      toPoint: toGeo
+    })
+  } catch (error) {
+    console.error('Automatic address verification failed:', error)
+    return mergeAddressVerificationErrorIntoPayload(payload, error)
   }
 }
 
@@ -8812,7 +9075,8 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
 
 async function saveOpsDraftFromOpenClaw({ tenantId, payload }) {
   const basePayload = await buildOpenClawDraftPayload(payload, tenantId)
-  const normalizedPayload = await maybeAutoAttachFlightCheck(basePayload)
+  const withFlightPayload = await maybeAutoAttachFlightCheck(basePayload)
+  const normalizedPayload = await maybeAutoAttachAddressVerification(withFlightPayload)
   const orderDraft = normalizedPayload.orderDraft || {}
   return prisma.opsEventDraft.create({
     data: {
@@ -8825,6 +9089,39 @@ async function saveOpsDraftFromOpenClaw({ tenantId, payload }) {
       status: 'pending'
     }
   })
+}
+
+function buildOrderFlightPersistence(payload = {}) {
+  const orderDraft = payload.orderDraft || {}
+  const flightCheck = payload.flightCheck || null
+  const match = flightCheck?.bestMatch || null
+  return {
+    flightNumber: normalizeFlightNumber(orderDraft.flightNumber) || null,
+    flightStatus: match?.flightStatus || null,
+    flightProvider: flightCheck?.provider || null,
+    flightCheckedAt: flightCheck?.checkedAt ? new Date(flightCheck.checkedAt) : null,
+    flightArrivalScheduled: match?.arrivalScheduled ? new Date(match.arrivalScheduled) : null,
+    flightArrivalEstimated: match?.arrivalEstimated ? new Date(match.arrivalEstimated) : null,
+    flightArrivalActual: match?.arrivalActual ? new Date(match.arrivalActual) : null,
+    flightVerificationJson: flightCheck ? JSON.stringify(flightCheck) : null
+  }
+}
+
+function buildOrderAddressPersistence(payload = {}) {
+  const verification = payload.addressVerification || null
+  const fromGeo = verification?.fromPoint?.bestMatch || null
+  const toGeo = verification?.toPoint?.bestMatch || null
+  return {
+    addressProvider: verification?.provider || null,
+    addressCheckedAt: verification?.checkedAt ? new Date(verification.checkedAt) : null,
+    fromPointNormalized: fromGeo?.displayName || null,
+    fromPointLat: Number.isFinite(Number(fromGeo?.lat)) ? Number(fromGeo.lat) : null,
+    fromPointLon: Number.isFinite(Number(fromGeo?.lon)) ? Number(fromGeo.lon) : null,
+    toPointNormalized: toGeo?.displayName || null,
+    toPointLat: Number.isFinite(Number(toGeo?.lat)) ? Number(toGeo.lat) : null,
+    toPointLon: Number.isFinite(Number(toGeo?.lon)) ? Number(toGeo.lon) : null,
+    addressVerificationJson: verification ? JSON.stringify(verification) : null
+  }
 }
 
 async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user, comment }) {
@@ -8858,6 +9155,9 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
     comment || null
   ].filter(Boolean).join('\n')
 
+  const flightPersistence = buildOrderFlightPersistence(parsedPayload)
+  const addressPersistence = buildOrderAddressPersistence(parsedPayload)
+
   if (existingOrder) {
     return {
       order: existingOrder,
@@ -8887,6 +9187,8 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       luggage: Number.isFinite(Number(orderDraft.luggage)) ? Number(orderDraft.luggage) : null,
       needsInfo,
       infoReason,
+      ...flightPersistence,
+      ...addressPersistence,
       comment: baseComment || null,
       lang: orderDraft.lang || 'ru'
     }

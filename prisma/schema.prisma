@@ -218,6 +218,23 @@ model Order {
   luggage     Int?
   needsInfo   Boolean   @default(false)
   infoReason  String?
+  flightNumber String?
+  flightStatus String?
+  flightProvider String?
+  flightCheckedAt DateTime?
+  flightArrivalScheduled DateTime?
+  flightArrivalEstimated DateTime?
+  flightArrivalActual DateTime?
+  flightVerificationJson String?
+  addressProvider String?
+  addressCheckedAt DateTime?
+  fromPointNormalized String?
+  fromPointLat Float?
+  fromPointLon Float?
+  toPointNormalized String?
+  toPointLat Float?
+  toPointLon Float?
+  addressVerificationJson String?
   comment     String?
   lang        String?
   updatedAt   DateTime  @updatedAt
