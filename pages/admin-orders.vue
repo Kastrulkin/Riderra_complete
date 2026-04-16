@@ -144,6 +144,44 @@
           <div><strong>{{ t.updatedAt }}:</strong> {{ formatDateTime(selectedOrder.orderUpdatedAt) }}</div>
         </div>
 
+        <div v-if="orderCardDetailError" class="hint hint--error">{{ orderCardDetailError }}</div>
+
+        <div v-if="selectedOrder.flightNumber || selectedOrder.flightCheck" class="status-history">
+          <div class="section-head">
+            <h4>{{ t.flightCheckTitle }}</h4>
+            <button
+              v-if="selectedOrder.flightNumber"
+              class="btn btn--ghost btn--sm"
+              type="button"
+              :disabled="flightCheckSaving"
+              @click="runOrderFlightCheck"
+            >
+              {{ flightCheckSaving ? t.flightChecking : t.flightCheckRun }}
+            </button>
+          </div>
+          <div class="meta-grid">
+            <div><strong>{{ t.flightNumberLabel }}:</strong> {{ selectedOrder.flightNumber || '-' }}</div>
+            <div><strong>{{ t.flightSourceLabel }}:</strong> {{ selectedOrder.sourceType || '-' }}</div>
+            <div><strong>{{ t.flightCheckedAtLabel }}:</strong> {{ formatDateTime(selectedOrder.flightCheck && selectedOrder.flightCheck.checkedAt) }}</div>
+            <div><strong>{{ t.flightStatusLabel }}:</strong> {{ selectedOrder.flightCheck && selectedOrder.flightCheck.bestMatch ? (selectedOrder.flightCheck.bestMatch.flightStatus || '-') : '-' }}</div>
+            <div><strong>{{ t.flightArrivalLabel }}:</strong> {{ flightArrivalValue(selectedOrder.flightCheck) }}</div>
+            <div><strong>{{ t.flightRouteLabel }}:</strong> {{ flightRouteValue(selectedOrder.flightCheck) }}</div>
+          </div>
+          <div v-if="selectedOrder.flightCheck && selectedOrder.flightCheck.error" class="hint hint--error">
+            {{ selectedOrder.flightCheck.error }}
+          </div>
+        </div>
+
+        <div v-if="selectedOrder.qualityChecks && selectedOrder.qualityChecks.length" class="status-history">
+          <h4>{{ t.qualityChecksTitle }}</h4>
+          <div class="checks-list">
+            <div v-for="check in selectedOrder.qualityChecks" :key="`${check.key}-${check.message}`" class="check-row">
+              <span class="pill" :class="`pill--${check.level || 'ok'}`">{{ check.level || 'ok' }}</span>
+              <span>{{ check.message }}</span>
+            </div>
+          </div>
+        </div>
+
         <div class="modal-actions">
           <button class="btn btn--primary" type="button" @click="openRawFromCard">{{ t.findInDetails }}</button>
         </div>
@@ -284,10 +322,12 @@ export default {
     statusHistory: [],
     historyLoading: false,
     historyError: '',
+    orderCardDetailError: '',
     availableStatuses: [],
     selectedToStatus: '',
     statusReason: '',
     statusSaving: false,
+    flightCheckSaving: false,
     transitionsError: '',
     infoModal: {
       open: false,
@@ -352,6 +392,16 @@ export default {
             statusHistory: 'История статусов',
             loadingHistory: 'Загрузка истории...',
             noHistory: 'История статусов пока пуста',
+            flightCheckTitle: 'Проверка рейса',
+            flightCheckRun: 'Проверить рейс',
+            flightChecking: 'Проверяю...',
+            flightNumberLabel: 'Рейс',
+            flightSourceLabel: 'Источник',
+            flightCheckedAtLabel: 'Проверено',
+            flightStatusLabel: 'Статус рейса',
+            flightArrivalLabel: 'Прилёт',
+            flightRouteLabel: 'Маршрут',
+            qualityChecksTitle: 'Проверка полей',
             findInDetails: 'Найти в Подробностях',
             updatedAt: 'Обновлено',
             driverPrice: 'Цена водителя',
@@ -427,6 +477,16 @@ export default {
             statusHistory: 'Status history',
             loadingHistory: 'Loading history...',
             noHistory: 'No status history yet',
+            flightCheckTitle: 'Flight check',
+            flightCheckRun: 'Check flight',
+            flightChecking: 'Checking...',
+            flightNumberLabel: 'Flight',
+            flightSourceLabel: 'Source',
+            flightCheckedAtLabel: 'Checked at',
+            flightStatusLabel: 'Flight status',
+            flightArrivalLabel: 'Arrival',
+            flightRouteLabel: 'Route',
+            qualityChecksTitle: 'Field checks',
             findInDetails: 'Find in details',
             updatedAt: 'Updated at',
             driverPrice: 'Driver price',
@@ -970,11 +1030,13 @@ export default {
     async loadOrderCardData (orderId) {
       this.historyLoading = true
       this.historyError = ''
+      this.orderCardDetailError = ''
       this.transitionsError = ''
       try {
-        const [historyResponse, transitionsResponse] = await Promise.all([
+        const [historyResponse, transitionsResponse, detailResponse] = await Promise.all([
           fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status-history`, { headers: this.headers() }),
-          fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/available-status-transitions`, { headers: this.headers() })
+          fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/available-status-transitions`, { headers: this.headers() }),
+          fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/card-detail`, { headers: this.headers() })
         ])
 
         if (historyResponse.ok) {
@@ -994,6 +1056,23 @@ export default {
             ? 'Не удалось загрузить доступные переходы'
             : 'Failed to load available transitions'
         }
+
+        if (detailResponse.ok) {
+          const detailData = await detailResponse.json()
+          const detail = detailData?.detail || {}
+          this.selectedOrder = {
+            ...this.selectedOrder,
+            flightNumber: detail.flightNumber || null,
+            flightCheck: detail.flightCheck || null,
+            qualityChecks: Array.isArray(detail.qualityChecks) ? detail.qualityChecks : [],
+            sourceType: detail.sourceType || null,
+            orderComment: detail.comment || null
+          }
+        } else {
+          this.orderCardDetailError = this.$store.state.language === 'ru'
+            ? 'Не удалось загрузить детали карточки'
+            : 'Failed to load order card details'
+        }
       } catch (_) {
         this.historyError = this.$store.state.language === 'ru'
           ? 'Не удалось загрузить историю статусов'
@@ -1001,8 +1080,39 @@ export default {
         this.transitionsError = this.$store.state.language === 'ru'
           ? 'Не удалось загрузить доступные переходы'
           : 'Failed to load available transitions'
+        this.orderCardDetailError = this.$store.state.language === 'ru'
+          ? 'Не удалось загрузить детали карточки'
+          : 'Failed to load order card details'
       } finally {
         this.historyLoading = false
+      }
+    },
+    async runOrderFlightCheck () {
+      if (!this.selectedOrder || !this.selectedOrder.id || this.flightCheckSaving) return
+      this.flightCheckSaving = true
+      this.orderCardDetailError = ''
+      try {
+        const response = await fetch(`/api/admin/orders/${encodeURIComponent(this.selectedOrder.id)}/flight-check`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...this.headers()
+          }
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data?.error || 'failed')
+        const payload = data?.draft?.payload || {}
+        this.selectedOrder = {
+          ...this.selectedOrder,
+          flightCheck: payload.flightCheck || data?.flightCheck || null,
+          qualityChecks: Array.isArray(payload.qualityChecks) ? payload.qualityChecks : (this.selectedOrder.qualityChecks || [])
+        }
+      } catch (error) {
+        this.orderCardDetailError = error?.message || (this.$store.state.language === 'ru'
+          ? 'Не удалось проверить рейс'
+          : 'Failed to check flight')
+      } finally {
+        this.flightCheckSaving = false
       }
     },
     async applyStatusChange () {
@@ -1055,11 +1165,22 @@ export default {
       this.statusHistory = []
       this.historyLoading = false
       this.historyError = ''
+      this.orderCardDetailError = ''
       this.availableStatuses = []
       this.selectedToStatus = ''
       this.statusReason = ''
       this.statusSaving = false
+      this.flightCheckSaving = false
       this.transitionsError = ''
+    },
+    flightArrivalValue (flightCheck) {
+      const match = flightCheck && flightCheck.bestMatch ? flightCheck.bestMatch : null
+      return match ? (match.arrivalEstimated || match.arrivalScheduled || match.arrivalActual || '-') : '-'
+    },
+    flightRouteValue (flightCheck) {
+      const match = flightCheck && flightCheck.bestMatch ? flightCheck.bestMatch : null
+      if (!match) return '-'
+      return [match.departureIata || match.departureAirport || null, match.arrivalIata || match.arrivalAirport || null].filter(Boolean).join(' → ') || '-'
     },
     openRawFromCard () {
       const selected = this.selectedOrder
@@ -1226,6 +1347,45 @@ export default {
 }
 .status-select { min-width: 180px; }
 .status-history h4 { margin: 6px 0 10px; color: #17233d; }
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.checks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.pill--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.pill--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+.pill--error,
+.pill--danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
 .history-list { display: flex; flex-direction: column; gap: 10px; }
 .history-item {
   border: 1px solid #e2e8f0;

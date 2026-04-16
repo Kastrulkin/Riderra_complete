@@ -5849,6 +5849,168 @@ app.get(
 )
 
 app.get(
+  '/api/admin/orders/:orderId/card-detail',
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requireCan('orders.read', 'order'),
+  async (req, res) => {
+    try {
+      const { orderId } = req.params
+      const order = await prisma.order.findFirst({
+        where: { id: orderId, tenantId: req.actorContext.tenantId },
+        select: {
+          id: true,
+          tenantId: true,
+          externalKey: true,
+          pickupAt: true,
+          fromPoint: true,
+          toPoint: true,
+          clientPrice: true,
+          driverPrice: true,
+          commission: true,
+          comment: true,
+          status: true,
+          vehicleType: true,
+          passengers: true,
+          luggage: true,
+          needsInfo: true,
+          infoReason: true,
+          lang: true,
+          updatedAt: true,
+          createdAt: true
+        }
+      })
+      if (!order) return res.status(404).json({ error: 'Order not found' })
+
+      const draft = await findLinkedOpenClawDraftForOrder(order, req.actorContext.tenantId)
+      const draftPayload = draft ? parseJsonSafe(draft.payloadJson || '{}', {}) : {}
+      const orderDraft = draftPayload.orderDraft || {}
+      const flightCheck = draftPayload.flightCheck || null
+      const qualityChecks = Array.isArray(draftPayload.qualityChecks) ? draftPayload.qualityChecks : []
+      const latestSnapshot = await prisma.orderSourceSnapshot.findFirst({
+        where: { orderId: order.id, tenantId: req.actorContext.tenantId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          sourceRow: true,
+          rawPayload: true,
+          createdAt: true
+        }
+      })
+
+      res.json({
+        orderId: order.id,
+        detail: {
+          pickupAt: order.pickupAt,
+          fromPoint: order.fromPoint,
+          toPoint: order.toPoint,
+          clientPrice: order.clientPrice,
+          driverPrice: order.driverPrice,
+          commission: order.commission,
+          comment: order.comment,
+          vehicleType: order.vehicleType,
+          passengers: order.passengers,
+          luggage: order.luggage,
+          needsInfo: order.needsInfo,
+          infoReason: order.infoReason,
+          lang: order.lang,
+          sourceExternalKey: order.externalKey,
+          aiDraftId: draft?.id || null,
+          flightNumber: orderDraft.flightNumber || null,
+          flightCheck,
+          qualityChecks,
+          sourceType: orderDraft.sourceType || draftPayload.sourceType || null,
+          customerName: orderDraft.customerName || null,
+          rawText: String(draftPayload.rawText || draft?.messageText || '').trim() || null,
+          latestSnapshot: latestSnapshot
+            ? {
+                id: latestSnapshot.id,
+                sourceRow: latestSnapshot.sourceRow,
+                createdAt: latestSnapshot.createdAt
+              }
+            : null
+        }
+      })
+    } catch (error) {
+      console.error('Error loading order card detail:', error)
+      res.status(500).json({ error: 'Failed to load order card detail' })
+    }
+  }
+)
+
+app.post(
+  '/api/admin/orders/:orderId/flight-check',
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requireCan('ops.read', 'ops'),
+  async (req, res) => {
+    try {
+      const order = await prisma.order.findFirst({
+        where: { id: req.params.orderId, tenantId: req.actorContext.tenantId },
+        select: {
+          id: true,
+          tenantId: true,
+          externalKey: true,
+          pickupAt: true
+        }
+      })
+      if (!order) return res.status(404).json({ error: 'Order not found' })
+
+      const draft = await findLinkedOpenClawDraftForOrder(order, req.actorContext.tenantId)
+      if (!draft) return res.status(404).json({ error: 'Linked AI draft not found for order' })
+
+      const payload = parseJsonSafe(draft.payloadJson || '{}', {})
+      const orderDraft = payload.orderDraft || {}
+      const flightNumber = normalizeFlightNumber(orderDraft.flightNumber || req.body?.flightNumber)
+      const pickupAt = orderDraft.pickupAt || order.pickupAt || req.body?.pickupAt || null
+      if (!flightNumber) return res.status(400).json({ error: 'flightNumber is missing for order' })
+
+      const flightCheck = await fetchAviationStackFlightCheck({ flightNumber, pickupAt })
+      const nextPayload = mergeFlightCheckIntoPayload(payload, flightCheck)
+
+      const updatedDraft = await prisma.opsEventDraft.update({
+        where: { id: draft.id },
+        data: { payloadJson: JSON.stringify(nextPayload) }
+      })
+
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'order.flight_check',
+        resource: 'order',
+        resourceId: order.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          draftId: draft.id,
+          flightNumber,
+          pickupAt,
+          provider: 'aviationstack',
+          found: flightCheck.found
+        }
+      })
+
+      res.json({
+        success: true,
+        orderId: order.id,
+        draft: {
+          ...updatedDraft,
+          payload: nextPayload
+        },
+        flightCheck
+      })
+    } catch (error) {
+      console.error('Error checking flight for order:', error)
+      res.status(error.statusCode || 500).json({ error: error.message || 'Failed to check flight' })
+    }
+  }
+)
+
+app.get(
   '/api/admin/approvals',
   authenticateToken,
   resolveActorContext,
@@ -8299,6 +8461,46 @@ function mergeFlightCheckIntoPayload(payload = {}, flightCheck = null) {
   return next
 }
 
+function mergeFlightCheckErrorIntoPayload(payload = {}, error, query = {}) {
+  const next = {
+    ...payload,
+    flightCheck: {
+      provider: 'aviationstack',
+      checkedAt: new Date().toISOString(),
+      query,
+      found: false,
+      error: error?.message || 'Flight check failed'
+    }
+  }
+  const qualityChecks = Array.isArray(payload.qualityChecks) ? payload.qualityChecks.filter((item) => item?.key !== 'flightLive') : []
+  qualityChecks.push({
+    key: 'flightLive',
+    level: 'warn',
+    message: `AviationStack: не удалось проверить рейс (${error?.message || 'unknown error'})`
+  })
+  next.qualityChecks = qualityChecks
+  next.infoReason = buildInfoReasonFromDraftChecks(qualityChecks, payload.missingFields || [])
+  return next
+}
+
+async function maybeAutoAttachFlightCheck(payload = {}) {
+  const orderDraft = payload.orderDraft || {}
+  const flightNumber = normalizeFlightNumber(orderDraft.flightNumber)
+  const pickupAt = orderDraft.pickupAt || null
+  if (!flightNumber) return payload
+  if (!getAviationStackConfig().configured) return payload
+  try {
+    const flightCheck = await fetchAviationStackFlightCheck({ flightNumber, pickupAt })
+    return mergeFlightCheckIntoPayload(payload, flightCheck)
+  } catch (error) {
+    console.error('Automatic AviationStack flight check failed:', error)
+    return mergeFlightCheckErrorIntoPayload(payload, error, {
+      flightNumber,
+      flightDate: formatDateYmd(pickupAt || new Date())
+    })
+  }
+}
+
 function hasAirportLikePoint(value) {
   const raw = String(value || '').trim().toLowerCase()
   if (!raw) return false
@@ -8609,7 +8811,8 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
 }
 
 async function saveOpsDraftFromOpenClaw({ tenantId, payload }) {
-  const normalizedPayload = await buildOpenClawDraftPayload(payload, tenantId)
+  const basePayload = await buildOpenClawDraftPayload(payload, tenantId)
+  const normalizedPayload = await maybeAutoAttachFlightCheck(basePayload)
   const orderDraft = normalizedPayload.orderDraft || {}
   return prisma.opsEventDraft.create({
     data: {
@@ -8736,6 +8939,44 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       }
     }
   }
+
+async function findLinkedOpenClawDraftForOrder(order, tenantId) {
+  if (!order?.id) return null
+
+  const externalKey = String(order.externalKey || '').trim()
+  if (externalKey.startsWith('openclaw:draft:')) {
+    const draftId = externalKey.slice('openclaw:draft:'.length).trim()
+    if (!draftId) return null
+    return prisma.opsEventDraft.findFirst({
+      where: {
+        id: draftId,
+        tenantId,
+        parsedType: 'openclaw_order_draft'
+      }
+    })
+  }
+
+  const drafts = await prisma.opsEventDraft.findMany({
+    where: {
+      tenantId,
+      parsedType: 'openclaw_order_draft',
+      status: 'approved'
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 1000
+  })
+
+  for (const draft of drafts) {
+    const payload = parseJsonSafe(draft.payloadJson || '{}', {})
+    const promotedOrderId = String(payload?.promotedOrder?.orderId || '').trim()
+    if (promotedOrderId && promotedOrderId === String(order.id)) return draft
+
+    const draftExternalKey = String(payload?.promotedOrder?.externalKey || '').trim()
+    if (draftExternalKey && externalKey && draftExternalKey === externalKey) return draft
+  }
+
+  return null
+}
 
 function sourceLabel(source) {
   const raw = String(source || '').trim().toLowerCase()
