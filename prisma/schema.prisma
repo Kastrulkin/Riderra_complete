@@ -289,6 +289,7 @@ model VpnAccessGrant {
   employeeName    String
   employeeEmail   String?
   employeeLogin   String?
+  deviceKind      String?
   deviceName      String
   platform        String?
   uuid            String   @unique

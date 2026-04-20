@@ -1476,7 +1476,13 @@ function normalizeVpnSyncState(state) {
 
 function normalizeVpnPlatform(platform) {
   const value = String(platform || '').trim().toLowerCase()
-  if (['macos', 'windows'].includes(value)) return value
+  if (['macos', 'windows', 'ios', 'android'].includes(value)) return value
+  return null
+}
+
+function normalizeVpnDeviceKind(kind) {
+  const value = String(kind || '').trim().toLowerCase()
+  if (['computer', 'phone'].includes(value)) return value
   return null
 }
 
@@ -1529,6 +1535,7 @@ function sanitizeVpnGrantInput(input = {}, profile = null) {
     employeeName: String(input.employeeName || '').trim(),
     employeeEmail,
     employeeLogin,
+    deviceKind: normalizeVpnDeviceKind(input.deviceKind),
     deviceName,
     platform: normalizeVpnPlatform(input.platform),
     uuid: String(input.uuid || crypto.randomUUID()).trim(),
@@ -10525,6 +10532,7 @@ app.post('/api/admin/vpn/access', authenticateToken, resolveActorContext, requir
         result: 'ok',
         context: {
           employeeEmail: row.employeeEmail,
+          deviceKind: row.deviceKind,
           deviceName: row.deviceName,
           platform: row.platform,
           status: row.status
@@ -10565,6 +10573,7 @@ app.put('/api/admin/vpn/access/:grantId', authenticateToken, resolveActorContext
           employeeName: payload.employeeName,
           employeeEmail: payload.employeeEmail,
           employeeLogin: payload.employeeLogin,
+          deviceKind: payload.deviceKind,
           deviceName: payload.deviceName,
           platform: payload.platform,
           uuid: payload.uuid,
@@ -10589,7 +10598,7 @@ app.put('/api/admin/vpn/access/:grantId', authenticateToken, resolveActorContext
         traceId: req.actorContext.traceId,
         decision: 'policy_allowed',
         result: 'ok',
-        context: { status: row.status, deviceName: row.deviceName, platform: row.platform }
+        context: { status: row.status, deviceKind: row.deviceKind, deviceName: row.deviceName, platform: row.platform }
       })
       return row
     })

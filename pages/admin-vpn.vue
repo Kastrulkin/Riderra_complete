@@ -15,7 +15,6 @@
             <p class="hero-copy">{{ t.subtitle }}</p>
           </div>
           <div class="hero-actions">
-            <button class="btn btn--primary" @click="openCreateGrant">{{ t.addAccess }}</button>
             <button class="btn" @click="reloadAll">{{ t.refresh }}</button>
           </div>
         </div>
@@ -26,30 +25,7 @@
           {{ notice.text }}
         </div>
 
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label">{{ t.active }}</div>
-            <div class="stat-value">{{ stats.active }}</div>
-            <div class="stat-hint">{{ t.readyToUse }}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">{{ t.pending }}</div>
-            <div class="stat-value">{{ stats.pending }}</div>
-            <div class="stat-hint">{{ t.waitingApply }}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">{{ t.disabled }}</div>
-            <div class="stat-value">{{ stats.disabled }}</div>
-            <div class="stat-hint">{{ t.revokedAccess }}</div>
-          </div>
-          <div class="stat-card stat-card--accent">
-            <div class="stat-label">{{ t.profileReady }}</div>
-            <div class="stat-value">{{ profile.serverHost || '—' }}</div>
-            <div class="stat-hint">{{ profile.serverPort ? `${t.port}: ${profile.serverPort}` : t.profileHint }}</div>
-          </div>
-        </div>
-
-        <div class="content-grid">
+        <div class="content-grid content-grid--vpn">
           <div class="card">
             <div class="section-head">
               <div>
@@ -86,42 +62,29 @@
                 <label>{{ t.shortId }}</label>
                 <input v-model="profileDraft.shortId" class="input" :placeholder="t.shortId" />
               </div>
-              <div>
-                <label>{{ t.fingerprint }}</label>
-                <input v-model="profileDraft.fingerprint" class="input" :placeholder="'chrome'" />
-              </div>
-              <div>
-                <label>{{ t.flow }}</label>
-                <input v-model="profileDraft.flow" class="input" :placeholder="'xtls-rprx-vision'" />
-              </div>
-              <div class="form-grid__wide">
-                <label>{{ t.notes }}</label>
-                <textarea v-model="profileDraft.notes" class="input textarea" :placeholder="t.profileNotesHint"></textarea>
-              </div>
             </div>
           </div>
 
           <div class="card card--summary">
-            <div class="section-head">
+            <div class="section-head section-head--compact">
               <div>
-                <h3>{{ t.quickActions }}</h3>
-                <p class="muted">{{ t.quickActionsHint }}</p>
+                <h3>{{ t.packages }}</h3>
+                <p class="muted">{{ t.packagesHint }}</p>
               </div>
             </div>
-
-            <div class="quick-stack">
-              <button class="quick-action" @click="openCreateGrant">
-                <span class="quick-action__title">{{ t.issueNewAccess }}</span>
-                <span class="quick-action__copy">{{ t.issueNewAccessHint }}</span>
-              </button>
-              <button class="quick-action" @click="openInstructionByStatus('pending')">
-                <span class="quick-action__title">{{ t.checkPending }}</span>
-                <span class="quick-action__copy">{{ t.checkPendingHint }}</span>
-              </button>
-              <button class="quick-action" @click="openInstructionByStatus('disabled')">
-                <span class="quick-action__title">{{ t.offboardFlow }}</span>
-                <span class="quick-action__copy">{{ t.offboardFlowHint }}</span>
-              </button>
+            <div class="summary-stack">
+              <div class="summary-item">
+                <strong>{{ t.computer }}</strong>
+                <p>{{ t.computerHint }}</p>
+              </div>
+              <div class="summary-item">
+                <strong>{{ t.phone }}</strong>
+                <p>{{ t.phoneHint }}</p>
+              </div>
+              <div class="summary-item summary-item--warning">
+                <strong>{{ t.binaryHintTitle }}</strong>
+                <p>{{ t.binaryHint }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -129,69 +92,153 @@
         <div class="card">
           <div class="section-head">
             <div>
-              <h3>{{ t.accessList }}</h3>
-              <p class="muted">{{ t.accessListHint }}</p>
-            </div>
-            <div class="toolbar">
-              <input v-model.trim="search" class="input input--search" :placeholder="t.searchPlaceholder" @keyup.enter="reloadAccess" />
-              <select v-model="statusFilter" class="input select-input" @change="reloadAccess">
-                <option value="">{{ t.allStatuses }}</option>
-                <option value="active">{{ t.active }}</option>
-                <option value="pending">{{ t.pending }}</option>
-                <option value="disabled">{{ t.disabled }}</option>
-              </select>
-              <button class="btn" @click="reloadAccess">{{ t.searchAction }}</button>
+              <h3>{{ t.staffRoster }}</h3>
+              <p class="muted">{{ t.staffRosterHint }}</p>
             </div>
           </div>
 
-          <div v-if="loadingAccess" class="empty-state">{{ t.loading }}</div>
-          <div v-else-if="!rows.length" class="empty-state">
-            <h4>{{ t.emptyTitle }}</h4>
-            <p>{{ t.emptyCopy }}</p>
-            <button class="btn btn--primary" @click="openCreateGrant">{{ t.addFirstAccess }}</button>
-          </div>
-          <div v-else class="table-wrap">
-            <div class="vpn-table vpn-table--head">
+          <div v-if="loadingAccess || loadingStaff" class="empty-state">{{ t.loading }}</div>
+          <div v-else class="roster-wrap">
+            <div class="roster-table roster-table--head">
               <div>{{ t.employee }}</div>
-              <div>{{ t.device }}</div>
-              <div>{{ t.platform }}</div>
-              <div>UUID</div>
-              <div>{{ t.issuedAt }}</div>
-              <div>{{ t.status }}</div>
-              <div>{{ t.syncState }}</div>
-              <div>{{ t.actions }}</div>
+              <div>{{ t.roles }}</div>
+              <div>{{ t.computer }}</div>
+              <div>{{ t.phone }}</div>
             </div>
-            <div v-for="row in rows" :key="row.id" class="vpn-table vpn-table--row">
+
+            <div v-for="staff in staffVpnRows" :key="staff.key" class="roster-table roster-table--row">
               <div>
-                <div class="cell-title">{{ row.employeeName }}</div>
-                <div class="muted">{{ row.employeeEmail || row.employeeLogin || '—' }}</div>
+                <div class="cell-title">{{ staff.displayName }}</div>
+                <div class="muted">{{ staff.email }}</div>
               </div>
               <div>
-                <div class="cell-title">{{ row.deviceName }}</div>
-                <div class="muted">{{ row.comment || '—' }}</div>
+                <div class="roles-list">{{ staff.rolesLabel || '—' }}</div>
               </div>
-              <div><span class="scope-pill">{{ platformLabel(row.platform) }}</span></div>
+
               <div>
-                <div class="mono">{{ shortUuid(row.uuid) }}</div>
-                <div class="muted">{{ row.connectionLabel || row.employeeName }}</div>
+                <div class="device-card">
+                  <div class="device-card__top">
+                    <div>
+                      <div class="cell-title">{{ t.computer }}</div>
+                      <div class="muted">{{ deviceNameText(staff.computer, 'computer') }}</div>
+                    </div>
+                    <span v-if="staff.computer" class="status-pill" :class="`status-pill--${staff.computer.status}`">{{ statusLabel(staff.computer.status) }}</span>
+                    <span v-else class="status-pill status-pill--pending">{{ t.noAccess }}</span>
+                  </div>
+
+                  <div class="device-meta" v-if="staff.computer">
+                    <span class="mono">{{ shortUuid(staff.computer.uuid) }}</span>
+                    <span>{{ formatDate(staff.computer.issuedAt) }}</span>
+                  </div>
+
+                  <div class="slot-controls">
+                    <select
+                      class="input select-input"
+                      :value="selectedSlotPlatform(staff, 'computer', staff.computer)"
+                      @change="setSlotPlatform(staff, 'computer', $event.target.value)"
+                    >
+                      <option v-for="option in platformOptions('computer')" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+
+                    <button
+                      v-if="staff.computer"
+                      class="btn btn--small"
+                      :disabled="staff.computer.platform === selectedSlotPlatform(staff, 'computer', staff.computer)"
+                      @click="saveSlotPlatform(staff, 'computer', staff.computer)"
+                    >
+                      {{ t.savePlatform }}
+                    </button>
+
+                    <button
+                      v-if="staff.computer && canDownloadPlatform(selectedSlotPlatform(staff, 'computer', staff.computer))"
+                      class="btn btn--small btn--primary"
+                      @click="downloadSlotPackage(staff, 'computer', staff.computer)"
+                    >
+                      {{ t.downloadArchive }}
+                    </button>
+
+                    <button
+                      v-if="!staff.computer"
+                      class="btn btn--small btn--primary"
+                      @click="openCreateForSlot(staff, 'computer')"
+                    >
+                      {{ t.issueAccess }}
+                    </button>
+                  </div>
+
+                  <div class="slot-actions" v-if="staff.computer">
+                    <button class="btn btn--small" @click="openInstruction(staff.computer)">{{ t.open }}</button>
+                    <button class="btn btn--small" @click="copyConnection(staff.computer)">{{ t.copy }}</button>
+                    <button class="btn btn--small" @click="rotateGrant(staff.computer)">{{ t.rotate }}</button>
+                    <button class="btn btn--small" @click="openEditGrant(staff.computer)">{{ t.edit }}</button>
+                    <button
+                      class="btn btn--small"
+                      :class="staff.computer.status === 'disabled' ? 'btn--primary' : 'btn--danger'"
+                      @click="toggleGrant(staff.computer)"
+                    >
+                      {{ staff.computer.status === 'disabled' ? t.activate : t.disable }}
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div>{{ formatDate(row.issuedAt) }}</div>
-              <div><span class="status-pill" :class="`status-pill--${row.status}`">{{ statusLabel(row.status) }}</span></div>
-              <div><span class="sync-pill" :class="`sync-pill--${row.syncState}`">{{ syncLabel(row.syncState) }}</span></div>
-              <div class="row-actions">
-                <button class="btn btn--small btn--primary" @click="openGrant(row)">{{ t.open }}</button>
-                <button class="btn btn--small" @click="copyConnection(row)">{{ t.copy }}</button>
-                <button class="btn btn--small" @click="downloadPackage(row, 'macos')">{{ t.downloadMac }}</button>
-                <button class="btn btn--small" @click="downloadPackage(row, 'windows')">{{ t.downloadWindows }}</button>
-                <button class="btn btn--small" @click="openInstruction(row)">{{ t.instruction }}</button>
-                <button class="btn btn--small" @click="rotateGrant(row)">{{ t.rotate }}</button>
-                <button
-                  class="btn btn--small"
-                  :class="row.status === 'disabled' ? 'btn--primary' : 'btn--danger'"
-                  @click="toggleGrant(row)"
-                >
-                  {{ row.status === 'disabled' ? t.activate : t.disable }}
-                </button>
+
+              <div>
+                <div class="device-card">
+                  <div class="device-card__top">
+                    <div>
+                      <div class="cell-title">{{ t.phone }}</div>
+                      <div class="muted">{{ deviceNameText(staff.phone, 'phone') }}</div>
+                    </div>
+                    <span v-if="staff.phone" class="status-pill" :class="`status-pill--${staff.phone.status}`">{{ statusLabel(staff.phone.status) }}</span>
+                    <span v-else class="status-pill status-pill--pending">{{ t.noAccess }}</span>
+                  </div>
+
+                  <div class="device-meta" v-if="staff.phone">
+                    <span class="mono">{{ shortUuid(staff.phone.uuid) }}</span>
+                    <span>{{ formatDate(staff.phone.issuedAt) }}</span>
+                  </div>
+
+                  <div class="slot-controls">
+                    <select
+                      class="input select-input"
+                      :value="selectedSlotPlatform(staff, 'phone', staff.phone)"
+                      @change="setSlotPlatform(staff, 'phone', $event.target.value)"
+                    >
+                      <option v-for="option in platformOptions('phone')" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+
+                    <button
+                      v-if="staff.phone"
+                      class="btn btn--small"
+                      :disabled="staff.phone.platform === selectedSlotPlatform(staff, 'phone', staff.phone)"
+                      @click="saveSlotPlatform(staff, 'phone', staff.phone)"
+                    >
+                      {{ t.savePlatform }}
+                    </button>
+
+                    <button
+                      v-if="!staff.phone"
+                      class="btn btn--small btn--primary"
+                      @click="openCreateForSlot(staff, 'phone')"
+                    >
+                      {{ t.issueAccess }}
+                    </button>
+                  </div>
+
+                  <div class="slot-actions" v-if="staff.phone">
+                    <button class="btn btn--small" @click="openInstruction(staff.phone)">{{ t.open }}</button>
+                    <button class="btn btn--small" @click="copyConnection(staff.phone)">{{ t.copy }}</button>
+                    <button class="btn btn--small" @click="rotateGrant(staff.phone)">{{ t.rotate }}</button>
+                    <button class="btn btn--small" @click="openEditGrant(staff.phone)">{{ t.edit }}</button>
+                    <button
+                      class="btn btn--small"
+                      :class="staff.phone.status === 'disabled' ? 'btn--primary' : 'btn--danger'"
+                      @click="toggleGrant(staff.phone)"
+                    >
+                      {{ staff.phone.status === 'disabled' ? t.activate : t.disable }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -200,7 +247,7 @@
     </section>
 
     <div v-if="grantModal.open" class="modal-overlay" @click="closeGrantModal">
-      <div class="modal modal--wide" @click.stop>
+      <div class="modal" @click.stop>
         <div class="section-head">
           <div>
             <h3>{{ grantModal.mode === 'create' ? t.addAccess : t.editAccess }}</h3>
@@ -210,24 +257,17 @@
         </div>
 
         <div class="form-grid">
-          <div class="form-grid__wide">
-            <label>{{ t.employeeDirectory }}</label>
-            <input v-model="grantStaffLookup" class="input" list="vpn-staff-list" :placeholder="t.staffLookupPlaceholder" @change="applyStaffSuggestion" />
-            <datalist id="vpn-staff-list">
-              <option v-for="s in staffOptions" :key="s.id" :value="staffDisplayValue(s)">{{ staffRolesLabel(s) }}</option>
-            </datalist>
-          </div>
           <div>
             <label>{{ t.employee }}</label>
-            <input v-model="grantForm.employeeName" class="input" :placeholder="t.employeeNamePlaceholder" />
+            <input v-model="grantForm.employeeName" class="input" readonly />
           </div>
           <div>
             <label>Email</label>
-            <input v-model="grantForm.employeeEmail" class="input" :placeholder="'name@riderra.com'" />
+            <input v-model="grantForm.employeeEmail" class="input" readonly />
           </div>
           <div>
-            <label>{{ t.login }}</label>
-            <input v-model="grantForm.employeeLogin" class="input" :placeholder="t.loginPlaceholder" />
+            <label>{{ t.deviceType }}</label>
+            <input class="input" :value="deviceKindLabel(grantForm.deviceKind)" readonly />
           </div>
           <div>
             <label>{{ t.device }}</label>
@@ -236,16 +276,8 @@
           <div>
             <label>{{ t.platform }}</label>
             <select v-model="grantForm.platform" class="input select-input">
-              <option value="macos">macOS</option>
-              <option value="windows">Windows</option>
+              <option v-for="option in platformOptions(grantForm.deviceKind || 'computer')" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
-          </div>
-          <div>
-            <label>UUID</label>
-            <div class="inline-control">
-              <input v-model="grantForm.uuid" class="input" :placeholder="t.uuidPlaceholder" />
-              <button class="btn btn--small" @click="generateUuid">{{ t.generate }}</button>
-            </div>
           </div>
           <div>
             <label>{{ t.status }}</label>
@@ -255,17 +287,12 @@
               <option value="disabled">{{ t.disabled }}</option>
             </select>
           </div>
-          <div>
-            <label>{{ t.syncState }}</label>
-            <select v-model="grantForm.syncState" class="input select-input">
-              <option value="pending">{{ t.pendingApply }}</option>
-              <option value="applied">{{ t.applied }}</option>
-              <option value="error">{{ t.error }}</option>
-            </select>
-          </div>
           <div class="form-grid__wide">
-            <label>{{ t.connectionLabel }}</label>
-            <input v-model="grantForm.connectionLabel" class="input" :placeholder="t.connectionLabelHint" />
+            <label>UUID</label>
+            <div class="inline-control">
+              <input v-model="grantForm.uuid" class="input" :placeholder="t.uuidPlaceholder" />
+              <button class="btn btn--small" @click="generateUuid">{{ t.generate }}</button>
+            </div>
           </div>
           <div class="form-grid__wide">
             <label>{{ t.comment }}</label>
@@ -285,7 +312,7 @@
         <div class="section-head">
           <div>
             <h3>{{ detailPanel.row.employeeName }}</h3>
-            <p class="muted">{{ detailPanel.row.deviceName }} · {{ detailPanel.row.employeeEmail || detailPanel.row.employeeLogin || '—' }}</p>
+            <p class="muted">{{ deviceKindLabel(detailPanel.row.deviceKind) }} · {{ detailPanel.row.deviceName }} · {{ detailPanel.row.employeeEmail || detailPanel.row.employeeLogin || '—' }}</p>
           </div>
           <button class="btn btn--small" @click="closeDetailPanel">{{ t.close }}</button>
         </div>
@@ -295,10 +322,8 @@
             <div><span class="detail-label">UUID</span><span class="mono">{{ detailPanel.row.uuid }}</span></div>
             <div><span class="detail-label">{{ t.status }}</span><span>{{ statusLabel(detailPanel.row.status) }}</span></div>
             <div><span class="detail-label">{{ t.issuedAt }}</span><span>{{ formatDate(detailPanel.row.issuedAt) }}</span></div>
-            <div><span class="detail-label">{{ t.syncState }}</span><span>{{ syncLabel(detailPanel.row.syncState) }}</span></div>
             <div><span class="detail-label">{{ t.platform }}</span><span>{{ platformLabel(detailPanel.row.platform) }}</span></div>
           </div>
-          <div v-if="detailPanel.row.lastSyncError" class="notice notice--error">{{ detailPanel.row.lastSyncError }}</div>
         </div>
 
         <div class="detail-block">
@@ -327,8 +352,13 @@
         </div>
 
         <div class="modal-actions modal-actions--drawer">
-          <button class="btn" @click="downloadPackage(detailPanel.row, 'macos')">{{ t.downloadMac }}</button>
-          <button class="btn" @click="downloadPackage(detailPanel.row, 'windows')">{{ t.downloadWindows }}</button>
+          <button
+            v-if="canDownloadPlatform(detailPanel.row.platform)"
+            class="btn"
+            @click="downloadPackage(detailPanel.row, detailPanel.row.platform)"
+          >
+            {{ t.downloadArchive }}
+          </button>
           <button class="btn btn--primary" @click="copyConnection(detailPanel.row)">{{ t.copy }}</button>
           <button class="btn" @click="openEditFromDrawer">{{ t.editAccess }}</button>
         </div>
@@ -345,6 +375,7 @@ const emptyGrantForm = () => ({
   employeeName: '',
   employeeEmail: '',
   employeeLogin: '',
+  deviceKind: 'computer',
   deviceName: '',
   platform: 'macos',
   uuid: '',
@@ -373,11 +404,10 @@ export default {
     rows: [],
     staffOptions: [],
     loadingAccess: false,
+    loadingStaff: false,
     savingProfile: false,
     savingGrant: false,
-    search: '',
-    statusFilter: '',
-    grantStaffLookup: '',
+    slotSelections: {},
     notice: { type: 'ok', text: '' },
     grantModal: {
       open: false,
@@ -393,101 +423,72 @@ export default {
     }
   }),
   computed: {
-    stats () {
-      return this.rows.reduce((acc, row) => {
-        acc[row.status] = (acc[row.status] || 0) + 1
-        return acc
-      }, { active: 0, pending: 0, disabled: 0 })
-    },
     t () {
       return this.$store.state.language === 'ru'
         ? {
             section: 'Служебный доступ',
             title: 'Корпоративный VPN',
-            subtitle: 'Выдача, перевыпуск и отключение VPN-доступов сотрудников в одном внутреннем экране.',
-            addAccess: 'Выдать доступ',
+            subtitle: 'Список сотрудников такой же, как в настройках: на каждого отдельно ведём доступ для компьютера и телефона.',
             refresh: 'Обновить',
-            active: 'Active',
-            pending: 'Pending',
-            disabled: 'Disabled',
-            readyToUse: 'Готово к использованию',
-            waitingApply: 'Ждут применения на VPN-сервере',
-            revokedAccess: 'Отключённые доступы',
-            profileReady: 'Профиль подключения',
-            profileHint: 'Заполните хост, ключ и shortId',
-            serverProfile: 'Параметры корпоративного VPN',
-            serverProfileHint: 'Это общий профиль сервера Xray/VLESS REALITY. Дальше мы выдаём сотрудникам отдельные UUID.',
             saving: 'Сохраняем...',
+            serverProfile: 'Профиль VPN-сервера',
+            serverProfileHint: 'Общие параметры VLESS + REALITY для всех сотрудников.',
             saveProfile: 'Сохранить профиль',
             profileName: 'Название профиля',
             server: 'Сервер',
-            serverExample: 'vpn.riderra.com',
+            serverExample: '92.118.234.170',
             port: 'Порт',
             serverName: 'serverName / SNI',
-            serverNameExample: 'cdn.cloudflare.com',
+            serverNameExample: 'www.microsoft.com',
             publicKey: 'publicKey',
             shortId: 'shortId',
-            fingerprint: 'fingerprint',
-            flow: 'Flow',
-            notes: 'Комментарий',
-            profileNotesHint: 'Например: для macOS / iOS используем v2rayTun, выдаём только личные UUID.',
-            quickActions: 'Операционные сценарии',
-            quickActionsHint: 'Самые частые действия по доступам — без долгих переходов.',
-            issueNewAccess: 'Выдать доступ новому сотруднику',
-            issueNewAccessHint: 'Открыть форму, подставить данные сотрудника и сгенерировать UUID.',
-            checkPending: 'Открыть ожидающие',
-            checkPendingHint: 'Быстро посмотреть доступы, которые ещё не применены на сервере.',
-            offboardFlow: 'Отключение при увольнении',
-            offboardFlowHint: 'Открыть отключённые и перевыпущенные доступы, чтобы проверить offboarding.',
-            accessList: 'Выданные доступы',
-            accessListHint: 'Поиск по сотруднику, устройству, логину или UUID. Все действия доступны прямо из списка.',
-            searchPlaceholder: 'Найти по сотруднику, email, логину, устройству или UUID',
-            allStatuses: 'Все статусы',
-            searchAction: 'Найти',
+            packages: 'Пакеты доступа',
+            packagesHint: 'Архив формируется персонально по UUID сотрудника. Для компьютера доступно скачивание готового пакета.',
+            computer: 'Компьютер',
+            phone: 'Телефон',
+            computerHint: 'Выбираем macOS или Windows — после этого появляется кнопка скачивания архива.',
+            phoneHint: 'Для телефона храним отдельный UUID, платформу и можем быстро отключить или перевыпустить доступ.',
+            binaryHintTitle: 'Что ещё нужно для скачивания',
+            binaryHint: 'На сервере должны быть заданы пути к бинарникам sing-box. Если их нет, система покажет понятную ошибку вместо битого архива.',
+            staffRoster: 'Сотрудники Riderra',
+            staffRosterHint: 'Фиксированный внутренний список сотрудников. На каждого — два слота: телефон и компьютер.',
             loading: 'Загрузка...',
-            emptyTitle: 'Пока нет выданных VPN-доступов',
-            emptyCopy: 'Добавьте первый доступ для сотрудника, а затем уже подключайте реальную автоматическую синхронизацию с Xray.',
-            addFirstAccess: 'Выдать первый доступ',
             employee: 'Сотрудник',
-            device: 'Устройство',
-            platform: 'Платформа',
+            roles: 'Роли',
+            noAccess: 'Нет доступа',
             issuedAt: 'Дата выдачи',
             status: 'Статус',
-            syncState: 'Синхронизация',
-            actions: 'Действия',
+            device: 'Устройство',
+            deviceType: 'Тип устройства',
+            platform: 'Платформа',
+            issueAccess: 'Выдать доступ',
+            savePlatform: 'Сохранить платформу',
+            downloadArchive: 'Скачать архив',
             open: 'Открыть',
             copy: 'Копировать',
-            copyAll: 'Копировать всё',
-            downloadMac: 'macOS пакет',
-            downloadWindows: 'Windows пакет',
-            instruction: 'Инструкция',
             rotate: 'Перевыпустить',
+            edit: 'Изменить',
+            editAccess: 'Изменить доступ',
             activate: 'Активировать',
             disable: 'Отключить',
-            close: 'Закрыть',
-            editAccess: 'Изменить доступ',
-            createGrantHint: 'Новый UUID и привязка доступа к конкретному устройству сотрудника.',
-            editGrantHint: 'Меняем устройство, статус или комментарий без потери истории выдачи.',
-            employeeDirectory: 'Справочник сотрудников',
-            staffLookupPlaceholder: 'Начните вводить email или имя сотрудника',
-            employeeNamePlaceholder: 'Например, Александр Демьянов',
-            login: 'Логин',
-            loginPlaceholder: 'Например, demyanov@riderra.com',
+            active: 'Active',
+            pending: 'Pending',
+            disabled: 'Disabled',
+            addAccess: 'Выдать доступ',
+            createGrantHint: 'Выдаём персональный UUID для выбранного слота сотрудника.',
+            editGrantHint: 'Меняем платформу, имя устройства, статус или комментарий.',
             devicePlaceholder: 'Например, MacBook Air / iPhone 15',
             uuidPlaceholder: 'UUID доступа',
             generate: 'Сгенерировать',
-            pendingApply: 'Ожидает применения',
-            applied: 'Применено',
-            error: 'Ошибка',
-            connectionLabel: 'Подпись подключения',
-            connectionLabelHint: 'Например, Riderra • Demyanov • MacBook',
-            commentPlaceholder: 'Когда выдан, для чего, ограничения по устройству и любые заметки.',
+            comment: 'Комментарий',
+            commentPlaceholder: 'Заметки по устройству, дате выдачи или ограничениям.',
             save: 'Сохранить',
             cancel: 'Отмена',
+            close: 'Закрыть',
             connectionParams: 'Параметры подключения',
             connectionParamsHint: 'Готовый комплект для отправки сотруднику.',
+            copyAll: 'Копировать всё',
             connectionUri: 'Готовый URI',
-            employeeDirectoryEmpty: 'Сотрудник не найден в справочнике',
             readyInstructionMissing: 'Сначала заполните профиль VPN сервера.',
             copySuccess: 'Параметры скопированы.',
             saveSuccess: 'Изменения сохранены.',
@@ -495,98 +496,73 @@ export default {
             activateSuccess: 'Доступ активирован.',
             rotateSuccess: 'UUID перевыпущен.',
             serverProfileRequired: 'Для инструкции нужно заполнить сервер, publicKey, shortId и serverName.',
-            noRowsForStatus: 'Нет доступов в выбранном статусе.',
-            applyPending: 'pending',
-            applyApplied: 'applied',
-            applyError: 'error'
+            computerLabel: 'Компьютер',
+            phoneLabel: 'Телефон'
           }
         : {
             section: 'Internal Access',
             title: 'Corporate VPN',
-            subtitle: 'Issue, rotate and revoke staff VPN access in one internal screen.',
-            addAccess: 'Issue access',
+            subtitle: 'The staff list mirrors Settings: each employee has dedicated computer and phone access slots.',
             refresh: 'Refresh',
-            active: 'Active',
-            pending: 'Pending',
-            disabled: 'Disabled',
-            readyToUse: 'Ready to use',
-            waitingApply: 'Waiting to apply on VPN server',
-            revokedAccess: 'Revoked access',
-            profileReady: 'Connection profile',
-            profileHint: 'Fill host, key and shortId',
-            serverProfile: 'Corporate VPN profile',
-            serverProfileHint: 'These are the shared Xray/VLESS REALITY server settings. Staff get individual UUIDs below.',
             saving: 'Saving...',
+            serverProfile: 'VPN server profile',
+            serverProfileHint: 'Shared VLESS + REALITY parameters for all staff.',
             saveProfile: 'Save profile',
             profileName: 'Profile name',
             server: 'Server',
-            serverExample: 'vpn.riderra.com',
+            serverExample: '92.118.234.170',
             port: 'Port',
             serverName: 'serverName / SNI',
-            serverNameExample: 'cdn.cloudflare.com',
+            serverNameExample: 'www.microsoft.com',
             publicKey: 'publicKey',
             shortId: 'shortId',
-            fingerprint: 'fingerprint',
-            flow: 'Flow',
-            notes: 'Notes',
-            profileNotesHint: 'Example: for macOS / iOS use v2rayTun, issue only personal UUIDs.',
-            quickActions: 'Operational shortcuts',
-            quickActionsHint: 'Most frequent access operations without extra clicks.',
-            issueNewAccess: 'Issue access to a new employee',
-            issueNewAccessHint: 'Open the form, prefill the employee, and generate a UUID.',
-            checkPending: 'Open pending access',
-            checkPendingHint: 'Review access grants that still need to be applied on the server.',
-            offboardFlow: 'Offboarding flow',
-            offboardFlowHint: 'Open disabled and rotated access to verify offboarding was completed.',
-            accessList: 'Issued access',
-            accessListHint: 'Search by employee, device, login or UUID. Most actions are available inline.',
-            searchPlaceholder: 'Search by employee, email, login, device or UUID',
-            allStatuses: 'All statuses',
-            searchAction: 'Search',
+            packages: 'Access packages',
+            packagesHint: 'Archives are generated per employee UUID. Computer access can be downloaded as a ready-to-run package.',
+            computer: 'Computer',
+            phone: 'Phone',
+            computerHint: 'Pick macOS or Windows and the archive download becomes available.',
+            phoneHint: 'Phone access keeps its own UUID and platform so you can revoke or rotate it separately.',
+            binaryHintTitle: 'What download still needs',
+            binaryHint: 'The server must know where the sing-box binaries live. If not configured, the UI returns a clear error instead of a broken archive.',
+            staffRoster: 'Riderra staff',
+            staffRosterHint: 'A fixed internal list of employees. Each employee gets two slots: phone and computer.',
             loading: 'Loading...',
-            emptyTitle: 'No VPN access has been issued yet',
-            emptyCopy: 'Add the first staff access now, then wire real Xray sync after the UI and data model are in place.',
-            addFirstAccess: 'Issue first access',
             employee: 'Employee',
-            device: 'Device',
-            platform: 'Platform',
+            roles: 'Roles',
+            noAccess: 'No access',
             issuedAt: 'Issued',
             status: 'Status',
-            syncState: 'Sync',
-            actions: 'Actions',
+            device: 'Device',
+            deviceType: 'Device type',
+            platform: 'Platform',
+            issueAccess: 'Issue access',
+            savePlatform: 'Save platform',
+            downloadArchive: 'Download archive',
             open: 'Open',
             copy: 'Copy',
-            copyAll: 'Copy all',
-            downloadMac: 'macOS package',
-            downloadWindows: 'Windows package',
-            instruction: 'Instruction',
             rotate: 'Rotate',
+            edit: 'Edit',
+            editAccess: 'Edit access',
             activate: 'Activate',
             disable: 'Disable',
-            close: 'Close',
-            editAccess: 'Edit access',
-            createGrantHint: 'Create a new UUID and bind it to a specific staff device.',
-            editGrantHint: 'Adjust device, status or notes without losing the issued-at history.',
-            employeeDirectory: 'Staff directory',
-            staffLookupPlaceholder: 'Start typing employee name or email',
-            employeeNamePlaceholder: 'For example, Alex Demyanov',
-            login: 'Login',
-            loginPlaceholder: 'For example, demyanov@riderra.com',
+            active: 'Active',
+            pending: 'Pending',
+            disabled: 'Disabled',
+            addAccess: 'Issue access',
+            createGrantHint: 'Issue a personal UUID for the selected employee slot.',
+            editGrantHint: 'Adjust platform, device name, status or notes.',
             devicePlaceholder: 'For example, MacBook Air / iPhone 15',
             uuidPlaceholder: 'Access UUID',
             generate: 'Generate',
-            pendingApply: 'Pending apply',
-            applied: 'Applied',
-            error: 'Error',
-            connectionLabel: 'Connection label',
-            connectionLabelHint: 'For example, Riderra • Demyanov • MacBook',
-            commentPlaceholder: 'Issued when, what for, device limits, and any notes.',
+            comment: 'Comment',
+            commentPlaceholder: 'Notes about the device, issue date or restrictions.',
             save: 'Save',
             cancel: 'Cancel',
+            close: 'Close',
             connectionParams: 'Connection parameters',
-            connectionParamsHint: 'Ready-to-send package for the employee.',
+            connectionParamsHint: 'Ready to send to the employee.',
+            copyAll: 'Copy all',
             connectionUri: 'Connection URI',
-            employeeDirectoryEmpty: 'Employee not found in directory',
             readyInstructionMissing: 'Fill the VPN server profile first.',
             copySuccess: 'Connection copied.',
             saveSuccess: 'Changes saved.',
@@ -594,11 +570,27 @@ export default {
             activateSuccess: 'Access activated.',
             rotateSuccess: 'UUID rotated.',
             serverProfileRequired: 'Fill server, publicKey, shortId and serverName first.',
-            noRowsForStatus: 'No access grants in this status.',
-            applyPending: 'pending',
-            applyApplied: 'applied',
-            applyError: 'error'
+            computerLabel: 'Computer',
+            phoneLabel: 'Phone'
           }
+    },
+    staffVpnRows () {
+      return this.staffOptions
+        .map((staff) => {
+          const grants = this.rows.filter((row) => this.rowBelongsToStaff(row, staff))
+          const computer = this.pickGrantForKind(grants, 'computer')
+          const phone = this.pickGrantForKind(grants, 'phone')
+          return {
+            key: staff.id || staff.email,
+            displayName: staff.displayName || (staff.email ? staff.email.split('@')[0] : '—'),
+            email: staff.email || '—',
+            roles: staff.roles || [],
+            rolesLabel: (staff.roles || []).join(', '),
+            computer,
+            phone
+          }
+        })
+        .sort((a, b) => String(a.displayName || '').localeCompare(String(b.displayName || ''), this.$store.state.language === 'ru' ? 'ru' : 'en'))
     }
   },
   mounted () {
@@ -623,6 +615,7 @@ export default {
     },
     async reloadAll () {
       await Promise.all([this.loadProfile(), this.loadAccess(), this.loadStaff()])
+      this.syncSlotSelections()
     },
     async loadProfile () {
       const body = await this.fetchJson('/api/admin/vpn/profile')
@@ -633,20 +626,13 @@ export default {
         serverPort: this.profile.serverPort || 443,
         serverName: this.profile.serverName || '',
         publicKey: this.profile.publicKey || '',
-        shortId: this.profile.shortId || '',
-        fingerprint: this.profile.fingerprint || 'chrome',
-        flow: this.profile.flow || 'xtls-rprx-vision',
-        notes: this.profile.notes || ''
+        shortId: this.profile.shortId || ''
       }
     },
     async loadAccess () {
       this.loadingAccess = true
       try {
-        const query = new URLSearchParams()
-        if (this.search) query.set('q', this.search)
-        if (this.statusFilter) query.set('status', this.statusFilter)
-        const suffix = query.toString() ? `?${query.toString()}` : ''
-        const body = await this.fetchJson(`/api/admin/vpn/access${suffix}`)
+        const body = await this.fetchJson('/api/admin/vpn/access')
         this.rows = Array.isArray(body.rows) ? body.rows : []
         if (body.profile) this.profile = body.profile
       } finally {
@@ -654,16 +640,80 @@ export default {
       }
     },
     async loadStaff () {
-      const body = await this.fetchJson('/api/admin/staff-users')
-      this.staffOptions = (body.rows || []).map((row) => ({
-        id: row.id,
-        displayName: row.displayName || row.email,
-        email: row.email,
-        roles: row.roles || []
-      }))
+      this.loadingStaff = true
+      try {
+        const body = await this.fetchJson('/api/admin/staff-users')
+        this.staffOptions = (body.rows || []).map((row) => ({
+          id: row.id,
+          displayName: row.displayName || row.email,
+          email: row.email,
+          roles: row.roles || []
+        }))
+      } finally {
+        this.loadingStaff = false
+      }
     },
-    async reloadAccess () {
-      await this.loadAccess()
+    syncSlotSelections () {
+      const next = {}
+      this.staffVpnRows.forEach((staff) => {
+        ;['computer', 'phone'].forEach((kind) => {
+          const access = staff[kind]
+          next[this.slotKey(staff, kind)] = access?.platform || this.defaultPlatformForKind(kind)
+        })
+      })
+      this.slotSelections = next
+    },
+    rowBelongsToStaff (row, staff) {
+      const email = String(staff.email || '').trim().toLowerCase()
+      const rowEmail = String(row.employeeEmail || '').trim().toLowerCase()
+      const rowLogin = String(row.employeeLogin || '').trim().toLowerCase()
+      return Boolean(email) && (rowEmail === email || rowLogin === email)
+    },
+    inferDeviceKind (row) {
+      if (row?.deviceKind === 'computer' || row?.deviceKind === 'phone') return row.deviceKind
+      const text = String(row?.deviceName || '').trim().toLowerCase()
+      if (/(iphone|android|phone|телефон|ios|ipad)/.test(text)) return 'phone'
+      return 'computer'
+    },
+    pickGrantForKind (grants, kind) {
+      if (!Array.isArray(grants) || !grants.length) return null
+      const direct = grants.find((row) => this.inferDeviceKind(row) === kind)
+      return direct || null
+    },
+    slotKey (staff, kind) {
+      return `${staff.email || staff.key}:${kind}`
+    },
+    defaultPlatformForKind (kind) {
+      return kind === 'phone' ? 'ios' : 'macos'
+    },
+    platformOptions (kind) {
+      if (kind === 'phone') {
+        return [
+          { value: 'ios', label: 'iPhone / iOS' },
+          { value: 'android', label: 'Android' }
+        ]
+      }
+      return [
+        { value: 'macos', label: 'macOS' },
+        { value: 'windows', label: 'Windows' }
+      ]
+    },
+    selectedSlotPlatform (staff, kind, access) {
+      const key = this.slotKey(staff, kind)
+      return this.slotSelections[key] || access?.platform || this.defaultPlatformForKind(kind)
+    },
+    setSlotPlatform (staff, kind, value) {
+      this.$set(this.slotSelections, this.slotKey(staff, kind), value)
+    },
+    canDownloadPlatform (platform) {
+      return ['macos', 'windows'].includes(String(platform || '').trim().toLowerCase())
+    },
+    deviceKindLabel (kind) {
+      return kind === 'phone' ? this.t.phoneLabel : this.t.computerLabel
+    },
+    deviceNameText (access, kind) {
+      if (access?.deviceName) return access.deviceName
+      return kind === 'phone' ? 'iPhone / Android' : 'Mac / Windows'
     },
     async saveProfile () {
       if (!this.profileDraft.serverHost || !this.profileDraft.publicKey || !this.profileDraft.shortId || !this.profileDraft.serverName) {
@@ -685,11 +735,38 @@ export default {
         this.savingProfile = false
       }
     },
-    openCreateGrant () {
+    openCreateForSlot (staff, kind) {
       this.grantModal = { open: true, mode: 'create', rowId: null }
-      this.grantForm = emptyGrantForm()
-      this.grantStaffLookup = ''
+      this.grantForm = {
+        ...emptyGrantForm(),
+        employeeName: staff.displayName,
+        employeeEmail: staff.email,
+        employeeLogin: staff.email,
+        deviceKind: kind,
+        deviceName: kind === 'phone' ? 'Personal phone' : 'Work computer',
+        platform: this.selectedSlotPlatform(staff, kind)
+      }
       this.generateUuid()
+    },
+    openEditGrant (row) {
+      this.grantModal = { open: true, mode: 'edit', rowId: row.id }
+      this.grantForm = {
+        employeeName: row.employeeName || '',
+        employeeEmail: row.employeeEmail || '',
+        employeeLogin: row.employeeLogin || '',
+        deviceKind: this.inferDeviceKind(row),
+        deviceName: row.deviceName || '',
+        platform: row.platform || this.defaultPlatformForKind(this.inferDeviceKind(row)),
+        uuid: row.uuid || '',
+        status: row.status || 'pending',
+        syncState: row.syncState || 'pending',
+        comment: row.comment || '',
+        connectionLabel: row.connectionLabel || ''
+      }
+    },
+    closeGrantModal () {
+      this.grantModal = { open: false, mode: 'create', rowId: null }
+      this.grantForm = emptyGrantForm()
     },
     openGrant (row) {
       this.detailPanel = {
@@ -699,34 +776,13 @@ export default {
         instructionText: this.buildInstructionText(row.connection || {})
       }
     },
+    closeDetailPanel () {
+      this.detailPanel = { open: false, row: null, instruction: {}, instructionText: '' }
+    },
     openEditFromDrawer () {
       const row = this.detailPanel.row
       this.closeDetailPanel()
       this.openEditGrant(row)
-    },
-    openEditGrant (row) {
-      this.grantModal = { open: true, mode: 'edit', rowId: row.id }
-      this.grantForm = {
-        employeeName: row.employeeName || '',
-        employeeEmail: row.employeeEmail || '',
-        employeeLogin: row.employeeLogin || '',
-        deviceName: row.deviceName || '',
-        platform: row.platform || 'macos',
-        uuid: row.uuid || '',
-        status: row.status || 'pending',
-        syncState: row.syncState || 'pending',
-        comment: row.comment || '',
-        connectionLabel: row.connectionLabel || ''
-      }
-      this.grantStaffLookup = ''
-    },
-    closeGrantModal () {
-      this.grantModal = { open: false, mode: 'create', rowId: null }
-      this.grantForm = emptyGrantForm()
-      this.grantStaffLookup = ''
-    },
-    closeDetailPanel () {
-      this.detailPanel = { open: false, row: null, instruction: {}, instructionText: '' }
     },
     async saveGrant () {
       if (!this.grantForm.employeeName || !this.grantForm.deviceName || !this.grantForm.uuid) {
@@ -745,12 +801,60 @@ export default {
           }
         )
         this.upsertRow(body.row)
+        this.syncSlotSelections()
         this.setNotice('ok', this.t.saveSuccess)
         this.closeGrantModal()
       } catch (error) {
         this.setNotice('error', error.message)
       } finally {
         this.savingGrant = false
+      }
+    },
+    buildGrantPayload (row, overrides = {}) {
+      return {
+        employeeName: row.employeeName,
+        employeeEmail: row.employeeEmail,
+        employeeLogin: row.employeeLogin,
+        deviceKind: this.inferDeviceKind(row),
+        deviceName: row.deviceName,
+        platform: row.platform,
+        uuid: row.uuid,
+        status: row.status,
+        syncState: row.syncState,
+        comment: row.comment || '',
+        connectionLabel: row.connectionLabel || '',
+        ...overrides
+      }
+    },
+    async updateGrantRecord (row, overrides = {}) {
+      const body = await this.fetchJson(`/api/admin/vpn/access/${row.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': this.makeIdempotencyKey(`vpn-access-update-${row.id}`) },
+        body: JSON.stringify(this.buildGrantPayload(row, overrides))
+      })
+      this.upsertRow(body.row)
+      this.syncSlotSelections()
+      return body.row
+    },
+    async saveSlotPlatform (staff, kind, row) {
+      try {
+        const platform = this.selectedSlotPlatform(staff, kind, row)
+        await this.updateGrantRecord(row, { platform, deviceKind: kind })
+        this.setNotice('ok', this.t.saveSuccess)
+      } catch (error) {
+        this.setNotice('error', error.message)
+      }
+    },
+    async downloadSlotPackage (staff, kind, row) {
+      try {
+        const platform = this.selectedSlotPlatform(staff, kind, row)
+        let effectiveRow = row
+        if (row.platform !== platform) {
+          effectiveRow = await this.updateGrantRecord(row, { platform, deviceKind: kind })
+        }
+        await this.downloadPackage(effectiveRow, platform)
+      } catch (error) {
+        this.setNotice('error', error.message)
       }
     },
     async downloadPackage (row, platform) {
@@ -767,7 +871,7 @@ export default {
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement('a')
         const disposition = response.headers.get('Content-Disposition') || ''
-        const match = disposition.match(/filename=\"?([^\";]+)\"?/)
+        const match = disposition.match(/filename=\"?([^\";]+)\"?/) 
         link.href = url
         link.download = match && match[1] ? match[1] : `${row.employeeName || 'employee'}-${platform}.zip`
         document.body.appendChild(link)
@@ -785,6 +889,7 @@ export default {
           headers: { 'Idempotency-Key': this.makeIdempotencyKey(`vpn-rotate-${row.id}`) }
         })
         this.upsertRow(body.row)
+        this.syncSlotSelections()
         this.setNotice('ok', this.t.rotateSuccess)
       } catch (error) {
         this.setNotice('error', error.message)
@@ -798,6 +903,7 @@ export default {
           headers: { 'Idempotency-Key': this.makeIdempotencyKey(`vpn-${action}-${row.id}`) }
         })
         this.upsertRow(body.row)
+        this.syncSlotSelections()
         this.setNotice('ok', row.status === 'disabled' ? this.t.activateSuccess : this.t.disableSuccess)
       } catch (error) {
         this.setNotice('error', error.message)
@@ -872,14 +978,11 @@ export default {
     statusLabel (status) {
       return status === 'active' ? this.t.active : (status === 'disabled' ? this.t.disabled : this.t.pending)
     },
-    syncLabel (state) {
-      if (state === 'applied') return this.t.applied
-      if (state === 'error') return this.t.error
-      return this.t.pendingApply
-    },
     platformLabel (platform) {
       if (platform === 'windows') return 'Windows'
       if (platform === 'macos') return 'macOS'
+      if (platform === 'ios') return 'iPhone / iOS'
+      if (platform === 'android') return 'Android'
       return '—'
     },
     makeIdempotencyKey (prefix) {
@@ -906,29 +1009,6 @@ export default {
         this.noticeTimer = setTimeout(() => {
           this.notice = { type: 'ok', text: '' }
         }, 3500)
-      }
-    },
-    staffDisplayValue (staff) {
-      return `${staff.displayName || staff.email || ''} <${staff.email || ''}>`.trim()
-    },
-    staffRolesLabel (staff) {
-      return (staff.roles || []).join(', ')
-    },
-    applyStaffSuggestion () {
-      const raw = String(this.grantStaffLookup || '').trim().toLowerCase()
-      const found = this.staffOptions.find((staff) => {
-        const email = String(staff.email || '').trim().toLowerCase()
-        const label = String(this.staffDisplayValue(staff) || '').trim().toLowerCase()
-        return email === raw || label === raw
-      })
-      if (!found) return
-      this.grantForm.employeeEmail = found.email || ''
-      this.grantForm.employeeLogin = found.email || ''
-      if (!this.grantForm.employeeName) {
-        this.grantForm.employeeName = found.displayName || (found.email ? found.email.split('@')[0] : '')
-      }
-      if (!this.grantForm.connectionLabel && found.email) {
-        this.grantForm.connectionLabel = `Riderra • ${found.email}`
       }
     },
     buildInstructionText (instruction) {
@@ -958,14 +1038,6 @@ export default {
         '',
         ...steps
       ].join('\n')
-    },
-    openInstructionByStatus (status) {
-      const row = this.rows.find((item) => item.status === status)
-      if (!row) {
-        this.setNotice('error', this.t.noRowsForStatus)
-        return
-      }
-      this.openInstruction(row)
     }
   }
 }
@@ -979,214 +1051,210 @@ export default {
   align-items: flex-start;
   padding: 28px;
   margin-bottom: 20px;
-  background: linear-gradient(135deg, rgba(11, 18, 32, 0.94), rgba(20, 78, 128, 0.9));
-  border-radius: 20px;
-  color: #fff;
-  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.18);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
 }
 
 .eyebrow {
   margin: 0 0 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
   font-size: 12px;
-  opacity: 0.78;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2f68ff;
 }
 
-.hero-copy {
-  max-width: 680px;
-  margin: 8px 0 0;
-  color: rgba(255, 255, 255, 0.82);
+.hero-copy,
+.muted {
+  color: #6b7280;
 }
 
 .hero-actions {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.stat-card {
-  padding: 18px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  box-shadow: 0 18px 35px rgba(15, 23, 42, 0.08);
-}
-
-.stat-card--accent {
-  background: linear-gradient(145deg, rgba(14, 165, 233, 0.11), rgba(59, 130, 246, 0.08));
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #475569;
-}
-
-.stat-value {
-  margin-top: 6px;
-  font-size: 28px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.stat-hint {
-  margin-top: 6px;
-  font-size: 13px;
-  color: #64748b;
+  gap: 12px;
 }
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.content-grid--vpn {
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
 }
 
 .card {
-  padding: 22px;
-  border-radius: 18px;
   background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-}
-
-.card--summary {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.96));
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
 }
 
 .section-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  align-items: flex-start;
   margin-bottom: 18px;
+}
+
+.section-head h3,
+.section-head h4,
+.cell-title {
+  margin: 0;
+  color: #12224a;
 }
 
 .section-head--compact {
   margin-bottom: 12px;
 }
 
-.muted {
-  color: #64748b;
-  font-size: 13px;
-}
-
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.form-grid label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #334155;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .form-grid__wide {
-  grid-column: 1 / -1;
+  grid-column: span 3;
+}
+
+label,
+.detail-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #31456a;
+}
+
+.input,
+.textarea,
+.select-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #d8e0ee;
+  background: #fff;
+  font-size: 15px;
+  color: #12224a;
 }
 
 .textarea {
-  min-height: 96px;
+  min-height: 110px;
   resize: vertical;
 }
 
-.quick-stack {
+.textarea--compact {
+  min-height: 72px;
+}
+
+.notice {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+.notice--ok {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.notice--error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.summary-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.summary-item {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #f6f8fc;
+}
+
+.summary-item p {
+  margin: 8px 0 0;
+  color: #5f6f8d;
+  line-height: 1.5;
+}
+
+.summary-item--warning {
+  background: #fff8eb;
+}
+
+.roster-wrap {
+  overflow-x: auto;
+}
+
+.roster-table {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.95fr) minmax(160px, 0.7fr) minmax(360px, 1.2fr) minmax(360px, 1.2fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.roster-table--head {
+  margin-bottom: 12px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #31456a;
+}
+
+.roster-table--row {
+  padding: 18px 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.roles-list {
+  color: #465675;
+  line-height: 1.5;
+}
+
+.device-card {
   display: grid;
   gap: 12px;
+  padding: 16px;
+  border: 1px solid #dbe4f2;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
-.quick-action {
-  width: 100%;
-  padding: 16px 18px;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: #fff;
-  text-align: left;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.quick-action:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.08);
-}
-
-.quick-action__title {
-  display: block;
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.quick-action__copy {
-  display: block;
-  margin-top: 6px;
-  font-size: 13px;
-  color: #64748b;
-}
-
-.toolbar {
+.device-card__top,
+.device-meta,
+.slot-controls,
+.slot-actions,
+.param-row,
+.modal-actions,
+.inline-control,
+.detail-grid {
   display: flex;
   gap: 10px;
+}
+
+.device-card__top,
+.param-row {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.device-meta {
   flex-wrap: wrap;
+  font-size: 13px;
+  color: #5f6f8d;
 }
 
-.input--search {
-  min-width: 300px;
-}
-
-.select-input {
-  min-width: 180px;
-}
-
-.empty-state {
-  padding: 30px 18px;
-  text-align: center;
-  color: #64748b;
-  border: 1px dashed rgba(148, 163, 184, 0.45);
-  border-radius: 16px;
-  background: rgba(248, 250, 252, 0.7);
-}
-
-.vpn-table {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.15fr) minmax(160px, 1fr) 110px minmax(140px, 0.85fr) 120px 110px 130px minmax(320px, 1.8fr);
-  gap: 12px;
-  align-items: center;
-}
-
-.vpn-table--head {
-  padding: 0 0 10px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.vpn-table--row {
-  padding: 16px 0;
-  border-top: 1px solid rgba(226, 232, 240, 0.85);
-}
-
-.cell-title {
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.mono {
-  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-  font-size: 12px;
+.slot-controls,
+.slot-actions,
+.modal-actions {
+  flex-wrap: wrap;
 }
 
 .status-pill,
@@ -1202,205 +1270,135 @@ export default {
 }
 
 .status-pill--active {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+  background: #ecfdf3;
+  color: #166534;
 }
 
 .status-pill--pending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #b45309;
-}
-
-.status-pill--disabled {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
-}
-
-.sync-pill--pending {
-  background: rgba(59, 130, 246, 0.12);
+  background: #eff6ff;
   color: #1d4ed8;
 }
 
-.sync-pill--applied {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+.status-pill--disabled {
+  background: #fef2f2;
+  color: #991b1b;
 }
 
-.sync-pill--error {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
+.scope-pill,
+.sync-pill {
+  background: #eef2ff;
+  color: #3b4bb8;
 }
 
-.row-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-.notice {
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  border-radius: 12px;
-  font-size: 14px;
+.btn {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 700;
+  background: #eef2ff;
+  color: #1f3b70;
 }
 
-.notice--ok {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+.btn--small {
+  padding: 9px 12px;
+  font-size: 13px;
 }
 
-.notice--error {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
+.btn--primary {
+  background: #1f4fff;
+  color: #fff;
 }
 
-.inline-control {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+.btn--danger {
+  background: #b42318;
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
 }
 
 .modal-overlay,
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  z-index: 90;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 20px;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 50;
+  padding: 24px;
 }
 
-.modal {
-  width: min(920px, 100%);
-  max-height: calc(100vh - 40px);
+.modal,
+.drawer {
+  width: min(900px, 100%);
+  max-height: calc(100vh - 48px);
   overflow: auto;
-  padding: 22px;
-  border-radius: 20px;
   background: #fff;
-  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.22);
-}
-
-.modal--wide {
-  width: min(980px, 100%);
-}
-
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 18px;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
 }
 
 .drawer {
-  width: min(620px, 100%);
-  max-height: calc(100vh - 40px);
-  overflow: auto;
-  padding: 22px;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.22);
+  width: min(720px, 100%);
 }
 
 .detail-block {
   margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(226, 232, 240, 0.85);
 }
 
 .detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .detail-grid > div {
-  display: grid;
-  gap: 4px;
-}
-
-.detail-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #64748b;
-}
-
-.detail-label--textarea {
-  display: block;
-  margin-bottom: 6px;
+  min-width: 220px;
+  flex: 1 1 220px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
 }
 
 .params-list {
   display: grid;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .param-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.95);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8fafc;
 }
 
-.textarea--compact {
-  min-height: 86px;
-}
-
-@media (max-width: 1200px) {
-  .stats-grid,
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .vpn-table {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .vpn-table--head {
-    display: none;
-  }
-
-  .vpn-table--row {
-    padding: 16px;
-    border: 1px solid rgba(226, 232, 240, 0.85);
-    border-radius: 16px;
-    margin-bottom: 12px;
-  }
-}
-
-@media (max-width: 767px) {
-  .hero-card,
-  .section-head,
-  .hero-actions,
-  .toolbar,
-  .modal-actions,
-  .modal-actions--drawer {
-    flex-direction: column;
-  }
-
+@media (max-width: 1100px) {
+  .content-grid--vpn,
   .form-grid,
-  .detail-grid {
+  .roster-table {
     grid-template-columns: 1fr;
   }
 
-  .input--search,
-  .select-input {
-    min-width: 0;
-    width: 100%;
+  .form-grid__wide {
+    grid-column: span 1;
   }
 
-  .card,
-  .modal,
-  .drawer,
-  .hero-card {
-    padding: 18px;
+  .hero-card,
+  .section-head {
+    flex-direction: column;
   }
 }
 </style>
