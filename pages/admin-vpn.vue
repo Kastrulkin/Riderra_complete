@@ -101,7 +101,6 @@
           <div v-else class="roster-wrap">
             <div class="roster-table roster-table--head">
               <div>{{ t.employee }}</div>
-              <div>{{ t.roles }}</div>
               <div>{{ t.computer }}</div>
               <div>{{ t.phone }}</div>
             </div>
@@ -110,9 +109,6 @@
               <div>
                 <div class="cell-title">{{ staff.displayName }}</div>
                 <div class="muted">{{ staff.email }}</div>
-              </div>
-              <div>
-                <div class="roles-list">{{ staff.rolesLabel || '—' }}</div>
               </div>
 
               <div>
@@ -454,7 +450,6 @@ export default {
             staffRosterHint: 'Фиксированный внутренний список сотрудников. На каждого — два слота: телефон и компьютер.',
             loading: 'Загрузка...',
             employee: 'Сотрудник',
-            roles: 'Роли',
             noAccess: 'Нет доступа',
             issuedAt: 'Дата выдачи',
             status: 'Статус',
@@ -528,7 +523,6 @@ export default {
             staffRosterHint: 'A fixed internal list of employees. Each employee gets two slots: phone and computer.',
             loading: 'Loading...',
             employee: 'Employee',
-            roles: 'Roles',
             noAccess: 'No access',
             issuedAt: 'Issued',
             status: 'Status',
@@ -1195,7 +1189,7 @@ label,
 
 .roster-table {
   display: grid;
-  grid-template-columns: minmax(220px, 0.95fr) minmax(160px, 0.7fr) minmax(360px, 1.2fr) minmax(360px, 1.2fr);
+  grid-template-columns: minmax(220px, 0.95fr) minmax(360px, 1.2fr) minmax(360px, 1.2fr);
   gap: 16px;
   align-items: stretch;
 }
@@ -1211,11 +1205,6 @@ label,
 .roster-table--row {
   padding: 18px 0;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.roles-list {
-  color: #465675;
-  line-height: 1.5;
 }
 
 .device-card {
