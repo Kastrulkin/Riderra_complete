@@ -58,7 +58,7 @@
           </div>
           <div class="table-wrap table-wrap--staff">
             <div class="grid-head six-staff-cols">
-              <div>{{ t.email }}</div>
+              <div>{{ t.staffMember }}</div>
               <div>{{ t.roles }}</div>
               <div>{{ t.telegramId }}</div>
               <div>{{ t.geoScope }}</div>
@@ -66,7 +66,10 @@
               <div>{{ t.actions }}</div>
             </div>
             <div v-for="u in staff" :key="u.id" class="grid-row six-staff-cols">
-              <div>{{ u.email }}</div>
+              <div class="staff-identity">
+                <strong>{{ u.displayName || u.email }}</strong>
+                <span class="muted">{{ u.email }}</span>
+              </div>
               <div>{{ (u.roles || []).join(', ') || '-' }}</div>
               <div>
                 <input
@@ -164,6 +167,7 @@ export default {
             status: 'Статус',
             actions: 'Действия',
             email: 'Email сотрудника',
+            staffMember: 'Сотрудник',
             telegramId: 'Telegram User ID',
             syncing: 'Синхронизация...',
             save: 'Сохранить',
@@ -195,6 +199,7 @@ export default {
             status: 'Status',
             actions: 'Actions',
             email: 'Staff email',
+            staffMember: 'Staff member',
             telegramId: 'Telegram User ID',
             syncing: 'Syncing...',
             save: 'Save',
@@ -442,6 +447,8 @@ export default {
   align-items: stretch;
 }
 .six-staff-cols > div { display: flex; align-items: center; }
+.staff-identity { display: flex; flex-direction: column; align-items: flex-start !important; justify-content: center; gap: 4px; }
+.staff-identity strong { color: #1d2c4a; font-size: 14px; }
 .table-wrap--staff .grid-head,
 .table-wrap--staff .grid-row { min-width: 1500px; }
 .seven-cols { display: grid; grid-template-columns: 1fr .8fr 1.5fr .6fr .8fr 1fr 1fr; }

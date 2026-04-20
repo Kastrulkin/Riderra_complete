@@ -692,6 +692,20 @@ const SMTP_HOST = process.env.SMTP_HOST || 'smtp.yandex.ru' // SMTP хост
 const SMTP_PORT = process.env.SMTP_PORT || 587 // SMTP порт
 const SMTP_USER = process.env.SMTP_USER || '' // SMTP пользователь (email)
 const SMTP_PASS = process.env.SMTP_PASS || '' // SMTP пароль
+const STARTUP_STAFF_DIRECTORY = [
+  { email: 'demyanov@riderra.com', displayName: 'Александр Демьянов', roles: ['owner'] },
+  { email: 'shilin@riderra.com', displayName: 'Михаил Шилин', roles: ['financial', 'owner'] },
+  { email: 'bellavitomatern@gmail.com', displayName: 'Елизавета Матерн', roles: ['operator', 'dispatcher'] },
+  { email: 'donaudeka@gmail.com', displayName: 'Екатерина Гафарова', roles: ['audit', 'pricing_admin'] },
+  { email: 'farzalievaas@gmail.com', displayName: 'Алёна Фарзалиева', roles: ['operator', 'dispatcher'] },
+  { email: 'iproms17@gmail.com', displayName: 'Алёна Малкова', roles: ['operator', 'dispatcher'] },
+  { email: 'maksmaps123332@gmail.com', displayName: 'Максим Шилков', roles: ['audit', 'operator', 'dispatcher', 'ops_control'] },
+  { email: 'svetlana.iqtour@gmail.com', displayName: 'Светлана Козыревская', roles: ['operator', 'dispatcher'] },
+  { email: 'samya7098@gmail.com', displayName: 'Яссер Хагаг', roles: ['operator', 'dispatcher'] }
+]
+const STARTUP_STAFF_BY_EMAIL = new Map(
+  STARTUP_STAFF_DIRECTORY.map((entry) => [String(entry.email || '').trim().toLowerCase(), entry])
+)
 
 // Создаем транспортер для отправки email
 let transporter = null
@@ -10030,15 +10044,25 @@ app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, req
 
 app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
+    const startupEmails = STARTUP_STAFF_DIRECTORY.map((entry) => entry.email)
     const users = await prisma.user.findMany({
       where: {
         role: { not: 'driver' },
-        memberships: {
-          some: {
-            tenantId: req.actorContext.tenantId,
-            isActive: true
+        OR: [
+          {
+            memberships: {
+              some: {
+                tenantId: req.actorContext.tenantId,
+                isActive: true
+              }
+            }
+          },
+          {
+            email: {
+              in: startupEmails
+            }
           }
-        }
+        ]
       },
       include: {
         roleLinks: {
@@ -10060,16 +10084,24 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
       take: 500
     })
 
-    const rows = users.map((u) => ({
-      id: u.id,
-      email: u.email,
-      role: u.role,
-      roles: u.roleLinks.map((x) => x.role.code),
-      telegramLinks: u.telegramLinks,
-      abacCountries: parseScopeList(u.abacCountries),
-      abacCities: parseScopeList(u.abacCities),
-      abacTeams: sanitizeTeamScopes(u.abacTeams)
-    }))
+    const rows = users.map((u) => {
+      const startupEntry = STARTUP_STAFF_BY_EMAIL.get(String(u.email || '').trim().toLowerCase())
+      const roles = u.roleLinks.length
+        ? u.roleLinks.map((x) => x.role.code)
+        : (startupEntry?.roles || [])
+
+      return {
+        id: u.id,
+        email: u.email,
+        displayName: startupEntry?.displayName || String(u.email || '').split('@')[0],
+        role: u.role,
+        roles,
+        telegramLinks: u.telegramLinks,
+        abacCountries: parseScopeList(u.abacCountries),
+        abacCities: parseScopeList(u.abacCities),
+        abacTeams: sanitizeTeamScopes(u.abacTeams)
+      }
+    })
 
     res.json({ rows })
   } catch (error) {
