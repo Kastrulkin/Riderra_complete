@@ -1443,6 +1443,131 @@ async function ensureHumanApproval(req, {
   throw error
 }
 
+function normalizeVpnStatus(status) {
+  const value = String(status || '').trim().toLowerCase()
+  if (['active', 'disabled', 'pending'].includes(value)) return value
+  return 'pending'
+}
+
+function normalizeVpnSyncState(state) {
+  const value = String(state || '').trim().toLowerCase()
+  if (['pending', 'applied', 'error'].includes(value)) return value
+  return 'pending'
+}
+
+function buildDefaultVpnProfile(tenantId = null) {
+  return {
+    id: null,
+    tenantId,
+    name: String(process.env.VPN_PROFILE_NAME || 'Riderra Corporate VPN').trim() || 'Riderra Corporate VPN',
+    serverHost: String(process.env.VPN_SERVER_HOST || '').trim(),
+    serverPort: Number(process.env.VPN_SERVER_PORT || 443) || 443,
+    protocol: String(process.env.VPN_PROTOCOL || 'vless').trim() || 'vless',
+    security: String(process.env.VPN_SECURITY || 'reality').trim() || 'reality',
+    transport: String(process.env.VPN_TRANSPORT || 'tcp').trim() || 'tcp',
+    flow: String(process.env.VPN_FLOW || 'xtls-rprx-vision').trim() || 'xtls-rprx-vision',
+    publicKey: String(process.env.VPN_REALITY_PUBLIC_KEY || '').trim(),
+    shortId: String(process.env.VPN_REALITY_SHORT_ID || '').trim(),
+    serverName: String(process.env.VPN_SERVER_NAME || '').trim(),
+    fingerprint: String(process.env.VPN_FINGERPRINT || 'chrome').trim() || 'chrome',
+    isActive: true,
+    notes: String(process.env.VPN_NOTES || '').trim() || null
+  }
+}
+
+function sanitizeVpnProfileInput(input = {}, tenantId) {
+  return {
+    tenantId,
+    name: String(input.name || 'Riderra Corporate VPN').trim() || 'Riderra Corporate VPN',
+    serverHost: String(input.serverHost || '').trim(),
+    serverPort: Math.max(1, Math.min(65535, Number(input.serverPort || 443) || 443)),
+    protocol: String(input.protocol || 'vless').trim().toLowerCase() || 'vless',
+    security: String(input.security || 'reality').trim().toLowerCase() || 'reality',
+    transport: String(input.transport || 'tcp').trim().toLowerCase() || 'tcp',
+    flow: String(input.flow || 'xtls-rprx-vision').trim() || 'xtls-rprx-vision',
+    publicKey: String(input.publicKey || '').trim(),
+    shortId: String(input.shortId || '').trim(),
+    serverName: String(input.serverName || '').trim(),
+    fingerprint: String(input.fingerprint || 'chrome').trim() || 'chrome',
+    isActive: input.isActive !== false,
+    notes: String(input.notes || '').trim() || null
+  }
+}
+
+function sanitizeVpnGrantInput(input = {}, profile = null) {
+  const status = normalizeVpnStatus(input.status)
+  const syncState = normalizeVpnSyncState(input.syncState)
+  const employeeEmail = String(input.employeeEmail || '').trim().toLowerCase() || null
+  const employeeLogin = String(input.employeeLogin || '').trim() || null
+  const deviceName = String(input.deviceName || '').trim()
+  return {
+    employeeName: String(input.employeeName || '').trim(),
+    employeeEmail,
+    employeeLogin,
+    deviceName,
+    uuid: String(input.uuid || crypto.randomUUID()).trim(),
+    status,
+    comment: String(input.comment || '').trim() || null,
+    connectionLabel: String(input.connectionLabel || '').trim() || null,
+    syncState,
+    profileId: input.profileId || profile?.id || null,
+    disabledAt: status === 'disabled' ? new Date() : null,
+    appliedAt: syncState === 'applied' ? new Date() : null,
+    lastSyncError: String(input.lastSyncError || '').trim() || null
+  }
+}
+
+function buildVpnConnectionBundle(profile, grant) {
+  const serverHost = String(profile?.serverHost || '').trim()
+  const serverPort = Number(profile?.serverPort || 443) || 443
+  const protocol = String(profile?.protocol || 'vless').trim() || 'vless'
+  const security = String(profile?.security || 'reality').trim() || 'reality'
+  const transport = String(profile?.transport || 'tcp').trim() || 'tcp'
+  const flow = String(profile?.flow || 'xtls-rprx-vision').trim() || 'xtls-rprx-vision'
+  const publicKey = String(profile?.publicKey || '').trim()
+  const shortId = String(profile?.shortId || '').trim()
+  const serverName = String(profile?.serverName || '').trim()
+  const fingerprint = String(profile?.fingerprint || 'chrome').trim() || 'chrome'
+  const uuid = String(grant?.uuid || '').trim()
+  const label = encodeURIComponent(String(grant?.connectionLabel || `${grant?.employeeName || 'Riderra'} ${grant?.deviceName || ''}`).trim())
+  const url = `${protocol}://${uuid}@${serverHost}:${serverPort}?type=${encodeURIComponent(transport)}&security=${encodeURIComponent(security)}&pbk=${encodeURIComponent(publicKey)}&fp=${encodeURIComponent(fingerprint)}&sni=${encodeURIComponent(serverName)}&sid=${encodeURIComponent(shortId)}&flow=${encodeURIComponent(flow)}&encryption=none#${label}`
+  const lines = [
+    `Server: ${serverHost}`,
+    `Port: ${serverPort}`,
+    `UUID: ${uuid}`,
+    `Protocol: ${protocol.toUpperCase()}`,
+    `Transport: ${transport}`,
+    `Security: ${security.toUpperCase()}`,
+    `Flow: ${flow}`,
+    `Public Key: ${publicKey}`,
+    `Short ID: ${shortId}`,
+    `Server Name (SNI): ${serverName}`,
+    `Fingerprint: ${fingerprint}`,
+    '',
+    'Steps:',
+    '1. Install a VLESS/REALITY capable client such as v2RayTun, Hiddify, Streisand, v2Box or Nekoray.',
+    '2. Create a new VLESS connection.',
+    '3. Copy the parameters below or import the URI.',
+    '4. Save the profile and connect.'
+  ]
+
+  return {
+    serverHost,
+    serverPort,
+    protocol,
+    security,
+    transport,
+    flow,
+    publicKey,
+    shortId,
+    serverName,
+    fingerprint,
+    uuid,
+    uri: url,
+    text: lines.join('\n')
+  }
+}
+
 function normalizeOrderStatus(status) {
   return String(status || '').trim().toLowerCase()
 }
@@ -10017,6 +10142,390 @@ app.put('/api/admin/staff-users/:userId/abac', authenticateToken, resolveActorCo
   } catch (error) {
     console.error('Error updating staff ABAC:', error)
     res.status(500).json({ error: 'Failed to update staff ABAC' })
+  }
+})
+
+app.get('/api/admin/vpn/profile', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const row = await prisma.vpnProfile.findUnique({
+      where: { tenantId }
+    })
+    const profile = row || buildDefaultVpnProfile(tenantId)
+    res.json({ profile })
+  } catch (error) {
+    console.error('Error loading vpn profile:', error)
+    res.status(500).json({ error: 'Failed to load VPN profile' })
+  }
+})
+
+app.put('/api/admin/vpn/profile', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const payload = sanitizeVpnProfileInput(req.body || {}, tenantId)
+    if (!payload.serverHost || !payload.publicKey || !payload.shortId || !payload.serverName) {
+      return res.status(400).json({ error: 'serverHost, publicKey, shortId and serverName are required' })
+    }
+
+    ensureIdempotencyKey(req, 'vpn.profile.upsert', payload)
+    const wrapped = await withIdempotency(req, 'vpn.profile.upsert', payload, async () => {
+      const profile = await prisma.vpnProfile.upsert({
+        where: { tenantId },
+        update: payload,
+        create: payload
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'vpn.profile.upsert',
+        resource: 'vpn_profile',
+        resourceId: profile.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          serverHost: profile.serverHost,
+          serverPort: profile.serverPort,
+          protocol: profile.protocol
+        }
+      })
+      return profile
+    })
+
+    res.json({ success: true, profile: wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error saving vpn profile:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to save VPN profile' })
+  }
+})
+
+app.get('/api/admin/vpn/access', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const q = String(req.query.q || '').trim()
+    const status = normalizeVpnStatus(req.query.status || '')
+    const where = {
+      tenantId,
+      ...(String(req.query.status || '').trim() ? { status } : {}),
+      ...(q
+        ? {
+            OR: [
+              { employeeName: { contains: q, mode: 'insensitive' } },
+              { employeeEmail: { contains: q, mode: 'insensitive' } },
+              { employeeLogin: { contains: q, mode: 'insensitive' } },
+              { deviceName: { contains: q, mode: 'insensitive' } },
+              { uuid: { contains: q, mode: 'insensitive' } }
+            ]
+          }
+        : {})
+    }
+
+    const [profile, rows] = await Promise.all([
+      prisma.vpnProfile.findUnique({ where: { tenantId } }),
+      prisma.vpnAccessGrant.findMany({
+        where,
+        include: { profile: true },
+        orderBy: [{ updatedAt: 'desc' }],
+        take: 500
+      })
+    ])
+
+    const effectiveProfile = profile || buildDefaultVpnProfile(tenantId)
+    res.json({
+      profile: effectiveProfile,
+      rows: rows.map((row) => ({
+        ...row,
+        connection: buildVpnConnectionBundle(row.profile || effectiveProfile, row)
+      }))
+    })
+  } catch (error) {
+    console.error('Error loading vpn access list:', error)
+    res.status(500).json({ error: 'Failed to load VPN access list' })
+  }
+})
+
+app.post('/api/admin/vpn/access', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const profile = await prisma.vpnProfile.findUnique({ where: { tenantId } })
+    const payload = sanitizeVpnGrantInput(req.body || {}, profile)
+    if (!payload.employeeName || !payload.deviceName || !payload.uuid) {
+      return res.status(400).json({ error: 'employeeName, deviceName and uuid are required' })
+    }
+
+    ensureIdempotencyKey(req, 'vpn.access.create', payload)
+    const wrapped = await withIdempotency(req, 'vpn.access.create', payload, async () => {
+      const row = await prisma.vpnAccessGrant.create({
+        data: {
+          tenantId,
+          ...payload
+        },
+        include: { profile: true }
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'vpn.access.create',
+        resource: 'vpn_access',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          employeeEmail: row.employeeEmail,
+          deviceName: row.deviceName,
+          status: row.status
+        }
+      })
+      return row
+    })
+
+    res.json({
+      success: true,
+      row: {
+        ...wrapped.data,
+        connection: buildVpnConnectionBundle(wrapped.data.profile || profile || buildDefaultVpnProfile(tenantId), wrapped.data)
+      },
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error creating vpn access:', error)
+    res.status(error.code === 'P2002' ? 409 : (error.statusCode || 500)).json({ error: error.message || 'Failed to create VPN access' })
+  }
+})
+
+app.put('/api/admin/vpn/access/:grantId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const existing = await prisma.vpnAccessGrant.findFirst({
+      where: { id: req.params.grantId, tenantId },
+      include: { profile: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'VPN access not found' })
+
+    const payload = sanitizeVpnGrantInput({ ...existing, ...(req.body || {}), uuid: req.body?.uuid || existing.uuid }, existing.profile)
+    ensureIdempotencyKey(req, 'vpn.access.update', { grantId: existing.id, ...payload })
+    const wrapped = await withIdempotency(req, 'vpn.access.update', { grantId: existing.id, ...payload }, async () => {
+      const row = await prisma.vpnAccessGrant.update({
+        where: { id: existing.id },
+        data: {
+          employeeName: payload.employeeName,
+          employeeEmail: payload.employeeEmail,
+          employeeLogin: payload.employeeLogin,
+          deviceName: payload.deviceName,
+          uuid: payload.uuid,
+          status: payload.status,
+          comment: payload.comment,
+          connectionLabel: payload.connectionLabel,
+          syncState: payload.syncState,
+          disabledAt: payload.status === 'disabled' ? (existing.disabledAt || new Date()) : null,
+          appliedAt: payload.syncState === 'applied' ? (existing.appliedAt || new Date()) : null,
+          lastSyncError: payload.lastSyncError,
+          profileId: payload.profileId
+        },
+        include: { profile: true }
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'vpn.access.update',
+        resource: 'vpn_access',
+        resourceId: row.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { status: row.status, deviceName: row.deviceName }
+      })
+      return row
+    })
+
+    res.json({
+      success: true,
+      row: {
+        ...wrapped.data,
+        connection: buildVpnConnectionBundle(wrapped.data.profile || buildDefaultVpnProfile(tenantId), wrapped.data)
+      },
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error updating vpn access:', error)
+    res.status(error.code === 'P2002' ? 409 : (error.statusCode || 500)).json({ error: error.message || 'Failed to update VPN access' })
+  }
+})
+
+app.post('/api/admin/vpn/access/:grantId/rotate', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const row = await prisma.vpnAccessGrant.findFirst({
+      where: { id: req.params.grantId, tenantId },
+      include: { profile: true }
+    })
+    if (!row) return res.status(404).json({ error: 'VPN access not found' })
+
+    const payload = { grantId: row.id, nextUuid: crypto.randomUUID() }
+    ensureIdempotencyKey(req, 'vpn.access.rotate', payload)
+    const wrapped = await withIdempotency(req, 'vpn.access.rotate', payload, async () => {
+      const updated = await prisma.vpnAccessGrant.update({
+        where: { id: row.id },
+        data: {
+          uuid: payload.nextUuid,
+          rotatedAt: new Date(),
+          syncState: 'pending',
+          appliedAt: null,
+          lastSyncError: null,
+          status: row.status === 'disabled' ? 'pending' : row.status,
+          disabledAt: null
+        },
+        include: { profile: true }
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'vpn.access.rotate',
+        resource: 'vpn_access',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { previousUuid: row.uuid, nextUuid: updated.uuid }
+      })
+      return updated
+    })
+
+    res.json({
+      success: true,
+      row: {
+        ...wrapped.data,
+        connection: buildVpnConnectionBundle(wrapped.data.profile || buildDefaultVpnProfile(tenantId), wrapped.data)
+      },
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error rotating vpn access:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to rotate VPN access' })
+  }
+})
+
+app.post('/api/admin/vpn/access/:grantId/disable', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const row = await prisma.vpnAccessGrant.findFirst({
+      where: { id: req.params.grantId, tenantId },
+      include: { profile: true }
+    })
+    if (!row) return res.status(404).json({ error: 'VPN access not found' })
+    const payload = { grantId: row.id }
+    ensureIdempotencyKey(req, 'vpn.access.disable', payload)
+    const wrapped = await withIdempotency(req, 'vpn.access.disable', payload, async () => {
+      const updated = await prisma.vpnAccessGrant.update({
+        where: { id: row.id },
+        data: {
+          status: 'disabled',
+          disabledAt: new Date(),
+          syncState: 'pending',
+          appliedAt: null
+        },
+        include: { profile: true }
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'vpn.access.disable',
+        resource: 'vpn_access',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { uuid: updated.uuid }
+      })
+      return updated
+    })
+    res.json({
+      success: true,
+      row: {
+        ...wrapped.data,
+        connection: buildVpnConnectionBundle(wrapped.data.profile || buildDefaultVpnProfile(tenantId), wrapped.data)
+      },
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error disabling vpn access:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to disable VPN access' })
+  }
+})
+
+app.post('/api/admin/vpn/access/:grantId/activate', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const row = await prisma.vpnAccessGrant.findFirst({
+      where: { id: req.params.grantId, tenantId },
+      include: { profile: true }
+    })
+    if (!row) return res.status(404).json({ error: 'VPN access not found' })
+    const payload = { grantId: row.id }
+    ensureIdempotencyKey(req, 'vpn.access.activate', payload)
+    const wrapped = await withIdempotency(req, 'vpn.access.activate', payload, async () => {
+      const updated = await prisma.vpnAccessGrant.update({
+        where: { id: row.id },
+        data: {
+          status: 'active',
+          disabledAt: null,
+          syncState: 'pending',
+          appliedAt: null,
+          lastSyncError: null
+        },
+        include: { profile: true }
+      })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'vpn.access.activate',
+        resource: 'vpn_access',
+        resourceId: updated.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { uuid: updated.uuid }
+      })
+      return updated
+    })
+    res.json({
+      success: true,
+      row: {
+        ...wrapped.data,
+        connection: buildVpnConnectionBundle(wrapped.data.profile || buildDefaultVpnProfile(tenantId), wrapped.data)
+      },
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error activating vpn access:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to activate VPN access' })
+  }
+})
+
+app.get('/api/admin/vpn/access/:grantId/instruction', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const row = await prisma.vpnAccessGrant.findFirst({
+      where: { id: req.params.grantId, tenantId },
+      include: { profile: true }
+    })
+    if (!row) return res.status(404).json({ error: 'VPN access not found' })
+    const profile = row.profile || await prisma.vpnProfile.findUnique({ where: { tenantId } }) || buildDefaultVpnProfile(tenantId)
+    res.json({
+      row,
+      profile,
+      instruction: buildVpnConnectionBundle(profile, row)
+    })
+  } catch (error) {
+    console.error('Error building vpn instruction:', error)
+    res.status(500).json({ error: 'Failed to build VPN instruction' })
   }
 })
 

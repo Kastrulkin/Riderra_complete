@@ -25,6 +25,7 @@ export default {
         { to: '/admin-crm', label: 'CRM' },
         { to: '/admin-directions-matrix', label: 'Матрица направлений' },
         { to: '/admin-pricing', label: 'Прайс' },
+        { to: '/admin-vpn', label: 'VPN' },
         { to: '/admin-settings', label: 'Настройки' }
       ]
       const en = [
@@ -35,6 +36,7 @@ export default {
         { to: '/admin-crm', label: 'CRM' },
         { to: '/admin-directions-matrix', label: 'Directions Matrix' },
         { to: '/admin-pricing', label: 'Pricing' },
+        { to: '/admin-vpn', label: 'VPN' },
         { to: '/admin-settings', label: 'Settings' }
       ]
       return this.lang === 'ru' ? ru : en

@@ -43,6 +43,8 @@ model Tenant {
   chatAgentConfigs  ChatAgentConfig[]
   promptTemplates   PromptTemplate[]
   aiLearningEvents  AiLearningEvent[]
+  vpnProfiles       VpnProfile[]
+  vpnAccessGrants   VpnAccessGrant[]
 }
 
 model TenantMembership {
@@ -248,6 +250,59 @@ model Order {
   tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
+}
+
+model VpnProfile {
+  id          String   @id @default(cuid())
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  name        String   @default("Corporate VPN")
+  serverHost  String
+  serverPort  Int      @default(443)
+  protocol    String   @default("vless")
+  security    String   @default("reality")
+  transport   String   @default("tcp")
+  flow        String   @default("xtls-rprx-vision")
+  publicKey   String
+  shortId     String
+  serverName  String
+  fingerprint String?  @default("chrome")
+  isActive    Boolean  @default(true)
+  notes       String?
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  accesses    VpnAccessGrant[]
+
+  @@unique([tenantId])
+  @@index([tenantId, updatedAt])
+}
+
+model VpnAccessGrant {
+  id              String   @id @default(cuid())
+  tenantId        String
+  profileId       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  issuedAt        DateTime @default(now())
+  disabledAt      DateTime?
+  rotatedAt       DateTime?
+  employeeName    String
+  employeeEmail   String?
+  employeeLogin   String?
+  deviceName      String
+  uuid            String   @unique
+  status          String   @default("pending")
+  comment         String?
+  connectionLabel String?
+  syncState       String   @default("pending")
+  appliedAt       DateTime?
+  lastSyncError   String?
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  profile         VpnProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, updatedAt])
+  @@index([tenantId, employeeEmail])
+  @@index([tenantId, employeeLogin])
 }
 
 model OrderStatusHistory {
