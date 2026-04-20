@@ -26,44 +26,50 @@
         </div>
 
         <div class="content-grid content-grid--vpn">
-          <div class="card">
-            <div class="section-head">
+          <details class="card technical-card">
+            <summary class="technical-card__summary">
               <div>
                 <h3>{{ t.serverProfile }}</h3>
-                <p class="muted">{{ t.serverProfileHint }}</p>
+                <p class="muted">{{ profileSummaryText() }}</p>
               </div>
-              <button class="btn btn--small btn--primary" :disabled="savingProfile" @click="saveProfile">
-                {{ savingProfile ? t.saving : t.saveProfile }}
-              </button>
-            </div>
+              <span class="technical-card__toggle">{{ t.openTechnical }}</span>
+            </summary>
 
-            <div class="form-grid">
-              <div>
-                <label>{{ t.profileName }}</label>
-                <input v-model="profileDraft.name" class="input" :placeholder="t.profileName" />
+            <div class="technical-card__body">
+              <p class="muted technical-card__hint">{{ t.serverProfileHint }}</p>
+              <div class="form-grid">
+                <div>
+                  <label>{{ t.profileName }}</label>
+                  <input v-model="profileDraft.name" class="input" :placeholder="t.profileName" />
+                </div>
+                <div>
+                  <label>{{ t.server }}</label>
+                  <input v-model="profileDraft.serverHost" class="input" :placeholder="t.serverExample" />
+                </div>
+                <div>
+                  <label>{{ t.port }}</label>
+                  <input v-model.number="profileDraft.serverPort" class="input" type="number" min="1" max="65535" />
+                </div>
+                <div>
+                  <label>{{ t.serverName }}</label>
+                  <input v-model="profileDraft.serverName" class="input" :placeholder="t.serverNameExample" />
+                </div>
+                <div>
+                  <label>{{ t.publicKey }}</label>
+                  <input v-model="profileDraft.publicKey" class="input" :placeholder="t.publicKey" />
+                </div>
+                <div>
+                  <label>{{ t.shortId }}</label>
+                  <input v-model="profileDraft.shortId" class="input" :placeholder="t.shortId" />
+                </div>
               </div>
-              <div>
-                <label>{{ t.server }}</label>
-                <input v-model="profileDraft.serverHost" class="input" :placeholder="t.serverExample" />
-              </div>
-              <div>
-                <label>{{ t.port }}</label>
-                <input v-model.number="profileDraft.serverPort" class="input" type="number" min="1" max="65535" />
-              </div>
-              <div>
-                <label>{{ t.serverName }}</label>
-                <input v-model="profileDraft.serverName" class="input" :placeholder="t.serverNameExample" />
-              </div>
-              <div>
-                <label>{{ t.publicKey }}</label>
-                <input v-model="profileDraft.publicKey" class="input" :placeholder="t.publicKey" />
-              </div>
-              <div>
-                <label>{{ t.shortId }}</label>
-                <input v-model="profileDraft.shortId" class="input" :placeholder="t.shortId" />
+              <div class="technical-card__actions">
+                <button class="btn btn--small btn--primary" :disabled="savingProfile" @click="saveProfile">
+                  {{ savingProfile ? t.saving : t.saveProfile }}
+                </button>
               </div>
             </div>
-          </div>
+          </details>
 
           <div class="card card--summary">
             <div class="section-head section-head--compact">
@@ -138,7 +144,7 @@
 
                     <button
                       v-if="staff.computer"
-                      class="btn btn--small"
+                      class="btn btn--small btn--ghost"
                       :disabled="staff.computer.platform === selectedSlotPlatform(staff, 'computer', staff.computer)"
                       @click="saveSlotPlatform(staff, 'computer', staff.computer)"
                     >
@@ -162,19 +168,22 @@
                     </button>
                   </div>
 
-                  <div class="slot-actions" v-if="staff.computer">
-                    <button class="btn btn--small" @click="openInstruction(staff.computer)">{{ t.open }}</button>
-                    <button class="btn btn--small" @click="copyConnection(staff.computer)">{{ t.copy }}</button>
-                    <button class="btn btn--small" @click="rotateGrant(staff.computer)">{{ t.rotate }}</button>
-                    <button class="btn btn--small" @click="openEditGrant(staff.computer)">{{ t.edit }}</button>
-                    <button
-                      class="btn btn--small"
-                      :class="staff.computer.status === 'disabled' ? 'btn--primary' : 'btn--danger'"
-                      @click="toggleGrant(staff.computer)"
-                    >
-                      {{ staff.computer.status === 'disabled' ? t.activate : t.disable }}
-                    </button>
-                  </div>
+                  <details v-if="staff.computer" class="more-actions">
+                    <summary class="btn btn--small">{{ t.more }}</summary>
+                    <div class="more-actions__menu">
+                      <button class="btn btn--small" @click="openInstruction(staff.computer)">{{ t.open }}</button>
+                      <button class="btn btn--small" @click="copyConnection(staff.computer)">{{ t.copy }}</button>
+                      <button class="btn btn--small" @click="rotateGrant(staff.computer)">{{ t.rotate }}</button>
+                      <button class="btn btn--small" @click="openEditGrant(staff.computer)">{{ t.edit }}</button>
+                      <button
+                        class="btn btn--small"
+                        :class="staff.computer.status === 'disabled' ? 'btn--primary' : 'btn--danger'"
+                        @click="toggleGrant(staff.computer)"
+                      >
+                        {{ staff.computer.status === 'disabled' ? t.activate : t.disable }}
+                      </button>
+                    </div>
+                  </details>
                 </div>
               </div>
 
@@ -205,7 +214,7 @@
 
                     <button
                       v-if="staff.phone"
-                      class="btn btn--small"
+                      class="btn btn--small btn--ghost"
                       :disabled="staff.phone.platform === selectedSlotPlatform(staff, 'phone', staff.phone)"
                       @click="saveSlotPlatform(staff, 'phone', staff.phone)"
                     >
@@ -221,19 +230,22 @@
                     </button>
                   </div>
 
-                  <div class="slot-actions" v-if="staff.phone">
-                    <button class="btn btn--small" @click="openInstruction(staff.phone)">{{ t.open }}</button>
-                    <button class="btn btn--small" @click="copyConnection(staff.phone)">{{ t.copy }}</button>
-                    <button class="btn btn--small" @click="rotateGrant(staff.phone)">{{ t.rotate }}</button>
-                    <button class="btn btn--small" @click="openEditGrant(staff.phone)">{{ t.edit }}</button>
-                    <button
-                      class="btn btn--small"
-                      :class="staff.phone.status === 'disabled' ? 'btn--primary' : 'btn--danger'"
-                      @click="toggleGrant(staff.phone)"
-                    >
-                      {{ staff.phone.status === 'disabled' ? t.activate : t.disable }}
-                    </button>
-                  </div>
+                  <details v-if="staff.phone" class="more-actions">
+                    <summary class="btn btn--small">{{ t.more }}</summary>
+                    <div class="more-actions__menu">
+                      <button class="btn btn--small" @click="openInstruction(staff.phone)">{{ t.open }}</button>
+                      <button class="btn btn--small" @click="copyConnection(staff.phone)">{{ t.copy }}</button>
+                      <button class="btn btn--small" @click="rotateGrant(staff.phone)">{{ t.rotate }}</button>
+                      <button class="btn btn--small" @click="openEditGrant(staff.phone)">{{ t.edit }}</button>
+                      <button
+                        class="btn btn--small"
+                        :class="staff.phone.status === 'disabled' ? 'btn--primary' : 'btn--danger'"
+                        @click="toggleGrant(staff.phone)"
+                      >
+                        {{ staff.phone.status === 'disabled' ? t.activate : t.disable }}
+                      </button>
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
@@ -446,6 +458,7 @@ export default {
             phoneHint: 'Для телефона храним отдельный UUID, платформу и можем быстро отключить или перевыпустить доступ.',
             binaryHintTitle: 'Что ещё нужно для скачивания',
             binaryHint: 'На сервере должны быть заданы пути к бинарникам sing-box. Если их нет, система покажет понятную ошибку вместо битого архива.',
+            openTechnical: 'Технические параметры',
             staffRoster: 'Сотрудники Riderra',
             staffRosterHint: 'Фиксированный внутренний список сотрудников. На каждого — два слота: телефон и компьютер.',
             loading: 'Загрузка...',
@@ -459,6 +472,7 @@ export default {
             issueAccess: 'Выдать доступ',
             savePlatform: 'Сохранить платформу',
             downloadArchive: 'Скачать архив',
+            more: 'Ещё',
             open: 'Открыть',
             copy: 'Копировать',
             rotate: 'Перевыпустить',
@@ -519,6 +533,7 @@ export default {
             phoneHint: 'Phone access keeps its own UUID and platform so you can revoke or rotate it separately.',
             binaryHintTitle: 'What download still needs',
             binaryHint: 'The server must know where the sing-box binaries live. If not configured, the UI returns a clear error instead of a broken archive.',
+            openTechnical: 'Technical settings',
             staffRoster: 'Riderra staff',
             staffRosterHint: 'A fixed internal list of employees. Each employee gets two slots: phone and computer.',
             loading: 'Loading...',
@@ -532,6 +547,7 @@ export default {
             issueAccess: 'Issue access',
             savePlatform: 'Save platform',
             downloadArchive: 'Download archive',
+            more: 'More',
             open: 'Open',
             copy: 'Copy',
             rotate: 'Rotate',
@@ -679,6 +695,18 @@ export default {
     },
     defaultPlatformForKind (kind) {
       return kind === 'phone' ? 'ios' : 'macos'
+    },
+    profileSummaryText () {
+      const host = String(this.profileDraft.serverHost || '').trim()
+      const port = this.profileDraft.serverPort || 443
+      const serverName = String(this.profileDraft.serverName || '').trim()
+      const shortId = String(this.profileDraft.shortId || '').trim()
+      if (!host || !serverName || !shortId) {
+        return this.$store.state.language === 'ru'
+          ? 'Профиль ещё не заполнен полностью.'
+          : 'Profile is not configured yet.'
+      }
+      return `${host}:${port} · ${serverName} · shortId ${shortId}`
     },
     platformOptions (kind) {
       if (kind === 'phone') {
@@ -1086,6 +1114,55 @@ export default {
   box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
 }
 
+.technical-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.technical-card__summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  cursor: pointer;
+}
+
+.technical-card__summary::-webkit-details-marker {
+  display: none;
+}
+
+.technical-card__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #d7e0ef;
+  background: #f8fbff;
+  color: #21385f;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.technical-card__body {
+  padding: 0 24px 24px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.technical-card__hint {
+  margin: 16px 0 18px;
+}
+
+.technical-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
 .section-head {
   display: flex;
   align-items: flex-start;
@@ -1209,8 +1286,8 @@ label,
 
 .device-card {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 14px;
   border: 1px solid #dbe4f2;
   border-radius: 18px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
@@ -1244,6 +1321,37 @@ label,
 .slot-actions,
 .modal-actions {
   flex-wrap: wrap;
+}
+
+.slot-controls {
+  align-items: center;
+}
+
+.slot-controls .select-input {
+  flex: 1 1 180px;
+}
+
+.more-actions {
+  position: relative;
+}
+
+.more-actions summary {
+  list-style: none;
+}
+
+.more-actions summary::-webkit-details-marker {
+  display: none;
+}
+
+.more-actions__menu {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dbe4f2;
+  border-radius: 14px;
+  background: #f8fbff;
 }
 
 .status-pill,
@@ -1301,6 +1409,12 @@ label,
 .btn--primary {
   background: #1f4fff;
   color: #fff;
+}
+
+.btn--ghost {
+  background: #f8fbff;
+  color: #21385f;
+  border: 1px solid #d7e0ef;
 }
 
 .btn--danger {
@@ -1388,6 +1502,11 @@ label,
   .hero-card,
   .section-head {
     flex-direction: column;
+  }
+
+  .technical-card__summary {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>

@@ -1,6 +1,10 @@
 <template>
   <div>
     <navigation></navigation>
+    <div class="page-background">
+      <div class="page-background__gradient"></div>
+      <div class="page-background__overlay"></div>
+    </div>
     <section class="site-section site-section--pf crm-section">
       <div class="container">
         <div class="crm-header">
