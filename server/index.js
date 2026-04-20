@@ -10048,6 +10048,11 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
     const users = await prisma.user.findMany({
       where: {
         role: { not: 'driver' },
+        NOT: {
+          email: {
+            endsWith: '@riderra.local'
+          }
+        },
         OR: [
           {
             memberships: {
