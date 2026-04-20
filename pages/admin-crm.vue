@@ -4,71 +4,128 @@
     <section class="site-section site-section--pf crm-section">
       <div class="container">
         <div class="crm-header">
-          <h1 class="h2">CRM</h1>
+          <div>
+            <h1 class="h2">CRM</h1>
+            <p class="crm-subtitle">
+              Рабочий список клиентов, исполнителей и потенциальных контактов. Здесь нужно быстро понять,
+              кого открыть, где есть покрытие, а где не хватает связей или географии.
+            </p>
+          </div>
           <div class="crm-actions">
             <button class="btn btn--ghost" @click="reload">Обновить</button>
           </div>
         </div>
         <admin-tabs />
 
-        <div class="crm-filters">
-          <input v-model="query" class="input" placeholder="Поиск: имя / email / телефон" @keyup.enter="reload"/>
-          <select v-model="segment" class="input" @change="reload">
-            <option value="">Все сегменты</option>
-            <option value="client_company">Заказчик (компания)</option>
-            <option value="client_contact">Заказчик (контакт)</option>
-            <option value="supplier_company">Исполнитель (компания)</option>
-            <option value="supplier_contact">Исполнитель (контакт)</option>
-            <option value="potential_client_company">Потенциальный заказчик (компания)</option>
-            <option value="potential_client_contact">Потенциальный заказчик (контакт)</option>
-            <option value="potential_client_agent">Потенциальный заказчик (агент)</option>
-            <option value="potential_supplier">Потенциальный исполнитель</option>
-          </select>
-          <select v-model="mode" class="input" @change="reload">
-            <option value="companies">Компании</option>
-            <option value="contacts">Контакты</option>
-          </select>
+        <div class="overview-strip">
+          <div v-for="card in overviewCards" :key="card.key" class="overview-card" :class="`overview-card--${card.tone}`">
+            <div class="overview-card__value">{{ card.value }}</div>
+            <div class="overview-card__label">{{ card.label }}</div>
+            <div class="overview-card__hint">{{ card.hint }}</div>
+          </div>
         </div>
 
-        <div v-if="loading" class="hint">Loading...</div>
+        <div class="mode-switch">
+          <button class="mode-pill" :class="{ 'mode-pill--active': mode === 'companies' }" @click="switchMode('companies')">
+            <span>Компании</span>
+            <small>{{ companyCount }}</small>
+          </button>
+          <button class="mode-pill" :class="{ 'mode-pill--active': mode === 'contacts' }" @click="switchMode('contacts')">
+            <span>Контакты</span>
+            <small>{{ contactCount }}</small>
+          </button>
+        </div>
 
+        <div class="view-strip">
+          <button
+            v-for="view in savedViews"
+            :key="view.key"
+            type="button"
+            class="view-pill"
+            :class="{ 'view-pill--active': activeView === view.key }"
+            @click="activeView = view.key"
+          >
+            <span class="view-pill__label">{{ view.label }}</span>
+            <span class="view-pill__count">{{ viewCount(view.key) }}</span>
+          </button>
+        </div>
+
+        <div class="crm-filters">
+          <input
+            v-model="query"
+            class="input crm-search"
+            :placeholder="mode === 'companies' ? 'Поиск: компания / email / телефон / город' : 'Поиск: имя / email / телефон / город'"
+            @keyup.enter="reload"
+          />
+          <button class="btn btn--ghost" @click="reload">Поиск</button>
+          <div class="crm-filters__meta">
+            <span>Показан срез:</span>
+            <strong>{{ currentViewLabel }}</strong>
+          </div>
+        </div>
+
+        <div v-if="loading" class="hint">Загрузка CRM...</div>
+        <div v-else-if="loadError" class="hint hint--error">{{ loadError }}</div>
         <div v-else>
-          <div class="table" v-if="mode==='companies'">
-            <div class="table__row table__row--head">
-              <div>Name</div><div>Email</div><div>Phone</div><div>Segments</div><div>Links</div><div>Action</div>
+          <div class="crm-table">
+            <div class="crm-table__head" :class="`crm-table__head--${mode}`">
+              <div>{{ mode === 'companies' ? 'Компания / сегмент' : 'Контакт / сегмент' }}</div>
+              <div>{{ mode === 'companies' ? 'География и связи' : 'Компании и география' }}</div>
+              <div>Каналы связи</div>
+              <div>Следующее действие</div>
             </div>
-            <div class="table__row" v-for="r in rows" :key="r.id">
-              <div>{{ r.name }}</div>
-              <div>{{ r.email || '-' }}</div>
-              <div>{{ r.phone || '-' }}</div>
-              <div>{{ formatSegments(r.segments || []) }}</div>
-              <div>{{ r._count?.links || 0 }}</div>
-              <div><button class="btn btn--small" @click="openCompany(r.id)">Открыть</button></div>
+
+            <div
+              v-for="row in displayedRows"
+              :key="row.id"
+              class="crm-table__row"
+              :class="`crm-table__row--${mode}`"
+            >
+              <div class="entity-main">
+                <div class="entity-main__title">{{ entityTitle(row) }}</div>
+                <div class="entity-main__sub">{{ entitySubline(row) }}</div>
+                <div class="segment-badges">
+                  <span v-for="seg in normalizedSegments(row)" :key="seg" class="segment-badge">{{ segmentLabel(seg) }}</span>
+                </div>
+              </div>
+
+              <div class="entity-geo">
+                <div class="entity-geo__title">{{ geographyLine(row) }}</div>
+                <div class="entity-geo__sub">{{ relationLine(row) }}</div>
+              </div>
+
+              <div class="entity-channels">
+                <div>{{ row.email || 'Email не указан' }}</div>
+                <div>{{ row.phone || 'Телефон не указан' }}</div>
+                <div>{{ row.telegramUrl || 'Telegram не указан' }}</div>
+              </div>
+
+              <div class="entity-actions">
+                <div class="next-action">{{ nextActionLabel(row) }}</div>
+                <button class="btn btn--primary btn--small" @click="openDetails(row)">Открыть</button>
+              </div>
             </div>
           </div>
 
-          <div class="table" v-else>
-            <div class="table__row table__row--head">
-              <div>Name</div><div>Email</div><div>Phone</div><div>Segments</div><div>Links</div><div>Action</div>
-            </div>
-            <div class="table__row" v-for="r in rows" :key="r.id">
-              <div>{{ r.fullName }}</div>
-              <div>{{ r.email || '-' }}</div>
-              <div>{{ r.phone || '-' }}</div>
-              <div>{{ formatSegments(r.segments || []) }}</div>
-              <div>{{ r._count?.links || 0 }}</div>
-              <div><button class="btn btn--small" @click="openContact(r.id)">Открыть</button></div>
-            </div>
-          </div>
-
-          <div class="hint">Всего: {{ total }}</div>
+          <div class="hint">Всего в текущем срезе: {{ displayedRows.length }} из {{ total }}</div>
         </div>
       </div>
     </section>
 
     <div v-if="details" class="modal-overlay" @click="details=null">
       <div class="modal" @click.stop>
-        <h3>{{ detailsTitle }}</h3>
+        <div class="modal-head">
+          <div>
+            <h3>{{ detailsTitle }}</h3>
+            <p class="modal-subtitle">
+              {{ detailsMode === 'company'
+                ? 'Карточка компании: контакты, география, каналы связи и сегменты.'
+                : 'Карточка контакта: роль, привязка к компаниям, география и каналы связи.' }}
+            </p>
+          </div>
+          <button class="modal-close" type="button" @click="details=null">×</button>
+        </div>
+
         <div v-if="detailsMode==='company'" class="card-grid">
           <input v-model="form.name" class="input" placeholder="Название" />
           <input v-model="form.website" class="input" placeholder="Сайт" />
@@ -83,7 +140,7 @@
             class="input textarea textarea--wide"
             placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
           />
-          <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
+          <textarea v-model="form.comment" class="input textarea textarea--wide" placeholder="Комментарий"></textarea>
         </div>
         <div v-else class="card-grid">
           <input v-model="form.fullName" class="input" placeholder="Имя" />
@@ -99,29 +156,43 @@
             class="input textarea textarea--wide"
             placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
           />
-          <textarea v-model="form.comment" class="input textarea" placeholder="Комментарий"></textarea>
-        </div>
-        <div class="segments-block">
-          <h4>Сегменты</h4>
-          <div class="segments-grid">
-            <label v-for="opt in segmentOptionsForDetails" :key="opt.value" class="segment-item">
-              <input
-                type="checkbox"
-                :value="opt.value"
-                :checked="isSegmentChecked(opt.value)"
-                @change="toggleSegment(opt.value, $event.target.checked)"
-              />
-              <span>{{ opt.label }}</span>
-            </label>
-          </div>
+          <textarea v-model="form.comment" class="input textarea textarea--wide" placeholder="Комментарий"></textarea>
         </div>
 
-        <div v-if="detailsMode==='company'" class="links-block">
-          <h4>Контакты компании</h4>
-          <div class="linked-row" v-for="link in details.links || []" :key="link.id">
-            <div>{{ link.contact.fullName }}</div>
-            <div>{{ link.contact.email || '-' }}</div>
-            <div>{{ link.contact.phone || '-' }}</div>
+        <div class="detail-sections">
+          <div class="segments-block detail-card">
+            <h4>Сегменты</h4>
+            <div class="segments-grid">
+              <label v-for="opt in segmentOptionsForDetails" :key="opt.value" class="segment-item">
+                <input
+                  type="checkbox"
+                  :value="opt.value"
+                  :checked="isSegmentChecked(opt.value)"
+                  @change="toggleSegment(opt.value, $event.target.checked)"
+                />
+                <span>{{ opt.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div v-if="detailsMode==='company'" class="links-block detail-card">
+            <h4>Контакты компании</h4>
+            <div v-if="!(details.links || []).length" class="hint">Пока нет связанных контактов</div>
+            <div class="linked-row" v-for="link in details.links || []" :key="link.id">
+              <div>{{ link.contact.fullName }}</div>
+              <div>{{ link.contact.email || '-' }}</div>
+              <div>{{ link.contact.phone || '-' }}</div>
+            </div>
+          </div>
+
+          <div v-else class="links-block detail-card">
+            <h4>Компании контакта</h4>
+            <div v-if="!(details.links || []).length" class="hint">Пока нет связанных компаний</div>
+            <div class="linked-row" v-for="link in details.links || []" :key="link.id">
+              <div>{{ link.company.name }}</div>
+              <div>{{ formatSegments(link.company.segments || []) }}</div>
+              <div>{{ link.company.email || link.company.phone || '-' }}</div>
+            </div>
           </div>
         </div>
 
@@ -146,15 +217,63 @@ export default {
     return {
       mode: 'companies',
       query: '',
-      segment: '',
+      activeView: 'all',
       rows: [],
       total: 0,
       loading: false,
+      loadError: '',
       details: null,
       detailsTitle: '',
       detailsMode: 'company',
       detailsId: '',
       form: {}
+    }
+  },
+  computed: {
+    companyCount() {
+      return this.mode === 'companies' ? this.total : 0
+    },
+    contactCount() {
+      return this.mode === 'contacts' ? this.total : 0
+    },
+    savedViews() {
+      return this.mode === 'companies'
+        ? [
+            { key: 'all', label: 'Все компании' },
+            { key: 'clients', label: 'Заказчики' },
+            { key: 'suppliers', label: 'Исполнители' },
+            { key: 'potential', label: 'Потенциальные' },
+            { key: 'coverage_gap', label: 'Нужен разбор' }
+          ]
+        : [
+            { key: 'all', label: 'Все контакты' },
+            { key: 'clients', label: 'Контакты заказчиков' },
+            { key: 'suppliers', label: 'Контакты исполнителей' },
+            { key: 'potential', label: 'Потенциальные' },
+            { key: 'coverage_gap', label: 'Нужен разбор' }
+          ]
+    },
+    displayedRows() {
+      return this.rows.filter((row) => this.matchesView(row, this.activeView))
+    },
+    currentViewLabel() {
+      return this.savedViews.find((view) => view.key === this.activeView)?.label || this.savedViews[0]?.label || '-'
+    },
+    overviewCards() {
+      const rows = Array.isArray(this.rows) ? this.rows : []
+      const clients = rows.filter((row) => this.hasAnySegment(row, ['client_company', 'client_contact'])).length
+      const suppliers = rows.filter((row) => this.hasAnySegment(row, ['supplier_company', 'supplier_contact', 'potential_supplier'])).length
+      const potential = rows.filter((row) => this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])).length
+      const withGeo = rows.filter((row) => this.hasGeography(row)).length
+      const gaps = rows.filter((row) => this.needsAttention(row)).length
+      return [
+        { key: 'total', value: rows.length, label: this.mode === 'companies' ? 'Компаний в работе' : 'Контактов в работе', hint: 'Текущий рабочий список CRM', tone: 'neutral' },
+        { key: 'clients', value: clients, label: 'Заказчики', hint: 'Активные и потенциальные client-сегменты', tone: clients ? 'info' : 'neutral' },
+        { key: 'suppliers', value: suppliers, label: 'Исполнители', hint: 'Supplier-сегменты и покрытие', tone: suppliers ? 'ok' : 'warn' },
+        { key: 'potential', value: potential, label: 'Потенциальные', hint: 'Кого нужно развивать и доводить', tone: potential ? 'warn' : 'neutral' },
+        { key: 'geo', value: withGeo, label: 'С географией', hint: 'Есть города/страны присутствия', tone: withGeo ? 'ok' : 'warn' },
+        { key: 'gaps', value: gaps, label: 'Нужен разбор', hint: 'Пустые связи, каналы или география', tone: gaps ? 'critical' : 'ok' }
+      ]
     }
   },
   mounted() {
@@ -168,6 +287,38 @@ export default {
         Authorization: token ? `Bearer ${token}` : ''
       }
     },
+    switchMode(mode) {
+      if (this.mode === mode) return
+      this.mode = mode
+      this.activeView = 'all'
+      this.reload()
+    },
+    normalizedSegments(row) {
+      return (row?.segments || []).map((segment) => segment.segment || segment).filter(Boolean)
+    },
+    hasAnySegment(row, wanted) {
+      const set = new Set(this.normalizedSegments(row))
+      return wanted.some((segment) => set.has(segment))
+    },
+    matchesView(row, key) {
+      if (key === 'all') return true
+      if (key === 'clients') return this.hasAnySegment(row, ['client_company', 'client_contact'])
+      if (key === 'suppliers') return this.hasAnySegment(row, ['supplier_company', 'supplier_contact', 'potential_supplier'])
+      if (key === 'potential') return this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])
+      if (key === 'coverage_gap') return this.needsAttention(row)
+      return true
+    },
+    viewCount(key) {
+      return this.rows.filter((row) => this.matchesView(row, key)).length
+    },
+    hasGeography(row) {
+      return Boolean(String(row?.presenceCountries || row?.countryPresence || row?.presenceCities || row?.cityPresence || '').trim())
+    },
+    needsAttention(row) {
+      const linked = Number(row?._count?.links || 0)
+      const hasChannel = Boolean(String(row?.email || row?.phone || row?.telegramUrl || '').trim())
+      return !hasChannel || !linked || !this.hasGeography(row)
+    },
     segmentLabel(code) {
       const map = {
         client_company: 'Заказчик (компания)',
@@ -180,6 +331,32 @@ export default {
         potential_supplier: 'Потенциальный исполнитель'
       }
       return map[code] || code
+    },
+    entityTitle(row) {
+      return this.mode === 'companies' ? row.name : row.fullName
+    },
+    entitySubline(row) {
+      if (this.mode === 'companies') return [row.registrationCountry, row.registrationCity].filter(Boolean).join(', ') || 'Регистрация не указана'
+      return row.position || 'Должность не указана'
+    },
+    geographyLine(row) {
+      const countries = String(row.presenceCountries || row.countryPresence || '').trim()
+      const cities = String(row.cityPresence || row.presenceCities || '').trim()
+      if (!countries && !cities) return 'География не заполнена'
+      if (countries && cities) return `${countries} · ${cities}`
+      return countries || cities
+    },
+    relationLine(row) {
+      const linked = Number(row?._count?.links || 0)
+      if (this.mode === 'companies') return linked ? `Связанных контактов: ${linked}` : 'Нет связанных контактов'
+      return linked ? `Связанных компаний: ${linked}` : 'Не привязан к компании'
+    },
+    nextActionLabel(row) {
+      if (!String(row?.email || row?.phone || row?.telegramUrl || '').trim()) return 'Добавить канал связи'
+      if (!this.hasGeography(row)) return 'Заполнить географию присутствия'
+      if (!Number(row?._count?.links || 0)) return this.mode === 'companies' ? 'Привязать контакт к компании' : 'Привязать контакт к компании'
+      if (this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])) return 'Проверить и перевести в рабочий сегмент'
+      return 'Карточка готова к работе'
     },
     segmentOptionsForDetails() {
       const companySegments = [
@@ -209,7 +386,7 @@ export default {
       this.form = { ...this.form, segments: Array.from(list) }
     },
     formatSegments(list) {
-      return list.length ? list.map((s) => this.segmentLabel(s.segment)).join(', ') : '-'
+      return list.length ? list.map((s) => this.segmentLabel(s.segment || s)).join(', ') : '-'
     },
     splitPresenceList(raw) {
       return String(raw || '')
@@ -276,19 +453,21 @@ export default {
     },
     async reload() {
       this.loading = true
+      this.loadError = ''
       try {
         const params = new URLSearchParams()
         if (this.query) params.set('q', this.query)
-        if (this.segment) params.set('segment', this.segment)
-        params.set('limit', '100')
+        params.set('limit', '500')
 
         const endpoint = this.mode === 'companies' ? '/api/admin/crm/companies' : '/api/admin/crm/contacts'
         const res = await fetch(`${endpoint}?${params.toString()}`, { headers: this.authHeaders() })
         const data = await res.json()
+        if (!res.ok) throw new Error(data?.error || 'Failed to fetch CRM')
         this.rows = data.rows || []
         this.total = data.total || 0
       } catch (error) {
         console.error(error)
+        this.loadError = error?.message || 'Не удалось загрузить CRM'
       } finally {
         this.loading = false
       }
@@ -347,6 +526,11 @@ export default {
         segments: (this.details.segments || []).map((s) => s.segment)
       }
     },
+    openDetails(row) {
+      if (!row?.id) return
+      if (this.mode === 'companies') return this.openCompany(row.id)
+      return this.openContact(row.id)
+    },
     async saveDetails() {
       const endpoint = this.detailsMode === 'company'
         ? `/api/admin/crm/companies/${this.detailsId}`
@@ -371,31 +555,67 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.crm-section { padding-top: 140px; padding-bottom: 40px; }
-.crm-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-.crm-actions { display:flex; gap:10px; }
-.crm-filters { display:flex; gap:10px; margin-bottom:12px; }
-.input { border:1px solid #d8d8e6; border-radius:8px; padding:8px 10px; min-width:220px; }
-.table { width:100%; }
-.table__row { display:grid; grid-template-columns: 2fr 1.5fr 1fr 2fr 0.5fr 0.8fr; gap:8px; border-bottom:1px solid #eee; padding:8px 0; }
-.table__row--head { font-weight:700; }
-.hint { margin-top:10px; color:#777; }
+.crm-section { padding-top: 140px; padding-bottom: 40px; color:#17233d; }
+.crm-header { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:16px; }
+.crm-subtitle { margin:6px 0 0; max-width:820px; color:#64748b; line-height:1.55; }
+.crm-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.overview-strip { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+.overview-card { padding:14px 16px; border-radius:16px; border:1px solid #d8e0ef; background:linear-gradient(180deg,#fff 0%,#f8fbff 100%); box-shadow:0 12px 28px rgba(16,30,67,.06); }
+.overview-card__value { font-size:28px; font-weight:800; color:#17233d; }
+.overview-card__label { margin-top:4px; font-size:14px; font-weight:700; color:#223356; }
+.overview-card__hint { margin-top:6px; font-size:12px; line-height:1.4; color:#6b7280; }
+.overview-card--warn { border-color:#fde68a; background:linear-gradient(180deg,#fffdf4 0%,#fff8dc 100%); }
+.overview-card--critical { border-color:#fecaca; background:linear-gradient(180deg,#fff8f8 0%,#ffefef 100%); }
+.overview-card--ok { border-color:#bbf7d0; background:linear-gradient(180deg,#f7fff9 0%,#edfff3 100%); }
+.overview-card--info { border-color:#bfdbfe; background:linear-gradient(180deg,#f7fbff 0%,#ecf5ff 100%); }
+.mode-switch, .view-strip { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+.mode-pill, .view-pill { display:inline-flex; align-items:center; gap:10px; padding:10px 14px; border-radius:999px; border:1px solid #d8e0ef; background:#fff; color:#223356; font-weight:700; }
+.mode-pill small, .view-pill__count { display:inline-flex; min-width:28px; justify-content:center; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#324473; font-size:12px; }
+.mode-pill--active, .view-pill--active { background:linear-gradient(135deg,#15316d 0%,#2b6eff 100%); border-color:transparent; color:#fff; box-shadow:0 14px 30px rgba(22,51,109,.18); }
+.mode-pill--active small, .view-pill--active .view-pill__count { background:rgba(255,255,255,.18); color:#fff; }
+.crm-filters { display:grid; grid-template-columns:minmax(280px,1fr) auto auto; gap:12px; align-items:center; margin-bottom:14px; }
+.crm-search { min-width:0; }
+.crm-filters__meta { display:inline-flex; align-items:center; gap:8px; color:#64748b; font-size:13px; }
+.input { border:1px solid #d8d8e6; border-radius:10px; padding:10px 12px; min-width:220px; }
+.crm-table { background:#fff; border:1px solid #d8d8e6; border-radius:14px; overflow:auto; }
+.crm-table__head, .crm-table__row { display:grid; grid-template-columns:1.1fr 1fr .95fr .8fr; gap:16px; padding:14px 16px; min-width:1100px; }
+.crm-table__head { font-weight:800; color:#223356; border-bottom:1px solid #e5eaf3; }
+.crm-table__row { border-top:1px solid #f0f3f8; align-items:start; }
+.entity-main, .entity-geo, .entity-channels, .entity-actions { display:grid; gap:6px; }
+.entity-main__title, .entity-geo__title, .next-action { font-weight:700; color:#17233d; }
+.entity-main__sub, .entity-geo__sub, .entity-channels div { color:#64748b; font-size:13px; line-height:1.45; }
+.segment-badges { display:flex; flex-wrap:wrap; gap:6px; }
+.segment-badge { display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; background:#eef4ff; color:#26406f; font-size:12px; font-weight:700; }
+.entity-actions { align-items:flex-start; }
+.hint { margin-top:10px; color:#64748b; }
+.hint--error { color:#9f1239; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:1200; }
-.modal { width:min(900px,90vw); max-height:80vh; overflow:auto; background:#fff; border-radius:12px; padding:18px; }
-.card-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
-.textarea { min-height:90px; resize:vertical; }
-.textarea--wide { grid-column: 1 / -1; }
-.segments-block { margin: 10px 0 12px; border-top: 1px solid #ececf4; padding-top: 10px; }
-.segments-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modal { width:min(980px,92vw); max-height:85vh; overflow:auto; background:#fff; border-radius:14px; padding:20px; }
+.modal-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.modal-subtitle { margin:6px 0 0; color:#64748b; line-height:1.5; }
+.modal-close { border:none; background:transparent; font-size:30px; line-height:1; color:#334155; }
+.card-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0 16px; }
+.textarea { min-height:96px; resize:vertical; }
+.textarea--wide { grid-column:1 / -1; }
+.detail-sections { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.detail-card { border:1px solid #e7ebf2; border-radius:12px; padding:14px; background:#fbfcff; }
+.segments-block { margin:0; }
+.segments-grid { display:grid; grid-template-columns:1fr; gap:8px; }
 .segment-item { display:flex; align-items:center; gap:8px; font-size:14px; color:#2f3e60; }
-.links-block { margin:12px 0; border-top:1px solid #ececf4; padding-top:10px; }
-.linked-row { display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:8px; padding:6px 0; border-bottom:1px solid #f1f1f7; }
-.actions { display:flex; gap:10px; }
+.links-block { margin:0; }
+.linked-row { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:10px; padding:8px 0; border-bottom:1px solid #f1f4f8; }
+.actions { display:flex; gap:10px; justify-content:flex-end; }
+@media (max-width: 1100px) {
+  .overview-strip { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
 @media (max-width: 900px) {
-  .crm-filters { flex-direction:column; }
-  .table__row { grid-template-columns: 1fr; }
-  .card-grid { grid-template-columns:1fr; }
-  .segments-grid { grid-template-columns:1fr; }
-  .linked-row { grid-template-columns:1fr; }
+  .crm-header, .crm-filters { grid-template-columns:1fr; display:grid; }
+  .crm-actions { justify-content:flex-start; }
+  .detail-sections, .card-grid { grid-template-columns:1fr; }
+  .overview-strip { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .crm-table__head, .crm-table__row { min-width:900px; }
+}
+@media (max-width: 640px) {
+  .overview-strip { grid-template-columns:1fr; }
 }
 </style>
