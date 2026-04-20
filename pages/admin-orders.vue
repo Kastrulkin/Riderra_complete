@@ -3,85 +3,137 @@
     <navigation></navigation>
     <section class="site-section site-section--pf admin-section">
       <div class="container">
-        <h1 class="h2">{{ t.title }}</h1>
+        <div class="page-head">
+          <div>
+            <h1 class="h2">{{ t.title }}</h1>
+            <p class="page-subtitle">{{ t.subtitle }}</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn--ghost" :disabled="queueBulkSaving" @click="queueAllMarked">
+              {{ queueBulkSaving ? t.queueing : t.queueAllMarked }}
+            </button>
+            <button class="btn btn--primary" :disabled="loading" @click="load">
+              {{ loading ? t.loading : t.refresh }}
+            </button>
+          </div>
+        </div>
         <admin-tabs />
+
+        <div class="overview-strip">
+          <div v-for="card in overviewCards" :key="card.key" class="overview-card" :class="`overview-card--${card.tone}`">
+            <div class="overview-card__value">{{ card.value }}</div>
+            <div class="overview-card__label">{{ card.label }}</div>
+            <div class="overview-card__hint">{{ card.hint }}</div>
+          </div>
+        </div>
 
         <div class="subtabs">
           <button class="subtab" :class="{ 'subtab--active': mode === 'table' }" @click="mode = 'table'">{{ t.tableTab }}</button>
           <button class="subtab" :class="{ 'subtab--active': mode === 'raw' }" @click="mode = 'raw'">{{ t.rawTab }}</button>
         </div>
 
+        <div v-if="mode === 'table'" class="view-strip">
+          <button
+            v-for="view in savedViews"
+            :key="view.key"
+            type="button"
+            class="view-pill"
+            :class="{ 'view-pill--active': activeView === view.key }"
+            @click="activeView = view.key"
+          >
+            <span class="view-pill__label">{{ view.label }}</span>
+            <span class="view-pill__count">{{ viewCount(view.key) }}</span>
+          </button>
+        </div>
+
         <div class="toolbar">
-          <input v-model="q" class="input" :placeholder="t.search" @input="applyFilter" />
-          <button class="btn btn--ghost" :disabled="queueBulkSaving" @click="queueAllMarked">
-            {{ queueBulkSaving ? t.queueing : t.queueAllMarked }}
-          </button>
-          <button class="btn btn--primary" :disabled="loading" @click="load">
-            {{ loading ? t.loading : t.refresh }}
-          </button>
+          <input v-model="q" class="input toolbar-search" :placeholder="t.search" @input="applyFilter" />
+          <div class="toolbar-meta">
+            <span class="toolbar-meta__title">{{ t.activeViewLabel }}:</span>
+            <span class="toolbar-meta__value">{{ currentViewLabel }}</span>
+          </div>
         </div>
         <div v-if="loadError" class="hint hint--error">{{ loadError }}</div>
         <div v-if="queueNotice" class="hint">{{ queueNotice }}</div>
 
         <div v-if="mode === 'table'" class="table-wrap">
           <div class="table-head main-grid">
-            <div class="tech">id</div>
-            <div class="tech">{{ t.source }}</div>
-            <div>{{ t.contractor }}</div>
-            <div>{{ t.orderNumber }}</div>
-            <div>{{ t.date }}</div>
-            <div>{{ t.from }}</div>
-            <div>{{ t.to }}</div>
-            <div>{{ t.sum }}</div>
+            <div>{{ t.statusDate }}</div>
+            <div>{{ t.orderRoute }}</div>
+            <div>{{ t.clientInfo }}</div>
+            <div>{{ t.price }}</div>
             <div>{{ t.driver }}</div>
-            <div>{{ t.comment }}</div>
-            <div>{{ t.internalOrderNumber }}</div>
-            <div>{{ t.status }}</div>
-            <div>{{ t.actions }}</div>
+            <div>{{ t.issue }}</div>
+            <div>{{ t.nextStep }}</div>
           </div>
-          <div v-for="o in filteredRows" :key="`${o.sourceRow}-${o.id}`" class="table-row main-grid">
-            <div class="tech cell-ellipsis" :title="o.id">{{ o.id || '-' }}</div>
-            <div class="tech">{{ o.source || '-' }}</div>
-            <div>{{ o.contractor || '-' }}</div>
-            <div>
-              <button
-                v-if="o.orderNumber"
-                class="order-link"
-                type="button"
-                @click="openOrderDetails(o.orderNumber)"
-              >
-                {{ o.orderNumber }}
-              </button>
-              <span v-else>-</span>
-            </div>
-            <div>{{ o.date || '-' }}</div>
-            <div>{{ o.fromPoint || '-' }}</div>
-            <div>{{ o.toPoint || '-' }}</div>
-            <div>{{ o.sum || '-' }}</div>
-            <div>{{ o.driver || '-' }}</div>
-            <div>{{ o.comment || '-' }}</div>
-            <div>{{ o.internalOrderNumber || '-' }}</div>
-            <div>
+          <div v-for="o in displayedTableRows" :key="`${o.sourceRow}-${o.id}`" class="table-row main-grid">
+            <div class="order-meta">
               <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
+              <div class="order-meta__date">{{ o.date || '-' }}</div>
+              <div class="order-meta__sub">{{ orderIdentity(o) }}</div>
             </div>
-            <div class="row-actions">
-              <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
-                {{ t.openCard }}
-              </button>
-              <button class="card-link" type="button" :disabled="!o.id || queueSavingByOrder[o.id]" @click="queueOrder(o)">
-                {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
-              </button>
-              <button class="card-link card-link--primary" type="button" :disabled="!o.id || sendToChatSavingByOrder[o.id]" @click="sendToChat(o)">
-                {{ sendToChatSavingByOrder[o.id] ? t.sendingToChat : t.sendToChat }}
-              </button>
-              <button
-                class="card-link card-link--success"
-                type="button"
-                :disabled="!o.id || o.needsInfo || quickDispatchSavingByOrder[o.id]"
-                @click="openDispatchModal(o)"
+
+            <div class="route-block">
+              <div class="route-block__title">{{ o.contractor || '-' }}</div>
+              <div class="route-block__route">{{ routeLabel(o) }}</div>
+              <div class="route-block__sub">
+                <button
+                  v-if="o.orderNumber"
+                  class="order-link"
+                  type="button"
+                  @click="openOrderDetails(o.orderNumber)"
+                >
+                  {{ t.openDetailsByOrder }}: {{ o.orderNumber }}
+                </button>
+                <span v-else>{{ t.noOrderNumber }}</span>
+              </div>
+            </div>
+
+            <div class="client-block">
+              <div class="client-block__line"><strong>ID:</strong> <span class="cell-ellipsis" :title="o.id">{{ o.id || '-' }}</span></div>
+              <div class="client-block__line"><strong>{{ t.source }}:</strong> {{ o.source || '-' }}</div>
+              <div class="client-block__line"><strong>{{ t.internalOrderNumber }}:</strong> {{ o.internalOrderNumber || '-' }}</div>
+            </div>
+
+            <div class="price-block">
+              <div class="price-block__sum">{{ o.sum || '-' }}</div>
+              <div class="price-block__hint">{{ priceContextLabel(o) }}</div>
+            </div>
+
+            <div class="driver-block">
+              <div class="driver-block__name">{{ o.driver || t.driverMissing }}</div>
+              <div class="driver-block__hint">{{ driverStateLabel(o) }}</div>
+            </div>
+
+            <div class="issue-block">
+              <div class="issue-block__title">{{ issueSummary(o) }}</div>
+              <div
+                v-if="o.needsInfo || o.infoReason"
+                class="info-reason"
+                :title="infoReasonTooltip(o.infoReason)"
               >
-                {{ quickDispatchSavingByOrder[o.id] ? t.sendingDispatchNow : t.sendDispatchNow }}
+                {{ o.infoReason || t.infoFlagged }}
+              </div>
+              <div v-else class="issue-block__hint">{{ commentSummary(o) }}</div>
+            </div>
+
+            <div class="row-actions">
+              <button
+                class="card-link card-link--primary"
+                type="button"
+                :disabled="!o.id || rowPrimaryBusy(o)"
+                @click="runPrimaryAction(o)"
+              >
+                {{ primaryActionLabel(o) }}
               </button>
+              <div class="row-actions__secondary">
+                <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
+                  {{ t.openCard }}
+                </button>
+                <button class="card-link" type="button" :disabled="!o.id || queueSavingByOrder[o.id]" @click="queueOrder(o)">
+                  {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
+                </button>
+              </div>
               <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
                 <option value="none">{{ t.infoNone }}</option>
                 <option value="baggage">{{ t.infoPresetBaggage }}</option>
@@ -89,9 +141,6 @@
                 <option value="flight">{{ t.infoPresetFlight }}</option>
                 <option value="other">{{ t.infoPresetOther }}</option>
               </select>
-              <div v-if="o.needsInfo" class="info-reason" :title="infoReasonTooltip(o.infoReason)">
-                {{ o.infoReason || t.infoFlagged }}
-              </div>
             </div>
           </div>
         </div>
@@ -118,7 +167,7 @@
         </div>
 
         <div v-if="drilldownNotice" class="hint">{{ drilldownNotice }}</div>
-        <div class="hint">{{ t.total }}: {{ mode === 'table' ? filteredRows.length : filteredRawRows.length }}</div>
+        <div class="hint">{{ t.total }}: {{ mode === 'table' ? displayedTableRows.length : filteredRawRows.length }}</div>
       </div>
     </section>
 
@@ -333,6 +382,7 @@ export default {
   data: () => ({
     mode: 'table',
     q: '',
+    activeView: 'all',
     rows: [],
     rawRows: [],
     rawHeaders: [],
@@ -384,9 +434,11 @@ export default {
       return this.$store.state.language === 'ru'
         ? {
             title: 'Таблица заказов',
+            subtitle: 'Главная операционная очередь: что требует уточнения, что не назначено и какой следующий шаг нужен по каждому заказу.',
             tableTab: 'Таблица',
             rawTab: 'Подробности',
             search: 'Поиск по заказам',
+            activeViewLabel: 'Показаны заказы',
             refresh: 'Обновить',
             loading: 'Загрузка...',
             queueOne: 'В рассылку',
@@ -409,6 +461,15 @@ export default {
             comment: 'Комментарий',
             internalOrderNumber: 'Внутренний номер заказа',
             actions: 'Действия',
+            statusDate: 'Статус и дата',
+            orderRoute: 'Заказ и маршрут',
+            clientInfo: 'Служебно',
+            price: 'Цена',
+            issue: 'Что мешает',
+            nextStep: 'Следующий шаг',
+            openDetailsByOrder: 'Подробности',
+            noOrderNumber: 'Номер заказа не указан',
+            driverMissing: 'Водитель не назначен',
             openCard: 'Открыть',
             orderCard: 'Карточка заказа',
             status: 'Статус',
@@ -478,9 +539,11 @@ export default {
           }
         : {
             title: 'Orders Table',
+            subtitle: 'Main operating queue: what needs clarification, what is still unassigned, and what action should happen next.',
             tableTab: 'Table',
             rawTab: 'Details',
             search: 'Search',
+            activeViewLabel: 'Current view',
             refresh: 'Refresh',
             loading: 'Loading...',
             queueOne: 'Queue',
@@ -503,6 +566,15 @@ export default {
             comment: 'Comment',
             internalOrderNumber: 'Internal Order Number',
             actions: 'Actions',
+            statusDate: 'Status and date',
+            orderRoute: 'Order and route',
+            clientInfo: 'Internal',
+            price: 'Price',
+            issue: 'Blocker',
+            nextStep: 'Next step',
+            openDetailsByOrder: 'Details',
+            noOrderNumber: 'Order number is missing',
+            driverMissing: 'Driver not assigned',
             openCard: 'Open',
             orderCard: 'Order card',
             status: 'Status',
@@ -570,6 +642,55 @@ export default {
             dispatchRollbackError: 'Send failed. Message was rolled back to human handoff.',
             queueBulkDone: 'Chat queue updated',
           }
+    },
+    savedViews () {
+      return this.$store.state.language === 'ru'
+        ? [
+            { key: 'all', label: 'Все' },
+            { key: 'needs_info', label: 'Требуют уточнения' },
+            { key: 'unassigned', label: 'Без водителя' },
+            { key: 'ready', label: 'Готовы к отправке' },
+            { key: 'problem', label: 'Проблемные' }
+          ]
+        : [
+            { key: 'all', label: 'All' },
+            { key: 'needs_info', label: 'Needs info' },
+            { key: 'unassigned', label: 'No driver' },
+            { key: 'ready', label: 'Ready to send' },
+            { key: 'problem', label: 'Problematic' }
+          ]
+    },
+    displayedTableRows () {
+      return this.filteredRows.filter((row) => this.matchesActiveView(row))
+    },
+    currentViewLabel () {
+      return this.savedViews.find((view) => view.key === this.activeView)?.label || this.savedViews[0]?.label || '-'
+    },
+    overviewCards () {
+      const rows = Array.isArray(this.rows) ? this.rows : []
+      const total = rows.length
+      const needsInfo = rows.filter((row) => row.needsInfo).length
+      const unassigned = rows.filter((row) => !String(row?.driver || '').trim()).length
+      const ready = rows.filter((row) => !row.needsInfo && String(row?.status || '').toLowerCase() !== 'cancelled').length
+      const problematic = rows.filter((row) => this.isProblemRow(row)).length
+      const today = rows.filter((row) => this.isLikelyToday(row)).length
+      return this.$store.state.language === 'ru'
+        ? [
+            { key: 'total', value: total, label: 'Всего заказов', hint: 'Полный объём текущего листа', tone: 'neutral' },
+            { key: 'needsInfo', value: needsInfo, label: 'Нужно уточнить', hint: 'Не хватает данных для безопасной отправки', tone: needsInfo ? 'warn' : 'ok' },
+            { key: 'unassigned', value: unassigned, label: 'Без водителя', hint: 'Нужно распределение', tone: unassigned ? 'critical' : 'ok' },
+            { key: 'ready', value: ready, label: 'Готовы к отправке', hint: 'Можно идти в чат или клиенту', tone: ready ? 'info' : 'neutral' },
+            { key: 'problem', value: problematic, label: 'Риски', hint: 'Комбинация статуса, пустых полей и инцидентов', tone: problematic ? 'critical' : 'ok' },
+            { key: 'today', value: today, label: 'Похоже на сегодня', hint: 'Быстрый ориентир по дате подачи', tone: 'neutral' }
+          ]
+        : [
+            { key: 'total', value: total, label: 'Total orders', hint: 'Current sheet volume', tone: 'neutral' },
+            { key: 'needsInfo', value: needsInfo, label: 'Need clarification', hint: 'Missing data blocks a safe send', tone: needsInfo ? 'warn' : 'ok' },
+            { key: 'unassigned', value: unassigned, label: 'No driver', hint: 'Needs dispatching', tone: unassigned ? 'critical' : 'ok' },
+            { key: 'ready', value: ready, label: 'Ready to send', hint: 'Can move to chat or notify client', tone: ready ? 'info' : 'neutral' },
+            { key: 'problem', value: problematic, label: 'Risks', hint: 'Status, empty fields, or incidents', tone: problematic ? 'critical' : 'ok' },
+            { key: 'today', value: today, label: 'Likely today', hint: 'Quick date-based focus', tone: 'neutral' }
+          ]
     },
     rawGridStyle () {
       const cols = Math.max(this.rawHeaders.length, 1)
@@ -739,7 +860,7 @@ export default {
       this.queueBulkSaving = true
       this.queueNotice = ''
       try {
-        const markedIds = this.filteredRows
+        const markedIds = this.displayedTableRows
           .filter((row) => row.id && row.needsInfo)
           .map((row) => row.id)
         if (!markedIds.length) {
@@ -938,6 +1059,92 @@ export default {
 
       const raw = this.rawRows.filter((row) => this.rowText(row).toLowerCase().includes(q))
       this.filteredRawRows = this.decorateRawRows(raw)
+    },
+    matchesActiveView (row) {
+      return this.matchesViewKey(row, this.activeView)
+    },
+    matchesViewKey (row, key) {
+      switch (key) {
+        case 'needs_info':
+          return Boolean(row?.needsInfo)
+        case 'unassigned':
+          return !String(row?.driver || '').trim()
+        case 'ready':
+          return !row?.needsInfo && !this.isProblemRow(row)
+        case 'problem':
+          return this.isProblemRow(row)
+        case 'all':
+        default:
+          return true
+      }
+    },
+    viewCount (key) {
+      return (this.filteredRows || []).filter((row) => this.matchesViewKey(row, key)).length
+    },
+    isProblemRow (row) {
+      const status = String(row?.status || '').toLowerCase()
+      if (row?.needsInfo) return true
+      if (!String(row?.driver || '').trim()) return true
+      if (!String(row?.sum || '').trim()) return true
+      return ['dispatch_risk', 'incident_open', 'incident_reported', 'finance_hold', 'cancelled'].includes(status)
+    },
+    isLikelyToday (row) {
+      const token = String(row?.date || '').trim()
+      if (!token) return false
+      const today = new Date()
+      const candidates = [
+        today.toISOString().slice(0, 10),
+        today.toLocaleDateString('ru-RU'),
+        today.toLocaleDateString('en-GB'),
+        `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}.${today.getFullYear()}`
+      ]
+      return candidates.some((candidate) => token.includes(candidate))
+    },
+    routeLabel (row) {
+      return [row?.fromPoint, row?.toPoint].filter(Boolean).join(' → ') || '-'
+    },
+    orderIdentity (row) {
+      return [row?.orderNumber, row?.internalOrderNumber].filter(Boolean).join(' / ') || '-'
+    },
+    commentSummary (row) {
+      const text = String(row?.comment || '').trim()
+      if (!text) return this.$store.state.language === 'ru' ? 'Без комментария' : 'No comment'
+      return text.length > 80 ? `${text.slice(0, 77)}…` : text
+    },
+    issueSummary (row) {
+      if (row?.needsInfo) return row?.infoReason || (this.$store.state.language === 'ru' ? 'Нужно уточнение' : 'Needs clarification')
+      if (!String(row?.driver || '').trim()) return this.$store.state.language === 'ru' ? 'Нужно назначить водителя' : 'Driver assignment required'
+      const status = String(row?.status || '').toLowerCase()
+      if (['dispatch_risk', 'incident_open', 'incident_reported', 'finance_hold', 'cancelled'].includes(status)) return this.statusLabel(status)
+      return this.$store.state.language === 'ru' ? 'Критичных блокеров нет' : 'No critical blocker'
+    },
+    priceContextLabel (row) {
+      const text = String(row?.sum || '').trim()
+      if (!text) return this.$store.state.language === 'ru' ? 'Цена не указана' : 'Price missing'
+      return this.$store.state.language === 'ru' ? 'Продажная цена из таблицы' : 'Sales price from sheet'
+    },
+    driverStateLabel (row) {
+      return String(row?.driver || '').trim()
+        ? (this.$store.state.language === 'ru' ? 'Назначен в таблице' : 'Assigned in sheet')
+        : (this.$store.state.language === 'ru' ? 'Ждёт распределения' : 'Awaiting dispatch')
+    },
+    primaryActionLabel (row) {
+      if (row?.needsInfo) return this.sendToChatSavingByOrder[row.id] ? this.t.sendingToChat : this.t.sendToChat
+      if (!String(row?.driver || '').trim()) return this.sendToChatSavingByOrder[row.id] ? this.t.sendingToChat : this.t.sendToChat
+      return this.quickDispatchSavingByOrder[row.id] ? this.t.sendingDispatchNow : this.t.sendDispatchNow
+    },
+    rowPrimaryBusy (row) {
+      if (!row?.id) return true
+      if (row?.needsInfo || !String(row?.driver || '').trim()) return Boolean(this.sendToChatSavingByOrder[row.id])
+      return Boolean(this.quickDispatchSavingByOrder[row.id])
+    },
+    runPrimaryAction (row) {
+      if (!row || !row.id) return
+      if (row.needsInfo || !String(row?.driver || '').trim()) {
+        this.sendToChat(row)
+        return
+      }
+      this.openDispatchModal(row)
     },
     openOrderDetails (orderNumber) {
       const rawToken = String(orderNumber || '').trim()
@@ -1282,6 +1489,60 @@ export default {
 
 <style scoped>
 .admin-section { padding-top: 150px; color: #17233d; }
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.page-subtitle {
+  margin: 6px 0 0;
+  max-width: 820px;
+  color: #60708f;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.page-head-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.overview-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.overview-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #d8e0ef;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 12px 28px rgba(16, 30, 67, 0.06);
+}
+.overview-card__value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #17233d;
+}
+.overview-card__label {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #223356;
+}
+.overview-card__hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #6b7280;
+}
+.overview-card--warn { border-color: #fde68a; background: linear-gradient(180deg, #fffdf4 0%, #fff8dc 100%); }
+.overview-card--critical { border-color: #fecaca; background: linear-gradient(180deg, #fff8f8 0%, #ffefef 100%); }
+.overview-card--ok { border-color: #bbf7d0; background: linear-gradient(180deg, #f7fff9 0%, #edfff3 100%); }
+.overview-card--info { border-color: #bfdbfe; background: linear-gradient(180deg, #f7fbff 0%, #ecf5ff 100%); }
+
 .subtabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .subtab {
   border: 1px solid #cbd5e1;
@@ -1296,15 +1557,80 @@ export default {
   border-color: #0ea5e9;
   color: #fff;
 }
-.toolbar { display: flex; gap: 10px; margin-bottom: 14px; }
+.view-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.view-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #d8e0ef;
+  background: #fff;
+  color: #2f3e60;
+  font-weight: 700;
+}
+.view-pill__count {
+  display: inline-flex;
+  min-width: 28px;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #324473;
+  font-size: 12px;
+}
+.view-pill--active {
+  background: linear-gradient(135deg, #15316d 0%, #2b6eff 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(22, 51, 109, 0.18);
+}
+.view-pill--active .view-pill__count {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.toolbar-search {
+  min-width: 0;
+}
+.toolbar-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+.toolbar-meta__title {
+  font-weight: 700;
+}
+.toolbar-meta__value {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #223356;
+  font-weight: 700;
+}
 .input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #c8ccdc; background: #fff; color: #1f2b46; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
-.table-head, .table-row { gap: 10px; min-width: 1900px; padding: 10px 12px; }
+.table-head, .table-row { gap: 14px; min-width: 1500px; padding: 12px 14px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; }
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
 .table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
-.main-grid { display: grid; grid-template-columns: 80px 90px 150px 120px 120px 170px 170px 90px 120px 200px 140px 120px 280px; }
+.main-grid { display: grid; grid-template-columns: 180px minmax(260px, 1.25fr) 200px 120px 150px 220px 240px; align-items: start; }
 .raw-grid { display: grid; }
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1321,6 +1647,38 @@ export default {
   text-decoration: underline;
 }
 .order-link:hover { color: #084a95; }
+.order-meta,
+.route-block,
+.client-block,
+.price-block,
+.driver-block,
+.issue-block {
+  display: grid;
+  gap: 6px;
+}
+.order-meta__date,
+.route-block__title,
+.price-block__sum,
+.driver-block__name,
+.issue-block__title {
+  font-weight: 700;
+  color: #17233d;
+}
+.order-meta__sub,
+.route-block__sub,
+.client-block__line,
+.price-block__hint,
+.driver-block__hint,
+.issue-block__hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+.route-block__route {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #334155;
+}
 .card-link {
   border: 1px solid #cbd5e1;
   background: #fff;
@@ -1363,9 +1721,14 @@ export default {
 }
 .row-actions {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
+}
+.row-actions__secondary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .action-select {
   border: 1px solid #cbd5e1;
@@ -1374,12 +1737,12 @@ export default {
   border-radius: 8px;
   padding: 5px 8px;
   min-width: 170px;
-  max-width: 190px;
+  width: 100%;
 }
 .info-reason {
   font-size: 12px;
   color: #475569;
-  max-width: 240px;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1549,7 +1912,24 @@ export default {
   justify-content: flex-end;
 }
 @media (max-width: 900px) {
+  .page-head {
+    flex-direction: column;
+  }
+  .overview-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
   .meta-grid { grid-template-columns: 1fr; }
   .status-change-row { grid-template-columns: 1fr; }
+  .main-grid {
+    min-width: 1180px;
+  }
+}
+@media (max-width: 640px) {
+  .overview-strip {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
