@@ -50,7 +50,7 @@
     </div>
     <div class="row footer__bottom">
       <div class="col-sm-3 col-xs-12 footer__copyright">
-        © 2012-2025 Riderra
+        © 2012-2026 Riderra
       </div>
       <div class="col-sm-4 col-xs-12 money-operators">
         <img class="money-operators__item" src="/img/cards/visa.svg" alt="">
