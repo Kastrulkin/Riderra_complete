@@ -4,44 +4,77 @@
     <div class="page-background"><div class="page-background__gradient"></div><div class="page-background__overlay"></div></div>
     <section class="site-section site-section--pf admin-section">
       <div class="container">
-        <h1 class="h2">{{ t.title }}</h1>
+        <div class="page-head">
+          <div>
+            <h1 class="h2">{{ t.title }}</h1>
+            <p class="page-subtitle">{{ t.subtitle }}</p>
+          </div>
+        </div>
         <admin-tabs />
 
-        <div class="card">
-          <h3>{{ t.sheetSources }}</h3>
+        <div class="settings-overview">
+          <div v-for="card in overviewCards" :key="card.key" class="overview-card" :class="`overview-card--${card.tone}`">
+            <div class="overview-card__value">{{ card.value }}</div>
+            <div class="overview-card__label">{{ card.label }}</div>
+            <div class="overview-card__hint">{{ card.hint }}</div>
+          </div>
+        </div>
+
+        <div class="section-switch">
+          <button
+            v-for="section in sections"
+            :key="section.key"
+            type="button"
+            class="section-pill"
+            :class="{ 'section-pill--active': activeSection === section.key }"
+            @click="activeSection = section.key"
+          >
+            <span>{{ section.label }}</span>
+            <small>{{ section.hint }}</small>
+          </button>
+        </div>
+
+        <div v-if="activeSection === 'sources'" class="settings-card">
+          <div class="card-head">
+            <div>
+              <h3>{{ t.sheetSources }}</h3>
+              <p class="card-hint">{{ t.sheetSourcesHint }}</p>
+            </div>
+          </div>
           <div v-if="sheetNotice.text" class="notice" :class="sheetNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
             {{ sheetNotice.text }}
           </div>
-          <div class="toolbar">
+          <div class="form-grid">
             <input v-model="sheetForm.name" class="input" :placeholder="t.sheetName" />
             <input v-model="sheetForm.monthLabel" class="input" :placeholder="t.sheetMonth" />
-            <input v-model="sheetForm.googleSheetId" class="input" :placeholder="t.sheetId" />
+            <input v-model="sheetForm.googleSheetId" class="input form-grid__wide" :placeholder="t.sheetId" />
             <input v-model="sheetForm.tabName" class="input" :placeholder="t.sheetTab" />
             <input v-model="sheetForm.detailsTabName" class="input" :placeholder="t.detailsTab" />
+          </div>
+          <div class="inline-actions">
             <button class="btn btn--primary" @click="createSheetSource">{{ t.add }}</button>
           </div>
 
-          <div class="table-wrap table-wrap--staff">
-            <div class="grid-head seven-cols">
+          <div class="ops-table">
+            <div class="ops-table__head ops-table__head--sources">
               <div>{{ t.name }}</div><div>{{ t.month }}</div><div>Sheet ID</div><div>Tab</div><div>{{ t.detailsTab }}</div><div>{{ t.status }}</div><div>{{ t.actions }}</div>
             </div>
-            <div v-for="s in sheets" :key="s.id" class="grid-row seven-cols">
-              <div>{{ s.name }}</div>
+            <div v-for="s in sheets" :key="s.id" class="ops-table__row ops-table__row--sources">
+              <div class="entity-stack">
+                <strong>{{ s.name }}</strong>
+                <span class="muted">{{ shortSheetId(s.googleSheetId) }}</span>
+              </div>
               <div>{{ s.monthLabel }}</div>
               <div class="cell-wrap" :title="s.googleSheetId">{{ shortSheetId(s.googleSheetId) }}</div>
               <div>{{ s.tabName }}</div>
               <div>{{ s.detailsTabName || 'подробности' }}</div>
-              <div>
-                <div>{{ s.isActive ? 'active' : 'off' }}</div>
-                <div class="muted" v-if="s.lastSyncStatus">{{ s.lastSyncStatus }}</div>
-                <div class="muted muted--error" v-if="s.lastSyncError">{{ s.lastSyncError }}</div>
+              <div class="entity-stack">
+                <strong>{{ s.isActive ? 'active' : 'off' }}</strong>
+                <span class="muted" v-if="s.lastSyncStatus">{{ s.lastSyncStatus }}</span>
+                <span class="muted muted--error" v-if="s.lastSyncError">{{ s.lastSyncError }}</span>
               </div>
               <div class="row-actions">
-                <button
-                  class="btn btn--small btn--primary"
-                  :disabled="syncingSheetId === s.id"
-                  @click="syncSheet(s.id)"
-                >
+                <button class="btn btn--small btn--primary" :disabled="syncingSheetId === s.id" @click="syncSheet(s.id)">
                   {{ syncingSheetId === s.id ? t.syncing : t.sync }}
                 </button>
                 <button class="btn btn--small" @click="openMapping(s)">{{ t.mapping }}</button>
@@ -51,32 +84,60 @@
           </div>
         </div>
 
-        <div class="card">
-          <h3>{{ t.staffTelegram }}</h3>
+        <div v-if="activeSection === 'staff'" class="settings-card">
+          <div class="card-head">
+            <div>
+              <h3>{{ t.staffTelegram }}</h3>
+              <p class="card-hint">{{ t.staffTelegramHint }}</p>
+            </div>
+          </div>
           <div v-if="staffNotice.text" class="notice" :class="staffNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
             {{ staffNotice.text }}
           </div>
-          <div class="table-wrap table-wrap--staff">
-            <div class="grid-head six-staff-cols">
+          <div class="ops-table">
+            <div class="ops-table__head ops-table__head--staff">
               <div>{{ t.staffMember }}</div>
               <div>{{ t.roles }}</div>
               <div>{{ t.telegramId }}</div>
-              <div>{{ t.geoScope }}</div>
-              <div>{{ t.abacTeams }}</div>
               <div>{{ t.actions }}</div>
             </div>
-            <div v-for="u in staff" :key="u.id" class="grid-row six-staff-cols">
+            <div v-for="u in staff" :key="u.id" class="ops-table__row ops-table__row--staff">
               <div class="staff-identity">
                 <strong>{{ u.displayName || u.email }}</strong>
                 <span class="muted">{{ u.email }}</span>
               </div>
               <div>{{ (u.roles || []).join(', ') || '-' }}</div>
               <div>
-                <input
-                  v-model="staffDrafts[u.id]"
-                  class="input"
-                  :placeholder="t.telegramId"
-                />
+                <input v-model="staffDrafts[u.id]" class="input" :placeholder="t.telegramId" />
+              </div>
+              <div class="row-actions row-actions--stack row-actions--stack-tight">
+                <button class="btn btn--small btn--primary" @click="saveStaffLink(u)">{{ t.save }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="activeSection === 'access'" class="settings-card">
+          <div class="card-head">
+            <div>
+              <h3>{{ t.accessScopes }}</h3>
+              <p class="card-hint">{{ t.accessScopesHint }}</p>
+            </div>
+          </div>
+          <div v-if="staffNotice.text" class="notice" :class="staffNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
+            {{ staffNotice.text }}
+          </div>
+          <div class="ops-table">
+            <div class="ops-table__head ops-table__head--access">
+              <div>{{ t.staffMember }}</div>
+              <div>{{ t.geoScope }}</div>
+              <div>{{ t.abacTeams }}</div>
+              <div>{{ t.actions }}</div>
+            </div>
+            <div v-for="u in staff" :key="`${u.id}-access`" class="ops-table__row ops-table__row--access">
+              <div class="staff-identity">
+                <strong>{{ u.displayName || u.email }}</strong>
+                <span class="muted">{{ u.email }}</span>
               </div>
               <div>
                 <span class="scope-pill">{{ t.globalScope }}</span>
@@ -86,9 +147,8 @@
                   <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
               </div>
-              <div class="row-actions row-actions--stack">
-                <button class="btn btn--small btn--primary" @click="saveStaffLink(u)">{{ t.save }}</button>
-                <button class="btn btn--small" @click="saveStaffAbac(u)">{{ t.saveScopes }}</button>
+              <div class="row-actions row-actions--stack row-actions--stack-tight">
+                <button class="btn btn--small btn--primary" @click="saveStaffAbac(u)">{{ t.saveScopes }}</button>
               </div>
             </div>
           </div>
@@ -99,6 +159,7 @@
     <div v-if="mappingModal.open" class="modal-overlay" @click="closeMapping">
       <div class="modal" @click.stop>
         <h3>{{ t.mappingTitle }}: {{ mappingModal.sourceName }}</h3>
+        <p class="card-hint">{{ t.mappingHint }}</p>
         <div class="map-grid">
           <div class="map-row" v-for="f in mappingFields" :key="f.key">
             <div class="map-label">{{ f.label }}</div>
@@ -122,6 +183,7 @@ export default {
   middleware: 'staff',
   components: { navigation, adminTabs },
   data: () => ({
+    activeSection: 'sources',
     sheets: [],
     staff: [],
     sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица', detailsTabName: 'подробности' },
@@ -138,6 +200,45 @@ export default {
     }
   }),
   computed: {
+    sections () {
+      return this.$store.state.language === 'ru'
+        ? [
+            { key: 'sources', label: 'Источники', hint: 'Google Sheets и маппинг' },
+            { key: 'staff', label: 'Сотрудники и Telegram', hint: 'Привязка людей' },
+            { key: 'access', label: 'Права доступа', hint: 'Команды и scope' }
+          ]
+        : [
+            { key: 'sources', label: 'Sources', hint: 'Google Sheets and mapping' },
+            { key: 'staff', label: 'Staff and Telegram', hint: 'Link people' },
+            { key: 'access', label: 'Access', hint: 'Teams and scope' }
+          ]
+    },
+    overviewCards () {
+      const activeSheets = this.sheets.filter((sheet) => sheet.isActive).length
+      const mappedSheets = this.sheets.filter((sheet) => String(sheet.columnMapping || '').trim()).length
+      const telegramLinked = this.staff.filter((user) => String((user.telegramLinks && user.telegramLinks[0] && user.telegramLinks[0].telegramUserId) || '').trim()).length
+      const teamScoped = this.staff.filter((user) => {
+        const teams = Array.isArray(user.abacTeams) ? user.abacTeams : []
+        return teams.length && teams[0] !== 'all'
+      }).length
+      return this.$store.state.language === 'ru'
+        ? [
+            { key: 'sheets', value: this.sheets.length, label: 'Источников', hint: 'Подключённые месячные таблицы', tone: 'neutral' },
+            { key: 'active', value: activeSheets, label: 'Активных', hint: 'Сейчас участвуют в синхронизации', tone: activeSheets ? 'ok' : 'warn' },
+            { key: 'mapped', value: mappedSheets, label: 'С маппингом', hint: 'Колонки связаны с Riderra', tone: mappedSheets ? 'info' : 'warn' },
+            { key: 'staff', value: this.staff.length, label: 'Сотрудников', hint: 'Стартовый roster кабинета', tone: 'neutral' },
+            { key: 'telegram', value: telegramLinked, label: 'С Telegram ID', hint: 'Готовы к командам и уведомлениям', tone: telegramLinked ? 'ok' : 'warn' },
+            { key: 'scoped', value: teamScoped, label: 'С особыми scope', hint: 'Не все команды, а точечный доступ', tone: teamScoped ? 'info' : 'neutral' }
+          ]
+        : [
+            { key: 'sheets', value: this.sheets.length, label: 'Sources', hint: 'Connected monthly sheets', tone: 'neutral' },
+            { key: 'active', value: activeSheets, label: 'Active', hint: 'Currently syncing', tone: activeSheets ? 'ok' : 'warn' },
+            { key: 'mapped', value: mappedSheets, label: 'Mapped', hint: 'Columns linked to Riderra', tone: mappedSheets ? 'info' : 'warn' },
+            { key: 'staff', value: this.staff.length, label: 'Staff', hint: 'Current portal roster', tone: 'neutral' },
+            { key: 'telegram', value: telegramLinked, label: 'With Telegram ID', hint: 'Ready for commands and alerts', tone: telegramLinked ? 'ok' : 'warn' },
+            { key: 'scoped', value: teamScoped, label: 'Scoped', hint: 'Team-specific access', tone: teamScoped ? 'info' : 'neutral' }
+          ]
+    },
     mappingFields () {
       return [
         { key: 'contractor', label: 'Контрагент', placeholder: 'Контрагент' },
@@ -160,13 +261,17 @@ export default {
       return this.$store.state.language === 'ru'
         ? {
             title: 'Настройки интеграций',
-            sheetSources: 'Google Sheets (месяц)',
-            staffTelegram: 'Привязка Telegram сотрудников',
+            subtitle: 'Здесь собраны только служебные настройки: откуда брать данные, кого связали с Telegram и кому какие команды доступны.',
+            sheetSources: 'Источники заказов',
+            sheetSourcesHint: 'Подключение месячных Google Sheets, синхронизация и маппинг колонок для таблицы заказов Riderra.',
+            staffTelegram: 'Сотрудники и Telegram',
+            staffTelegramHint: 'Привязка Telegram User ID к сотрудникам, чтобы команды и уведомления попадали нужным людям.',
+            accessScopes: 'Права доступа',
+            accessScopesHint: 'Уточняем командный доступ. Гео пока глобальный для всех, а команды можно ограничивать точечно.',
             name: 'Название',
             month: 'Месяц',
             status: 'Статус',
             actions: 'Действия',
-            email: 'Email сотрудника',
             staffMember: 'Сотрудник',
             telegramId: 'Telegram User ID',
             syncing: 'Синхронизация...',
@@ -176,7 +281,6 @@ export default {
             globalScope: 'Globe - все города',
             abacTeams: 'Команды доступа',
             saveScopes: 'Сохранить scope',
-            telegramLinks: 'Связки Telegram',
             sheetName: 'Имя источника',
             sheetMonth: 'Метка месяца (например 2025-01)',
             sheetId: 'Google Sheet ID',
@@ -186,19 +290,24 @@ export default {
             sync: 'Синхронизировать',
             mapping: 'Маппинг',
             mappingTitle: 'Маппинг колонок',
+            mappingHint: 'Если структура таблицы меняется, здесь можно без кода указать, какая колонка Google Sheet во что должна попадать.',
             activate: 'Активировать',
             deactivate: 'Выключить',
             close: 'Закрыть'
           }
         : {
             title: 'Integration Settings',
-            sheetSources: 'Google Sheets',
-            staffTelegram: 'Staff Telegram links',
+            subtitle: 'Operational settings only: data sources, Telegram links, and access scopes.',
+            sheetSources: 'Order sources',
+            sheetSourcesHint: 'Monthly Google Sheets, sync control, and order column mapping.',
+            staffTelegram: 'Staff and Telegram',
+            staffTelegramHint: 'Link Telegram User IDs so commands and alerts reach the right staff members.',
+            accessScopes: 'Access scopes',
+            accessScopesHint: 'Team-level access only; geo stays global for now.',
             name: 'Name',
             month: 'Month',
             status: 'Status',
             actions: 'Actions',
-            email: 'Staff email',
             staffMember: 'Staff member',
             telegramId: 'Telegram User ID',
             syncing: 'Syncing...',
@@ -208,7 +317,6 @@ export default {
             globalScope: 'Globe - all cities',
             abacTeams: 'Allowed teams',
             saveScopes: 'Save scope',
-            telegramLinks: 'Telegram links',
             sheetName: 'Source name',
             sheetMonth: 'Month label (e.g. 2025-01)',
             sheetId: 'Google Sheet ID',
@@ -218,6 +326,7 @@ export default {
             sync: 'Sync now',
             mapping: 'Mapping',
             mappingTitle: 'Column Mapping',
+            mappingHint: 'Use this when the Google Sheet structure changes and Riderra fields need a new column mapping.',
             activate: 'Activate',
             deactivate: 'Disable',
             close: 'Close'
@@ -415,65 +524,67 @@ export default {
 
 <style scoped>
 .admin-section { padding-top: 150px; color: #17233d; }
-.card { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06); }
-.toolbar { display: flex; gap: 8px; margin: 8px 0 12px; flex-wrap: wrap; }
-.notice { border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-weight: 600; }
-.notice--ok { background: #ebf7ef; border: 1px solid #a5d6b4; color: #1f6b32; }
-.notice--error { background: #fff1f0; border: 1px solid #f4b8b2; color: #9f2f26; }
-.input {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #c8ccdc;
-  background: #fff;
-  color: #1f2b46;
+.page-head { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.page-subtitle { margin:6px 0 0; max-width:820px; color:#60708f; font-size:15px; line-height:1.55; }
+.settings-overview { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+.overview-card { padding:14px 16px; border-radius:16px; border:1px solid #d8e0ef; background:linear-gradient(180deg,#fff 0%,#f8fbff 100%); box-shadow:0 12px 28px rgba(16,30,67,.06); }
+.overview-card__value { font-size:28px; font-weight:800; color:#17233d; }
+.overview-card__label { margin-top:4px; font-size:14px; font-weight:700; color:#223356; }
+.overview-card__hint { margin-top:6px; font-size:12px; line-height:1.4; color:#6b7280; }
+.overview-card--warn { border-color:#fde68a; background:linear-gradient(180deg,#fffdf4 0%,#fff8dc 100%); }
+.overview-card--critical { border-color:#fecaca; background:linear-gradient(180deg,#fff8f8 0%,#ffefef 100%); }
+.overview-card--ok { border-color:#bbf7d0; background:linear-gradient(180deg,#f7fff9 0%,#edfff3 100%); }
+.overview-card--info { border-color:#bfdbfe; background:linear-gradient(180deg,#f7fbff 0%,#ecf5ff 100%); }
+.section-switch { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.section-pill { display:grid; gap:4px; text-align:left; padding:12px 14px; border-radius:16px; border:1px solid #d6deee; background:#fff; color:#223356; }
+.section-pill small { color:#6b7280; font-size:12px; }
+.section-pill--active { background:linear-gradient(135deg,#15316d 0%,#2b6eff 100%); border-color:transparent; color:#fff; box-shadow:0 18px 34px rgba(22,51,109,.18); }
+.section-pill--active small { color:rgba(255,255,255,.78); }
+.settings-card { background:#fff; border:1px solid #d8d8e6; border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 8px 20px rgba(16,24,40,.06); }
+.card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:12px; }
+.card-hint { margin:6px 0 0; color:#64748b; line-height:1.5; }
+.notice { border-radius:10px; padding:10px 12px; margin:10px 0 14px; font-weight:600; }
+.notice--ok { background:#ebf7ef; border:1px solid #a5d6b4; color:#1f6b32; }
+.notice--error { background:#fff1f0; border:1px solid #f4b8b2; color:#9f2f26; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.form-grid__wide { grid-column:1 / -1; }
+.inline-actions { display:flex; gap:10px; margin-bottom:14px; }
+.input { width:100%; min-height:44px; padding:10px 12px; border-radius:10px; border:1px solid #c8ccdc; background:#fff; color:#1f2b46; }
+.input::placeholder { color:#7a8197; }
+.input:focus { outline:none; border-color:#2f80ed; box-shadow:0 0 0 3px rgba(47,128,237,.15); }
+.ops-table { overflow-x:auto; border:1px solid #e6ebf5; border-radius:12px; }
+.ops-table__head, .ops-table__row { gap:12px; padding:10px 12px; min-width:980px; align-items:center; }
+.ops-table__head { font-weight:700; border-bottom:1px solid #e4e7f0; color:#1d2c4a; }
+.ops-table__row { border-bottom:1px solid #f0f2f7; color:#2f3e60; }
+.ops-table__head--sources, .ops-table__row--sources { display:grid; grid-template-columns:minmax(180px,1.1fr) minmax(120px,.8fr) minmax(180px,1fr) minmax(110px,.7fr) minmax(140px,.8fr) minmax(180px,1fr) minmax(220px,1.1fr); }
+.ops-table__head--staff, .ops-table__row--staff { display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(180px,1fr) minmax(220px,1fr) minmax(160px,.7fr); }
+.ops-table__head--access, .ops-table__row--access { display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(180px,.8fr) minmax(220px,1fr) minmax(160px,.7fr); }
+.entity-stack { display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+.row-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.row-actions--stack { flex-direction:column; align-items:stretch; justify-content:center; }
+.row-actions--stack-tight .btn { width:100%; min-width:130px; }
+.select-input { min-height:44px; }
+.scope-pill { display:inline-block; border:1px solid #b8d1ff; background:#f1f7ff; color:#1f4d96; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:600; }
+.staff-identity { display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+.staff-identity strong { color:#1d2c4a; font-size:14px; }
+.cell-wrap { word-break:break-all; }
+.muted { font-size:12px; color:#647191; }
+.muted--error { color:#a13a31; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:1200; }
+.modal { width:min(920px,92vw); max-height:86vh; overflow:auto; background:#fff; border-radius:12px; padding:16px; }
+.map-grid { display:grid; grid-template-columns:1fr; gap:8px; margin:12px 0; }
+.map-row { display:grid; grid-template-columns:240px 1fr; gap:10px; align-items:center; }
+.map-label { font-weight:600; color:#243550; }
+@media (max-width: 1100px) {
+  .settings-overview { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
-.input::placeholder { color: #7a8197; }
-.input:focus { outline: none; border-color: #2f80ed; box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.15); }
-.table-wrap { overflow-x: auto; }
-.grid-head, .grid-row { gap: 10px; padding: 8px; min-width: 980px; align-items: center; }
-.three-cols { display: grid; grid-template-columns: 1.4fr 1.2fr 1.4fr; }
-.four-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr .7fr; }
-.six-staff-cols {
-  display: grid;
-  grid-template-columns:
-    minmax(220px, 1.3fr)
-    minmax(170px, 1fr)
-    minmax(180px, 1fr)
-    minmax(180px, 1fr)
-    minmax(180px, 1fr)
-    minmax(170px, .9fr);
-  align-items: stretch;
+@media (max-width: 900px) {
+  .page-head { flex-direction:column; }
+  .settings-overview { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .form-grid { grid-template-columns:1fr; }
+  .form-grid__wide { grid-column:auto; }
 }
-.six-staff-cols > div { display: flex; align-items: center; }
-.staff-identity { display: flex; flex-direction: column; align-items: flex-start !important; justify-content: center; gap: 4px; }
-.staff-identity strong { color: #1d2c4a; font-size: 14px; }
-.table-wrap--staff .grid-head,
-.table-wrap--staff .grid-row { min-width: 1500px; }
-.seven-cols { display: grid; grid-template-columns: 1fr .8fr 1.5fr .6fr .8fr 1fr 1fr; }
-.grid-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; color: #1d2c4a; }
-.grid-row { border-bottom: 1px solid #f0f2f7; color: #2f3e60; }
-.row-actions { display: flex; gap: 6px; align-items: center; }
-.row-actions--stack { flex-direction: column; align-items: stretch; justify-content: center; }
-.row-actions--stack .btn { width: 100%; min-width: 130px; }
-.select-input { min-height: 44px; }
-.scope-pill {
-  display: inline-block;
-  border: 1px solid #b8d1ff;
-  background: #f1f7ff;
-  color: #1f4d96;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 600;
+@media (max-width: 640px) {
+  .settings-overview { grid-template-columns:1fr; }
 }
-.cell-wrap { word-break: break-all; }
-.muted { font-size: 12px; color: #647191; }
-.muted--error { color: #a13a31; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; z-index: 1200; }
-.modal { width: min(920px, 92vw); max-height: 86vh; overflow: auto; background: #fff; border-radius: 12px; padding: 16px; }
-.map-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 12px 0; }
-.map-row { display: grid; grid-template-columns: 240px 1fr; gap: 10px; align-items: center; }
-.map-label { font-weight: 600; color: #243550; }
 </style>
