@@ -17,100 +17,12 @@
 
         <admin-tabs />
 
-        <div class="agent-card">
-          <div class="agent-head">
-            <h3>Настройки агента Copilot</h3>
-            <div class="agent-head-actions">
-              <select v-model="selectedAgentId" class="input compact" @change="applyAgentSelection">
-                <option value="">Новый агент</option>
-                <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-                  {{ agent.name }} ({{ agent.code }})
-                </option>
-              </select>
-              <button class="btn btn--ghost" @click="startNewAgent">Создать нового</button>
-            </div>
+        <div class="ops-rail">
+          <div>
+            <strong>Чаты — это рабочая очередь.</strong>
+            <p class="hint">Здесь оставлены только задачи, сообщения, SLA и переходы статусов. Настройка агентов и prompt registry вынесены в отдельный экран.</p>
           </div>
-
-          <div class="agent-grid">
-            <input v-model="agentForm.name" class="input" placeholder="Название агента" />
-            <input v-model="agentForm.code" class="input" placeholder="Код (например copilot_main)" :disabled="Boolean(selectedAgentId)" />
-            <select v-model="agentForm.type" class="input">
-              <option value="order_completion">order_completion</option>
-              <option value="dispatch_notify">dispatch_notify</option>
-              <option value="driver_ops">driver_ops</option>
-            </select>
-            <select v-model="agentForm.taskType" class="input">
-              <option value="clarification">clarification</option>
-              <option value="dispatch_info">dispatch_info</option>
-            </select>
-            <label class="toggle"><input type="checkbox" v-model="agentForm.isActive" /> <span>Активен</span></label>
-            <label class="toggle"><input type="checkbox" v-model="agentForm.requiresApproval" /> <span>Только через approval</span></label>
-          </div>
-          <div class="preset-row">
-            <button class="btn btn--tiny" @click="applyAgentPreset('clarification')">Пресет: Уточнения</button>
-            <button class="btn btn--tiny" @click="applyAgentPreset('dispatch')">Пресет: Рассылка</button>
-          </div>
-          <div class="agent-grid agent-grid--meta">
-            <input v-model="agentForm.description" class="input" placeholder="Описание агента" />
-            <input v-model="agentForm.personality" class="input" placeholder="Personality" />
-            <input v-model="agentForm.identity" class="input" placeholder="Identity" />
-            <input v-model="agentForm.task" class="input" placeholder="Task" />
-            <input v-model="agentForm.speechStyle" class="input" placeholder="Speech style" />
-          </div>
-
-          <label class="field">
-            <span>Prompt</span>
-            <textarea v-model="agentForm.promptText" class="input textarea" placeholder="Системный prompt агента"></textarea>
-          </label>
-          <label class="field">
-            <span>Workflow (JSON: состояния и переходы)</span>
-            <textarea v-model="agentForm.workflowJson" class="input textarea textarea--code" placeholder='{"states":["missing_data_detected","request_sent"],"transitions":{"missing_data_detected":["request_sent"]}}'></textarea>
-          </label>
-          <label class="field">
-            <span>Ограничения (JSON)</span>
-            <textarea v-model="agentForm.restrictionsJson" class="input textarea textarea--code" placeholder='{"maxMessagesPerHour":3,"allowedChannels":["telegram"],"requireHumanApproval":true}'></textarea>
-          </label>
-          <label class="field">
-            <span>Переменные (JSON)</span>
-            <textarea v-model="agentForm.variablesJson" class="input textarea textarea--code" placeholder='{"company_name":"Riderra","timezone":"Europe/Moscow"}'></textarea>
-          </label>
-          <label class="field">
-            <span>Sandbox test (dry_run)</span>
-            <textarea v-model="agentTestInput" class="input textarea" placeholder="Тестовое сообщение для агента"></textarea>
-            <div class="agent-actions">
-              <button class="btn btn--ghost" :disabled="agentTesting || !selectedAgentId" @click="runAgentTest">
-                {{ agentTesting ? 'Тестирую...' : 'Запустить dry_run тест' }}
-              </button>
-            </div>
-            <pre v-if="agentTestOutput" class="test-output">{{ agentTestOutput }}</pre>
-          </label>
-          <div class="agent-actions">
-            <button class="btn btn--primary" :disabled="agentSaving" @click="saveAgent">
-              {{ agentSaving ? 'Сохраняю...' : (selectedAgentId ? 'Сохранить агента' : 'Создать агента') }}
-            </button>
-          </div>
-        </div>
-
-        <div class="agent-card">
-          <div class="agent-head">
-            <h3>Prompt Registry</h3>
-          </div>
-          <div class="agent-grid" style="grid-template-columns: 280px 160px 1fr;">
-            <select v-model="selectedPromptKey" class="input" @change="applyPromptSelection">
-              <option v-for="key in promptKeys" :key="key" :value="key">{{ key }}</option>
-            </select>
-            <input class="input" :value="selectedPromptVersionLabel" disabled />
-            <input v-model="promptDescription" class="input" placeholder="Описание prompt" />
-          </div>
-          <label class="field">
-            <span>Текст prompt</span>
-            <textarea v-model="promptText" class="input textarea textarea--code" placeholder="Введите рабочий prompt"></textarea>
-          </label>
-          <div class="agent-actions">
-            <button class="btn btn--primary" :disabled="promptSaving || !selectedPromptKey" @click="savePromptTemplate">
-              {{ promptSaving ? 'Сохраняю...' : 'Сохранить новую версию' }}
-            </button>
-          </div>
+          <button class="btn btn--ghost" @click="$router.push('/admin-agents')">Открыть AI агентов</button>
         </div>
 
         <div class="filters">
@@ -495,7 +407,6 @@ export default {
       this.currentUserId = this.extractCurrentUserId()
       await this.loadTasks()
       await this.loadAgents()
-      await this.loadPrompts()
       await this.openTaskFromRouteIfNeeded()
       this.startAutoRefresh()
     },
