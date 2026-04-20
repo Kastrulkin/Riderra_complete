@@ -15,6 +15,10 @@ const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
 const fs = require('fs/promises')
 const crypto = require('crypto')
+const os = require('os')
+const path = require('path')
+const { execFile } = require('child_process')
+const { promisify } = require('util')
 const {
   buildOpenClawEnvelope,
   validateOpenClawPayload,
@@ -23,6 +27,7 @@ const {
 
 const prisma = new PrismaClient()
 const app = express()
+const execFileAsync = promisify(execFile)
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
@@ -1469,20 +1474,26 @@ function normalizeVpnSyncState(state) {
   return 'pending'
 }
 
+function normalizeVpnPlatform(platform) {
+  const value = String(platform || '').trim().toLowerCase()
+  if (['macos', 'windows'].includes(value)) return value
+  return null
+}
+
 function buildDefaultVpnProfile(tenantId = null) {
   return {
     id: null,
     tenantId,
     name: String(process.env.VPN_PROFILE_NAME || 'Riderra Corporate VPN').trim() || 'Riderra Corporate VPN',
-    serverHost: String(process.env.VPN_SERVER_HOST || '').trim(),
+    serverHost: String(process.env.VPN_SERVER_HOST || '92.118.234.170').trim(),
     serverPort: Number(process.env.VPN_SERVER_PORT || 443) || 443,
     protocol: String(process.env.VPN_PROTOCOL || 'vless').trim() || 'vless',
     security: String(process.env.VPN_SECURITY || 'reality').trim() || 'reality',
     transport: String(process.env.VPN_TRANSPORT || 'tcp').trim() || 'tcp',
     flow: String(process.env.VPN_FLOW || 'xtls-rprx-vision').trim() || 'xtls-rprx-vision',
-    publicKey: String(process.env.VPN_REALITY_PUBLIC_KEY || '').trim(),
-    shortId: String(process.env.VPN_REALITY_SHORT_ID || '').trim(),
-    serverName: String(process.env.VPN_SERVER_NAME || '').trim(),
+    publicKey: String(process.env.VPN_REALITY_PUBLIC_KEY || 'CoFP9J1rzkry3kL_Vok9PeL9Vr41ew9r0bRgvLnqPFA').trim(),
+    shortId: String(process.env.VPN_REALITY_SHORT_ID || '51c31649d8b0d9f2').trim(),
+    serverName: String(process.env.VPN_SERVER_NAME || 'www.microsoft.com').trim(),
     fingerprint: String(process.env.VPN_FINGERPRINT || 'chrome').trim() || 'chrome',
     isActive: true,
     notes: String(process.env.VPN_NOTES || '').trim() || null
@@ -1519,6 +1530,7 @@ function sanitizeVpnGrantInput(input = {}, profile = null) {
     employeeEmail,
     employeeLogin,
     deviceName,
+    platform: normalizeVpnPlatform(input.platform),
     uuid: String(input.uuid || crypto.randomUUID()).trim(),
     status,
     comment: String(input.comment || '').trim() || null,
@@ -1566,6 +1578,8 @@ function buildVpnConnectionBundle(profile, grant) {
   ]
 
   return {
+    server: serverHost,
+    port: serverPort,
     serverHost,
     serverPort,
     protocol,
@@ -1580,6 +1594,205 @@ function buildVpnConnectionBundle(profile, grant) {
     uri: url,
     text: lines.join('\n')
   }
+}
+
+function slugifyVpnValue(value, fallback = 'vpn') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || fallback
+}
+
+function ensureVpnProfileReady(profile) {
+  if (!profile?.serverHost || !profile?.serverPort || !profile?.publicKey || !profile?.shortId || !profile?.serverName) {
+    const error = new Error('VPN profile is incomplete. Fill serverHost, serverPort, publicKey, shortId and serverName.')
+    error.statusCode = 409
+    throw error
+  }
+}
+
+function resolveVpnBinaryPath(platform) {
+  if (platform === 'macos') return String(process.env.VPN_SINGBOX_MACOS_PATH || '').trim() || null
+  if (platform === 'windows') return String(process.env.VPN_SINGBOX_WINDOWS_PATH || '').trim() || null
+  return null
+}
+
+function buildVpnClientConfig(profile, grant) {
+  ensureVpnProfileReady(profile)
+  return {
+    log: { level: 'warn' },
+    dns: { servers: ['1.1.1.1', '8.8.8.8'] },
+    inbounds: [
+      {
+        type: 'tun',
+        tag: 'tun-in',
+        interface_name: 'sb-tun',
+        mtu: 9000,
+        auto_route: true,
+        strict_route: false,
+        stack: 'system'
+      }
+    ],
+    outbounds: [
+      {
+        type: 'vless',
+        tag: 'proxy',
+        server: profile.serverHost,
+        server_port: Number(profile.serverPort || 443),
+        uuid: grant.uuid,
+        flow: String(profile.flow || 'xtls-rprx-vision'),
+        packet_encoding: 'xudp',
+        tls: {
+          enabled: true,
+          server_name: profile.serverName,
+          insecure: false,
+          utls: {
+            enabled: true,
+            fingerprint: profile.fingerprint || 'chrome'
+          },
+          reality: {
+            enabled: true,
+            public_key: profile.publicKey,
+            short_id: profile.shortId
+          }
+        }
+      },
+      { type: 'direct', tag: 'direct' }
+    ],
+    route: {
+      auto_detect_interface: true,
+      final: 'proxy'
+    }
+  }
+}
+
+function buildVpnReadme(platform, profile, grant, connection) {
+  const isWindows = platform === 'windows'
+  const intro = isWindows ? 'Riderra VPN package for Windows' : 'Riderra VPN package for macOS'
+  const runOn = isWindows
+    ? [
+        '1. Unzip the archive to a writable folder.',
+        '2. Run "Включить VPN.bat" as Administrator.',
+        '3. To stop the tunnel, run "Выключить VPN.bat".'
+      ]
+    : [
+        '1. Unzip the archive into Applications or any writable folder.',
+        '2. If needed, allow execution in System Settings and run "Включить VPN.command".',
+        '3. To stop the tunnel, run "Выключить VPN.command".'
+      ]
+
+  return [
+    intro,
+    '',
+    `Employee: ${grant.employeeName}`,
+    `Email: ${grant.employeeEmail || grant.employeeLogin || '-'}`,
+    `Platform: ${platform}`,
+    `Device: ${grant.deviceName || '-'}`,
+    `Issued: ${new Date(grant.issuedAt || Date.now()).toISOString()}`,
+    '',
+    `Server: ${profile.serverHost}`,
+    `Port: ${profile.serverPort}`,
+    `UUID: ${grant.uuid}`,
+    `Public key: ${profile.publicKey}`,
+    `Short ID: ${profile.shortId}`,
+    `Server name: ${profile.serverName}`,
+    '',
+    'URI:',
+    connection.uri,
+    '',
+    ...runOn,
+    '',
+    'Files included:',
+    isWindows
+      ? '- sing-box.exe\n- client.json\n- Включить VPN.bat\n- Выключить VPN.bat\n- README.txt'
+      : '- sing-box\n- client.json\n- Включить VPN.command\n- Выключить VPN.command\n- README.txt'
+  ].join('\n')
+}
+
+function buildVpnStartScript(platform) {
+  if (platform === 'windows') {
+    return [
+      '@echo off',
+      'cd /d %~dp0',
+      'start "Riderra VPN" /B sing-box.exe run -c client.json',
+      'echo Riderra VPN started.',
+      'pause'
+    ].join('\r\n')
+  }
+  return [
+    '#!/bin/bash',
+    'set -e',
+    'cd "$(dirname "$0")"',
+    'chmod +x ./sing-box',
+    './sing-box run -c client.json'
+  ].join('\n')
+}
+
+function buildVpnStopScript(platform) {
+  if (platform === 'windows') {
+    return [
+      '@echo off',
+      'taskkill /IM sing-box.exe /F',
+      'echo Riderra VPN stopped.',
+      'pause'
+    ].join('\r\n')
+  }
+  return [
+    '#!/bin/bash',
+    'pkill -f "sing-box run -c client.json" || true',
+    'echo "Riderra VPN stopped."'
+  ].join('\n')
+}
+
+async function buildVpnPackageArchive(profile, grant, platform) {
+  const normalizedPlatform = normalizeVpnPlatform(platform)
+  if (!normalizedPlatform) {
+    const error = new Error('Unsupported platform. Use macos or windows.')
+    error.statusCode = 400
+    throw error
+  }
+
+  ensureVpnProfileReady(profile)
+  const binaryPath = resolveVpnBinaryPath(normalizedPlatform)
+  if (!binaryPath) {
+    const error = new Error(`VPN binary path is not configured for ${normalizedPlatform}. Set ${normalizedPlatform === 'macos' ? 'VPN_SINGBOX_MACOS_PATH' : 'VPN_SINGBOX_WINDOWS_PATH'}.`)
+    error.statusCode = 409
+    throw error
+  }
+
+  await fs.access(binaryPath)
+  const connection = buildVpnConnectionBundle(profile, grant)
+  const archiveName = `${slugifyVpnValue(grant.employeeName, 'employee')}-${normalizedPlatform}-vpn.zip`
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'riderra-vpn-'))
+  const packageRoot = path.join(tempRoot, `riderra-vpn-${normalizedPlatform}`)
+  await fs.mkdir(packageRoot, { recursive: true })
+
+  const binaryFileName = normalizedPlatform === 'windows' ? 'sing-box.exe' : 'sing-box'
+  const binaryTargetPath = path.join(packageRoot, binaryFileName)
+  await fs.copyFile(binaryPath, binaryTargetPath)
+  if (normalizedPlatform === 'macos') {
+    await fs.chmod(binaryTargetPath, 0o755)
+  }
+
+  await fs.writeFile(path.join(packageRoot, 'client.json'), JSON.stringify(buildVpnClientConfig(profile, grant), null, 2), 'utf8')
+
+  const startFileName = normalizedPlatform === 'windows' ? 'Включить VPN.bat' : 'Включить VPN.command'
+  const stopFileName = normalizedPlatform === 'windows' ? 'Выключить VPN.bat' : 'Выключить VPN.command'
+  const startPath = path.join(packageRoot, startFileName)
+  const stopPath = path.join(packageRoot, stopFileName)
+  await fs.writeFile(startPath, buildVpnStartScript(normalizedPlatform), 'utf8')
+  await fs.writeFile(stopPath, buildVpnStopScript(normalizedPlatform), 'utf8')
+  if (normalizedPlatform === 'macos') {
+    await fs.chmod(startPath, 0o755)
+    await fs.chmod(stopPath, 0o755)
+  }
+
+  await fs.writeFile(path.join(packageRoot, 'README.txt'), buildVpnReadme(normalizedPlatform, profile, grant, connection), 'utf8')
+
+  const archivePath = path.join(tempRoot, archiveName)
+  await execFileAsync('/usr/bin/zip', ['-qr', archivePath, path.basename(packageRoot)], { cwd: tempRoot })
+  return { archivePath, archiveName, tempRoot }
 }
 
 function normalizeOrderStatus(status) {
@@ -10313,6 +10526,7 @@ app.post('/api/admin/vpn/access', authenticateToken, resolveActorContext, requir
         context: {
           employeeEmail: row.employeeEmail,
           deviceName: row.deviceName,
+          platform: row.platform,
           status: row.status
         }
       })
@@ -10352,6 +10566,7 @@ app.put('/api/admin/vpn/access/:grantId', authenticateToken, resolveActorContext
           employeeEmail: payload.employeeEmail,
           employeeLogin: payload.employeeLogin,
           deviceName: payload.deviceName,
+          platform: payload.platform,
           uuid: payload.uuid,
           status: payload.status,
           comment: payload.comment,
@@ -10374,7 +10589,7 @@ app.put('/api/admin/vpn/access/:grantId', authenticateToken, resolveActorContext
         traceId: req.actorContext.traceId,
         decision: 'policy_allowed',
         result: 'ok',
-        context: { status: row.status, deviceName: row.deviceName }
+        context: { status: row.status, deviceName: row.deviceName, platform: row.platform }
       })
       return row
     })
@@ -10563,6 +10778,51 @@ app.get('/api/admin/vpn/access/:grantId/instruction', authenticateToken, resolve
   } catch (error) {
     console.error('Error building vpn instruction:', error)
     res.status(500).json({ error: 'Failed to build VPN instruction' })
+  }
+})
+
+app.get('/api/admin/vpn/access/:grantId/package', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  let tempRoot = null
+  try {
+    const tenantId = req.actorContext.tenantId
+    const platform = normalizeVpnPlatform(req.query.platform || '')
+    if (!platform) return res.status(400).json({ error: 'platform must be macos or windows' })
+
+    const row = await prisma.vpnAccessGrant.findFirst({
+      where: { id: req.params.grantId, tenantId },
+      include: { profile: true }
+    })
+    if (!row) return res.status(404).json({ error: 'VPN access not found' })
+
+    const profile = row.profile || await prisma.vpnProfile.findUnique({ where: { tenantId } }) || buildDefaultVpnProfile(tenantId)
+    const pkg = await buildVpnPackageArchive(profile, row, platform)
+    tempRoot = pkg.tempRoot
+
+    await writeAuditLog({
+      tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'vpn.access.package.download',
+      resource: 'vpn_access',
+      resourceId: row.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: { platform }
+    })
+
+    res.download(pkg.archivePath, pkg.archiveName, async (error) => {
+      if (error) console.error('Error sending VPN package archive:', error)
+      if (tempRoot) {
+        try { await fs.rm(tempRoot, { recursive: true, force: true }) } catch (_) {}
+      }
+    })
+  } catch (error) {
+    if (tempRoot) {
+      try { await fs.rm(tempRoot, { recursive: true, force: true }) } catch (_) {}
+    }
+    console.error('Error building vpn package:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to build VPN package' })
   }
 })
 

@@ -290,6 +290,7 @@ model VpnAccessGrant {
   employeeEmail   String?
   employeeLogin   String?
   deviceName      String
+  platform        String?
   uuid            String   @unique
   status          String   @default("pending")
   comment         String?

@@ -154,6 +154,7 @@
             <div class="vpn-table vpn-table--head">
               <div>{{ t.employee }}</div>
               <div>{{ t.device }}</div>
+              <div>{{ t.platform }}</div>
               <div>UUID</div>
               <div>{{ t.issuedAt }}</div>
               <div>{{ t.status }}</div>
@@ -169,6 +170,7 @@
                 <div class="cell-title">{{ row.deviceName }}</div>
                 <div class="muted">{{ row.comment || '—' }}</div>
               </div>
+              <div><span class="scope-pill">{{ platformLabel(row.platform) }}</span></div>
               <div>
                 <div class="mono">{{ shortUuid(row.uuid) }}</div>
                 <div class="muted">{{ row.connectionLabel || row.employeeName }}</div>
@@ -179,6 +181,8 @@
               <div class="row-actions">
                 <button class="btn btn--small btn--primary" @click="openGrant(row)">{{ t.open }}</button>
                 <button class="btn btn--small" @click="copyConnection(row)">{{ t.copy }}</button>
+                <button class="btn btn--small" @click="downloadPackage(row, 'macos')">{{ t.downloadMac }}</button>
+                <button class="btn btn--small" @click="downloadPackage(row, 'windows')">{{ t.downloadWindows }}</button>
                 <button class="btn btn--small" @click="openInstruction(row)">{{ t.instruction }}</button>
                 <button class="btn btn--small" @click="rotateGrant(row)">{{ t.rotate }}</button>
                 <button
@@ -228,6 +232,13 @@
           <div>
             <label>{{ t.device }}</label>
             <input v-model="grantForm.deviceName" class="input" :placeholder="t.devicePlaceholder" />
+          </div>
+          <div>
+            <label>{{ t.platform }}</label>
+            <select v-model="grantForm.platform" class="input select-input">
+              <option value="macos">macOS</option>
+              <option value="windows">Windows</option>
+            </select>
           </div>
           <div>
             <label>UUID</label>
@@ -285,6 +296,7 @@
             <div><span class="detail-label">{{ t.status }}</span><span>{{ statusLabel(detailPanel.row.status) }}</span></div>
             <div><span class="detail-label">{{ t.issuedAt }}</span><span>{{ formatDate(detailPanel.row.issuedAt) }}</span></div>
             <div><span class="detail-label">{{ t.syncState }}</span><span>{{ syncLabel(detailPanel.row.syncState) }}</span></div>
+            <div><span class="detail-label">{{ t.platform }}</span><span>{{ platformLabel(detailPanel.row.platform) }}</span></div>
           </div>
           <div v-if="detailPanel.row.lastSyncError" class="notice notice--error">{{ detailPanel.row.lastSyncError }}</div>
         </div>
@@ -315,6 +327,8 @@
         </div>
 
         <div class="modal-actions modal-actions--drawer">
+          <button class="btn" @click="downloadPackage(detailPanel.row, 'macos')">{{ t.downloadMac }}</button>
+          <button class="btn" @click="downloadPackage(detailPanel.row, 'windows')">{{ t.downloadWindows }}</button>
           <button class="btn btn--primary" @click="copyConnection(detailPanel.row)">{{ t.copy }}</button>
           <button class="btn" @click="openEditFromDrawer">{{ t.editAccess }}</button>
         </div>
@@ -332,6 +346,7 @@ const emptyGrantForm = () => ({
   employeeEmail: '',
   employeeLogin: '',
   deviceName: '',
+  platform: 'macos',
   uuid: '',
   status: 'pending',
   syncState: 'pending',
@@ -435,6 +450,7 @@ export default {
             addFirstAccess: 'Выдать первый доступ',
             employee: 'Сотрудник',
             device: 'Устройство',
+            platform: 'Платформа',
             issuedAt: 'Дата выдачи',
             status: 'Статус',
             syncState: 'Синхронизация',
@@ -442,6 +458,8 @@ export default {
             open: 'Открыть',
             copy: 'Копировать',
             copyAll: 'Копировать всё',
+            downloadMac: 'macOS пакет',
+            downloadWindows: 'Windows пакет',
             instruction: 'Инструкция',
             rotate: 'Перевыпустить',
             activate: 'Активировать',
@@ -531,6 +549,7 @@ export default {
             addFirstAccess: 'Issue first access',
             employee: 'Employee',
             device: 'Device',
+            platform: 'Platform',
             issuedAt: 'Issued',
             status: 'Status',
             syncState: 'Sync',
@@ -538,6 +557,8 @@ export default {
             open: 'Open',
             copy: 'Copy',
             copyAll: 'Copy all',
+            downloadMac: 'macOS package',
+            downloadWindows: 'Windows package',
             instruction: 'Instruction',
             rotate: 'Rotate',
             activate: 'Activate',
@@ -636,6 +657,7 @@ export default {
       const body = await this.fetchJson('/api/admin/staff-users')
       this.staffOptions = (body.rows || []).map((row) => ({
         id: row.id,
+        displayName: row.displayName || row.email,
         email: row.email,
         roles: row.roles || []
       }))
@@ -689,6 +711,7 @@ export default {
         employeeEmail: row.employeeEmail || '',
         employeeLogin: row.employeeLogin || '',
         deviceName: row.deviceName || '',
+        platform: row.platform || 'macos',
         uuid: row.uuid || '',
         status: row.status || 'pending',
         syncState: row.syncState || 'pending',
@@ -728,6 +751,31 @@ export default {
         this.setNotice('error', error.message)
       } finally {
         this.savingGrant = false
+      }
+    },
+    async downloadPackage (row, platform) {
+      try {
+        const token = localStorage.getItem('authToken')
+        const response = await fetch(`/api/admin/vpn/access/${row.id}/package?platform=${encodeURIComponent(platform)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        })
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}))
+          throw new Error(body.error || `HTTP ${response.status}`)
+        }
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        const disposition = response.headers.get('Content-Disposition') || ''
+        const match = disposition.match(/filename=\"?([^\";]+)\"?/)
+        link.href = url
+        link.download = match && match[1] ? match[1] : `${row.employeeName || 'employee'}-${platform}.zip`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      } catch (error) {
+        this.setNotice('error', error.message)
       }
     },
     async rotateGrant (row) {
@@ -829,6 +877,11 @@ export default {
       if (state === 'error') return this.t.error
       return this.t.pendingApply
     },
+    platformLabel (platform) {
+      if (platform === 'windows') return 'Windows'
+      if (platform === 'macos') return 'macOS'
+      return '—'
+    },
     makeIdempotencyKey (prefix) {
       return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
     },
@@ -856,19 +909,23 @@ export default {
       }
     },
     staffDisplayValue (staff) {
-      return `${staff.email || ''}`.trim()
+      return `${staff.displayName || staff.email || ''} <${staff.email || ''}>`.trim()
     },
     staffRolesLabel (staff) {
       return (staff.roles || []).join(', ')
     },
     applyStaffSuggestion () {
       const raw = String(this.grantStaffLookup || '').trim().toLowerCase()
-      const found = this.staffOptions.find((staff) => String(staff.email || '').trim().toLowerCase() === raw)
+      const found = this.staffOptions.find((staff) => {
+        const email = String(staff.email || '').trim().toLowerCase()
+        const label = String(this.staffDisplayValue(staff) || '').trim().toLowerCase()
+        return email === raw || label === raw
+      })
       if (!found) return
       this.grantForm.employeeEmail = found.email || ''
       this.grantForm.employeeLogin = found.email || ''
-      if (!this.grantForm.employeeName && found.email) {
-        this.grantForm.employeeName = found.email.split('@')[0]
+      if (!this.grantForm.employeeName) {
+        this.grantForm.employeeName = found.displayName || (found.email ? found.email.split('@')[0] : '')
       }
       if (!this.grantForm.connectionLabel && found.email) {
         this.grantForm.connectionLabel = `Riderra • ${found.email}`
@@ -1103,7 +1160,7 @@ export default {
 
 .vpn-table {
   display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 1fr) minmax(140px, 0.9fr) 120px 110px 130px minmax(260px, 1.5fr);
+  grid-template-columns: minmax(180px, 1.15fr) minmax(160px, 1fr) 110px minmax(140px, 0.85fr) 120px 110px 130px minmax(320px, 1.8fr);
   gap: 12px;
   align-items: center;
 }
