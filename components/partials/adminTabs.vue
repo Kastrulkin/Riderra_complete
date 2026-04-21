@@ -239,9 +239,16 @@ export default {
     grid-template-columns: 1fr;
   }
 
+  .admin-subtabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-right: -4px;
+  }
+
   .admin-subtab {
     min-width: unset;
-    flex: 1 1 140px;
+    flex: 0 0 180px;
   }
 }
 </style>

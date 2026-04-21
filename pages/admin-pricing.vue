@@ -925,9 +925,38 @@ export default {
     flex-direction: column;
   }
 
+  .page-head-actions,
+  .subtabs {
+    width: 100%;
+  }
+
+  .subtabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .subtab {
+    flex: 0 0 auto;
+  }
+
   .overview-strip,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    width: 100%;
+  }
+
+  .page-head-actions .btn,
+  .actions .btn {
+    width: 100%;
+  }
+
+  .modal {
+    width: min(100vw - 16px, 760px);
+    padding: 16px;
   }
 }
 </style>

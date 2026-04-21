@@ -817,8 +817,40 @@ export default {
     flex-direction: column;
   }
 
+  .page-head-actions,
+  .view-strip,
+  .toolbar {
+    width: 100%;
+  }
+
+  .view-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .view-pill {
+    flex: 0 0 auto;
+  }
+
   .overview-strip {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar-meta {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .page-head-actions .btn,
+  .actions .btn {
+    width: 100%;
+  }
+
+  .modal {
+    width: min(100vw - 16px, 95vw);
+    padding: 16px;
   }
 }
 </style>

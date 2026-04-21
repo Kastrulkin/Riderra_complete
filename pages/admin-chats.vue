@@ -1275,4 +1275,33 @@ export default {
   .queue, .dialog, .actions { min-height: auto; }
   .filters { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 640px) {
+  .page-head,
+  .page-actions,
+  .queue-head,
+  .dialog-head,
+  .dialog-head-actions,
+  .message-actions,
+  .message-draft-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-actions .btn,
+  .queue-bulk .btn,
+  .message-actions .btn,
+  .message-draft-actions .btn {
+    width: 100%;
+  }
+
+  .queue-item,
+  .actions-block,
+  .dialog,
+  .queue,
+  .actions {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
 </style>

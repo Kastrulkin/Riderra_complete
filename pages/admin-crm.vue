@@ -621,5 +621,29 @@ export default {
 }
 @media (max-width: 640px) {
   .overview-strip { grid-template-columns:1fr; }
+  .mode-switch, .view-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .mode-pill, .view-pill {
+    flex: 0 0 auto;
+  }
+  .crm-actions, .actions {
+    width: 100%;
+  }
+  .crm-actions .btn, .actions .btn {
+    width: 100%;
+  }
+  .crm-filters__meta {
+    flex-wrap: wrap;
+  }
+  .linked-row {
+    grid-template-columns:1fr;
+  }
+  .modal {
+    width:min(100vw - 16px, 980px);
+    padding:16px;
+  }
 }
 </style>

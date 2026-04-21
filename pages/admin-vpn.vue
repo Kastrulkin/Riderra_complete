@@ -1508,5 +1508,44 @@ label,
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .roster-table--head {
+    display: none;
+  }
+
+  .roster-table--row {
+    gap: 14px;
+    padding: 16px 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-card,
+  .card,
+  .modal,
+  .drawer {
+    padding: 16px;
+  }
+
+  .slot-controls,
+  .more-actions__menu,
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .slot-controls .btn,
+  .more-actions__menu .btn,
+  .modal-actions .btn,
+  .technical-card__actions .btn {
+    width: 100%;
+  }
+
+  .technical-card__summary {
+    padding: 16px;
+  }
+
+  .technical-card__body {
+    padding: 0 16px 16px;
+  }
 }
 </style>

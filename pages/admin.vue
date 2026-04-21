@@ -576,5 +576,36 @@ export default {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
+
+  .hero-actions,
+  .task-row,
+  .quick-action,
+  .meta-row {
+    width: 100%;
+  }
+
+  .hero-actions .btn,
+  .quick-action,
+  .task-row {
+    justify-content: space-between;
+  }
+
+  .meta-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-card,
+  .card {
+    padding: 18px;
+  }
+
+  .quick-action,
+  .task-row {
+    padding: 14px;
+  }
 }
 </style>

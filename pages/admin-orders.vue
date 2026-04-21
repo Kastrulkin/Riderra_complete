@@ -1932,8 +1932,49 @@ export default {
   }
 }
 @media (max-width: 640px) {
+  .page-head-actions,
+  .subtabs,
+  .view-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .page-head-actions .btn,
+  .subtab,
+  .view-pill {
+    flex: 0 0 auto;
+  }
+
   .overview-strip {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar-meta {
+    flex-wrap: wrap;
+  }
+
+  .row-actions,
+  .row-actions__secondary,
+  .info-modal-actions {
+    width: 100%;
+  }
+
+  .row-actions__secondary {
+    flex-direction: column;
+  }
+
+  .card-link,
+  .action-select {
+    width: 100%;
+  }
+
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .modal-card {
+    padding: 14px;
   }
 }
 </style>

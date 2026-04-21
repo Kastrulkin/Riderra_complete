@@ -586,5 +586,29 @@ export default {
 }
 @media (max-width: 640px) {
   .settings-overview { grid-template-columns:1fr; }
+  .section-switch {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .section-pill {
+    flex: 0 0 220px;
+  }
+  .inline-actions,
+  .row-actions {
+    width: 100%;
+  }
+  .inline-actions .btn,
+  .row-actions .btn,
+  .row-actions .action-select {
+    width: 100%;
+  }
+  .map-row {
+    grid-template-columns:1fr;
+  }
+  .modal {
+    width:min(100vw - 16px, 920px);
+    padding:14px;
+  }
 }
 </style>
