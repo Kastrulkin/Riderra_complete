@@ -6,12 +6,34 @@
         <div class="page-head">
           <div>
             <h1 class="h2">AI Inbox</h1>
-            <p class="hint">Черновики от OpenClaw. Ничего не попадает в боевые заказы без подтверждения.</p>
+            <p class="hint">Черновики для проверки перед созданием заказа. Сначала видно, что мешает и какой следующий шаг нужен.</p>
           </div>
           <button class="btn btn--primary" @click="load">Обновить</button>
         </div>
 
         <admin-tabs />
+
+        <div class="ops-rail">
+          <div>
+            <strong>AI Inbox — очередь черновиков.</strong>
+            <p class="hint">Здесь проверяем, что распозналось из письма, уточняем проблемные поля и только потом подтверждаем заказ.</p>
+          </div>
+        </div>
+
+        <div class="overview-grid">
+          <div class="overview-card">
+            <span class="overview-card__label">Ждут подтверждения</span>
+            <strong>{{ pendingCount }}</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-card__label">Требуют уточнения</span>
+            <strong>{{ needsReviewCount }}</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-card__label">Готовы к созданию</span>
+            <strong>{{ readyCount }}</strong>
+          </div>
+        </div>
 
         <div class="toolbar">
           <select v-model="status" class="input" @change="load">
@@ -38,9 +60,12 @@
             <div>{{ summarize(row).customer }}</div>
             <div>{{ summarize(row).route }}</div>
             <div>{{ summarize(row).price }}</div>
-            <div><span class="status-pill" :class="`status-pill--${row.status}`">{{ row.status }}</span></div>
             <div>
-              <button class="btn btn--small" @click="openDraft(row.id)">Открыть</button>
+              <span class="status-pill" :class="`status-pill--${row.status}`">{{ row.status }}</span>
+              <div class="row-hint">{{ draftStateLabel(row) }}</div>
+            </div>
+            <div>
+              <button class="btn btn--small btn--primary" @click="openDraft(row.id)">{{ draftActionLabel(row) }}</button>
             </div>
           </div>
           <div v-if="!rows.length" class="empty">Пока пусто</div>
@@ -62,17 +87,48 @@
           Я помощник Riderra, работаю в тестовом режиме. Показываю найденную информацию и источник, но финальное действие только после подтверждения сотрудника.
         </div>
 
-        <div class="meta-grid">
-          <div><strong>Источник:</strong> {{ payload.source || 'openclaw' }}</div>
-          <div><strong>Канал:</strong> {{ orderDraft.sourceType || '-' }}</div>
-          <div><strong>Контракт:</strong> {{ payload.contractVersion || '-' }}</div>
-          <div><strong>Confidence:</strong> {{ payload.confidence == null ? '-' : payload.confidence }}</div>
-          <div><strong>Сообщение:</strong> {{ orderDraft.externalMessageId || '-' }}</div>
-          <div><strong>Статус:</strong> {{ draft.status }}</div>
+        <div class="focus-card">
+          <div class="focus-card__head">
+            <div>
+              <h4>{{ orderDraft.customerName || 'Черновик без контрагента' }}</h4>
+              <div class="hint">{{ [orderDraft.city, orderDraft.pickupAt].filter(Boolean).join(' · ') || 'Дата и город пока не определены' }}</div>
+            </div>
+            <span class="status-pill" :class="`status-pill--${draft.status}`">{{ draft.status }}</span>
+          </div>
+          <p class="focus-card__summary">{{ focusSummary }}</p>
+          <div class="focus-meta">
+            <span class="pill">{{ orderDraft.flightNumber ? `Рейс: ${orderDraft.flightNumber}` : 'Рейс не найден' }}</span>
+            <span class="pill">{{ formatMoney(pricing.authoritativeClientPrice != null ? pricing.authoritativeClientPrice : orderDraft.clientPrice, pricing.authoritativeCurrency || orderDraft.currency) }}</span>
+            <span class="pill">{{ orderDraft.vehicleType || 'Класс не определён' }}</span>
+          </div>
+          <div class="focus-actions">
+            <button
+              class="btn btn--small btn--primary"
+              :disabled="draft.status !== 'pending' || saving"
+              @click="approve"
+            >
+              {{ saving ? 'Сохраняю...' : primaryDraftAction }}
+            </button>
+            <button
+              class="btn btn--small btn--ghost"
+              :disabled="draft.status !== 'pending' || saving"
+              @click="reject"
+            >
+              Отклонить
+            </button>
+            <button
+              class="btn btn--small btn--ghost"
+              type="button"
+              :disabled="flightChecking || !orderDraft.flightNumber"
+              @click="runFlightCheck"
+            >
+              {{ flightChecking ? 'Проверяю рейс...' : 'Проверить рейс' }}
+            </button>
+          </div>
         </div>
 
-        <div class="section-card">
-          <h4>Подготовленный заказ</h4>
+        <details class="section-card" open>
+          <summary class="section-summary">Подготовленный заказ</summary>
           <div class="meta-grid">
             <div><strong>Контрагент:</strong> {{ orderDraft.customerName || '-' }}</div>
             <div><strong>Номер:</strong> {{ orderDraft.orderNumber || '-' }}</div>
@@ -91,20 +147,10 @@
             <strong>Комментарий:</strong>
             <pre>{{ orderDraft.comment }}</pre>
           </div>
-          <div class="section-actions">
-            <button
-              class="btn btn--small btn--ghost"
-              type="button"
-              :disabled="flightChecking || !orderDraft.flightNumber"
-              @click="runFlightCheck"
-            >
-              {{ flightChecking ? 'Проверяю рейс...' : 'Проверить рейс' }}
-            </button>
-          </div>
-        </div>
+        </details>
 
-        <div class="section-card" v-if="flightCheck">
-          <h4>Проверка рейса</h4>
+        <details class="section-card" v-if="flightCheck" open>
+          <summary class="section-summary">Проверка рейса</summary>
           <div class="meta-grid">
             <div><strong>Провайдер:</strong> {{ flightCheck.provider || '-' }}</div>
             <div><strong>Проверен:</strong> {{ formatDate(flightCheck.checkedAt) }}</div>
@@ -122,20 +168,20 @@
             <div><strong>В:</strong> {{ flightCheck.bestMatch.arrivalAirport || flightCheck.bestMatch.arrivalIata || '-' }}</div>
           </div>
           <div v-if="flightCheckError" class="hint hint--error">{{ flightCheckError }}</div>
-        </div>
+        </details>
 
-        <div class="section-card">
-          <h4>Проверка цены</h4>
+        <details class="section-card" open>
+          <summary class="section-summary">Проверка цены</summary>
           <div class="meta-grid">
             <div><strong>Источник цены:</strong> {{ pricing.pricingSource || 'не найдено' }}</div>
             <div><strong>Riderra price:</strong> {{ formatMoney(pricing.authoritativeClientPrice, pricing.authoritativeCurrency || orderDraft.currency) }}</div>
             <div><strong>Conflict:</strong> {{ pricing.conflict ? 'Да' : 'Нет' }}</div>
             <div><strong>Rule ID:</strong> {{ pricing.pricingRuleId || '-' }}</div>
           </div>
-        </div>
+        </details>
 
-        <div class="section-card" v-if="qualityChecks.length">
-          <h4>Проверка полей</h4>
+        <details class="section-card" v-if="qualityChecks.length" open>
+          <summary class="section-summary">Проверка полей</summary>
           <div class="checks-list">
             <div v-for="check in qualityChecks" :key="`${check.key}-${check.message}`" class="check-row">
               <span class="pill" :class="checkPillClass(check.level)">{{ checkLevelLabel(check.level) }}</span>
@@ -145,10 +191,10 @@
           <div v-if="payload.infoReason" class="hint hint--warn">
             Нужно уточнить: {{ payload.infoReason }}
           </div>
-        </div>
+        </details>
 
-        <div class="section-card" v-if="sheetRowPreview && Object.keys(sheetRowPreview).length">
-          <h4>Строка для таблицы</h4>
+        <details class="section-card" v-if="sheetRowPreview && Object.keys(sheetRowPreview).length">
+          <summary class="section-summary">Строка для таблицы</summary>
           <div class="meta-grid">
             <div><strong>Контрагент:</strong> {{ sheetRowPreview.contractor || '-' }}</div>
             <div><strong>Номер заказа:</strong> {{ sheetRowPreview.orderNumber || '-' }}</div>
@@ -163,39 +209,25 @@
             <strong>Комментарий для таблицы:</strong>
             <pre>{{ sheetRowPreview.comment }}</pre>
           </div>
-        </div>
+        </details>
 
-        <div class="section-card" v-if="missingFields.length || proposedActions.length">
-          <h4>Проверить перед подтверждением</h4>
+        <details class="section-card" v-if="missingFields.length || proposedActions.length">
+          <summary class="section-summary">Проверить перед подтверждением</summary>
           <div v-if="missingFields.length" class="pill-list">
             <span v-for="item in missingFields" :key="item" class="pill pill--warn">{{ item }}</span>
           </div>
           <div v-if="proposedActions.length" class="pill-list">
             <span v-for="(item, idx) in proposedActions" :key="idx" class="pill">{{ typeof item === 'string' ? item : JSON.stringify(item) }}</span>
           </div>
-        </div>
+        </details>
 
-        <div class="section-card" v-if="payload.rawText">
-          <h4>Исходный текст</h4>
+        <details class="section-card" v-if="payload.rawText">
+          <summary class="section-summary">Исходный текст</summary>
           <pre>{{ payload.rawText }}</pre>
-        </div>
+        </details>
 
         <div class="actions">
           <input v-model="reviewComment" class="input comment-input" placeholder="Комментарий ревьюера (необязательно)" />
-          <button
-            class="btn btn--primary"
-            :disabled="draft.status !== 'pending' || saving"
-            @click="approve"
-          >
-            {{ saving ? 'Сохраняю...' : 'Подтвердить и создать draft-заказ' }}
-          </button>
-          <button
-            class="btn btn--ghost"
-            :disabled="draft.status !== 'pending' || saving"
-            @click="reject"
-          >
-            Отклонить
-          </button>
         </div>
 
         <div v-if="actionResult" class="hint result-block">{{ actionResult }}</div>
@@ -245,6 +277,31 @@ export default {
     },
     flightCheck () {
       return this.payload.flightCheck || null
+    },
+    pendingCount () {
+      return this.rows.filter((row) => row.status === 'pending').length
+    },
+    needsReviewCount () {
+      return this.rows.filter((row) => {
+        const payload = this.parsePayload(row.payloadJson)
+        return (Array.isArray(payload.missingFields) && payload.missingFields.length) || String(payload.infoReason || '').trim()
+      }).length
+    },
+    readyCount () {
+      return this.rows.filter((row) => {
+        const payload = this.parsePayload(row.payloadJson)
+        return row.status === 'pending' && !(Array.isArray(payload.missingFields) && payload.missingFields.length) && !String(payload.infoReason || '').trim()
+      }).length
+    },
+    focusSummary () {
+      if (this.payload.infoReason) return `Нужно уточнить: ${this.payload.infoReason}`
+      if (this.missingFields.length) return `Перед подтверждением нужно проверить: ${this.missingFields.join(', ')}`
+      if (this.pricing.conflict) return 'Найдено расхождение по цене, лучше проверить перед созданием заказа.'
+      return 'Черновик выглядит целостным. Можно подтвердить и создать заказ.'
+    },
+    primaryDraftAction () {
+      if (this.payload.infoReason || this.missingFields.length || this.pricing.conflict) return 'Проверить и подтвердить'
+      return 'Подтвердить и создать заказ'
     }
   },
   mounted () {
@@ -270,6 +327,18 @@ export default {
           pricing.authoritativeCurrency || orderDraft.currency
         )
       }
+    },
+    draftStateLabel (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      if (row.status === 'approved') return 'Уже подтверждён'
+      if (row.status === 'rejected') return 'Отклонён'
+      if (String(payload.infoReason || '').trim()) return 'Есть блокирующее уточнение'
+      if (Array.isArray(payload.missingFields) && payload.missingFields.length) return 'Есть неполные поля'
+      if (payload.pricing?.conflict) return 'Проверьте цену'
+      return 'Можно проверять и подтверждать'
+    },
+    draftActionLabel (row) {
+      return this.draftStateLabel(row).includes('Можно') ? 'Подтвердить' : 'Разобрать'
     },
     parsePayload (raw) {
       try {
@@ -393,12 +462,18 @@ export default {
 <style scoped>
 .ai-section { padding-top: 140px; padding-bottom: 40px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.ops-rail { display: flex; justify-content: space-between; align-items: center; gap: 14px; border: 1px solid #d8d8e6; background: #f8fbff; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.overview-card { background: #fff; border: 1px solid #d8d8e6; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.overview-card strong { font-size: 24px; color: #0f172a; }
+.overview-card__label { color: #64748b; font-size: 13px; }
 .toolbar { display: flex; gap: 10px; margin-bottom: 12px; }
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
 .table-head, .table-row { display: grid; grid-template-columns: 170px 180px 1fr 1.2fr 180px 120px 120px; gap: 12px; padding: 10px 12px; min-width: 1100px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }
 .table-row { border-bottom: 1px solid #f1f3f8; align-items: center; }
+.row-hint { color: #64748b; font-size: 12px; margin-top: 6px; }
 .empty { padding: 16px; color: #64748b; }
 .status-pill { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
 .status-pill--pending { background: #fef3c7; color: #92400e; }
@@ -409,8 +484,17 @@ export default {
 .modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .modal-close { border: 0; background: transparent; font-size: 28px; cursor: pointer; color: #334155; }
 .banner { margin: 12px 0; padding: 12px 14px; border-radius: 10px; background: #eff6ff; color: #1e3a8a; line-height: 1.45; }
+.focus-card { margin-top: 12px; padding: 16px; border-radius: 14px; border: 1px solid #d8d8e6; background: linear-gradient(180deg, #fbfdff 0%, #f8fbff 100%); }
+.focus-card__head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.focus-card__head h4 { margin: 0 0 4px; }
+.focus-card__summary { margin: 0; color: #0f172a; line-height: 1.5; }
+.focus-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.focus-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
 .section-card { margin-top: 14px; border: 1px solid #e5e7ef; border-radius: 12px; padding: 14px; }
+.section-card[open] { background: #fff; }
+.section-summary { cursor: pointer; font-weight: 700; list-style: none; margin: -14px; padding: 14px; }
+.section-summary::-webkit-details-marker { display: none; }
 .section-card h4 { margin: 0 0 10px; }
 .note-block pre, .section-card pre { white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; font-family: inherit; }
 .pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -426,7 +510,8 @@ export default {
 .hint { color: #64748b; }
 .result-block { margin-top: 10px; }
 @media (max-width: 900px) {
-  .page-head, .toolbar, .actions { flex-direction: column; align-items: stretch; }
+  .page-head, .toolbar, .actions, .ops-rail, .focus-card__head, .focus-actions { flex-direction: column; align-items: stretch; }
+  .overview-grid,
   .meta-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -147,8 +147,36 @@
           </main>
 
           <aside class="actions" v-if="selectedTask">
+            <div class="focus-panel">
+              <div class="focus-panel__head">
+                <div>
+                  <h4>{{ taskFocusTitle }}</h4>
+                  <div class="hint">{{ taskFocusHint }}</div>
+                </div>
+                <span class="badge" :class="slaBadgeClass(selectedTask)">{{ slaLabel(selectedTask) }}</span>
+              </div>
+              <div class="focus-panel__meta">
+                <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
+                <span class="badge">{{ taskTypeLabel(selectedTask.taskType) }}</span>
+                <span class="badge">{{ agentLabel(selectedTask) }}</span>
+                <span class="badge">Владелец: {{ ownerLabel(selectedTask) }}</span>
+              </div>
+              <div class="focus-panel__actions">
+                <button
+                  class="btn btn--primary"
+                  :disabled="primaryTaskActionDisabled"
+                  @click="runPrimaryTaskAction"
+                >
+                  {{ primaryTaskActionLabel }}
+                </button>
+                <button class="btn btn--ghost" @click="toggleConversationAgent(selectedTask)">
+                  {{ selectedTask.agentPaused ? 'Возобновить агента' : 'Пауза агента' }}
+                </button>
+              </div>
+            </div>
+
             <div class="actions-block">
-              <h4>Новое сообщение</h4>
+              <h4>Сообщение клиенту</h4>
               <div v-if="selectedTask.taskType === 'clarification'" class="quick-templates">
                 <button class="btn btn--tiny" @click="applyClarificationTemplate('generic')">Общее уточнение</button>
                 <button class="btn btn--tiny" @click="applyClarificationTemplate('luggage')">Уточнить багаж</button>
@@ -176,16 +204,16 @@
               </div>
             </div>
 
-            <div class="actions-block">
-              <h4>Ответ клиента</h4>
+            <details class="actions-block" open>
+              <summary class="actions-summary">Ответ клиента</summary>
               <textarea v-model="inboundText" class="input textarea" placeholder="Вставьте входящее сообщение клиента"></textarea>
               <button class="btn btn--ghost" :disabled="inboundProcessing || !inboundText.trim()" @click="processInboundMessage">
                 {{ inboundProcessing ? 'Обрабатываю...' : 'Разобрать ответ' }}
               </button>
-            </div>
+            </details>
 
-            <div class="actions-block">
-              <h4>Результат AI разбора</h4>
+            <details class="actions-block" :open="Boolean(inboundOutcome)">
+              <summary class="actions-summary">Результат AI разбора</summary>
               <div v-if="inboundOutcome" class="trace-wrap">
                 <div class="trace-row"><strong>Класс ответа:</strong> {{ inboundOutcome.classLabel }}</div>
                 <div class="trace-row"><strong>Уверенность:</strong> {{ inboundOutcome.confidenceLabel }}</div>
@@ -195,19 +223,19 @@
                 <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
               </div>
               <div v-else class="hint">Результат появится после “Обработать ответ”.</div>
-            </div>
+            </details>
 
-            <div class="actions-block">
-              <h4>Смена статуса</h4>
+            <details class="actions-block">
+              <summary class="actions-summary">Смена статуса</summary>
               <select v-model="nextState" class="input">
                 <option value="">Выберите статус</option>
                 <option v-for="s in transitionTargets" :key="s" :value="s">{{ stateLabel(s) }}</option>
               </select>
               <button class="btn btn--ghost" :disabled="!nextState" @click="applyTransition">Применить</button>
-            </div>
+            </details>
 
-            <div class="actions-block">
-              <h4>Агент задачи</h4>
+            <details class="actions-block">
+              <summary class="actions-summary">Агент задачи</summary>
               <select v-model="selectedTaskAgentId" class="input">
                 <option value="">Без агента</option>
                 <option v-for="agent in agents" :key="agent.id" :value="agent.id">
@@ -217,10 +245,10 @@
               <button class="btn btn--ghost" :disabled="assigningAgent || !selectedTask" @click="assignAgentToTask">
                 {{ assigningAgent ? 'Сохраняю...' : 'Применить агента' }}
               </button>
-            </div>
+            </details>
 
-            <div class="actions-block">
-              <h4>Трейс шага</h4>
+            <details class="actions-block">
+              <summary class="actions-summary">Трейс шага</summary>
               <div v-if="lastStepTrace" class="trace-wrap">
                 <div class="trace-row"><strong>Откуда:</strong> {{ stateLabel(lastStepTrace.fromState) }}</div>
                 <div class="trace-row"><strong>Кандидат:</strong> {{ stateLabel(lastStepTrace.candidateState) }}</div>
@@ -239,7 +267,7 @@
                 <div class="trace-row trace-time">{{ formatDate(lastStepTrace.createdAt) }}</div>
               </div>
               <div v-else class="hint">Трейс появится после обработки входящего ответа.</div>
-            </div>
+            </details>
           </aside>
         </div>
       </div>
@@ -394,6 +422,37 @@ export default {
       }
       rows.sort((a, b) => this.compareBySortMode(a, b))
       return rows
+    },
+    taskFocusTitle() {
+      if (!this.selectedTask) return ''
+      if (this.selectedTask.taskType === 'dispatch_info') return 'Готовим отправку клиенту'
+      if (this.selectedTask.state === 'handoff_human') return 'Задача передана человеку'
+      if (this.selectedTask.state === 'customer_replied') return 'Нужно разобрать ответ клиента'
+      if (this.selectedTask.state === 'request_sent') return 'Ждём ответ клиента'
+      return 'Нужно закрыть уточнение по заказу'
+    },
+    taskFocusHint() {
+      if (!this.selectedTask) return ''
+      const reason = String(this.selectedTask?.order?.infoReason || '').trim()
+      if (this.selectedTask.state === 'customer_replied') return 'Сначала разберите входящий ответ и подтвердите поле.'
+      if (this.selectedTask.state === 'request_sent') return 'Проверьте, нужен ли follow-up или передача человеку.'
+      if (this.selectedTask.taskType === 'dispatch_info') return 'Отправьте подтверждённые детали поездки и зафиксируйте ответ.'
+      if (reason) return `Фокус задачи: ${reason}`
+      return 'Соберите короткое сообщение, получите ответ и доведите задачу до следующего статуса.'
+    },
+    primaryTaskActionLabel() {
+      if (!this.selectedTask) return 'Действие'
+      if (this.selectedTask.state === 'customer_replied') return 'Разобрать ответ'
+      if (this.selectedTask.taskType === 'dispatch_info') {
+        return this.quickDispatchLoading ? 'Отправляю...' : 'Отправить детали'
+      }
+      return this.quickSendLoading ? 'Отправляю...' : 'Отправить уточнение'
+    },
+    primaryTaskActionDisabled() {
+      if (!this.selectedTask) return true
+      if (this.selectedTask.state === 'customer_replied') return !this.inboundText.trim() || this.inboundProcessing
+      if (this.selectedTask.taskType === 'dispatch_info') return this.quickDispatchLoading
+      return this.quickSendLoading
     }
   },
   mounted() {
@@ -967,6 +1026,18 @@ export default {
       await this.openTask(this.selectedTask.id)
       await this.loadTasks()
     },
+    async runPrimaryTaskAction() {
+      if (!this.selectedTask) return
+      if (this.selectedTask.state === 'customer_replied') {
+        await this.processInboundMessage()
+        return
+      }
+      if (this.selectedTask.taskType === 'dispatch_info') {
+        await this.sendDispatchQuick()
+        return
+      }
+      await this.sendClarificationQuick()
+    },
     canSend(message) {
       return message.direction === 'outbound' && (message.approvalStatus === 'approved' || message.approvalStatus === null)
     },
@@ -1243,8 +1314,15 @@ export default {
 .btn--tiny { padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; }
 .message-actions { margin-top: 8px; display: flex; gap: 6px; }
 .actions { padding: 12px; }
+.focus-panel { border: 1px solid #d8d9e6; border-radius: 12px; background: linear-gradient(180deg, #fbfdff 0%, #f8fbff 100%); padding: 12px; margin-bottom: 10px; }
+.focus-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.focus-panel__head h4 { margin: 0 0 4px; }
+.focus-panel__meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.focus-panel__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .actions-block { border: 1px solid #e5eaf1; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
 .actions-block h4 { margin: 0 0 8px; }
+.actions-summary { cursor: pointer; font-weight: 700; list-style: none; margin: -10px; padding: 10px; }
+.actions-summary::-webkit-details-marker { display: none; }
 .trace-wrap { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #1e293b; }
 .trace-row { line-height: 1.35; }
 .trace-row--caps { margin-top: 4px; }
@@ -1282,6 +1360,8 @@ export default {
   .queue-head,
   .dialog-head,
   .dialog-head-actions,
+  .focus-panel__head,
+  .focus-panel__actions,
   .message-actions,
   .message-draft-actions {
     flex-direction: column;
