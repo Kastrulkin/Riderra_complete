@@ -127,41 +127,67 @@
           <button class="modal-close" type="button" @click="details=null">×</button>
         </div>
 
-        <div v-if="detailsMode==='company'" class="card-grid">
-          <input v-model="form.name" class="input" placeholder="Название" />
-          <input v-model="form.website" class="input" placeholder="Сайт" />
-          <input v-model="form.phone" class="input" placeholder="Телефон" />
-          <input v-model="form.email" class="input" placeholder="Email" />
-          <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
-          <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
-          <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
-          <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
-          <textarea
-            v-model="form.presenceMapText"
-            class="input textarea textarea--wide"
-            placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
-          />
-          <textarea v-model="form.comment" class="input textarea textarea--wide" placeholder="Комментарий"></textarea>
-        </div>
-        <div v-else class="card-grid">
-          <input v-model="form.fullName" class="input" placeholder="Имя" />
-          <input v-model="form.position" class="input" placeholder="Должность" />
-          <input v-model="form.phone" class="input" placeholder="Телефон" />
-          <input v-model="form.email" class="input" placeholder="Email" />
-          <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
-          <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
-          <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
-          <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
-          <textarea
-            v-model="form.presenceMapText"
-            class="input textarea textarea--wide"
-            placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
-          />
-          <textarea v-model="form.comment" class="input textarea textarea--wide" placeholder="Комментарий"></textarea>
+        <div class="crm-focus-card">
+          <div class="crm-focus-card__main">
+            <div class="crm-focus-card__label">Следующий шаг</div>
+            <div class="crm-focus-card__title">{{ nextActionLabel(details) }}</div>
+            <div class="crm-focus-card__hint">{{ detailsFocusHint(details) }}</div>
+          </div>
+          <div class="crm-focus-card__stats">
+            <div class="summary-chip">
+              <span>Каналы</span>
+              <strong>{{ contactStateLabel(details) }}</strong>
+            </div>
+            <div class="summary-chip">
+              <span>География</span>
+              <strong>{{ geographyStateLabel(details) }}</strong>
+            </div>
+            <div class="summary-chip">
+              <span>Связи</span>
+              <strong>{{ relationStateLabel(details) }}</strong>
+            </div>
+          </div>
         </div>
 
+        <details class="crm-detail-panel" open>
+          <summary>Основное</summary>
+          <div v-if="detailsMode==='company'" class="card-grid">
+            <input v-model="form.name" class="input" placeholder="Название" />
+            <input v-model="form.website" class="input" placeholder="Сайт" />
+            <input v-model="form.phone" class="input" placeholder="Телефон" />
+            <input v-model="form.email" class="input" placeholder="Email" />
+            <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
+            <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
+            <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
+            <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
+            <textarea
+              v-model="form.presenceMapText"
+              class="input textarea textarea--wide"
+              placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
+            />
+            <textarea v-model="form.comment" class="input textarea textarea--wide" placeholder="Комментарий"></textarea>
+          </div>
+          <div v-else class="card-grid">
+            <input v-model="form.fullName" class="input" placeholder="Имя" />
+            <input v-model="form.position" class="input" placeholder="Должность" />
+            <input v-model="form.phone" class="input" placeholder="Телефон" />
+            <input v-model="form.email" class="input" placeholder="Email" />
+            <input v-model="form.telegramUrl" class="input" placeholder="Telegram ссылка" />
+            <input v-model="form.registrationCountry" class="input" placeholder="Страна регистрации" />
+            <input v-model="form.registrationCity" class="input" placeholder="Город регистрации" />
+            <input v-model="form.registrationAddress" class="input" placeholder="Адрес регистрации" />
+            <textarea
+              v-model="form.presenceMapText"
+              class="input textarea textarea--wide"
+              placeholder="География присутствия&#10;United Kingdom: London, Manchester&#10;UAE: Dubai, Abu Dhabi"
+            />
+            <textarea v-model="form.comment" class="input textarea textarea--wide" placeholder="Комментарий"></textarea>
+          </div>
+        </details>
+
         <div class="detail-sections">
-          <div class="segments-block detail-card">
+          <details class="segments-block detail-card crm-detail-panel" open>
+            <summary>Сегменты</summary>
             <h4>Сегменты</h4>
             <div class="segments-grid">
               <label v-for="opt in segmentOptionsForDetails" :key="opt.value" class="segment-item">
@@ -174,9 +200,10 @@
                 <span>{{ opt.label }}</span>
               </label>
             </div>
-          </div>
+          </details>
 
-          <div v-if="detailsMode==='company'" class="links-block detail-card">
+          <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel">
+            <summary>Связанные контакты</summary>
             <h4>Контакты компании</h4>
             <div v-if="!(details.links || []).length" class="hint">Пока нет связанных контактов</div>
             <div class="linked-row" v-for="link in details.links || []" :key="link.id">
@@ -184,9 +211,10 @@
               <div>{{ link.contact.email || '-' }}</div>
               <div>{{ link.contact.phone || '-' }}</div>
             </div>
-          </div>
+          </details>
 
-          <div v-else class="links-block detail-card">
+          <details v-else class="links-block detail-card crm-detail-panel">
+            <summary>Связанные компании</summary>
             <h4>Компании контакта</h4>
             <div v-if="!(details.links || []).length" class="hint">Пока нет связанных компаний</div>
             <div class="linked-row" v-for="link in details.links || []" :key="link.id">
@@ -194,7 +222,7 @@
               <div>{{ formatSegments(link.company.segments || []) }}</div>
               <div>{{ link.company.email || link.company.phone || '-' }}</div>
             </div>
-          </div>
+          </details>
         </div>
 
         <div class="actions">
@@ -361,6 +389,22 @@ export default {
     },
     primaryButtonLabel(row) {
       return this.needsAttention(row) ? 'Разобрать' : 'Карточка'
+    },
+    contactStateLabel(row) {
+      return String(row?.email || row?.phone || row?.telegramUrl || '').trim() ? 'Есть' : 'Нужно добавить'
+    },
+    geographyStateLabel(row) {
+      return this.hasGeography(row) ? 'Заполнена' : 'Нужно заполнить'
+    },
+    relationStateLabel(row) {
+      return Number(row?._count?.links || 0) ? `Есть (${row._count.links})` : 'Нет связей'
+    },
+    detailsFocusHint(row) {
+      if (!String(row?.email || row?.phone || row?.telegramUrl || '').trim()) return 'Сначала добавьте канал связи, иначе карточка не готова к работе.'
+      if (!this.hasGeography(row)) return 'Следом заполните географию, чтобы запись работала в матрице направлений.'
+      if (!Number(row?._count?.links || 0)) return 'После этого свяжите карточку с компанией или контактом.'
+      if (this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])) return 'Проверьте запись и переведите её в рабочий сегмент, если контакт уже актуален.'
+      return 'Карточка в рабочем состоянии. Можно использовать её в операционной работе.'
     },
     segmentOptionsForDetails() {
       const companySegments = [
@@ -598,11 +642,59 @@ export default {
 .modal-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:12px; }
 .modal-subtitle { margin:6px 0 0; color:#64748b; line-height:1.5; }
 .modal-close { border:none; background:transparent; font-size:30px; line-height:1; color:#334155; }
+.crm-focus-card {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 320px;
+  gap:14px;
+  margin:10px 0 16px;
+  padding:16px;
+  border:1px solid #dbe5f3;
+  border-radius:16px;
+  background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);
+}
+.crm-focus-card__label {
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:#2563eb;
+}
+.crm-focus-card__title {
+  margin-top:4px;
+  font-size:20px;
+  font-weight:800;
+  color:#17233d;
+}
+.crm-focus-card__hint {
+  margin-top:8px;
+  color:#64748b;
+  line-height:1.5;
+}
+.crm-focus-card__stats {
+  display:grid;
+  gap:10px;
+}
 .card-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0 16px; }
 .textarea { min-height:96px; resize:vertical; }
 .textarea--wide { grid-column:1 / -1; }
 .detail-sections { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 .detail-card { border:1px solid #e7ebf2; border-radius:12px; padding:14px; background:#fbfcff; }
+.crm-detail-panel {
+  overflow:hidden;
+}
+.crm-detail-panel summary {
+  cursor:pointer;
+  list-style:none;
+  margin:-14px -14px 14px;
+  padding:14px;
+  font-weight:800;
+  color:#17233d;
+  background:#f8fafc;
+  border-bottom:1px solid #e7ebf2;
+}
+.crm-detail-panel summary::-webkit-details-marker {
+  display:none;
+}
 .segments-block { margin:0; }
 .segments-grid { display:grid; grid-template-columns:1fr; gap:8px; }
 .segment-item { display:flex; align-items:center; gap:8px; font-size:14px; color:#2f3e60; }
@@ -615,7 +707,7 @@ export default {
 @media (max-width: 900px) {
   .crm-header, .crm-filters { grid-template-columns:1fr; display:grid; }
   .crm-actions { justify-content:flex-start; }
-  .detail-sections, .card-grid { grid-template-columns:1fr; }
+  .crm-focus-card, .detail-sections, .card-grid { grid-template-columns:1fr; }
   .overview-strip { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .crm-table__head, .crm-table__row { min-width:900px; }
 }

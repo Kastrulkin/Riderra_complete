@@ -181,27 +181,85 @@
           <h3>{{ t.orderCard }}</h3>
           <button class="modal-close" type="button" @click="closeOrderCard">×</button>
         </div>
-        <div class="meta-grid">
-          <div><strong>ID:</strong> {{ selectedOrder.id || '-' }}</div>
-          <div>
-            <strong>{{ t.status }}:</strong>
-            <span class="status-pill" :class="statusPillClass(selectedOrder.status)">{{ statusLabel(selectedOrder.status) }}</span>
+        <div class="order-focus-card">
+          <div class="order-focus-card__main">
+            <div class="order-focus-card__eyebrow">{{ selectedOrder.contractor || '-' }}</div>
+            <div class="order-focus-card__title">{{ routeLabel(selectedOrder) }}</div>
+            <div class="order-focus-card__meta">
+              <span class="status-pill" :class="statusPillClass(selectedOrder.status)">{{ statusLabel(selectedOrder.status) }}</span>
+              <span>{{ selectedOrder.date || '-' }}</span>
+              <span>{{ orderIdentity(selectedOrder) }}</span>
+            </div>
+            <div class="order-focus-card__summary">
+              <strong>{{ issueSummary(selectedOrder) }}</strong>
+              <span>{{ orderFocusHint(selectedOrder) }}</span>
+            </div>
           </div>
-          <div><strong>{{ t.orderNumber }}:</strong> {{ selectedOrder.orderNumber || '-' }}</div>
-          <div><strong>{{ t.internalOrderNumber }}:</strong> {{ selectedOrder.internalOrderNumber || '-' }}</div>
-          <div><strong>{{ t.contractor }}:</strong> {{ selectedOrder.contractor || '-' }}</div>
-          <div><strong>{{ t.driver }}:</strong> {{ selectedOrder.driver || '-' }}</div>
-          <div><strong>{{ t.sum }}:</strong> {{ selectedOrder.sum || '-' }}</div>
-          <div><strong>{{ t.driverPrice }}:</strong> {{ formatMoney(selectedOrder.orderDriverPrice) }}</div>
-          <div><strong>{{ t.clientPrice }}:</strong> {{ formatMoney(selectedOrder.orderClientPrice) }}</div>
-          <div><strong>{{ t.updatedAt }}:</strong> {{ formatDateTime(selectedOrder.orderUpdatedAt) }}</div>
+          <div class="order-focus-card__actions">
+            <button
+              class="btn btn--primary"
+              type="button"
+              :disabled="rowPrimaryBusy(selectedOrder)"
+              @click="runPrimaryAction(selectedOrder)"
+            >
+              {{ primaryActionLabel(selectedOrder) }}
+            </button>
+            <button class="btn btn--ghost" type="button" @click="openInfoModal(selectedOrder)">
+              {{ t.infoFlag }}
+            </button>
+            <button class="btn btn--ghost" type="button" @click="openRawFromCard">
+              {{ t.findInDetails }}
+            </button>
+          </div>
+        </div>
+
+        <div class="order-summary-grid">
+          <div class="summary-chip">
+            <span>{{ t.driver }}</span>
+            <strong>{{ selectedOrder.driver || t.driverMissing }}</strong>
+          </div>
+          <div class="summary-chip">
+            <span>{{ t.clientPrice }}</span>
+            <strong>{{ formatMoney(selectedOrder.orderClientPrice) }}</strong>
+          </div>
+          <div class="summary-chip">
+            <span>{{ t.driverPrice }}</span>
+            <strong>{{ formatMoney(selectedOrder.orderDriverPrice) }}</strong>
+          </div>
+          <div class="summary-chip">
+            <span>{{ t.updatedAt }}</span>
+            <strong>{{ formatDateTime(selectedOrder.orderUpdatedAt) }}</strong>
+          </div>
         </div>
 
         <div v-if="orderCardDetailError" class="hint hint--error">{{ orderCardDetailError }}</div>
 
-        <div v-if="selectedOrder.flightNumber || selectedOrder.flightCheck" class="status-history">
+        <details class="detail-panel" open>
+          <summary>Основное</summary>
+          <div class="meta-grid">
+            <div><strong>ID:</strong> {{ selectedOrder.id || '-' }}</div>
+            <div><strong>{{ t.orderNumber }}:</strong> {{ selectedOrder.orderNumber || '-' }}</div>
+            <div><strong>{{ t.internalOrderNumber }}:</strong> {{ selectedOrder.internalOrderNumber || '-' }}</div>
+            <div><strong>{{ t.contractor }}:</strong> {{ selectedOrder.contractor || '-' }}</div>
+            <div><strong>{{ t.sum }}:</strong> {{ selectedOrder.sum || '-' }}</div>
+            <div><strong>{{ t.status }}:</strong> {{ statusLabel(selectedOrder.status) }}</div>
+          </div>
+        </details>
+
+        <details v-if="selectedOrder.qualityChecks && selectedOrder.qualityChecks.length" class="detail-panel" :open="Boolean(selectedOrder.needsInfo)">
+          <summary>{{ t.qualityChecksTitle }}</summary>
+          <div class="checks-list">
+            <div v-for="check in selectedOrder.qualityChecks" :key="`${check.key}-${check.message}`" class="check-row">
+              <span class="pill" :class="`pill--${check.level || 'ok'}`">{{ check.level || 'ok' }}</span>
+              <span>{{ check.message }}</span>
+            </div>
+          </div>
+        </details>
+
+        <details v-if="selectedOrder.flightNumber || selectedOrder.flightCheck" class="detail-panel">
+          <summary>{{ t.flightCheckTitle }}</summary>
           <div class="section-head">
-            <h4>{{ t.flightCheckTitle }}</h4>
+            <div class="hint">{{ selectedOrder.flightNumber || '-' }}</div>
             <button
               v-if="selectedOrder.flightNumber"
               class="btn btn--ghost btn--sm"
@@ -223,11 +281,12 @@
           <div v-if="selectedOrder.flightCheck && selectedOrder.flightCheck.error" class="hint hint--error">
             {{ selectedOrder.flightCheck.error }}
           </div>
-        </div>
+        </details>
 
-        <div v-if="selectedOrder.addressVerification" class="status-history">
+        <details v-if="selectedOrder.addressVerification" class="detail-panel">
+          <summary>{{ t.addressCheckTitle }}</summary>
           <div class="section-head">
-            <h4>{{ t.addressCheckTitle }}</h4>
+            <div class="hint">{{ routeLabel(selectedOrder) }}</div>
             <button
               class="btn btn--ghost btn--sm"
               type="button"
@@ -245,24 +304,10 @@
             <div><strong>{{ t.fromCoordsLabel }}:</strong> {{ addressCoordsValue(selectedOrder.addressVerification, 'fromPoint') }}</div>
             <div><strong>{{ t.toCoordsLabel }}:</strong> {{ addressCoordsValue(selectedOrder.addressVerification, 'toPoint') }}</div>
           </div>
-        </div>
+        </details>
 
-        <div v-if="selectedOrder.qualityChecks && selectedOrder.qualityChecks.length" class="status-history">
-          <h4>{{ t.qualityChecksTitle }}</h4>
-          <div class="checks-list">
-            <div v-for="check in selectedOrder.qualityChecks" :key="`${check.key}-${check.message}`" class="check-row">
-              <span class="pill" :class="`pill--${check.level || 'ok'}`">{{ check.level || 'ok' }}</span>
-              <span>{{ check.message }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn btn--primary" type="button" @click="openRawFromCard">{{ t.findInDetails }}</button>
-        </div>
-
-        <div class="status-change">
-          <h4>{{ t.changeStatus }}</h4>
+        <details class="detail-panel" open>
+          <summary>{{ t.changeStatus }}</summary>
           <div class="status-change-row">
             <select v-model="selectedToStatus" class="input status-select">
               <option value="">{{ t.selectStatus }}</option>
@@ -275,10 +320,10 @@
           </div>
           <div v-if="transitionsError" class="hint hint--error">{{ transitionsError }}</div>
           <div v-else-if="!availableStatuses.length" class="hint">{{ t.noAllowedTransitions }}</div>
-        </div>
+        </details>
 
-        <div class="status-history">
-          <h4>{{ t.statusHistory }}</h4>
+        <details class="detail-panel">
+          <summary>{{ t.statusHistory }}</summary>
           <div v-if="historyLoading" class="hint">{{ t.loadingHistory }}</div>
           <div v-else-if="historyError" class="hint hint--error">{{ historyError }}</div>
           <div v-else-if="!statusHistory.length" class="hint">{{ t.noHistory }}</div>
@@ -297,7 +342,7 @@
               <div v-if="h.reason" class="history-reason">{{ h.reason }}</div>
             </div>
           </div>
-        </div>
+        </details>
       </div>
     </div>
     <div v-if="infoModal.open" class="modal-backdrop" @click.self="closeInfoModal">
@@ -1132,6 +1177,11 @@ export default {
         ? (this.$store.state.language === 'ru' ? 'Назначен в таблице' : 'Assigned in sheet')
         : (this.$store.state.language === 'ru' ? 'Ждёт распределения' : 'Awaiting dispatch')
     },
+    orderFocusHint (row) {
+      if (row?.needsInfo) return this.$store.state.language === 'ru' ? 'Сначала уточните данные, потом двигайте заказ дальше.' : 'Clarify missing data before moving the order forward.'
+      if (!String(row?.driver || '').trim()) return this.$store.state.language === 'ru' ? 'Сначала назначьте водителя или откройте чат с задачей.' : 'Assign a driver or open the task in chats first.'
+      return this.$store.state.language === 'ru' ? 'Заказ готов к следующему действию по клиенту.' : 'This order is ready for the next client-facing step.'
+    },
     primaryActionLabel (row) {
       if (row?.needsInfo) return this.sendToChatSavingByOrder[row.id] ? this.t.sendingToChat : this.t.sendToChat
       if (!String(row?.driver || '').trim()) return this.sendToChatSavingByOrder[row.id] ? this.t.sendingToChat : this.t.sendToChat
@@ -1789,7 +1839,6 @@ export default {
   gap: 8px 16px;
   color: #334155;
 }
-.modal-actions { margin: 14px 0; }
 .status-change { margin: 8px 0 16px; }
 .status-change h4 { margin: 6px 0 10px; color: #17233d; }
 .status-change-row {
@@ -1799,6 +1848,102 @@ export default {
 }
 .status-select { min-width: 180px; }
 .status-history h4 { margin: 6px 0 10px; color: #17233d; }
+.order-focus-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #dbe5f3;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+.order-focus-card__eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+.order-focus-card__title {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #17233d;
+}
+.order-focus-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+.order-focus-card__summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+.order-focus-card__summary strong {
+  color: #17233d;
+  font-size: 15px;
+}
+.order-focus-card__summary span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.order-focus-card__actions {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 190px;
+}
+.order-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.summary-chip {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fbfcff;
+}
+.summary-chip span {
+  font-size: 12px;
+  color: #64748b;
+}
+.summary-chip strong {
+  color: #17233d;
+}
+.detail-panel {
+  margin: 12px 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.detail-panel summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 14px 16px;
+  font-weight: 800;
+  color: #17233d;
+  background: #f8fafc;
+}
+.detail-panel summary::-webkit-details-marker {
+  display: none;
+}
+.detail-panel[open] summary {
+  border-bottom: 1px solid #e2e8f0;
+}
+.detail-panel > :not(summary) {
+  padding: 14px 16px 16px;
+}
 .section-head {
   display: flex;
   align-items: center;
@@ -1927,6 +2072,8 @@ export default {
   }
   .meta-grid { grid-template-columns: 1fr; }
   .status-change-row { grid-template-columns: 1fr; }
+  .order-focus-card,
+  .order-summary-grid { grid-template-columns: 1fr; }
   .main-grid {
     min-width: 1180px;
   }
