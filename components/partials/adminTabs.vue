@@ -169,12 +169,19 @@ export default {
   display: grid;
   gap: 14px;
   margin-bottom: 22px;
+  position: sticky;
+  top: 92px;
+  z-index: 70;
+  padding: 14px 0 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.94) 78%, rgba(255,255,255,0) 100%);
+  backdrop-filter: blur(12px);
 }
 
 .admin-sections {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  align-items: stretch;
 }
 
 .admin-section-pill {
@@ -187,6 +194,8 @@ export default {
   background: #f8fbff;
   color: #223356;
   cursor: pointer;
+  min-height: 92px;
+  align-content: center;
 }
 
 .admin-section-pill__label {
@@ -234,6 +243,7 @@ export default {
   font-weight: 700;
   min-height: 68px;
   align-content: center;
+  box-sizing: border-box;
 }
 
 .admin-subtab small {
@@ -259,6 +269,10 @@ export default {
 }
 
 @media (max-width: 980px) {
+  .admin-nav-shell {
+    top: 88px;
+  }
+
   .admin-sections {
     grid-template-columns: 1fr 1fr;
   }
@@ -273,6 +287,14 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .admin-nav-shell {
+    position: relative;
+    top: 0;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
   .admin-sections {
     grid-template-columns: 1fr;
   }
@@ -292,6 +314,7 @@ export default {
   .admin-subtab {
     min-width: unset;
     flex: 0 0 180px;
+    min-height: 62px;
   }
 }
 </style>
