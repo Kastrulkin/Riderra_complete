@@ -1,12 +1,16 @@
 <template>
   <div>
     <navigation></navigation>
+    <div class="page-background">
+      <div class="page-background__gradient"></div>
+      <div class="page-background__overlay"></div>
+    </div>
     <section class="site-section site-section--pf chat-section">
       <div class="container">
         <div class="page-head">
           <div>
             <h1 class="h2">{{ t.title }}</h1>
-            <p class="hint">{{ t.subtitle }}</p>
+            <p class="page-subtitle">{{ t.subtitle }}</p>
           </div>
           <div class="page-actions">
             <button class="btn btn--ghost" @click="startNewAgent">{{ t.newAgent }}</button>
@@ -415,6 +419,22 @@ export default {
 </script>
 
 <style scoped>
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.page-subtitle {
+  margin: 6px 0 0;
+  max-width: 760px;
+  color: #60708f;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
 .layout-grid {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
@@ -553,6 +573,7 @@ export default {
 .empty, .hint { color: #64748b; }
 
 @media (max-width: 980px) {
+  .page-head, .page-actions { flex-direction: column; align-items: stretch; }
   .layout-grid, .agent-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -1,12 +1,16 @@
 <template>
   <div>
     <navigation></navigation>
+    <div class="page-background">
+      <div class="page-background__gradient"></div>
+      <div class="page-background__overlay"></div>
+    </div>
     <section class="site-section site-section--pf ai-section">
       <div class="container">
         <div class="page-head">
           <div>
             <h1 class="h2">AI Inbox</h1>
-            <p class="hint">Черновики для проверки перед созданием заказа. Сначала видно, что мешает и какой следующий шаг нужен.</p>
+            <p class="page-subtitle">Черновики для проверки перед созданием заказа. Сначала видно, что мешает, чего не хватает и какой следующий шаг нужен.</p>
           </div>
           <button class="btn btn--primary" @click="load">Обновить</button>
         </div>
@@ -462,6 +466,7 @@ export default {
 <style scoped>
 .ai-section { padding-top: 140px; padding-bottom: 40px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.page-subtitle { margin: 6px 0 0; max-width: 760px; color: #60708f; font-size: 15px; line-height: 1.55; }
 .ops-rail { display: flex; justify-content: space-between; align-items: center; gap: 14px; border: 1px solid #ead7f0; background: #fcf7fd; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
 .overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .overview-card { background: #fff; border: 1px solid #d8d8e6; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }

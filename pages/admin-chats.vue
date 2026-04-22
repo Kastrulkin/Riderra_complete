@@ -1,12 +1,16 @@
 <template>
   <div>
     <navigation></navigation>
+    <div class="page-background">
+      <div class="page-background__gradient"></div>
+      <div class="page-background__overlay"></div>
+    </div>
     <section class="site-section site-section--pf chat-section">
       <div class="container">
         <div class="page-head">
           <div>
             <h1 class="h2">Чаты</h1>
-            <p class="hint">Очередь по уточнениям и отправке клиенту.</p>
+            <p class="page-subtitle">Очередь по уточнениям и отправке клиенту: что требует ответа, что просрочено и какой следующий шаг нужен прямо сейчас.</p>
           </div>
           <div class="page-actions">
             <button class="btn btn--ghost" @click="syncFromOrders">Синхронизировать из заказов</button>
@@ -1259,6 +1263,7 @@ export default {
 <style scoped>
 .chat-section { padding-top: 140px; padding-bottom: 40px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+.page-subtitle { margin: 6px 0 0; max-width: 760px; color: #60708f; font-size: 15px; line-height: 1.55; }
 .page-actions { display: flex; gap: 8px; }
 .filters { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; align-items: center; }
 .quick-filter {
