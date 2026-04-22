@@ -14,6 +14,14 @@
       </button>
     </div>
 
+    <div class="admin-section-intro">
+      <div>
+        <p class="admin-section-intro__eyebrow">{{ activeSectionContext.kicker }}</p>
+        <h2 class="admin-section-intro__title">{{ activeSectionContext.label }}</h2>
+        <p class="admin-section-intro__description">{{ activeSectionContext.description }}</p>
+      </div>
+    </div>
+
     <div class="admin-subtabs-shell">
       <div class="admin-subtabs">
         <template v-for="tab in paddedActiveTabs">
@@ -53,6 +61,8 @@ export default {
           key: 'operations',
           label: 'Операции',
           hint: 'Заказы, очередь, AI',
+          kicker: 'Рабочий контур',
+          description: 'Здесь команда ведёт ежедневную операционную работу: следит за заказами, очередью, AI-черновиками и тем, что требует реакции прямо сейчас.',
           defaultTo: '/admin',
           tabs: [
             { to: '/admin', label: 'Обзор', hint: 'Сегодня и риски' },
@@ -65,6 +75,8 @@ export default {
           key: 'network',
           label: 'Сеть',
           hint: 'Водители, клиенты, покрытие',
+          kicker: 'Контур покрытия',
+          description: 'Здесь видно, с кем мы работаем: водители, клиенты и география. Этот раздел помогает понять, где есть покрытие, а где сеть нужно усиливать.',
           defaultTo: '/admin-drivers',
           tabs: [
             { to: '/admin-drivers', label: 'Водители', hint: 'Люди и машины' },
@@ -76,6 +88,8 @@ export default {
           key: 'economics',
           label: 'Экономика',
           hint: 'Цены и маржа',
+          kicker: 'Контур экономики',
+          description: 'Здесь команда держит под контролем базовый прайс, специальные договорённости, водительские ставки и риски для маржи.',
           defaultTo: '/admin-pricing',
           tabs: [
             { to: '/admin-pricing', label: 'Прайс', hint: 'Продажные цены' }
@@ -85,6 +99,8 @@ export default {
           key: 'admin',
           label: 'Администрирование',
           hint: 'Доступы и конфигурация',
+          kicker: 'Системный контур',
+          description: 'Здесь живут доступы, агенты, VPN и внутренняя конфигурация. Это редкие, но важные административные действия.',
           defaultTo: '/admin-settings',
           tabs: [
             { to: '/admin-settings', label: 'Настройки', hint: 'Источники и люди' },
@@ -98,6 +114,8 @@ export default {
           key: 'operations',
           label: 'Operations',
           hint: 'Orders, queue, AI',
+          kicker: 'Working lane',
+          description: 'This is where the team runs day-to-day operations: orders, queue management, AI drafts, and the items that need action right now.',
           defaultTo: '/admin',
           tabs: [
             { to: '/admin', label: 'Overview', hint: 'Today and risks' },
@@ -110,6 +128,8 @@ export default {
           key: 'network',
           label: 'Network',
           hint: 'Drivers, clients, coverage',
+          kicker: 'Coverage lane',
+          description: 'This is where the team sees who we work with: drivers, clients, and geography. It helps spot where coverage is strong and where the network needs attention.',
           defaultTo: '/admin-drivers',
           tabs: [
             { to: '/admin-drivers', label: 'Drivers', hint: 'People and vehicles' },
@@ -121,6 +141,8 @@ export default {
           key: 'economics',
           label: 'Economics',
           hint: 'Pricing and margin',
+          kicker: 'Economics lane',
+          description: 'This is where the team controls the base price book, special agreements, driver rates, and margin risk across the network.',
           defaultTo: '/admin-pricing',
           tabs: [
             { to: '/admin-pricing', label: 'Pricing', hint: 'Sales prices' }
@@ -130,6 +152,8 @@ export default {
           key: 'admin',
           label: 'Admin',
           hint: 'Access and configuration',
+          kicker: 'System lane',
+          description: 'This is where access, agents, VPN, and internal configuration live. These are less frequent but important administrative actions.',
           defaultTo: '/admin-settings',
           tabs: [
             { to: '/admin-settings', label: 'Settings', hint: 'Sources and staff' },
@@ -147,6 +171,9 @@ export default {
     },
     activeTabs () {
       return this.sections.find((section) => section.key === this.activeSectionKey)?.tabs || []
+    },
+    activeSectionContext () {
+      return this.sections.find((section) => section.key === this.activeSectionKey) || this.sections[0]
     },
     paddedActiveTabs () {
       const tabs = [...this.activeTabs]
@@ -244,6 +271,38 @@ export default {
   gap: 10px;
 }
 
+.admin-section-intro {
+  border: 1px solid #ead7f0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 240, 247, 0.92) 0%, rgba(248, 244, 255, 0.96) 100%);
+  padding: 18px 20px;
+  box-shadow: 0 16px 30px rgba(112, 34, 131, 0.08);
+}
+
+.admin-section-intro__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #702283;
+}
+
+.admin-section-intro__title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+  color: #17233d;
+}
+
+.admin-section-intro__description {
+  margin: 10px 0 0;
+  max-width: 880px;
+  color: #5d6c88;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
 .admin-subtabs-shell {
   min-height: 68px;
   transition: min-height 180ms ease;
@@ -306,6 +365,14 @@ export default {
   min-height: 62px;
 }
 
+.admin-nav-shell--condensed .admin-section-intro {
+  padding: 14px 18px;
+}
+
+.admin-nav-shell--condensed .admin-section-intro__title {
+  font-size: 24px;
+}
+
 .admin-nav-shell--condensed .admin-subtab {
   min-height: 62px;
   padding: 9px 12px;
@@ -327,6 +394,10 @@ export default {
 
   .admin-subtabs-shell {
     min-height: 146px;
+  }
+
+  .admin-section-intro__title {
+    font-size: 24px;
   }
 
   .admin-nav-shell--condensed {
@@ -353,6 +424,18 @@ export default {
 
   .admin-subtabs-shell {
     min-height: unset;
+  }
+
+  .admin-section-intro {
+    padding: 14px 16px;
+  }
+
+  .admin-section-intro__title {
+    font-size: 22px;
+  }
+
+  .admin-section-intro__description {
+    font-size: 14px;
   }
 
   .admin-subtabs {
