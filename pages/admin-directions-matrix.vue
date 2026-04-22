@@ -501,7 +501,7 @@ export default {
   padding: 14px 16px;
   border-radius: 16px;
   border: 1px solid #d8e0ef;
-  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+  background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%);
   box-shadow: 0 12px 28px rgba(16, 30, 67, 0.06);
 }
 
@@ -558,10 +558,10 @@ export default {
 }
 
 .view-pill--active {
-  background: linear-gradient(135deg, #15316d 0%, #2b6eff 100%);
+  background: linear-gradient(135deg, #ff017a 0%, #702283 100%);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 18px 34px rgba(22, 51, 109, 0.18);
+  box-shadow: 0 18px 34px rgba(112, 34, 131, 0.24);
 }
 
 .view-pill--active .view-pill__count {
@@ -669,8 +669,8 @@ export default {
 
 .entity-pill {
   border: 1px solid #d2d9eb;
-  background: #f8fbff;
-  color: #2a3f66;
+  background: #fcf7fd;
+  color: #5f216f;
   border-radius: 999px;
   padding: 5px 10px;
   font-size: 12px;
@@ -777,12 +777,12 @@ export default {
   padding: 12px 18px;
   cursor: pointer;
   font-weight: 700;
-  background: #eef2ff;
-  color: #1f3b70;
+  background: #fbf2ff;
+  color: #702283;
 }
 
 .btn--primary {
-  background: #1f4fff;
+  background: linear-gradient(135deg, #1a237e 0%, #0d1421 100%);
   color: #fff;
 }
 

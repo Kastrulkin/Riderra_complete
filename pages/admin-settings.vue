@@ -538,7 +538,7 @@ export default {
 .section-switch { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
 .section-pill { display:grid; gap:4px; text-align:left; padding:12px 14px; border-radius:16px; border:1px solid #d6deee; background:#fff; color:#223356; }
 .section-pill small { color:#6b7280; font-size:12px; }
-.section-pill--active { background:linear-gradient(135deg,#15316d 0%,#2b6eff 100%); border-color:transparent; color:#fff; box-shadow:0 18px 34px rgba(22,51,109,.18); }
+.section-pill--active { background:linear-gradient(135deg,#ff017a 0%,#702283 100%); border-color:transparent; color:#fff; box-shadow:0 18px 34px rgba(112,34,131,.24); }
 .section-pill--active small { color:rgba(255,255,255,.78); }
 .settings-card { background:#fff; border:1px solid #d8d8e6; border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 8px 20px rgba(16,24,40,.06); }
 .card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:12px; }
@@ -551,7 +551,7 @@ export default {
 .inline-actions { display:flex; gap:10px; margin-bottom:14px; }
 .input { width:100%; min-height:44px; padding:10px 12px; border-radius:10px; border:1px solid #c8ccdc; background:#fff; color:#1f2b46; }
 .input::placeholder { color:#7a8197; }
-.input:focus { outline:none; border-color:#2f80ed; box-shadow:0 0 0 3px rgba(47,128,237,.15); }
+.input:focus { outline:none; border-color:#702283; box-shadow:0 0 0 3px rgba(112,34,131,.14); }
 .ops-table { overflow-x:auto; border:1px solid #e6ebf5; border-radius:12px; }
 .ops-table__head, .ops-table__row { gap:12px; padding:10px 12px; min-width:980px; align-items:center; }
 .ops-table__head { font-weight:700; border-bottom:1px solid #e4e7f0; color:#1d2c4a; }

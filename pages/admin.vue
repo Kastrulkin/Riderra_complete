@@ -371,7 +371,10 @@ export default {
 .page-background__gradient {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 35%), radial-gradient(circle at top right, rgba(21, 49, 109, 0.14), transparent 40%);
+  background:
+    radial-gradient(circle at top left, rgba(255, 1, 122, 0.16), transparent 34%),
+    radial-gradient(circle at top right, rgba(112, 34, 131, 0.14), transparent 38%),
+    radial-gradient(circle at 50% 0%, rgba(26, 35, 126, 0.08), transparent 42%);
 }
 
 .hero-card,
@@ -396,7 +399,7 @@ export default {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #2f68ff;
+  color: #702283;
 }
 
 .hero-copy,
@@ -449,9 +452,10 @@ export default {
 }
 
 .stat-card--accent {
-  background: linear-gradient(135deg, #15316d 0%, #2b6eff 100%);
+  background: linear-gradient(135deg, #1a237e 0%, #0d1421 52%, #000000 100%);
   color: #fff;
   border-color: transparent;
+  box-shadow: 0 20px 40px rgba(13, 20, 33, 0.2);
 }
 
 .stat-card__label {
@@ -524,8 +528,8 @@ export default {
   height: 36px;
   padding: 0 12px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #31456a;
+  background: #fbf2ff;
+  color: #702283;
   font-weight: 800;
 }
 
@@ -557,8 +561,8 @@ export default {
   padding: 12px 18px;
   cursor: pointer;
   font-weight: 700;
-  background: #eef2ff;
-  color: #1f3b70;
+  background: #fbf2ff;
+  color: #702283;
 }
 
 @media (max-width: 1200px) {

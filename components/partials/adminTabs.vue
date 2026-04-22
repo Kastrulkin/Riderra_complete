@@ -182,10 +182,10 @@ export default {
 }
 
 .admin-section-pill--active {
-  background: linear-gradient(135deg, #15316d 0%, #2b6eff 100%);
+  background: linear-gradient(135deg, #ff017a 0%, #702283 100%);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 18px 34px rgba(22, 51, 109, 0.18);
+  box-shadow: 0 18px 34px rgba(112, 34, 131, 0.24);
 }
 
 .admin-section-pill--active .admin-section-pill__hint {
@@ -219,9 +219,10 @@ export default {
 }
 
 .admin-subtab--active {
-  background: #0ea5e9;
-  border-color: #0ea5e9;
+  background: linear-gradient(135deg, #1a237e 0%, #0d1421 100%);
+  border-color: transparent;
   color: #fff;
+  box-shadow: 0 12px 28px rgba(13, 20, 33, 0.2);
 }
 
 .admin-subtab--active small {

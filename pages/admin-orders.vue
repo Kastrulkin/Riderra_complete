@@ -1607,9 +1607,10 @@ export default {
   font-weight: 600;
 }
 .subtab--active {
-  background: #0ea5e9;
-  border-color: #0ea5e9;
+  background: linear-gradient(135deg, #1a237e 0%, #0d1421 100%);
+  border-color: transparent;
   color: #fff;
+  box-shadow: 0 12px 28px rgba(13, 20, 33, 0.2);
 }
 .view-strip {
   display: flex;
@@ -1634,15 +1635,15 @@ export default {
   justify-content: center;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #324473;
+  background: #f8eafb;
+  color: #702283;
   font-size: 12px;
 }
 .view-pill--active {
-  background: linear-gradient(135deg, #15316d 0%, #2b6eff 100%);
+  background: linear-gradient(135deg, #ff017a 0%, #702283 100%);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 14px 30px rgba(22, 51, 109, 0.18);
+  box-shadow: 0 14px 30px rgba(112, 34, 131, 0.22);
 }
 .view-pill--active .view-pill__count {
   background: rgba(255, 255, 255, 0.18);
@@ -1673,8 +1674,8 @@ export default {
   align-items: center;
   padding: 6px 10px;
   border-radius: 999px;
-  background: #edf4ff;
-  color: #223356;
+  background: #f8eafb;
+  color: #5f216f;
   font-weight: 700;
 }
 .input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #c8ccdc; background: #fff; color: #1f2b46; }
@@ -1742,9 +1743,9 @@ export default {
   font-weight: 600;
 }
 .card-link--primary {
-  border-color: #0ea5e9;
-  background: #e0f2fe;
-  color: #0c4a6e;
+  border-color: rgba(112, 34, 131, 0.22);
+  background: #fbf2ff;
+  color: #702283;
 }
 .card-link--success {
   border-color: #16a34a;
@@ -1761,8 +1762,8 @@ export default {
   border: 1px solid transparent;
   white-space: nowrap;
 }
-.status-pill--neutral { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
-.status-pill--info { background: #e0f2fe; color: #0c4a6e; border-color: #bae6fd; }
+.status-pill--neutral { background: #fbf2ff; color: #702283; border-color: #ead7f0; }
+.status-pill--info { background: #f3e8ff; color: #6b21a8; border-color: #e9d5ff; }
 .status-pill--warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
 .status-pill--critical { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .status-pill--ok { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
@@ -1854,16 +1855,16 @@ export default {
   gap: 18px;
   margin-bottom: 16px;
   padding: 16px;
-  border: 1px solid #dbe5f3;
+  border: 1px solid #ead7f0;
   border-radius: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #fcf7fd 100%);
 }
 .order-focus-card__eyebrow {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
-  color: #2563eb;
+  color: #702283;
 }
 .order-focus-card__title {
   margin-top: 4px;
@@ -1900,7 +1901,7 @@ export default {
   min-width: 190px;
 }
 .order-focus-card__actions .btn--primary {
-  box-shadow: 0 10px 24px rgba(21, 49, 109, .14);
+  box-shadow: 0 10px 24px rgba(112, 34, 131, .18);
 }
 .order-summary-grid {
   display: grid;
