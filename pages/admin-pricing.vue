@@ -607,12 +607,12 @@ export default {
   justify-content: space-between;
   align-items: flex-start;
   gap: 18px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .page-subtitle {
   margin: 6px 0 0;
-  max-width: 860px;
+  max-width: 760px;
   color: #60708f;
   font-size: 15px;
   line-height: 1.55;
@@ -632,7 +632,7 @@ export default {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  margin: 18px 0;
+  margin: 16px 0;
 }
 
 .overview-card {

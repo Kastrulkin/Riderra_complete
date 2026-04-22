@@ -1548,11 +1548,11 @@ export default {
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 .page-subtitle {
   margin: 6px 0 0;
-  max-width: 820px;
+  max-width: 760px;
   color: #60708f;
   font-size: 15px;
   line-height: 1.55;
@@ -1566,7 +1566,7 @@ export default {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 .overview-card {
   padding: 14px 16px;

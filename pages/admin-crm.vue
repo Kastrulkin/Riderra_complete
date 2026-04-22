@@ -604,10 +604,10 @@ export default {
 
 <style scoped lang="scss">
 .crm-section { padding-top: 140px; padding-bottom: 40px; color:#17233d; }
-.crm-header { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:16px; }
-.crm-subtitle { margin:6px 0 0; max-width:820px; color:#64748b; line-height:1.55; }
+.crm-header { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:14px; }
+.crm-subtitle { margin:6px 0 0; max-width:760px; color:#64748b; line-height:1.55; font-size:15px; }
 .crm-actions { display:flex; gap:10px; flex-wrap:wrap; }
-.overview-strip { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+.overview-strip { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
 .overview-card { padding:14px 16px; border-radius:16px; border:1px solid #d8e0ef; background:linear-gradient(180deg,#fff 0%,#f8fbff 100%); box-shadow:0 12px 28px rgba(16,30,67,.06); }
 .overview-card__value { font-size:28px; font-weight:800; color:#17233d; }
 .overview-card__label { margin-top:4px; font-size:14px; font-weight:700; color:#223356; }
