@@ -14,17 +14,27 @@
       </button>
     </div>
 
-    <div class="admin-subtabs">
-      <nuxt-link
-        v-for="tab in activeTabs"
-        :key="tab.to"
-        :to="tab.to"
-        class="admin-subtab"
-        active-class="admin-subtab--active"
-      >
-        <span>{{ tab.label }}</span>
-        <small v-if="tab.hint">{{ tab.hint }}</small>
-      </nuxt-link>
+    <div class="admin-subtabs-shell">
+      <div class="admin-subtabs">
+        <template v-for="tab in paddedActiveTabs">
+          <nuxt-link
+            v-if="!tab.placeholder"
+            :key="tab.to"
+            :to="tab.to"
+            class="admin-subtab"
+            active-class="admin-subtab--active"
+          >
+            <span>{{ tab.label }}</span>
+            <small v-if="tab.hint">{{ tab.hint }}</small>
+          </nuxt-link>
+          <div
+            v-else
+            :key="tab.key"
+            class="admin-subtab admin-subtab--placeholder"
+            aria-hidden="true"
+          ></div>
+        </template>
+      </div>
     </div>
   </div>
 </template>
@@ -134,6 +144,14 @@ export default {
     },
     activeTabs () {
       return this.sections.find((section) => section.key === this.activeSectionKey)?.tabs || []
+    },
+    paddedActiveTabs () {
+      const tabs = [...this.activeTabs]
+      const padTo = Math.max(...this.sections.map((section) => section.tabs.length))
+      while (tabs.length < padTo) {
+        tabs.push({ placeholder: true, key: `placeholder-${tabs.length}` })
+      }
+      return tabs
     }
   },
   methods: {
@@ -193,9 +211,13 @@ export default {
 }
 
 .admin-subtabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  flex-wrap: wrap;
+}
+
+.admin-subtabs-shell {
+  min-height: 68px;
 }
 
 .admin-subtab {
@@ -210,6 +232,8 @@ export default {
   text-decoration: none;
   font-size: 14px;
   font-weight: 700;
+  min-height: 68px;
+  align-content: center;
 }
 
 .admin-subtab small {
@@ -229,9 +253,22 @@ export default {
   color: rgba(255, 255, 255, 0.82);
 }
 
+.admin-subtab--placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @media (max-width: 980px) {
   .admin-sections {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-subtabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-subtabs-shell {
+    min-height: 146px;
   }
 }
 
@@ -240,7 +277,12 @@ export default {
     grid-template-columns: 1fr;
   }
 
+  .admin-subtabs-shell {
+    min-height: unset;
+  }
+
   .admin-subtabs {
+    display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 4px;
