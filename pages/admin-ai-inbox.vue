@@ -149,7 +149,7 @@
           </div>
         </details>
 
-        <details class="section-card" v-if="flightCheck" open>
+        <details class="section-card" v-if="flightCheck">
           <summary class="section-summary">Проверка рейса</summary>
           <div class="meta-grid">
             <div><strong>Провайдер:</strong> {{ flightCheck.provider || '-' }}</div>
@@ -170,7 +170,7 @@
           <div v-if="flightCheckError" class="hint hint--error">{{ flightCheckError }}</div>
         </details>
 
-        <details class="section-card" open>
+        <details class="section-card">
           <summary class="section-summary">Проверка цены</summary>
           <div class="meta-grid">
             <div><strong>Источник цены:</strong> {{ pricing.pricingSource || 'не найдено' }}</div>
@@ -180,7 +180,7 @@
           </div>
         </details>
 
-        <details class="section-card" v-if="qualityChecks.length" open>
+        <details class="section-card" v-if="qualityChecks.length" :open="Boolean(payload.infoReason || missingFields.length)">
           <summary class="section-summary">Проверка полей</summary>
           <div class="checks-list">
             <div v-for="check in qualityChecks" :key="`${check.key}-${check.message}`" class="check-row">
@@ -211,7 +211,7 @@
           </div>
         </details>
 
-        <details class="section-card" v-if="missingFields.length || proposedActions.length">
+        <details class="section-card" v-if="missingFields.length || proposedActions.length" :open="Boolean(missingFields.length)">
           <summary class="section-summary">Проверить перед подтверждением</summary>
           <div v-if="missingFields.length" class="pill-list">
             <span v-for="item in missingFields" :key="item" class="pill pill--warn">{{ item }}</span>
@@ -489,12 +489,15 @@ export default {
 .focus-card__head h4 { margin: 0 0 4px; }
 .focus-card__summary { margin: 0; color: #0f172a; line-height: 1.5; }
 .focus-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.focus-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.focus-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.focus-actions .btn--primary { box-shadow: 0 10px 24px rgba(21, 49, 109, .14); }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
 .section-card { margin-top: 14px; border: 1px solid #e5e7ef; border-radius: 12px; padding: 14px; }
 .section-card[open] { background: #fff; }
-.section-summary { cursor: pointer; font-weight: 700; list-style: none; margin: -14px; padding: 14px; }
+.section-summary { cursor: pointer; font-weight: 800; list-style: none; margin: -14px; padding: 14px; color: #17233d; background: #f8fafc; }
 .section-summary::-webkit-details-marker { display: none; }
+.section-card[open] .section-summary { border-bottom: 1px solid #e5e7ef; }
+.section-card > :not(summary) { padding-top: 14px; }
 .section-card h4 { margin: 0 0 10px; }
 .note-block pre, .section-card pre { white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; font-family: inherit; }
 .pill-list { display: flex; flex-wrap: wrap; gap: 8px; }

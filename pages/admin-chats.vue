@@ -204,8 +204,8 @@
               </div>
             </div>
 
-            <details class="actions-block" open>
-              <summary class="actions-summary">Ответ клиента</summary>
+            <details class="actions-block" :open="selectedTask && selectedTask.state === 'customer_replied'">
+              <summary class="section-summary">Ответ клиента</summary>
               <textarea v-model="inboundText" class="input textarea" placeholder="Вставьте входящее сообщение клиента"></textarea>
               <button class="btn btn--ghost" :disabled="inboundProcessing || !inboundText.trim()" @click="processInboundMessage">
                 {{ inboundProcessing ? 'Обрабатываю...' : 'Разобрать ответ' }}
@@ -213,7 +213,7 @@
             </details>
 
             <details class="actions-block" :open="Boolean(inboundOutcome)">
-              <summary class="actions-summary">Результат AI разбора</summary>
+              <summary class="section-summary">Результат AI разбора</summary>
               <div v-if="inboundOutcome" class="trace-wrap">
                 <div class="trace-row"><strong>Класс ответа:</strong> {{ inboundOutcome.classLabel }}</div>
                 <div class="trace-row"><strong>Уверенность:</strong> {{ inboundOutcome.confidenceLabel }}</div>
@@ -226,7 +226,7 @@
             </details>
 
             <details class="actions-block">
-              <summary class="actions-summary">Смена статуса</summary>
+              <summary class="section-summary">Смена статуса</summary>
               <select v-model="nextState" class="input">
                 <option value="">Выберите статус</option>
                 <option v-for="s in transitionTargets" :key="s" :value="s">{{ stateLabel(s) }}</option>
@@ -235,7 +235,7 @@
             </details>
 
             <details class="actions-block">
-              <summary class="actions-summary">Агент задачи</summary>
+              <summary class="section-summary">Агент задачи</summary>
               <select v-model="selectedTaskAgentId" class="input">
                 <option value="">Без агента</option>
                 <option v-for="agent in agents" :key="agent.id" :value="agent.id">
@@ -248,7 +248,7 @@
             </details>
 
             <details class="actions-block">
-              <summary class="actions-summary">Трейс шага</summary>
+              <summary class="section-summary">Трейс шага</summary>
               <div v-if="lastStepTrace" class="trace-wrap">
                 <div class="trace-row"><strong>Откуда:</strong> {{ stateLabel(lastStepTrace.fromState) }}</div>
                 <div class="trace-row"><strong>Кандидат:</strong> {{ stateLabel(lastStepTrace.candidateState) }}</div>
@@ -1318,11 +1318,14 @@ export default {
 .focus-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
 .focus-panel__head h4 { margin: 0 0 4px; }
 .focus-panel__meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.focus-panel__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.focus-panel__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.focus-panel__actions .btn--primary { box-shadow: 0 10px 24px rgba(21, 49, 109, .14); }
 .actions-block { border: 1px solid #e5eaf1; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
 .actions-block h4 { margin: 0 0 8px; }
-.actions-summary { cursor: pointer; font-weight: 700; list-style: none; margin: -10px; padding: 10px; }
-.actions-summary::-webkit-details-marker { display: none; }
+.section-summary { cursor: pointer; font-weight: 800; list-style: none; margin: -10px; padding: 10px; color: #17233d; background: #f8fafc; }
+.section-summary::-webkit-details-marker { display: none; }
+.actions-block[open] .section-summary { border-bottom: 1px solid #e5eaf1; }
+.actions-block > :not(summary) { padding-top: 10px; }
 .trace-wrap { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #1e293b; }
 .trace-row { line-height: 1.35; }
 .trace-row--caps { margin-top: 4px; }

@@ -150,7 +150,7 @@
         </div>
 
         <details class="crm-detail-panel" open>
-          <summary>Основное</summary>
+          <summary class="section-summary">Основное</summary>
           <div v-if="detailsMode==='company'" class="card-grid">
             <input v-model="form.name" class="input" placeholder="Название" />
             <input v-model="form.website" class="input" placeholder="Сайт" />
@@ -186,8 +186,8 @@
         </details>
 
         <div class="detail-sections">
-          <details class="segments-block detail-card crm-detail-panel" open>
-            <summary>Сегменты</summary>
+          <details class="segments-block detail-card crm-detail-panel">
+            <summary class="section-summary">Сегменты</summary>
             <h4>Сегменты</h4>
             <div class="segments-grid">
               <label v-for="opt in segmentOptionsForDetails" :key="opt.value" class="segment-item">
@@ -203,7 +203,7 @@
           </details>
 
           <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel">
-            <summary>Связанные контакты</summary>
+            <summary class="section-summary">Связанные контакты</summary>
             <h4>Контакты компании</h4>
             <div v-if="!(details.links || []).length" class="hint">Пока нет связанных контактов</div>
             <div class="linked-row" v-for="link in details.links || []" :key="link.id">
@@ -214,7 +214,7 @@
           </details>
 
           <details v-else class="links-block detail-card crm-detail-panel">
-            <summary>Связанные компании</summary>
+            <summary class="section-summary">Связанные компании</summary>
             <h4>Компании контакта</h4>
             <div v-if="!(details.links || []).length" class="hint">Пока нет связанных компаний</div>
             <div class="linked-row" v-for="link in details.links || []" :key="link.id">
@@ -227,7 +227,7 @@
 
         <div class="actions">
           <button class="btn btn--primary" @click="saveDetails">Сохранить</button>
-          <button class="btn" @click="details=null">Закрыть</button>
+          <button class="btn btn--ghost" @click="details=null">Закрыть</button>
         </div>
       </div>
     </div>
@@ -674,6 +674,9 @@ export default {
   display:grid;
   gap:10px;
 }
+.actions .btn--primary {
+  box-shadow: 0 10px 24px rgba(21, 49, 109, .14);
+}
 .card-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0 16px; }
 .textarea { min-height:96px; resize:vertical; }
 .textarea--wide { grid-column:1 / -1; }
@@ -682,7 +685,8 @@ export default {
 .crm-detail-panel {
   overflow:hidden;
 }
-.crm-detail-panel summary {
+.crm-detail-panel summary,
+.section-summary {
   cursor:pointer;
   list-style:none;
   margin:-14px -14px 14px;
@@ -692,7 +696,8 @@ export default {
   background:#f8fafc;
   border-bottom:1px solid #e7ebf2;
 }
-.crm-detail-panel summary::-webkit-details-marker {
+.crm-detail-panel summary::-webkit-details-marker,
+.section-summary::-webkit-details-marker {
   display:none;
 }
 .segments-block { margin:0; }

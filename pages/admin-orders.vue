@@ -235,7 +235,7 @@
         <div v-if="orderCardDetailError" class="hint hint--error">{{ orderCardDetailError }}</div>
 
         <details class="detail-panel" open>
-          <summary>Основное</summary>
+          <summary class="section-summary">Основное</summary>
           <div class="meta-grid">
             <div><strong>ID:</strong> {{ selectedOrder.id || '-' }}</div>
             <div><strong>{{ t.orderNumber }}:</strong> {{ selectedOrder.orderNumber || '-' }}</div>
@@ -247,7 +247,7 @@
         </details>
 
         <details v-if="selectedOrder.qualityChecks && selectedOrder.qualityChecks.length" class="detail-panel" :open="Boolean(selectedOrder.needsInfo)">
-          <summary>{{ t.qualityChecksTitle }}</summary>
+          <summary class="section-summary">{{ t.qualityChecksTitle }}</summary>
           <div class="checks-list">
             <div v-for="check in selectedOrder.qualityChecks" :key="`${check.key}-${check.message}`" class="check-row">
               <span class="pill" :class="`pill--${check.level || 'ok'}`">{{ check.level || 'ok' }}</span>
@@ -257,7 +257,7 @@
         </details>
 
         <details v-if="selectedOrder.flightNumber || selectedOrder.flightCheck" class="detail-panel">
-          <summary>{{ t.flightCheckTitle }}</summary>
+          <summary class="section-summary">{{ t.flightCheckTitle }}</summary>
           <div class="section-head">
             <div class="hint">{{ selectedOrder.flightNumber || '-' }}</div>
             <button
@@ -284,7 +284,7 @@
         </details>
 
         <details v-if="selectedOrder.addressVerification" class="detail-panel">
-          <summary>{{ t.addressCheckTitle }}</summary>
+          <summary class="section-summary">{{ t.addressCheckTitle }}</summary>
           <div class="section-head">
             <div class="hint">{{ routeLabel(selectedOrder) }}</div>
             <button
@@ -306,8 +306,8 @@
           </div>
         </details>
 
-        <details class="detail-panel" open>
-          <summary>{{ t.changeStatus }}</summary>
+        <details class="detail-panel">
+          <summary class="section-summary">{{ t.changeStatus }}</summary>
           <div class="status-change-row">
             <select v-model="selectedToStatus" class="input status-select">
               <option value="">{{ t.selectStatus }}</option>
@@ -323,7 +323,7 @@
         </details>
 
         <details class="detail-panel">
-          <summary>{{ t.statusHistory }}</summary>
+          <summary class="section-summary">{{ t.statusHistory }}</summary>
           <div v-if="historyLoading" class="hint">{{ t.loadingHistory }}</div>
           <div v-else-if="historyError" class="hint hint--error">{{ historyError }}</div>
           <div v-else-if="!statusHistory.length" class="hint">{{ t.noHistory }}</div>
@@ -1899,6 +1899,9 @@ export default {
   gap: 10px;
   min-width: 190px;
 }
+.order-focus-card__actions .btn--primary {
+  box-shadow: 0 10px 24px rgba(21, 49, 109, .14);
+}
 .order-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1927,7 +1930,8 @@ export default {
   background: #fff;
   overflow: hidden;
 }
-.detail-panel summary {
+.detail-panel summary,
+.section-summary {
   cursor: pointer;
   list-style: none;
   padding: 14px 16px;
@@ -1935,7 +1939,8 @@ export default {
   color: #17233d;
   background: #f8fafc;
 }
-.detail-panel summary::-webkit-details-marker {
+.detail-panel summary::-webkit-details-marker,
+.section-summary::-webkit-details-marker {
   display: none;
 }
 .detail-panel[open] summary {
