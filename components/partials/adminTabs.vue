@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-nav-shell">
+  <div class="admin-nav-shell" :class="{ 'admin-nav-shell--condensed': isCondensed }">
     <div class="admin-sections">
       <button
         v-for="section in sections"
@@ -41,6 +41,9 @@
 
 <script>
 export default {
+  data: () => ({
+    isCondensed: false
+  }),
   computed: {
     lang () { return this.$store.state.language },
     routePath () { return String(this.$route?.path || '/admin') },
@@ -154,7 +157,21 @@ export default {
       return tabs
     }
   },
+  mounted () {
+    this.handleScroll()
+    window.addEventListener('scroll', this.handleScroll, { passive: true })
+  },
+  beforeDestroy () {
+    window.removeEventListener('scroll', this.handleScroll)
+  },
   methods: {
+    handleScroll () {
+      if (window.innerWidth <= 640) {
+        this.isCondensed = false
+        return
+      }
+      this.isCondensed = window.scrollY > 140
+    },
     goToSection (section) {
       if (!section) return
       const target = section.defaultTo || section.tabs?.[0]?.to || '/admin'
@@ -175,6 +192,7 @@ export default {
   padding: 14px 0 10px;
   background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.94) 78%, rgba(255,255,255,0) 100%);
   backdrop-filter: blur(12px);
+  transition: padding 180ms ease, gap 180ms ease, top 180ms ease;
 }
 
 .admin-sections {
@@ -196,6 +214,7 @@ export default {
   cursor: pointer;
   min-height: 92px;
   align-content: center;
+  transition: min-height 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
 }
 
 .admin-section-pill__label {
@@ -227,6 +246,7 @@ export default {
 
 .admin-subtabs-shell {
   min-height: 68px;
+  transition: min-height 180ms ease;
 }
 
 .admin-subtab {
@@ -244,6 +264,7 @@ export default {
   min-height: 68px;
   align-content: center;
   box-sizing: border-box;
+  transition: min-height 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
 }
 
 .admin-subtab small {
@@ -268,6 +289,29 @@ export default {
   pointer-events: none;
 }
 
+.admin-nav-shell--condensed {
+  gap: 10px;
+  top: 84px;
+  padding: 8px 0 8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(255,255,255,0.95) 84%, rgba(255,255,255,0) 100%);
+}
+
+.admin-nav-shell--condensed .admin-section-pill {
+  min-height: 78px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.admin-nav-shell--condensed .admin-subtabs-shell {
+  min-height: 62px;
+}
+
+.admin-nav-shell--condensed .admin-subtab {
+  min-height: 62px;
+  padding: 9px 12px;
+  border-radius: 12px;
+}
+
 @media (max-width: 980px) {
   .admin-nav-shell {
     top: 88px;
@@ -283,6 +327,14 @@ export default {
 
   .admin-subtabs-shell {
     min-height: 146px;
+  }
+
+  .admin-nav-shell--condensed {
+    top: 82px;
+  }
+
+  .admin-nav-shell--condensed .admin-subtabs-shell {
+    min-height: 134px;
   }
 }
 
