@@ -10,10 +10,7 @@
         <div class="crm-header">
           <div>
             <h1 class="h2">CRM</h1>
-            <p class="crm-subtitle">
-              Рабочий список клиентов, исполнителей и потенциальных контактов. Здесь нужно быстро понять,
-              кого открыть, где есть покрытие, а где не хватает связей или географии.
-            </p>
+            <p class="crm-subtitle">Кого открыть, где не хватает связей и что делать дальше.</p>
           </div>
           <div class="crm-actions">
             <button class="btn btn--ghost" @click="reload">Обновить</button>
@@ -106,7 +103,7 @@
 
               <div class="entity-actions">
                 <div class="next-action">{{ nextActionLabel(row) }}</div>
-                <button class="btn btn--primary btn--small" @click="openDetails(row)">Открыть</button>
+                <button class="btn btn--primary btn--small" @click="openDetails(row)">{{ primaryButtonLabel(row) }}</button>
               </div>
             </div>
           </div>
@@ -123,8 +120,8 @@
             <h3>{{ detailsTitle }}</h3>
             <p class="modal-subtitle">
               {{ detailsMode === 'company'
-                ? 'Карточка компании: контакты, география, каналы связи и сегменты.'
-                : 'Карточка контакта: роль, привязка к компаниям, география и каналы связи.' }}
+                ? 'Контакты, география, каналы и сегменты.'
+                : 'Роль, компании, география и каналы связи.' }}
             </p>
           </div>
           <button class="modal-close" type="button" @click="details=null">×</button>
@@ -271,12 +268,12 @@ export default {
       const withGeo = rows.filter((row) => this.hasGeography(row)).length
       const gaps = rows.filter((row) => this.needsAttention(row)).length
       return [
-        { key: 'total', value: rows.length, label: this.mode === 'companies' ? 'Компаний в работе' : 'Контактов в работе', hint: 'Текущий рабочий список CRM', tone: 'neutral' },
-        { key: 'clients', value: clients, label: 'Заказчики', hint: 'Активные и потенциальные client-сегменты', tone: clients ? 'info' : 'neutral' },
-        { key: 'suppliers', value: suppliers, label: 'Исполнители', hint: 'Supplier-сегменты и покрытие', tone: suppliers ? 'ok' : 'warn' },
-        { key: 'potential', value: potential, label: 'Потенциальные', hint: 'Кого нужно развивать и доводить', tone: potential ? 'warn' : 'neutral' },
-        { key: 'geo', value: withGeo, label: 'С географией', hint: 'Есть города/страны присутствия', tone: withGeo ? 'ok' : 'warn' },
-        { key: 'gaps', value: gaps, label: 'Нужен разбор', hint: 'Пустые связи, каналы или география', tone: gaps ? 'critical' : 'ok' }
+        { key: 'total', value: rows.length, label: this.mode === 'companies' ? 'Компаний в работе' : 'Контактов в работе', hint: 'Текущий список', tone: 'neutral' },
+        { key: 'clients', value: clients, label: 'Заказчики', hint: 'Активные client-сегменты', tone: clients ? 'info' : 'neutral' },
+        { key: 'suppliers', value: suppliers, label: 'Исполнители', hint: 'Покрытие и supplier-сегменты', tone: suppliers ? 'ok' : 'warn' },
+        { key: 'potential', value: potential, label: 'Потенциальные', hint: 'Нужно развивать', tone: potential ? 'warn' : 'neutral' },
+        { key: 'geo', value: withGeo, label: 'С географией', hint: 'Есть присутствие', tone: withGeo ? 'ok' : 'warn' },
+        { key: 'gaps', value: gaps, label: 'Нужен разбор', hint: 'Не хватает связей или каналов', tone: gaps ? 'critical' : 'ok' }
       ]
     }
   },
@@ -361,6 +358,9 @@ export default {
       if (!Number(row?._count?.links || 0)) return this.mode === 'companies' ? 'Привязать контакт к компании' : 'Привязать контакт к компании'
       if (this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])) return 'Проверить и перевести в рабочий сегмент'
       return 'Карточка готова к работе'
+    },
+    primaryButtonLabel(row) {
+      return this.needsAttention(row) ? 'Разобрать' : 'Карточка'
     },
     segmentOptionsForDetails() {
       const companySegments = [

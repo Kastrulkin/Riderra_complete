@@ -6,7 +6,7 @@
         <div class="page-head">
           <div>
             <h1 class="h2">Чаты</h1>
-            <p class="hint">Очередь по заказам: уточнения и готовая рассылка клиенту.</p>
+            <p class="hint">Очередь по уточнениям и отправке клиенту.</p>
           </div>
           <div class="page-actions">
             <button class="btn btn--ghost" @click="syncFromOrders">Синхронизировать из заказов</button>
@@ -19,10 +19,10 @@
 
         <div class="ops-rail">
           <div>
-            <strong>Чаты — это рабочая очередь.</strong>
-            <p class="hint">Здесь оставлены только задачи, сообщения, SLA и переходы статусов. Настройка агентов и prompt registry вынесены в отдельный экран.</p>
+            <strong>Чаты — рабочая очередь.</strong>
+            <p class="hint">Здесь только задачи, сообщения, SLA и статусы. Настройки агентов вынесены отдельно.</p>
           </div>
-          <button class="btn btn--ghost" @click="$router.push('/admin-agents')">Открыть AI агентов</button>
+          <button class="btn btn--ghost" @click="$router.push('/admin-agents')">К AI агентам</button>
         </div>
 
         <div class="filters">
@@ -157,7 +157,7 @@
               </div>
               <textarea v-model="draftText" class="input textarea" placeholder="Черновик сообщения клиенту"></textarea>
               <div class="message-draft-actions">
-                <button class="btn btn--ghost" @click="buildDraftWithAi">AI черновик</button>
+                <button class="btn btn--ghost" @click="buildDraftWithAi">Собрать AI черновик</button>
                 <button
                   class="btn btn--ghost"
                   :disabled="quickSendLoading || !selectedTask || selectedTask.taskType !== 'clarification'"
@@ -172,7 +172,7 @@
                 >
                   {{ quickDispatchLoading ? 'Отправляю...' : 'Детали поездки в 1 клик' }}
                 </button>
-                <button class="btn btn--primary" @click="createDraft">Создать черновик</button>
+                <button class="btn btn--primary" @click="createDraft">Сохранить черновик</button>
               </div>
             </div>
 
@@ -180,7 +180,7 @@
               <h4>Ответ клиента</h4>
               <textarea v-model="inboundText" class="input textarea" placeholder="Вставьте входящее сообщение клиента"></textarea>
               <button class="btn btn--ghost" :disabled="inboundProcessing || !inboundText.trim()" @click="processInboundMessage">
-                {{ inboundProcessing ? 'Обрабатываю...' : 'Обработать ответ (AI classify/extract)' }}
+                {{ inboundProcessing ? 'Обрабатываю...' : 'Разобрать ответ' }}
               </button>
             </div>
 
