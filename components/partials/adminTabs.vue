@@ -1,5 +1,13 @@
 <template>
   <div class="admin-nav-shell" :class="{ 'admin-nav-shell--condensed': isCondensed }">
+    <div class="admin-section-intro">
+      <div>
+        <p class="admin-section-intro__eyebrow">{{ activeSectionContext.kicker }}</p>
+        <h2 class="admin-section-intro__title">{{ activeSectionContext.label }}</h2>
+        <p class="admin-section-intro__description">{{ activeSectionContext.description }}</p>
+      </div>
+    </div>
+
     <div class="admin-sections">
       <button
         v-for="section in sections"
@@ -12,14 +20,6 @@
         <span class="admin-section-pill__label">{{ section.label }}</span>
         <span class="admin-section-pill__hint">{{ section.hint }}</span>
       </button>
-    </div>
-
-    <div class="admin-section-intro">
-      <div>
-        <p class="admin-section-intro__eyebrow">{{ activeSectionContext.kicker }}</p>
-        <h2 class="admin-section-intro__title">{{ activeSectionContext.label }}</h2>
-        <p class="admin-section-intro__description">{{ activeSectionContext.description }}</p>
-      </div>
     </div>
 
     <div class="admin-subtabs-shell">
@@ -275,7 +275,7 @@ export default {
   border: 1px solid #ead7f0;
   border-radius: 18px;
   background: linear-gradient(135deg, rgba(255, 240, 247, 0.92) 0%, rgba(248, 244, 255, 0.96) 100%);
-  padding: 18px 20px;
+  padding: 22px 24px;
   box-shadow: 0 16px 30px rgba(112, 34, 131, 0.08);
 }
 
@@ -290,16 +290,16 @@ export default {
 
 .admin-section-intro__title {
   margin: 0;
-  font-size: 28px;
+  font-size: 34px;
   line-height: 1.1;
   color: #17233d;
 }
 
 .admin-section-intro__description {
   margin: 10px 0 0;
-  max-width: 880px;
+  max-width: 920px;
   color: #5d6c88;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
