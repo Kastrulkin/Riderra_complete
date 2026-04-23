@@ -137,7 +137,7 @@
               <div v-if="routeRows.length" class="route-list">
                 <div v-for="route in routeRows" :key="route.id" class="route-card">
                   <div class="route-card__title">
-                    <strong>{{ route.vehicleType || '-' }}</strong>
+                    <strong>{{ route.vehicleType || t.allVehicleClasses }}</strong>
                     <span>{{ route.fromPoint }} → {{ route.toPoint }}</span>
                   </div>
                   <div class="route-card__meta">
@@ -154,6 +154,24 @@
                 </div>
               </div>
               <div v-else class="hint">{{ t.noRoutes }}</div>
+
+              <div v-if="routeSourceEntries.length" class="source-panel">
+                <div class="source-panel__head">
+                  <h4>{{ t.priceSources }}</h4>
+                  <div class="route-panel__hint">{{ t.priceSourcesHint }}</div>
+                </div>
+                <div class="source-list">
+                  <div v-for="entry in routeSourceEntries" :key="entry.key" class="source-card">
+                    <div class="source-card__meta">
+                      <strong>{{ entry.label }}</strong>
+                      <span>{{ entry.status }}</span>
+                      <span v-if="entry.quotedAt">{{ formatDate(entry.quotedAt) }}</span>
+                    </div>
+                    <div class="source-card__coverage">{{ entry.coverage }}</div>
+                    <div v-if="entry.message" class="source-card__message">{{ entry.message }}</div>
+                  </div>
+                </div>
+              </div>
 
               <div class="route-form">
                 <div class="form-grid">
@@ -376,6 +394,9 @@ export default {
             sourceLabel: 'Источник',
             sourceStatus: 'Статус источника',
             sourceMessage: 'Текст / цитата источника',
+            allVehicleClasses: 'Все классы',
+            priceSources: 'Источники цен',
+            priceSourcesHint: 'Отдельный список подтверждений, на которые потом сможет ссылаться бот и команда.',
             addRoute: 'Добавить тариф',
             updateRoute: 'Обновить тариф',
             save: 'Сохранить',
@@ -431,11 +452,43 @@ export default {
             sourceLabel: 'Source',
             sourceStatus: 'Source status',
             sourceMessage: 'Source quote',
+            allVehicleClasses: 'All classes',
+            priceSources: 'Price sources',
+            priceSourcesHint: 'Clean provenance list the team and copilot can cite later.',
             addRoute: 'Add rate',
             updateRoute: 'Update rate',
             save: 'Save',
             cancel: 'Cancel'
           }
+    },
+    routeSourceEntries () {
+      const grouped = new Map()
+      for (const route of this.routeRows || []) {
+        const key = [
+          route.sourceLabel || '',
+          route.sourceStatus || '',
+          route.sourceQuotedAt || '',
+          route.sourceMessage || ''
+        ].join('|')
+        const label = route.sourceLabel || (this.$store.state.language === 'ru' ? 'Без названия источника' : 'Unnamed source')
+        const coverageItem = `${route.vehicleType || this.t.allVehicleClasses}: ${route.fromPoint} → ${route.toPoint}`
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            key,
+            label,
+            status: route.sourceStatus || 'approved',
+            quotedAt: route.sourceQuotedAt || null,
+            message: route.sourceMessage || '',
+            coverageItems: [coverageItem]
+          })
+        } else {
+          grouped.get(key).coverageItems.push(coverageItem)
+        }
+      }
+      return Array.from(grouped.values()).map((entry) => ({
+        ...entry,
+        coverage: entry.coverageItems.join(' • ')
+      }))
     }
   },
   watch: {
@@ -689,5 +742,12 @@ export default {
 .route-card__meta { display: flex; gap: 10px; flex-wrap: wrap; color: rgba(255,255,255,.7); font-size: 13px; margin-bottom: 6px; }
 .route-card__message { white-space: pre-wrap; color: rgba(255,255,255,.85); font-size: 13px; margin-bottom: 8px; }
 .route-card__actions { display: flex; gap: 8px; }
+.source-panel { margin: 6px 0 14px; }
+.source-panel__head h4 { margin: 0 0 4px; }
+.source-list { display: grid; gap: 10px; margin-top: 8px; }
+.source-card { border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 12px; background: rgba(255,255,255,.035); }
+.source-card__meta { display: flex; gap: 10px; flex-wrap: wrap; color: rgba(255,255,255,.72); font-size: 13px; margin-bottom: 6px; }
+.source-card__coverage { color: rgba(255,255,255,.9); font-size: 13px; margin-bottom: 6px; }
+.source-card__message { white-space: pre-wrap; color: rgba(255,255,255,.82); font-size: 13px; }
 .route-form { border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 12px; background: rgba(255,255,255,.03); }
 </style>

@@ -6875,7 +6875,25 @@ app.get(
       const addressVerification = order.addressVerificationJson
         ? parseJsonSafe(order.addressVerificationJson, null)
         : (draftPayload.addressVerification || null)
-      const qualityChecks = Array.isArray(draftPayload.qualityChecks) ? draftPayload.qualityChecks : []
+      const supplierCost = await findBestSupplierCostForDraft({
+        tenantId: req.actorContext.tenantId,
+        city: orderDraft.city || '',
+        fromPoint: order.fromPoint || orderDraft.fromPoint || '',
+        toPoint: order.toPoint || orderDraft.toPoint || '',
+        vehicleType: order.vehicleType || orderDraft.vehicleType || ''
+      })
+      const supplierSignal = buildSupplierCostSignal({
+        sellPrice: order.clientPrice ?? orderDraft.clientPrice ?? null,
+        supplierCost,
+        fallbackCurrency: orderDraft.currency || draftPayload?.pricing?.authoritativeCurrency || 'EUR'
+      })
+      const qualityChecksBase = Array.isArray(draftPayload.qualityChecks) ? draftPayload.qualityChecks : []
+      const qualityChecks = supplierSignal
+        ? [
+            ...qualityChecksBase.filter((item) => item?.key !== 'supplierCost'),
+            { key: supplierSignal.key, level: supplierSignal.level, message: supplierSignal.message }
+          ]
+        : qualityChecksBase
       const latestSnapshot = await prisma.orderSourceSnapshot.findFirst({
         where: { orderId: order.id, tenantId: req.actorContext.tenantId },
         orderBy: { createdAt: 'desc' },
@@ -6911,6 +6929,7 @@ app.get(
           qualityChecks,
           sourceType: orderDraft.sourceType || draftPayload.sourceType || null,
           customerName: orderDraft.customerName || null,
+          supplierCost,
           rawText: String(draftPayload.rawText || draft?.messageText || '').trim() || null,
           latestSnapshot: latestSnapshot
             ? {
@@ -7197,10 +7216,11 @@ app.post(
 app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const { sourceId = '' } = req.query
+    const tenantId = req.actorContext.tenantId
     const source = sourceId
-      ? await prisma.sheetSource.findFirst({ where: { id: String(sourceId), tenantId: req.actorContext.tenantId } })
+      ? await prisma.sheetSource.findFirst({ where: { id: String(sourceId), tenantId } })
       : await prisma.sheetSource.findFirst({
-          where: { isActive: true, tenantId: req.actorContext.tenantId },
+          where: { isActive: true, tenantId },
           orderBy: [{ updatedAt: 'desc' }]
         })
 
@@ -7208,6 +7228,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
       return res.json({ source: null, headers: [], rows: [], rawRows: [] })
     }
     const mapping = parseColumnMapping(source.columnMapping)
+    const supplierCostCandidates = await loadSupplierCostCandidates(tenantId)
 
     const snapshots = await prisma.orderSourceSnapshot.findMany({
       where: { sheetSourceId: source.id },
@@ -7216,6 +7237,11 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
           select: {
             id: true,
             status: true,
+            needsInfo: true,
+            infoReason: true,
+            fromPoint: true,
+            toPoint: true,
+            vehicleType: true,
             driverPrice: true,
             clientPrice: true,
             updatedAt: true,
@@ -7252,6 +7278,21 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
       const driver = pickField(raw, aliasesWithMapping(['водитель', 'driver'], mapping, 'driver')) || ''
       const comment = pickField(raw, aliasesWithMapping(['комментарий', 'comment', 'примечание'], mapping, 'comment')) || ''
       const internalOrderNumber = pickField(raw, aliasesWithMapping(['внутренний номер заказа', 'internal order number'], mapping, 'internalOrderNumber')) || ''
+      const effectiveFromPoint = snapshot.order?.fromPoint || fromPoint
+      const effectiveToPoint = snapshot.order?.toPoint || toPoint
+      const effectiveVehicleType = snapshot.order?.vehicleType || ''
+      const supplierCost = effectiveFromPoint && effectiveToPoint
+        ? findBestSupplierCostFromCandidates(supplierCostCandidates, {
+            fromPoint: effectiveFromPoint,
+            toPoint: effectiveToPoint,
+            vehicleType: effectiveVehicleType
+          })
+        : null
+      const supplierSignal = buildSupplierCostSignal({
+        sellPrice: snapshot.order?.clientPrice ?? parsePriceAmount(sum),
+        supplierCost,
+        fallbackCurrency: parsePriceCurrency(sum, supplierCost?.currency || 'EUR')
+      })
 
       rows.push({
         id: snapshot.order?.id || '',
@@ -7272,7 +7313,13 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         orderClientPrice: snapshot.order?.clientPrice ?? null,
         orderDriverPrice: snapshot.order?.driverPrice ?? null,
         orderCreatedAt: snapshot.order?.createdAt || null,
-        orderUpdatedAt: snapshot.order?.updatedAt || null
+        orderUpdatedAt: snapshot.order?.updatedAt || null,
+        supplierCostLevel: supplierSignal?.level || null,
+        supplierCostMessage: supplierSignal?.message || null,
+        supplierCostShort: supplierSignal?.short || null,
+        supplierCostValue: supplierCost?.supplierPrice ?? null,
+        supplierCostCurrency: supplierCost?.currency || null,
+        supplierCostDriver: supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || null
       })
 
     }
@@ -7293,6 +7340,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
     for (const draft of approvedDrafts) {
       const payload = parseJsonSafe(draft.payloadJson || '{}', {})
       const promotedOrderId = String(payload?.promotedOrder?.orderId || '').trim()
+      const orderDraft = payload?.orderDraft || {}
       const preview = payload?.sheetRowPreview && typeof payload.sheetRowPreview === 'object'
         ? payload.sheetRowPreview
         : buildSheetRowPreviewFromDraft(payload?.orderDraft || {}, payload?.pricing || {})
@@ -7301,7 +7349,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
 
       const order = promotedOrderId
         ? await prisma.order.findFirst({
-            where: { id: promotedOrderId, tenantId: req.actorContext.tenantId },
+            where: { id: promotedOrderId, tenantId },
             select: {
               id: true,
               status: true,
@@ -7314,6 +7362,21 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
             }
           })
         : null
+      const supplierCost = payload?.pricing?.supplierCost || (
+        (orderDraft?.fromPoint && orderDraft?.toPoint)
+          ? findBestSupplierCostFromCandidates(supplierCostCandidates, {
+              city: orderDraft?.city || '',
+              fromPoint: orderDraft?.fromPoint || '',
+              toPoint: orderDraft?.toPoint || '',
+              vehicleType: orderDraft?.vehicleType || ''
+            })
+          : null
+      )
+      const supplierSignal = buildSupplierCostSignal({
+        sellPrice: order?.clientPrice ?? payload?.pricing?.authoritativeClientPrice ?? orderDraft?.clientPrice ?? parsePriceAmount(preview?.sum),
+        supplierCost,
+        fallbackCurrency: payload?.pricing?.authoritativeCurrency || orderDraft?.currency || parsePriceCurrency(preview?.sum, supplierCost?.currency || 'EUR')
+      })
 
       rows.push({
         id: order?.id || '',
@@ -7334,7 +7397,13 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         orderClientPrice: order?.clientPrice ?? payload?.pricing?.authoritativeClientPrice ?? payload?.orderDraft?.clientPrice ?? null,
         orderDriverPrice: order?.driverPrice ?? payload?.orderDraft?.driverPrice ?? null,
         orderCreatedAt: order?.createdAt || draft.createdAt || null,
-        orderUpdatedAt: order?.updatedAt || draft.updatedAt || null
+        orderUpdatedAt: order?.updatedAt || draft.updatedAt || null,
+        supplierCostLevel: supplierSignal?.level || null,
+        supplierCostMessage: supplierSignal?.message || null,
+        supplierCostShort: supplierSignal?.short || null,
+        supplierCostValue: supplierCost?.supplierPrice ?? null,
+        supplierCostCurrency: supplierCost?.currency || null,
+        supplierCostDriver: supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || null
       })
     }
 
@@ -9913,9 +9982,11 @@ function buildOrderDraftQualityChecks(extracted, pricing = {}) {
     })
   }
 
-  const extractedPrice = Number.isFinite(Number(extracted?.clientPrice)) ? Number(extracted.clientPrice) : null
-  const authoritativePrice = Number.isFinite(Number(pricing?.authoritativeClientPrice))
-    ? Number(pricing.authoritativeClientPrice)
+  const extractedPrice = extracted?.clientPrice !== null && extracted?.clientPrice !== undefined && extracted?.clientPrice !== ''
+    ? (Number.isFinite(Number(extracted.clientPrice)) ? Number(extracted.clientPrice) : null)
+    : null
+  const authoritativePrice = pricing?.authoritativeClientPrice !== null && pricing?.authoritativeClientPrice !== undefined && pricing?.authoritativeClientPrice !== ''
+    ? (Number.isFinite(Number(pricing.authoritativeClientPrice)) ? Number(pricing.authoritativeClientPrice) : null)
     : null
   if (authoritativePrice != null && extractedPrice != null) {
     checks.push({
@@ -9945,36 +10016,16 @@ function buildOrderDraftQualityChecks(extracted, pricing = {}) {
     })
   }
 
-  const supplierCost = pricing?.supplierCost || null
-  const effectiveSellPrice = extractedPrice != null ? extractedPrice : authoritativePrice
-  if (supplierCost?.supplierPrice != null && effectiveSellPrice != null) {
-    const marginAbs = Number(effectiveSellPrice) - Number(supplierCost.supplierPrice)
-    const supplierLabel = supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || 'поставщик'
-    if (marginAbs < 0) {
-      checks.push({
-        key: 'supplierCost',
-        level: 'error',
-        message: `Цена клиента ниже закупки: продажа ${effectiveSellPrice.toFixed(2)}, закупка ${Number(supplierCost.supplierPrice).toFixed(2)} (${supplierLabel})`
-      })
-    } else if (marginAbs < 10) {
-      checks.push({
-        key: 'supplierCost',
-        level: 'warn',
-        message: `Низкая маржа против закупки ${supplierLabel}: ${marginAbs.toFixed(2)} ${supplierCost.currency || pricing?.authoritativeCurrency || extracted?.currency || 'EUR'}`
-      })
-    } else {
-      checks.push({
-        key: 'supplierCost',
-        level: 'ok',
-        message: `Есть закупка для сверки: ${Number(supplierCost.supplierPrice).toFixed(2)} ${supplierCost.currency || pricing?.authoritativeCurrency || extracted?.currency || 'EUR'} (${supplierLabel})`
-      })
-    }
-  } else if (supplierCost?.supplierPrice != null) {
-    const supplierLabel = supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || 'поставщик'
+  const supplierSignal = buildSupplierCostSignal({
+    sellPrice: extractedPrice != null ? extractedPrice : authoritativePrice,
+    supplierCost: pricing?.supplierCost || null,
+    fallbackCurrency: pricing?.authoritativeCurrency || extracted?.currency || 'EUR'
+  })
+  if (supplierSignal) {
     checks.push({
-      key: 'supplierCost',
-      level: 'warn',
-      message: `Закупка известна (${Number(supplierCost.supplierPrice).toFixed(2)} ${supplierCost.currency || pricing?.authoritativeCurrency || extracted?.currency || 'EUR'} от ${supplierLabel}), но продажная цена ещё не определена`
+      key: supplierSignal.key,
+      level: supplierSignal.level,
+      message: supplierSignal.message
     })
   }
 
@@ -10101,27 +10152,14 @@ async function findAuthoritativePriceForDraft({
   return cityOnly || null
 }
 
-async function findBestSupplierCostForDraft({
-  tenantId,
-  city = '',
-  fromPoint = '',
-  toPoint = '',
-  vehicleType = ''
-}) {
-  const vehicleNorm = normalizeVehicleType(vehicleType)
+async function loadSupplierCostCandidates(tenantId) {
   const driverRoutes = await prisma.driverRoute.findMany({
     where: {
       tenantId: tenantId || null,
       isActive: true,
       driver: {
         isActive: true
-      },
-      ...(vehicleNorm ? {
-        OR: [
-          { vehicleType: vehicleNorm },
-          { vehicleType: null }
-        ]
-      } : {})
+      }
     },
     include: {
       driver: {
@@ -10144,25 +10182,6 @@ async function findBestSupplierCostForDraft({
     take: 500
   })
 
-  const routeCandidates = driverRoutes
-    .filter((row) => routePointMatches(row.fromPoint, fromPoint) && routePointMatches(row.toPoint, toPoint))
-    .filter((row) => row.driverPrice != null)
-    .map((row) => ({
-      sourceModel: 'driver_route',
-      sourceId: row.id,
-      matchScore: 100,
-      supplierPrice: Number(row.driverPrice),
-      currency: row.currency || 'EUR',
-      vehicleType: row.vehicleType || null,
-      sourceType: row.sourceType || null,
-      sourceLabel: row.sourceLabel || null,
-      sourceQuotedAt: row.sourceQuotedAt || null,
-      sourceMessage: row.sourceMessage || null,
-      sourceStatus: row.sourceStatus || 'approved',
-      driver: row.driver
-    }))
-
-  const cityNorm = String(city || '').trim()
   const cityRouteRows = await prisma.driverCityRoute.findMany({
     where: {
       tenantId: tenantId || null,
@@ -10170,9 +10189,7 @@ async function findBestSupplierCostForDraft({
         isActive: true
       },
       cityRoute: {
-        isActive: true,
-        ...(cityNorm ? { city: { equals: cityNorm, mode: 'insensitive' } } : {}),
-        ...(vehicleNorm ? { vehicleType: vehicleNorm } : {})
+        isActive: true
       }
     },
     include: {
@@ -10197,7 +10214,42 @@ async function findBestSupplierCostForDraft({
     take: 500
   })
 
+  return { driverRoutes, cityRouteRows }
+}
+
+function findBestSupplierCostFromCandidates(candidates, {
+  city = '',
+  fromPoint = '',
+  toPoint = '',
+  vehicleType = ''
+} = {}) {
+  const vehicleNorm = normalizeVehicleType(vehicleType)
+  const driverRoutes = Array.isArray(candidates?.driverRoutes) ? candidates.driverRoutes : []
+  const cityRouteRows = Array.isArray(candidates?.cityRouteRows) ? candidates.cityRouteRows : []
+
+  const routeCandidates = driverRoutes
+    .filter((row) => vehicleTypeMatches(row.vehicleType, vehicleNorm))
+    .filter((row) => routePointMatches(row.fromPoint, fromPoint) && routePointMatches(row.toPoint, toPoint))
+    .filter((row) => row.driverPrice != null)
+    .map((row) => ({
+      sourceModel: 'driver_route',
+      sourceId: row.id,
+      matchScore: 100,
+      supplierPrice: Number(row.driverPrice),
+      currency: row.currency || 'EUR',
+      vehicleType: row.vehicleType || null,
+      sourceType: row.sourceType || null,
+      sourceLabel: row.sourceLabel || null,
+      sourceQuotedAt: row.sourceQuotedAt || null,
+      sourceMessage: row.sourceMessage || null,
+      sourceStatus: row.sourceStatus || 'approved',
+      driver: row.driver
+    }))
+
+  const cityNorm = String(city || '').trim()
   const cityRouteCandidates = cityRouteRows
+    .filter((row) => !cityNorm || String(row?.cityRoute?.city || '').trim().toLowerCase() === cityNorm.toLowerCase())
+    .filter((row) => vehicleTypeMatches(row?.cityRoute?.vehicleType, vehicleNorm))
     .filter((row) => row.bestPrice != null)
     .filter((row) => routePointMatches(row.cityRoute.fromPoint, fromPoint) && routePointMatches(row.cityRoute.toPoint, toPoint))
     .map((row) => ({
@@ -10215,7 +10267,7 @@ async function findBestSupplierCostForDraft({
       driver: row.driver
     }))
 
-  const candidates = [...routeCandidates, ...cityRouteCandidates]
+  const matchedCandidates = [...routeCandidates, ...cityRouteCandidates]
     .filter((row) => row.sourceStatus !== 'archived')
     .sort((a, b) => {
       const statusRank = (value) => value === 'approved' ? 0 : value === 'pending_clarification' ? 1 : 2
@@ -10226,7 +10278,89 @@ async function findBestSupplierCostForDraft({
       return a.supplierPrice - b.supplierPrice
     })
 
-  return candidates[0] || null
+  return matchedCandidates[0] || null
+}
+
+async function findBestSupplierCostForDraft({
+  tenantId,
+  city = '',
+  fromPoint = '',
+  toPoint = '',
+  vehicleType = ''
+}) {
+  const candidates = await loadSupplierCostCandidates(tenantId)
+  return findBestSupplierCostFromCandidates(candidates, {
+    city,
+    fromPoint,
+    toPoint,
+    vehicleType
+  })
+}
+
+function parsePriceAmount(value) {
+  if (value === null || value === undefined || value === '') return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const raw = String(value).trim()
+  if (!raw) return null
+  const match = raw.replace(/\s+/g, ' ').match(/-?\d+(?:[.,]\d+)?/)
+  if (!match) return null
+  const normalized = match[0].replace(',', '.')
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function parsePriceCurrency(value, fallback = 'EUR') {
+  const raw = String(value || '').toUpperCase()
+  if (/\bDKK\b/.test(raw) || /\bKR\b/.test(raw)) return 'DKK'
+  if (/\bEUR\b/.test(raw) || /\bEURO\b/.test(raw)) return 'EUR'
+  if (/\bUSD\b/.test(raw)) return 'USD'
+  return fallback
+}
+
+function buildSupplierCostSignal({
+  sellPrice = null,
+  supplierCost = null,
+  fallbackCurrency = 'EUR'
+} = {}) {
+  if (supplierCost?.supplierPrice == null) return null
+
+  const effectiveSellPrice = Number.isFinite(Number(sellPrice)) ? Number(sellPrice) : null
+  const supplierPrice = Number(supplierCost.supplierPrice)
+  const currency = supplierCost.currency || fallbackCurrency || 'EUR'
+  const supplierLabel = supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || 'поставщик'
+
+  if (effectiveSellPrice == null) {
+    return {
+      key: 'supplierCost',
+      level: 'warn',
+      message: `Закупка известна (${supplierPrice.toFixed(2)} ${currency} от ${supplierLabel}), но продажная цена ещё не определена`,
+      short: `Закупка ${supplierPrice.toFixed(0)} ${currency}`
+    }
+  }
+
+  const marginAbs = effectiveSellPrice - supplierPrice
+  if (marginAbs < 0) {
+    return {
+      key: 'supplierCost',
+      level: 'error',
+      message: `Цена клиента ниже закупки: продажа ${effectiveSellPrice.toFixed(2)}, закупка ${supplierPrice.toFixed(2)} (${supplierLabel})`,
+      short: `Ниже закупки ${supplierPrice.toFixed(0)} ${currency}`
+    }
+  }
+  if (marginAbs < 10) {
+    return {
+      key: 'supplierCost',
+      level: 'warn',
+      message: `Низкая маржа против закупки ${supplierLabel}: ${marginAbs.toFixed(2)} ${currency}`,
+      short: `Маржа ${marginAbs.toFixed(0)} ${currency}`
+    }
+  }
+  return {
+    key: 'supplierCost',
+    level: 'ok',
+    message: `Есть закупка для сверки: ${supplierPrice.toFixed(2)} ${currency} (${supplierLabel})`,
+    short: `Закупка ${supplierPrice.toFixed(0)} ${currency}`
+  }
 }
 
 async function buildOpenClawDraftPayload(payload, tenantId) {
@@ -10337,25 +10471,58 @@ function findManualEmailLine(text, labels = []) {
 
 function findManualEmailNumber(text, labels = []) {
   const value = findManualEmailLine(text, labels)
-  const source = value || String(text || '')
+  const source = value || ''
+  if (!source) return null
   const match = source.match(/-?\d+(?:[.,]\d+)?/)
   if (!match) return null
   const num = Number(match[0].replace(',', '.'))
   return Number.isFinite(num) ? num : null
 }
 
+function parseLooseNaturalDate(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  const parsed = Date.parse(raw)
+  if (Number.isNaN(parsed)) return null
+  return new Date(parsed)
+}
+
 function parseManualEmailPickupAt(text) {
-  const labeled = findManualEmailLine(text, [
-    'date',
-    'datetime',
-    'pickup time',
+  const pickupDateRaw = findManualEmailLine(text, [
     'pickup date',
+    'pick-up date',
     'service date',
-    'дата',
-    'дата и время',
+    'date',
+    'дата подачи',
+    'дата'
+  ])
+  const pickupTimeRaw = findManualEmailLine(text, [
+    'pickup time',
+    'pick-up time',
+    'time',
     'время подачи',
+    'время'
+  ])
+  const labeled = findManualEmailLine(text, [
+    'datetime',
+    'дата и время',
     'подача'
   ])
+  if (pickupDateRaw || pickupTimeRaw) {
+    const dateCandidate = parseLooseNaturalDate(pickupDateRaw)
+    const timeMatch = String(pickupTimeRaw || '').match(/\b(\d{1,2})[:.](\d{2})\b/)
+    if (dateCandidate) {
+      const result = new Date(dateCandidate)
+      if (timeMatch) {
+        result.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0)
+      }
+      return result.toISOString()
+    }
+    if (pickupTimeRaw && !pickupDateRaw) {
+      const parsedTimeOnly = parseLooseNaturalDate(pickupTimeRaw)
+      if (parsedTimeOnly) return parsedTimeOnly.toISOString()
+    }
+  }
   const source = labeled || String(text || '')
   const dateMatch = source.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})(?:[^\d]{1,12}(\d{1,2})[:.](\d{2}))?/)
   if (dateMatch) {
@@ -10402,13 +10569,16 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
     .digest('hex')
     .slice(0, 24)
 
-  const customerName = findManualEmailLine(text, ['customer', 'client', 'partner', 'контрагент', 'клиент', 'заказчик']) ||
+  const customerName = findManualEmailLine(text, ['name', 'customer', 'client', 'partner', 'контрагент', 'клиент', 'заказчик', 'имя']) ||
     String(fromEmail || '').split('@')[0] ||
     null
-  const fromPoint = findManualEmailLine(text, ['from', 'pickup', 'pickup address', 'pick up', 'откуда', 'адрес подачи', 'место подачи'])
-  const toPoint = findManualEmailLine(text, ['to', 'dropoff', 'drop off', 'destination', 'куда', 'адрес назначения', 'место назначения'])
+  const fromPoint = findManualEmailLine(text, ['pick-up location', 'pickup location', 'pickup address', 'pick up location', 'pick up', 'pickup', 'from', 'откуда', 'адрес подачи', 'место подачи'])
+  const toPoint = findManualEmailLine(text, ['drop-off location', 'dropoff location', 'drop-off', 'dropoff', 'drop off location', 'drop off', 'destination', 'to', 'куда', 'адрес назначения', 'место назначения'])
   const pickupAt = parseManualEmailPickupAt(text)
   const city = findManualEmailLine(text, ['city', 'город'])
+  const orderNumber = findManualEmailLine(text, ['booking id', 'booking number', 'order number', 'номер заказа']) ||
+    String(text.match(/(?:^|\n)\s*ID\s*[:\-–—]\s*([A-Z0-9_-]+)/i)?.[1] || '').trim() ||
+    findManualEmailLine(text, ['order', 'booking', 'заказ'])
 
   const orderDraft = {
     externalMessageId,
@@ -10418,15 +10588,15 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
     sourceType: 'email',
     rawText: text,
     customerName,
-    orderNumber: findManualEmailLine(text, ['order', 'order number', 'booking', 'booking id', 'номер заказа', 'заказ']),
+    orderNumber: orderNumber || null,
     city,
     fromPoint,
     toPoint,
     pickupAt,
     flightNumber,
     vehicleType: normalizeVehicleType(findManualEmailLine(text, ['vehicle', 'car class', 'class', 'car', 'машина', 'класс'])),
-    passengers: findManualEmailNumber(text, ['passengers', 'pax', 'пассажиры', 'количество пассажиров']),
-    luggage: findManualEmailNumber(text, ['luggage', 'bags', 'baggage', 'багаж', 'чемоданы']),
+    passengers: findManualEmailNumber(text, ['number of passengers', 'passengers', 'pax', 'пассажиры', 'количество пассажиров']),
+    luggage: findManualEmailNumber(text, ['number of bags', 'luggage', 'bags', 'baggage', 'багаж', 'чемоданы']),
     clientPrice: Number.isFinite(price.value) ? price.value : null,
     currency: price.currency || 'EUR',
     comment: [

@@ -96,7 +96,7 @@
 
             <div class="price-block">
               <div class="price-block__sum">{{ o.sum || '-' }}</div>
-              <div class="price-block__hint">{{ priceContextLabel(o) }}</div>
+              <div class="price-block__hint" :class="supplierCostHintClass(o)">{{ priceContextLabel(o) }}</div>
             </div>
 
             <div class="driver-block">
@@ -1128,6 +1128,7 @@ export default {
     isProblemRow (row) {
       const status = String(row?.status || '').toLowerCase()
       if (row?.needsInfo) return true
+      if (['error', 'warn'].includes(String(row?.supplierCostLevel || '').toLowerCase())) return true
       if (!String(row?.driver || '').trim()) return true
       if (!String(row?.sum || '').trim()) return true
       return ['dispatch_risk', 'incident_open', 'incident_reported', 'finance_hold', 'cancelled'].includes(status)
@@ -1156,6 +1157,8 @@ export default {
       return text.length > 80 ? `${text.slice(0, 77)}…` : text
     },
     issueSummary (row) {
+      if (String(row?.supplierCostLevel || '').toLowerCase() === 'error') return row?.supplierCostShort || row?.supplierCostMessage
+      if (String(row?.supplierCostLevel || '').toLowerCase() === 'warn') return row?.supplierCostShort || row?.supplierCostMessage
       if (row?.needsInfo) return row?.infoReason || (this.$store.state.language === 'ru' ? 'Нужно уточнение' : 'Needs clarification')
       if (!String(row?.driver || '').trim()) return this.$store.state.language === 'ru' ? 'Нужно назначить водителя' : 'Driver assignment required'
       const status = String(row?.status || '').toLowerCase()
@@ -1163,9 +1166,17 @@ export default {
       return this.$store.state.language === 'ru' ? 'Критичных блокеров нет' : 'No critical blocker'
     },
     priceContextLabel (row) {
+      if (row?.supplierCostMessage) return row.supplierCostMessage
       const text = String(row?.sum || '').trim()
       if (!text) return this.$store.state.language === 'ru' ? 'Цена не указана' : 'Price missing'
       return this.$store.state.language === 'ru' ? 'Продажная цена из таблицы' : 'Sales price from sheet'
+    },
+    supplierCostHintClass (row) {
+      const level = String(row?.supplierCostLevel || '').toLowerCase()
+      if (level === 'error') return 'price-block__hint--error'
+      if (level === 'warn') return 'price-block__hint--warn'
+      if (level === 'ok') return 'price-block__hint--ok'
+      return ''
     },
     driverStateLabel (row) {
       return String(row?.driver || '').trim()
@@ -1724,6 +1735,9 @@ export default {
   line-height: 1.45;
   color: #64748b;
 }
+.price-block__hint--error { color: #b91c1c; font-weight: 700; }
+.price-block__hint--warn { color: #9a3412; font-weight: 700; }
+.price-block__hint--ok { color: #166534; }
 .route-block__route {
   font-size: 14px;
   line-height: 1.5;
