@@ -230,6 +230,34 @@
         <div v-if="orderCardDetailError" class="hint hint--error">{{ orderCardDetailError }}</div>
 
         <details class="detail-panel" open>
+          <summary class="section-summary">{{ t.economicsTitle }}</summary>
+          <div class="economics-grid">
+            <div class="economics-card">
+              <div class="economics-card__label">{{ t.clientPrice }}</div>
+              <div class="economics-card__value">{{ formatMoney(selectedOrder.orderClientPrice) }}</div>
+              <div class="economics-card__hint">{{ clientPriceHint(selectedOrder) }}</div>
+            </div>
+            <div class="economics-card">
+              <div class="economics-card__label">{{ t.supplierCostTitle }}</div>
+              <div class="economics-card__value">{{ supplierCostValueLabel(selectedOrder) }}</div>
+              <div class="economics-card__hint" :class="supplierCostHintClass(selectedOrder)">{{ supplierCostSourceHint(selectedOrder) }}</div>
+            </div>
+            <div class="economics-card" :class="economicsCardClass(selectedOrder)">
+              <div class="economics-card__label">{{ t.marginTitle }}</div>
+              <div class="economics-card__value">{{ marginValueLabel(selectedOrder) }}</div>
+              <div class="economics-card__hint">{{ marginHintLabel(selectedOrder) }}</div>
+            </div>
+          </div>
+          <div v-if="selectedOrder.supplierDisplay?.line" class="economics-note">
+            <strong>{{ t.supplierWarningLabel }}:</strong>
+            <span>{{ selectedOrder.supplierDisplay.line }}</span>
+          </div>
+          <div v-if="selectedOrder.supplierCostMessage" class="economics-note" :class="supplierCostHintClass(selectedOrder)">
+            {{ selectedOrder.supplierCostMessage }}
+          </div>
+        </details>
+
+        <details class="detail-panel" open>
           <summary class="section-summary">Основное</summary>
           <div class="meta-grid">
             <div><strong>ID:</strong> {{ selectedOrder.id || '-' }}</div>
@@ -543,6 +571,10 @@ export default {
             updatedAt: 'Обновлено',
             driverPrice: 'Цена водителя',
             clientPrice: 'Цена клиенту',
+            economicsTitle: 'Экономика заказа',
+            supplierCostTitle: 'Закупка',
+            marginTitle: 'Маржа',
+            supplierWarningLabel: 'Источник закупки',
             changeStatus: 'Сменить статус',
             selectStatus: 'Выберите статус',
             reasonPlaceholder: 'Причина (необязательно)',
@@ -648,6 +680,10 @@ export default {
             updatedAt: 'Updated at',
             driverPrice: 'Driver price',
             clientPrice: 'Client price',
+            economicsTitle: 'Order economics',
+            supplierCostTitle: 'Supplier cost',
+            marginTitle: 'Margin',
+            supplierWarningLabel: 'Supplier source',
             changeStatus: 'Change status',
             selectStatus: 'Select status',
             reasonPlaceholder: 'Reason (optional)',
@@ -1166,6 +1202,7 @@ export default {
       return this.$store.state.language === 'ru' ? 'Критичных блокеров нет' : 'No critical blocker'
     },
     priceContextLabel (row) {
+      if (row?.supplierCostShort) return row.supplierCostShort
       if (row?.supplierCostMessage) return row.supplierCostMessage
       const text = String(row?.sum || '').trim()
       if (!text) return this.$store.state.language === 'ru' ? 'Цена не указана' : 'Price missing'
@@ -1187,6 +1224,70 @@ export default {
       if (row?.needsInfo) return this.$store.state.language === 'ru' ? 'Сначала уточните данные, потом двигайте заказ дальше.' : 'Clarify missing data before moving the order forward.'
       if (!String(row?.driver || '').trim()) return this.$store.state.language === 'ru' ? 'Сначала назначьте водителя или откройте чат с задачей.' : 'Assign a driver or open the task in chats first.'
       return this.$store.state.language === 'ru' ? 'Заказ готов к следующему действию по клиенту.' : 'This order is ready for the next client-facing step.'
+    },
+    parseNumeric (value) {
+      const numeric = Number(value)
+      return Number.isFinite(numeric) ? numeric : null
+    },
+    clientPriceHint (row) {
+      if (this.parseNumeric(row?.orderClientPrice) != null) {
+        return this.$store.state.language === 'ru' ? 'Продажная цена по заказу' : 'Sales price on order'
+      }
+      if (String(row?.sum || '').trim()) {
+        return this.$store.state.language === 'ru' ? 'Цена взята из таблицы' : 'Price comes from sheet'
+      }
+      return this.$store.state.language === 'ru' ? 'Цена клиенту пока не определена' : 'Client price is not defined yet'
+    },
+    supplierCostValueLabel (row) {
+      if (row?.supplierDisplay?.line) return row.supplierDisplay.line
+      if (row?.supplierCostValue != null) return `${Number(row.supplierCostValue).toFixed(2)} ${row?.supplierCostCurrency || 'EUR'}`
+      return this.$store.state.language === 'ru' ? 'Закупка не найдена' : 'Supplier cost not found'
+    },
+    supplierCostSourceHint (row) {
+      if (row?.supplierDisplay?.supplierName) {
+        return this.$store.state.language === 'ru'
+          ? `Исполнитель: ${row.supplierDisplay.supplierName}`
+          : `Supplier: ${row.supplierDisplay.supplierName}`
+      }
+      return this.$store.state.language === 'ru' ? 'Нет подходящей закупки в базе' : 'No matching supplier cost in database'
+    },
+    economicsNumbers (row) {
+      const sell = this.parseNumeric(row?.orderClientPrice)
+      const supplierBase = this.parseNumeric(row?.supplierDisplay?.baseAmount ?? row?.supplierCostBaseValue)
+      const supplierNative = this.parseNumeric(row?.supplierCostValue)
+      return { sell, supplierBase, supplierNative }
+    },
+    marginValueLabel (row) {
+      const { sell, supplierBase } = this.economicsNumbers(row)
+      if (sell == null || supplierBase == null) {
+        return this.$store.state.language === 'ru' ? 'Нужно уточнение' : 'Needs clarification'
+      }
+      const margin = sell - supplierBase
+      return `${margin.toFixed(2)} EUR`
+    },
+    marginHintLabel (row) {
+      const { sell, supplierBase } = this.economicsNumbers(row)
+      if (sell == null && supplierBase == null) {
+        return this.$store.state.language === 'ru' ? 'Нет ни продажи, ни закупки' : 'No sales or supplier cost yet'
+      }
+      if (sell == null) {
+        return this.$store.state.language === 'ru' ? 'Сначала определите цену клиенту' : 'Define client price first'
+      }
+      if (supplierBase == null) {
+        return this.$store.state.language === 'ru' ? 'Не нашли закупку под маршрут/класс' : 'No supplier cost found for route/class'
+      }
+      const margin = sell - supplierBase
+      if (margin < 0) return this.$store.state.language === 'ru' ? 'Продажа ниже закупки' : 'Sale is below supplier cost'
+      if (margin < 10) return this.$store.state.language === 'ru' ? 'Маржа низкая' : 'Margin is low'
+      return this.$store.state.language === 'ru' ? 'Маржа в рабочей зоне' : 'Margin looks healthy'
+    },
+    economicsCardClass (row) {
+      const { sell, supplierBase } = this.economicsNumbers(row)
+      if (sell == null || supplierBase == null) return 'economics-card--neutral'
+      const margin = sell - supplierBase
+      if (margin < 0) return 'economics-card--critical'
+      if (margin < 10) return 'economics-card--warn'
+      return 'economics-card--ok'
     },
     primaryActionLabel (row) {
       if (row?.needsInfo) return this.sendToChatSavingByOrder[row.id] ? this.t.sendingToChat : this.t.sendToChat
@@ -1375,7 +1476,13 @@ export default {
             addressVerification: detail.addressVerification || null,
             qualityChecks: Array.isArray(detail.qualityChecks) ? detail.qualityChecks : [],
             sourceType: detail.sourceType || null,
-            orderComment: detail.comment || null
+            orderComment: detail.comment || null,
+            supplierCost: detail.supplierCost || null,
+            supplierDisplay: detail.supplierDisplay || null,
+            supplierCostMessage: Array.isArray(detail.qualityChecks)
+              ? (detail.qualityChecks.find((item) => item?.key === 'supplierCost')?.message || null)
+              : null,
+            commission: detail.commission ?? this.selectedOrder.commission ?? null
           }
         } else {
           this.orderCardDetailError = this.$store.state.language === 'ru'
@@ -1933,6 +2040,54 @@ export default {
 .summary-chip strong {
   color: #17233d;
 }
+.economics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.economics-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fbfcff;
+}
+.economics-card--critical {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff8f8 0%, #ffefef 100%);
+}
+.economics-card--warn {
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #fffdf4 0%, #fff8dc 100%);
+}
+.economics-card--ok {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f7fff9 0%, #edfff3 100%);
+}
+.economics-card__label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #702283;
+}
+.economics-card__value {
+  font-size: 18px;
+  font-weight: 800;
+  color: #17233d;
+  line-height: 1.35;
+}
+.economics-card__hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+.economics-note {
+  margin-top: 12px;
+  color: #334155;
+  line-height: 1.55;
+}
 .detail-panel {
   margin: 12px 0;
   border: 1px solid #e2e8f0;
@@ -2089,6 +2244,7 @@ export default {
   .status-change-row { grid-template-columns: 1fr; }
   .order-focus-card,
   .order-summary-grid { grid-template-columns: 1fr; }
+  .economics-grid { grid-template-columns: 1fr; }
   .main-grid {
     min-width: 1180px;
   }
