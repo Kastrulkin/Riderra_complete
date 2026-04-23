@@ -369,6 +369,11 @@ input[type="tel"]{
   margin: -6px 0 18px;
 }
 
+.site-section--pf.admin-overview .admin-nav-shell {
+  background: transparent;
+  backdrop-filter: none;
+}
+
 @media (max-width: 980px) {
   .site-section--pf.admin-overview,
   .site-section--pf.admin-section,

@@ -355,6 +355,10 @@ export default {
   position: relative;
 }
 
+.admin-overview .section-actions {
+  margin-top: -8px;
+}
+
 .page-background {
   position: absolute;
   inset: 0;
@@ -554,8 +558,9 @@ export default {
   padding: 12px 18px;
   cursor: pointer;
   font-weight: 700;
-  background: #fbf2ff;
-  color: #702283;
+  background: linear-gradient(135deg, #1a237e 0%, #0d1421 100%);
+  color: #fff;
+  box-shadow: 0 14px 28px rgba(13, 20, 33, 0.18);
 }
 
 @media (max-width: 1200px) {
