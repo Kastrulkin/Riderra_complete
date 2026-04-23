@@ -224,6 +224,17 @@
                 <div v-if="inboundOutcome.orderPatchLabel" class="trace-row"><strong>Обновление заказа:</strong> {{ inboundOutcome.orderPatchLabel }}</div>
                 <div class="trace-row"><strong>Следующий статус:</strong> {{ stateLabel(inboundOutcome.nextState) }}</div>
                 <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
+                <div v-if="inboundOutcome.hasPendingPatch" class="review-gate">
+                  <div class="hint">Заказ ещё не обновлён. Примените изменение только после проверки.</div>
+                  <div class="review-gate__actions">
+                    <button class="btn btn--primary" :disabled="inboundUpdateSaving" @click="applyInboundUpdate">
+                      {{ inboundUpdateSaving ? 'Применяю...' : 'Применить в заказ' }}
+                    </button>
+                    <button class="btn btn--warn" :disabled="inboundUpdateSaving" @click="rejectInboundUpdate">
+                      Отклонить
+                    </button>
+                  </div>
+                </div>
               </div>
               <div v-else class="hint">Результат появится после “Обработать ответ”.</div>
             </details>
@@ -320,6 +331,7 @@ export default {
     copyStatus: '',
     inboundText: '',
     inboundProcessing: false,
+    inboundUpdateSaving: false,
     quickSendLoading: false,
     quickDispatchLoading: false,
     selectedTaskAgentId: '',
@@ -350,6 +362,7 @@ export default {
         'missing_data_detected',
         'request_sent',
         'customer_replied',
+        'pending_update_approval',
         'field_validated',
         'field_rejected',
         'order_complete',
@@ -366,7 +379,8 @@ export default {
       const map = {
         missing_data_detected: ['request_sent', 'handoff_human', 'closed'],
         request_sent: ['customer_replied', 'handoff_human', 'closed'],
-        customer_replied: ['field_validated', 'field_rejected', 'handoff_human'],
+        customer_replied: ['pending_update_approval', 'field_validated', 'field_rejected', 'handoff_human'],
+        pending_update_approval: ['order_complete', 'field_rejected', 'handoff_human'],
         field_validated: ['missing_data_detected', 'order_complete', 'handoff_human'],
         field_rejected: ['request_sent', 'handoff_human'],
         order_complete: ['ready_to_notify', 'closed'],
@@ -404,6 +418,7 @@ export default {
       const field = String(extractOutput?.field || '—')
       const source = String(extractOutput?.source || classifyOutput?.source || 'OpenClaw')
       const patch = Array.isArray(this.lastStepTrace.orderPatchPreview) ? this.lastStepTrace.orderPatchPreview : []
+      const hasPendingPatch = Boolean(this.lastStepTrace.pendingOrderPatch && this.selectedTask?.state === 'pending_update_approval')
       return {
         classLabel: clsMap[cls] || cls,
         confidenceLabel,
@@ -412,6 +427,7 @@ export default {
         valueLabel: extractedValue == null || String(extractedValue).trim() === '' ? '—' : String(extractedValue),
         sourceLabel: source === 'local_fallback' ? 'Локальные правила Riderra' : source,
         orderPatchLabel: patch.length ? patch.join(', ') : '',
+        hasPendingPatch,
         nextState: String(this.lastStepTrace.finalState || this.lastStepTrace.candidateState || ''),
         reasonLabel: String(this.lastStepTrace.decisionReason || '—')
       }
@@ -446,6 +462,7 @@ export default {
     taskFocusHint() {
       if (!this.selectedTask) return ''
       const reason = String(this.selectedTask?.order?.infoReason || '').trim()
+      if (this.selectedTask.state === 'pending_update_approval') return 'Проверьте предложенное обновление заказа и примените его только после подтверждения.'
       if (this.selectedTask.state === 'customer_replied') return 'Сначала разберите входящий ответ и подтвердите поле.'
       if (this.selectedTask.state === 'request_sent') return 'Проверьте, нужен ли follow-up или передача человеку.'
       if (this.selectedTask.taskType === 'dispatch_info') return 'Подготовьте подтверждённые детали поездки, отправьте вручную и зафиксируйте результат.'
@@ -454,6 +471,7 @@ export default {
     },
     primaryTaskActionLabel() {
       if (!this.selectedTask) return 'Действие'
+      if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving ? 'Применяю...' : 'Применить обновление'
       if (this.selectedTask.state === 'customer_replied') return 'Разобрать ответ'
       if (this.selectedTask.taskType === 'dispatch_info') {
         return this.quickDispatchLoading ? 'Готовлю...' : 'Подготовить детали'
@@ -462,6 +480,7 @@ export default {
     },
     primaryTaskActionDisabled() {
       if (!this.selectedTask) return true
+      if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving || !this.inboundOutcome?.hasPendingPatch
       if (this.selectedTask.state === 'customer_replied') return !this.inboundText.trim() || this.inboundProcessing
       if (this.selectedTask.taskType === 'dispatch_info') return this.quickDispatchLoading
       return this.quickSendLoading
@@ -679,12 +698,13 @@ export default {
           'Всегда указывай, что сообщение требует подтверждения оператором.'
         ].join('\n')
         this.agentForm.workflowJson = JSON.stringify({
-          states: ['missing_data_detected', 'request_sent', 'customer_replied', 'field_validated', 'order_complete', 'handoff_human'],
+          states: ['missing_data_detected', 'request_sent', 'customer_replied', 'pending_update_approval', 'field_rejected', 'order_complete', 'handoff_human'],
           transitions: {
             missing_data_detected: ['request_sent', 'handoff_human'],
             request_sent: ['customer_replied', 'handoff_human'],
-            customer_replied: ['field_validated', 'handoff_human'],
-            field_validated: ['missing_data_detected', 'order_complete', 'handoff_human'],
+            customer_replied: ['pending_update_approval', 'field_rejected', 'handoff_human'],
+            pending_update_approval: ['order_complete', 'field_rejected', 'handoff_human'],
+            field_rejected: ['request_sent', 'handoff_human'],
             order_complete: ['closed'],
             handoff_human: ['request_sent', 'closed']
           }
@@ -1008,6 +1028,46 @@ export default {
         this.inboundProcessing = false
       }
     },
+    async applyInboundUpdate() {
+      if (!this.selectedTask?.id || this.inboundUpdateSaving) return
+      this.inboundUpdateSaving = true
+      try {
+        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/apply-inbound-update`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось применить обновление')
+        this.notice = 'Обновление применено в заказ'
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка применения обновления'
+      } finally {
+        this.inboundUpdateSaving = false
+      }
+    },
+    async rejectInboundUpdate() {
+      if (!this.selectedTask?.id || this.inboundUpdateSaving) return
+      this.inboundUpdateSaving = true
+      try {
+        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/reject-inbound-update`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось отклонить обновление')
+        this.notice = 'Обновление отклонено'
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка отклонения обновления'
+      } finally {
+        this.inboundUpdateSaving = false
+      }
+    },
     async applyTransition() {
       if (!this.selectedTask || !this.nextState) return
       await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/transition`, {
@@ -1045,6 +1105,10 @@ export default {
     },
     async runPrimaryTaskAction() {
       if (!this.selectedTask) return
+      if (this.selectedTask.state === 'pending_update_approval') {
+        await this.applyInboundUpdate()
+        return
+      }
       if (this.selectedTask.state === 'customer_replied') {
         await this.processInboundMessage()
         return
@@ -1069,6 +1133,7 @@ export default {
         missing_data_detected: 'Нужно уточнить',
         request_sent: 'Запрос отправлен',
         customer_replied: 'Клиент ответил',
+        pending_update_approval: 'Ждёт применения',
         field_validated: 'Поле подтверждено',
         field_rejected: 'Поле отклонено',
         order_complete: 'Заказ заполнен',
@@ -1350,6 +1415,8 @@ export default {
 .trace-wrap { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #1e293b; }
 .trace-row { line-height: 1.35; }
 .trace-row--caps { margin-top: 4px; }
+.review-gate { margin-top: 10px; border: 1px solid #f4d48b; background: #fff8e6; border-radius: 10px; padding: 10px; }
+.review-gate__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .trace-cap { border: 1px solid #ead7f0; border-radius: 8px; background: #fcf7fd; padding: 8px; }
 .trace-cap-name { font-weight: 700; font-size: 12px; color: #0f172a; }
 .trace-cap-meta { font-size: 12px; color: #475569; margin: 4px 0; }

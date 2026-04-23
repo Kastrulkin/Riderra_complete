@@ -3494,7 +3494,8 @@ app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActor
 const CHAT_STATE_TRANSITIONS = {
   missing_data_detected: ['request_sent', 'handoff_human', 'closed'],
   request_sent: ['customer_replied', 'handoff_human', 'closed'],
-  customer_replied: ['field_validated', 'field_rejected', 'handoff_human'],
+  customer_replied: ['pending_update_approval', 'field_validated', 'field_rejected', 'handoff_human'],
+  pending_update_approval: ['order_complete', 'field_rejected', 'handoff_human'],
   field_validated: ['missing_data_detected', 'order_complete', 'handoff_human'],
   field_rejected: ['request_sent', 'handoff_human'],
   order_complete: ['ready_to_notify', 'closed'],
@@ -4259,7 +4260,7 @@ function computeNextChatStateForInbound({ taskType, currentState, classification
   }
   if (cls === 'answer') {
     if (extraction?.valid && (extraction?.confidence == null || extraction.confidence >= 0.7)) {
-      return 'field_validated'
+      return 'pending_update_approval'
     }
     return 'field_rejected'
   }
@@ -6239,30 +6240,12 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
       const finalTransition = await transitionChatTaskIfAllowed(task.id, currentState, candidateState)
       if (finalTransition.changed) currentState = finalTransition.state
 
-      let orderUpdate = null
       let orderPatchPreview = []
-      if (task.taskType === 'clarification' && currentState === 'field_validated' && task.orderId) {
+      let pendingOrderPatch = null
+      if (task.taskType === 'clarification' && currentState === 'pending_update_approval' && task.orderId) {
         const orderPatch = buildOrderPatchFromInboundExtraction(task.order || {}, extraction, bodyText)
         orderPatchPreview = orderPatch.preview
-        orderUpdate = await prisma.order.update({
-          where: { id: task.orderId },
-          data: orderPatch.patch || {
-            needsInfo: false,
-            infoReason: null
-          },
-          select: {
-            id: true,
-            needsInfo: true,
-            infoReason: true,
-            status: true,
-            flightNumber: true,
-            luggage: true,
-            fromPoint: true,
-            comment: true
-          }
-        })
-        const completeTransition = await transitionChatTaskIfAllowed(task.id, currentState, 'order_complete')
-        if (completeTransition.changed) currentState = completeTransition.state
+        pendingOrderPatch = orderPatch.patch || null
       }
 
       const trace = {
@@ -6274,6 +6257,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         finalState: currentState,
         decisionReason,
         orderPatchPreview,
+        pendingOrderPatch,
         capabilities: [
           {
             name: 'riderra.customer.reply.classify',
@@ -6340,7 +6324,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         classification,
         extraction,
         trace,
-        orderUpdate,
+        pendingOrderPatch,
         runtime: {
           classify: classifyRuntime,
           extract: extractRuntime
@@ -6352,6 +6336,177 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
   } catch (error) {
     console.error('Error processing inbound chat message:', error)
     res.status(500).json({ error: 'Failed to process inbound message' })
+  }
+})
+
+app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.id, tenantId },
+      include: {
+        order: true,
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+          select: { id: true, bodyJson: true, createdAt: true, direction: true, source: true }
+        }
+      }
+    })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+    if (String(task.state || '') !== 'pending_update_approval') {
+      return res.status(409).json({ error: 'Task is not waiting for update approval' })
+    }
+    if (!task.orderId || !task.order) return res.status(409).json({ error: 'Task has no linked order' })
+
+    const traceMessage = (task.messages || []).find((message) => {
+      const parsed = parseJsonSafe(message.bodyJson, null)
+      return parsed && parsed.kind === 'inbound_trace' && parsed.pendingOrderPatch
+    })
+    if (!traceMessage) return res.status(404).json({ error: 'Pending inbound update was not found' })
+
+    const trace = parseJsonSafe(traceMessage.bodyJson, null)
+    const pendingOrderPatch = trace?.pendingOrderPatch || null
+    if (!pendingOrderPatch || typeof pendingOrderPatch !== 'object') {
+      return res.status(409).json({ error: 'Pending inbound update is empty' })
+    }
+
+    const payload = { taskId: task.id, orderId: task.orderId, traceMessageId: traceMessage.id, pendingOrderPatch }
+    ensureIdempotencyKey(req, 'admin.chat_task.apply_inbound_update', payload)
+
+    const wrapped = await withIdempotency(req, 'admin.chat_task.apply_inbound_update', payload, async () => {
+      const updatedOrder = await prisma.order.update({
+        where: { id: task.orderId },
+        data: pendingOrderPatch,
+        select: {
+          id: true,
+          needsInfo: true,
+          infoReason: true,
+          status: true,
+          flightNumber: true,
+          luggage: true,
+          fromPoint: true,
+          comment: true
+        }
+      })
+
+      let nextState = String(task.state || '')
+      const transition = await transitionChatTaskIfAllowed(task.id, nextState, 'order_complete')
+      if (transition.changed) nextState = transition.state
+
+      await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'internal',
+          source: 'system',
+          channel: task.channel || 'manual',
+          bodyText: 'Оператор применил обновление заказа из ответа клиента.',
+          bodyJson: JSON.stringify({
+            kind: 'inbound_update_approved',
+            traceMessageId: traceMessage.id,
+            appliedPatch: pendingOrderPatch,
+            orderPatchPreview: trace.orderPatchPreview || []
+          }),
+          traceId: req.actorContext.traceId,
+          createdByUserId: req.user?.id || null
+        }
+      })
+
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_task.apply_inbound_update',
+        resource: 'chat_task',
+        resourceId: task.id,
+        traceId: req.actorContext.traceId,
+        decision: 'human_approved',
+        result: 'ok',
+        context: { orderId: task.orderId, traceMessageId: traceMessage.id, appliedPatch: pendingOrderPatch, nextState }
+      })
+
+      return { order: updatedOrder, taskState: nextState }
+    })
+
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error applying inbound chat update:', error)
+    res.status(500).json({ error: 'Failed to apply inbound update' })
+  }
+})
+
+app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.id, tenantId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+          select: { id: true, bodyJson: true }
+        }
+      }
+    })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+    if (String(task.state || '') !== 'pending_update_approval') {
+      return res.status(409).json({ error: 'Task is not waiting for update approval' })
+    }
+
+    const traceMessage = (task.messages || []).find((message) => {
+      const parsed = parseJsonSafe(message.bodyJson, null)
+      return parsed && parsed.kind === 'inbound_trace' && parsed.pendingOrderPatch
+    })
+    const reason = String(req.body?.reason || '').trim()
+    const payload = { taskId: task.id, traceMessageId: traceMessage?.id || null, reason }
+    ensureIdempotencyKey(req, 'admin.chat_task.reject_inbound_update', payload)
+
+    const wrapped = await withIdempotency(req, 'admin.chat_task.reject_inbound_update', payload, async () => {
+      let nextState = String(task.state || '')
+      const transition = await transitionChatTaskIfAllowed(task.id, nextState, 'field_rejected')
+      if (transition.changed) nextState = transition.state
+
+      await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'internal',
+          source: 'system',
+          channel: task.channel || 'manual',
+          bodyText: reason
+            ? `Оператор отклонил обновление заказа из ответа клиента: ${reason}`
+            : 'Оператор отклонил обновление заказа из ответа клиента.',
+          bodyJson: JSON.stringify({
+            kind: 'inbound_update_rejected',
+            traceMessageId: traceMessage?.id || null,
+            reason: reason || null
+          }),
+          traceId: req.actorContext.traceId,
+          createdByUserId: req.user?.id || null
+        }
+      })
+
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_task.reject_inbound_update',
+        resource: 'chat_task',
+        resourceId: task.id,
+        traceId: req.actorContext.traceId,
+        decision: 'human_rejected',
+        result: 'ok',
+        context: { traceMessageId: traceMessage?.id || null, reason: reason || null, nextState }
+      })
+
+      return { taskState: nextState }
+    })
+
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error rejecting inbound chat update:', error)
+    res.status(500).json({ error: 'Failed to reject inbound update' })
   }
 })
 
