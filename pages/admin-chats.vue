@@ -218,7 +218,10 @@
                 <div class="trace-row"><strong>Класс ответа:</strong> {{ inboundOutcome.classLabel }}</div>
                 <div class="trace-row"><strong>Уверенность:</strong> {{ inboundOutcome.confidenceLabel }}</div>
                 <div class="trace-row"><strong>Валидация поля:</strong> {{ inboundOutcome.validationLabel }}</div>
+                <div class="trace-row"><strong>Поле:</strong> {{ inboundOutcome.fieldLabel }}</div>
                 <div class="trace-row"><strong>Извлеченное значение:</strong> {{ inboundOutcome.valueLabel }}</div>
+                <div class="trace-row"><strong>Источник разбора:</strong> {{ inboundOutcome.sourceLabel }}</div>
+                <div v-if="inboundOutcome.orderPatchLabel" class="trace-row"><strong>Обновление заказа:</strong> {{ inboundOutcome.orderPatchLabel }}</div>
                 <div class="trace-row"><strong>Следующий статус:</strong> {{ stateLabel(inboundOutcome.nextState) }}</div>
                 <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
               </div>
@@ -387,6 +390,8 @@ export default {
         answer: 'Ответ',
         question: 'Вопрос',
         negative: 'Негатив',
+        ack: 'Подтверждение',
+        irrelevant: 'Не по задаче',
         unclassified: 'Не классифицировано'
       }
       const conf = Number(classifyOutput?.confidence)
@@ -396,11 +401,17 @@ export default {
       if (valid === true) validationLabel = 'Подтверждено'
       if (valid === false) validationLabel = 'Не подтверждено'
       const extractedValue = extractOutput?.value ?? extractOutput?.normalizedValue ?? extractOutput?.extractedValue ?? null
+      const field = String(extractOutput?.field || '—')
+      const source = String(extractOutput?.source || classifyOutput?.source || 'OpenClaw')
+      const patch = Array.isArray(this.lastStepTrace.orderPatchPreview) ? this.lastStepTrace.orderPatchPreview : []
       return {
         classLabel: clsMap[cls] || cls,
         confidenceLabel,
         validationLabel,
+        fieldLabel: field,
         valueLabel: extractedValue == null || String(extractedValue).trim() === '' ? '—' : String(extractedValue),
+        sourceLabel: source === 'local_fallback' ? 'Локальные правила Riderra' : source,
+        orderPatchLabel: patch.length ? patch.join(', ') : '',
         nextState: String(this.lastStepTrace.finalState || this.lastStepTrace.candidateState || ''),
         reasonLabel: String(this.lastStepTrace.decisionReason || '—')
       }

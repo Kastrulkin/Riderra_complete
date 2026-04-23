@@ -4093,6 +4093,154 @@ function extractValidationFromOpenClawResponse(data = {}) {
   }
 }
 
+function classifyCustomerReplyFallback(text = '') {
+  const raw = String(text || '').trim()
+  const lower = raw.toLowerCase()
+  if (!raw) return { class: 'unclassified', confidence: 0, requiresHuman: false, source: 'local_fallback' }
+
+  const negativeRe = /\b(cancel|cancelled|отмена|отменить|не\s+надо|не\s+получится|нет\s+данных|не\s+знаю)\b/i
+  if (negativeRe.test(raw)) {
+    return { class: 'negative', confidence: 0.78, requiresHuman: true, source: 'local_fallback' }
+  }
+
+  const questionWords = ['?', 'как ', 'что ', 'где ', 'когда ', 'why ', 'what ', 'where ', 'when ']
+  if (questionWords.some((token) => lower.includes(token))) {
+    return { class: 'question', confidence: 0.72, requiresHuman: true, source: 'local_fallback' }
+  }
+
+  const answerSignals = [
+    /\b[A-Z0-9]{2,3}\s?\d{2,5}[A-Z]?\b/i,
+    /\b\d+\s*(багаж|чемодан|чемодана|чемоданов|bag|bags|suitcase|suitcases)\b/i,
+    /\b(без багажа|no luggage|no bags)\b/i,
+    /\b(terminal|терминал|entrance|вход|address|адрес|hotel|отель|lobby|лобби)\b/i
+  ]
+  if (answerSignals.some((re) => re.test(raw))) {
+    return { class: 'answer', confidence: 0.82, requiresHuman: false, source: 'local_fallback' }
+  }
+
+  return raw.length >= 4
+    ? { class: 'answer', confidence: 0.62, requiresHuman: false, source: 'local_fallback' }
+    : { class: 'unclassified', confidence: 0.2, requiresHuman: false, source: 'local_fallback' }
+}
+
+function detectClarificationTarget(infoReason = '', text = '') {
+  const combined = `${infoReason || ''} ${text || ''}`.toLowerCase()
+  if (/(рейс|flight|авиа|arrival|прилет|прил[её]т)/i.test(combined)) return 'flightNumber'
+  if (/(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(combined)) return 'luggage'
+  if (/(подач|pickup|адрес|address|terminal|терминал|entrance|вход|hotel|отель)/i.test(combined)) return 'pickupPoint'
+  return 'generic'
+}
+
+function extractOrderFieldFallback({ text = '', infoReason = '' } = {}) {
+  const raw = String(text || '').trim()
+  const target = detectClarificationTarget(infoReason, raw)
+  if (!raw) {
+    return { valid: false, confidence: 0, field: target, value: null, reason: 'Пустой ответ', source: 'local_fallback' }
+  }
+
+  if (target === 'flightNumber') {
+    const match = raw.match(/\b([A-Z0-9]{2,3}\s?\d{2,5}[A-Z]?)\b/i)
+    const value = match ? normalizeFlightNumber(match[1]) : null
+    return {
+      valid: Boolean(value),
+      confidence: value ? 0.86 : 0.35,
+      field: 'flightNumber',
+      value,
+      reason: value ? 'Номер рейса найден локальным правилом.' : 'Не найден номер рейса.',
+      source: 'local_fallback'
+    }
+  }
+
+  if (target === 'luggage') {
+    if (/(без багажа|no luggage|no bags|без чемодан)/i.test(raw)) {
+      return {
+        valid: true,
+        confidence: 0.9,
+        field: 'luggage',
+        value: 0,
+        reason: 'Ответ указывает, что багажа нет.',
+        source: 'local_fallback'
+      }
+    }
+    const match = raw.match(/\b(\d{1,2})\s*(багаж|чемодан|чемодана|чемоданов|bag|bags|suitcase|suitcases)?\b/i)
+    const value = match ? toInt(match[1], null) : null
+    return {
+      valid: value !== null && value >= 0,
+      confidence: value !== null ? 0.82 : 0.4,
+      field: 'luggage',
+      value,
+      reason: value !== null ? 'Количество багажа найдено локальным правилом.' : 'Не найдено количество багажа.',
+      source: 'local_fallback'
+    }
+  }
+
+  if (target === 'pickupPoint') {
+    const value = raw.replace(/^(место подачи|pickup|адрес|address)\s*[:\-]\s*/i, '').trim()
+    return {
+      valid: value.length >= 4,
+      confidence: value.length >= 8 ? 0.78 : 0.58,
+      field: 'pickupPoint',
+      value,
+      reason: value.length >= 4 ? 'Место подачи принято как текстовое уточнение.' : 'Слишком короткое место подачи.',
+      source: 'local_fallback'
+    }
+  }
+
+  return {
+    valid: raw.length >= 4,
+    confidence: raw.length >= 4 ? 0.65 : 0.25,
+    field: 'clarification',
+    value: raw,
+    reason: 'Ответ сохранён как общее уточнение.',
+    source: 'local_fallback'
+  }
+}
+
+function isPlaceholderPoint(value = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  return !normalized || ['unknown', 'tbd', '-', '—', 'n/a', 'нет', 'не указан'].includes(normalized)
+}
+
+function buildOrderPatchFromInboundExtraction(order = {}, extraction = null, bodyText = '') {
+  if (!extraction?.valid) return { patch: null, preview: [] }
+  const field = String(extraction.field || '').trim()
+  const value = extraction.value
+  const patch = {
+    needsInfo: false,
+    infoReason: null
+  }
+  const preview = ['needsInfo: false', 'infoReason: cleared']
+
+  if (field === 'flightNumber' && value) {
+    const normalized = normalizeFlightNumber(value)
+    patch.flightNumber = normalized
+    preview.push(`flightNumber: ${normalized}`)
+  } else if (field === 'luggage' && value !== null && value !== undefined) {
+    const luggage = toInt(value, null)
+    if (luggage !== null) {
+      patch.luggage = luggage
+      preview.push(`luggage: ${luggage}`)
+    }
+  } else if (field === 'pickupPoint' && value) {
+    const text = String(value || '').trim()
+    if (isPlaceholderPoint(order?.fromPoint)) {
+      patch.fromPoint = text
+      preview.push(`fromPoint: ${text}`)
+    } else {
+      patch.comment = appendOrderComment(order?.comment || null, `Уточнение места подачи: ${text}`)
+      preview.push('comment: pickup clarification appended')
+    }
+  } else if (value) {
+    const text = String(value || bodyText || '').trim()
+    if (text) {
+      patch.comment = appendOrderComment(order?.comment || null, `Уточнение клиента: ${text}`)
+      preview.push('comment: customer clarification appended')
+    }
+  }
+
+  return { patch, preview }
+}
+
 function computeNextChatStateForInbound({ taskType, currentState, classification, extraction, agentPaused }) {
   const cls = String(classification?.class || '').toLowerCase()
   const requiresHuman = Boolean(classification?.requiresHuman)
@@ -6009,7 +6157,14 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         }
         if (classifyResult.ok) {
           classification = extractClassificationFromOpenClawResponse(classifyResult.data || {})
+        } else {
+          classification = {
+            ...classifyCustomerReplyFallback(bodyText),
+            fallbackReason: classifyResult.configured ? (classifyResult.error || 'OpenClaw classify failed') : 'OpenClaw runtime is not configured'
+          }
         }
+      } else if (task.agentPaused) {
+        classification = { class: 'unclassified', confidence: null, requiresHuman: false, source: 'agent_paused' }
       }
 
       let extraction = null
@@ -6051,6 +6206,14 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         }
         if (extractResult.ok) {
           extraction = extractValidationFromOpenClawResponse(extractResult.data || {})
+        } else {
+          extraction = {
+            ...extractOrderFieldFallback({
+              text: bodyText,
+              infoReason: task.order?.infoReason || ''
+            }),
+            fallbackReason: extractResult.configured ? (extractResult.error || 'OpenClaw extract failed') : 'OpenClaw runtime is not configured'
+          }
         }
       }
 
@@ -6077,14 +6240,26 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
       if (finalTransition.changed) currentState = finalTransition.state
 
       let orderUpdate = null
+      let orderPatchPreview = []
       if (task.taskType === 'clarification' && currentState === 'field_validated' && task.orderId) {
+        const orderPatch = buildOrderPatchFromInboundExtraction(task.order || {}, extraction, bodyText)
+        orderPatchPreview = orderPatch.preview
         orderUpdate = await prisma.order.update({
           where: { id: task.orderId },
-          data: {
+          data: orderPatch.patch || {
             needsInfo: false,
             infoReason: null
           },
-          select: { id: true, needsInfo: true, infoReason: true, status: true }
+          select: {
+            id: true,
+            needsInfo: true,
+            infoReason: true,
+            status: true,
+            flightNumber: true,
+            luggage: true,
+            fromPoint: true,
+            comment: true
+          }
         })
         const completeTransition = await transitionChatTaskIfAllowed(task.id, currentState, 'order_complete')
         if (completeTransition.changed) currentState = completeTransition.state
@@ -6098,6 +6273,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         candidateState,
         finalState: currentState,
         decisionReason,
+        orderPatchPreview,
         capabilities: [
           {
             name: 'riderra.customer.reply.classify',
