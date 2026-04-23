@@ -257,6 +257,31 @@
           </div>
         </details>
 
+        <details v-if="selectedOrder.supplierOptions && selectedOrder.supplierOptions.length" class="detail-panel" open>
+          <summary class="section-summary">{{ t.supplierOptionsTitle }}</summary>
+          <div class="supplier-options-list">
+            <div
+              v-for="option in selectedOrder.supplierOptions"
+              :key="`${option.sourceModel}-${option.sourceId}`"
+              class="supplier-option-row"
+            >
+              <div class="supplier-option-row__main">
+                <div class="supplier-option-row__title">{{ option.display?.line || supplierOptionFallback(option) }}</div>
+                <div class="supplier-option-row__meta">
+                  <span>{{ t.supplierStatusLabel }}: {{ supplierSourceStatusLabel(option.sourceStatus) }}</span>
+                  <span v-if="option.sourceLabel">· {{ option.sourceLabel }}</span>
+                  <span v-if="option.sourceQuotedAt">· {{ formatDateTime(option.sourceQuotedAt) }}</span>
+                </div>
+              </div>
+              <div class="supplier-option-row__side">
+                <span class="status-pill" :class="supplierCandidatePillClass(option, selectedOrder)">
+                  {{ supplierCandidatePillLabel(option, selectedOrder) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <details class="detail-panel" open>
           <summary class="section-summary">Основное</summary>
           <div class="meta-grid">
@@ -575,6 +600,8 @@ export default {
             supplierCostTitle: 'Закупка',
             marginTitle: 'Маржа',
             supplierWarningLabel: 'Источник закупки',
+            supplierOptionsTitle: 'Подходящие перевозчики',
+            supplierStatusLabel: 'Статус источника',
             changeStatus: 'Сменить статус',
             selectStatus: 'Выберите статус',
             reasonPlaceholder: 'Причина (необязательно)',
@@ -684,6 +711,8 @@ export default {
             supplierCostTitle: 'Supplier cost',
             marginTitle: 'Margin',
             supplierWarningLabel: 'Supplier source',
+            supplierOptionsTitle: 'Matching suppliers',
+            supplierStatusLabel: 'Source status',
             changeStatus: 'Change status',
             selectStatus: 'Select status',
             reasonPlaceholder: 'Reason (optional)',
@@ -1289,6 +1318,47 @@ export default {
       if (margin < 10) return 'economics-card--warn'
       return 'economics-card--ok'
     },
+    supplierOptionFallback (option) {
+      const name = option?.driver?.supplierCompany?.name || option?.driver?.name || option?.driver?.supplierContact?.fullName || '-'
+      const vehicle = option?.vehicleType || 'class'
+      const amount = option?.supplierPrice != null ? `${Number(option.supplierPrice).toFixed(2)} ${option?.currency || 'EUR'}` : '-'
+      return `${name} / ${vehicle} — ${amount}`
+    },
+    supplierSourceStatusLabel (status) {
+      const code = String(status || '').toLowerCase()
+      const map = this.$store.state.language === 'ru'
+        ? {
+            approved: 'подтверждено',
+            pending_clarification: 'нужно уточнить',
+            archived: 'архив'
+          }
+        : {
+            approved: 'approved',
+            pending_clarification: 'needs clarification',
+            archived: 'archived'
+          }
+      return map[code] || status || '-'
+    },
+    supplierCandidatePillLabel (option, row) {
+      const { sell } = this.economicsNumbers(row)
+      const baseAmount = this.parseNumeric(option?.display?.baseAmount)
+      if (sell == null || baseAmount == null) {
+        return this.$store.state.language === 'ru' ? 'Сверить вручную' : 'Check manually'
+      }
+      const margin = sell - baseAmount
+      if (margin < 0) return this.$store.state.language === 'ru' ? 'Убыточно' : 'Loss'
+      if (margin < 10) return this.$store.state.language === 'ru' ? 'Низкая маржа' : 'Low margin'
+      return this.$store.state.language === 'ru' ? 'Подходит' : 'Looks good'
+    },
+    supplierCandidatePillClass (option, row) {
+      const { sell } = this.economicsNumbers(row)
+      const baseAmount = this.parseNumeric(option?.display?.baseAmount)
+      if (sell == null || baseAmount == null) return 'status-pill--neutral'
+      const margin = sell - baseAmount
+      if (margin < 0) return 'status-pill--critical'
+      if (margin < 10) return 'status-pill--warning'
+      return 'status-pill--ok'
+    },
     primaryActionLabel (row) {
       if (row?.needsInfo) return this.sendToChatSavingByOrder[row.id] ? this.t.sendingToChat : this.t.sendToChat
       if (!String(row?.driver || '').trim()) return this.sendToChatSavingByOrder[row.id] ? this.t.sendingToChat : this.t.sendToChat
@@ -1479,6 +1549,7 @@ export default {
             orderComment: detail.comment || null,
             supplierCost: detail.supplierCost || null,
             supplierDisplay: detail.supplierDisplay || null,
+            supplierOptions: Array.isArray(detail.supplierOptions) ? detail.supplierOptions : [],
             supplierCostMessage: Array.isArray(detail.qualityChecks)
               ? (detail.qualityChecks.find((item) => item?.key === 'supplierCost')?.message || null)
               : null,
@@ -2088,6 +2159,35 @@ export default {
   color: #334155;
   line-height: 1.55;
 }
+.supplier-options-list {
+  display: grid;
+  gap: 10px;
+}
+.supplier-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fbfcff;
+}
+.supplier-option-row__title {
+  font-weight: 700;
+  color: #17233d;
+  line-height: 1.45;
+}
+.supplier-option-row__meta {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.supplier-option-row__side {
+  display: grid;
+  align-content: start;
+}
 .detail-panel {
   margin: 12px 0;
   border: 1px solid #e2e8f0;
@@ -2245,6 +2345,7 @@ export default {
   .order-focus-card,
   .order-summary-grid { grid-template-columns: 1fr; }
   .economics-grid { grid-template-columns: 1fr; }
+  .supplier-option-row { grid-template-columns: 1fr; }
   .main-grid {
     min-width: 1180px;
   }

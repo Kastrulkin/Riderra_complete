@@ -6906,6 +6906,18 @@ app.get(
         toPoint: order.toPoint || orderDraft.toPoint || '',
         vehicleType: order.vehicleType || orderDraft.vehicleType || ''
       })
+      const supplierCostCandidates = await loadSupplierCostCandidates(req.actorContext.tenantId)
+      const supplierOptions = findSupplierCostOptionsFromCandidates(supplierCostCandidates, {
+        city: orderDraft.city || '',
+        fromPoint: order.fromPoint || orderDraft.fromPoint || '',
+        toPoint: order.toPoint || orderDraft.toPoint || '',
+        vehicleType: order.vehicleType || orderDraft.vehicleType || ''
+      })
+        .slice(0, 5)
+        .map((candidate) => ({
+          ...candidate,
+          display: buildSupplierCostDisplay(candidate, BASE_CURRENCY)
+        }))
       const supplierSignal = buildSupplierCostSignal({
         sellPrice: order.clientPrice ?? orderDraft.clientPrice ?? null,
         supplierCost,
@@ -6956,6 +6968,7 @@ app.get(
           customerName: orderDraft.customerName || null,
           supplierCost,
           supplierDisplay,
+          supplierOptions,
           rawText: String(draftPayload.rawText || draft?.messageText || '').trim() || null,
           latestSnapshot: latestSnapshot
             ? {
@@ -10374,6 +10387,22 @@ function findBestSupplierCostFromCandidates(candidates, {
   toPoint = '',
   vehicleType = ''
 } = {}) {
+  const matchedCandidates = findSupplierCostOptionsFromCandidates(candidates, {
+    city,
+    fromPoint,
+    toPoint,
+    vehicleType
+  })
+
+  return matchedCandidates[0] || null
+}
+
+function findSupplierCostOptionsFromCandidates(candidates, {
+  city = '',
+  fromPoint = '',
+  toPoint = '',
+  vehicleType = ''
+} = {}) {
   const vehicleNorm = normalizeVehicleType(vehicleType)
   const driverRoutes = Array.isArray(candidates?.driverRoutes) ? candidates.driverRoutes : []
   const cityRouteRows = Array.isArray(candidates?.cityRouteRows) ? candidates.cityRouteRows : []
@@ -10429,7 +10458,22 @@ function findBestSupplierCostFromCandidates(candidates, {
       return a.supplierPrice - b.supplierPrice
     })
 
-  return matchedCandidates[0] || null
+  const seen = new Set()
+  const uniqueCandidates = []
+  for (const candidate of matchedCandidates) {
+    const key = [
+      candidate?.driver?.supplierCompany?.id || '',
+      candidate?.driver?.id || '',
+      normalizeVehicleType(candidate?.vehicleType || ''),
+      String(candidate?.supplierPrice ?? ''),
+      String(candidate?.currency || '')
+    ].join('::')
+    if (seen.has(key)) continue
+    seen.add(key)
+    uniqueCandidates.push(candidate)
+  }
+
+  return uniqueCandidates
 }
 
 async function findBestSupplierCostForDraft({
