@@ -697,6 +697,16 @@ const SMTP_HOST = process.env.SMTP_HOST || 'smtp.yandex.ru' // SMTP хост
 const SMTP_PORT = process.env.SMTP_PORT || 587 // SMTP порт
 const SMTP_USER = process.env.SMTP_USER || '' // SMTP пользователь (email)
 const SMTP_PASS = process.env.SMTP_PASS || '' // SMTP пароль
+const TECHNICAL_INBOX_EMAIL = String(
+  process.env.TECHNICAL_INBOX_EMAIL ||
+  process.env.RIDERRA_TECHNICAL_INBOX ||
+  'riderratech@gmail.com'
+).trim()
+const EMAIL_INGEST_INTERNAL_TOKEN = String(
+  process.env.RIDERRA_EMAIL_INGEST_TOKEN ||
+  process.env.OPENCLAW_INTERNAL_TOKEN ||
+  ''
+).trim()
 const STARTUP_STAFF_DIRECTORY = [
   { email: 'demyanov@riderra.com', displayName: 'Александр Демьянов', roles: ['owner'] },
   { email: 'shilin@riderra.com', displayName: 'Михаил Шилин', roles: ['financial', 'owner'] },
@@ -711,6 +721,49 @@ const STARTUP_STAFF_DIRECTORY = [
 const STARTUP_STAFF_BY_EMAIL = new Map(
   STARTUP_STAFF_DIRECTORY.map((entry) => [String(entry.email || '').trim().toLowerCase(), entry])
 )
+
+function getEmailIngestStatus(req = null) {
+  const protocol = String(
+    req?.headers?.['x-forwarded-proto'] ||
+    req?.protocol ||
+    'https'
+  ).split(',')[0].trim() || 'https'
+  const host = String(
+    req?.headers?.['x-forwarded-host'] ||
+    req?.headers?.host ||
+    process.env.PUBLIC_APP_HOST ||
+    'riderra.com'
+  ).split(',')[0].trim() || 'riderra.com'
+  return {
+    technicalInbox: TECHNICAL_INBOX_EMAIL,
+    tokenConfigured: Boolean(EMAIL_INGEST_INTERNAL_TOKEN),
+    internalPath: '/api/internal/ops/email-draft',
+    internalUrl: `${protocol}://${host}/api/internal/ops/email-draft`,
+    acceptedHeaders: ['X-OpenClaw-Internal-Token', 'X-Riderra-Internal-Token'],
+    acceptedSourceTypes: ['gmail_forward', 'technical_inbox', 'manual_email'],
+    note: 'Forwarded email should be posted here as raw text + metadata and will appear in AI Inbox as a pending draft.'
+  }
+}
+
+function hasValidEmailIngestToken(req) {
+  const provided = String(
+    req.headers['x-openclaw-internal-token'] ||
+    req.headers['x-riderra-internal-token'] ||
+    req.query?.token ||
+    req.body?.token ||
+    ''
+  ).trim()
+  if (!EMAIL_INGEST_INTERNAL_TOKEN) return false
+  if (!provided) return false
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(provided),
+      Buffer.from(EMAIL_INGEST_INTERNAL_TOKEN)
+    )
+  } catch (_) {
+    return false
+  }
+}
 
 // Создаем транспортер для отправки email
 let transporter = null
@@ -7938,6 +7991,15 @@ app.get('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requ
   }
 })
 
+app.get('/api/admin/email-ingest/status', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    res.json(getEmailIngestStatus(req))
+  } catch (error) {
+    console.error('Error fetching email ingest status:', error)
+    res.status(500).json({ error: 'Failed to fetch email ingest status' })
+  }
+})
+
 app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive = true, syncEnabled = true } = req.body
@@ -10382,6 +10444,90 @@ app.post('/api/webhooks/openclaw/order-draft', resolveActorContext, requireActor
   } catch (error) {
     console.error('Error ingesting OpenClaw order draft:', error)
     res.status(500).json({ error: 'Failed to ingest OpenClaw order draft' })
+  }
+})
+
+app.post('/api/internal/ops/email-draft', resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    if (!hasValidEmailIngestToken(req)) {
+      return res.status(401).json({ error: 'Invalid internal token for email ingest' })
+    }
+
+    const rawText = String(req.body?.rawText || req.body?.text || req.body?.messageText || '').trim()
+    const subject = String(req.body?.subject || '').trim()
+    const fromEmail = String(req.body?.fromEmail || req.body?.from || '').trim()
+    const toEmail = String(req.body?.toEmail || req.body?.to || TECHNICAL_INBOX_EMAIL).trim()
+    const gmailMessageId = String(req.body?.gmailMessageId || req.body?.messageId || '').trim()
+    const gmailThreadId = String(req.body?.gmailThreadId || req.body?.threadId || '').trim()
+    const sourceType = String(req.body?.sourceType || req.body?.source || 'gmail_forward').trim() || 'gmail_forward'
+    if (rawText.length < 10) {
+      return res.status(400).json({ error: 'rawText is required' })
+    }
+
+    const payload = buildManualEmailOrderDraftPayload({ rawText, subject, fromEmail })
+    if (gmailMessageId) payload.externalMessageId = gmailMessageId
+    payload.sourceType = sourceType
+    payload.sourceChannel = 'email'
+    payload.sourceChatId = gmailThreadId || fromEmail || 'technical-inbox'
+    payload.sourceActorId = fromEmail || 'technical-inbox'
+    payload.orderDraft = {
+      ...payload.orderDraft,
+      externalMessageId: gmailMessageId || payload.orderDraft.externalMessageId,
+      sourceType,
+      sourceChannel: 'email',
+      sourceChatId: gmailThreadId || fromEmail || 'technical-inbox',
+      sourceActorId: fromEmail || 'technical-inbox',
+      comment: [
+        payload.orderDraft.comment || null,
+        toEmail ? `To: ${toEmail}` : null,
+        gmailThreadId ? `Gmail thread: ${gmailThreadId}` : null
+      ].filter(Boolean).join('\n') || null
+    }
+
+    const fingerprintPayload = {
+      externalMessageId: gmailMessageId || payload.externalMessageId,
+      sourceType,
+      fromEmail,
+      subject
+    }
+    ensureIdempotencyKey(req, 'ops.draft.email_ingest.create', fingerprintPayload)
+    const wrapped = await withIdempotency(req, 'ops.draft.email_ingest.create', fingerprintPayload, async () => {
+      const draft = await saveOpsDraftFromOpenClaw({
+        tenantId: req.actorContext.tenantId,
+        payload
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: null,
+        actorRole: 'system',
+        action: 'ops.draft.email_ingest.create',
+        resource: 'ops_draft',
+        resourceId: draft.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          technicalInbox: TECHNICAL_INBOX_EMAIL,
+          sourceType,
+          fromEmail: fromEmail || null,
+          toEmail: toEmail || null,
+          subject: subject || null,
+          gmailMessageId: gmailMessageId || null,
+          gmailThreadId: gmailThreadId || null
+        }
+      })
+      return draft
+    })
+
+    res.json({
+      success: true,
+      draftId: wrapped.data.id,
+      draft: wrapped.data,
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error ingesting forwarded email draft:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to ingest email draft' })
   }
 })
 

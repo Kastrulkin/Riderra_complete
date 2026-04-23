@@ -35,6 +35,29 @@
               <p class="card-hint">{{ t.sheetSourcesHint }}</p>
             </div>
           </div>
+
+          <div class="email-ingest-card">
+            <div class="email-ingest-card__head">
+              <div>
+                <strong>{{ t.emailIngestTitle }}</strong>
+                <p class="card-hint">{{ t.emailIngestHint }}</p>
+              </div>
+              <span class="scope-pill" :class="{ 'scope-pill--warn': !emailIngest.tokenConfigured }">
+                {{ emailIngest.tokenConfigured ? t.emailIngestReady : t.emailIngestNotReady }}
+              </span>
+            </div>
+            <div class="email-ingest-grid">
+              <div class="entity-stack">
+                <span class="muted">{{ t.emailIngestInbox }}</span>
+                <strong>{{ emailIngest.technicalInbox || 'riderratech@gmail.com' }}</strong>
+              </div>
+              <div class="entity-stack">
+                <span class="muted">{{ t.emailIngestEndpoint }}</span>
+                <strong class="cell-wrap">{{ emailIngest.internalUrl || '-' }}</strong>
+              </div>
+            </div>
+          </div>
+
           <div v-if="sheetNotice.text" class="notice" :class="sheetNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
             {{ sheetNotice.text }}
           </div>
@@ -180,6 +203,11 @@ export default {
     activeSection: 'sources',
     sheets: [],
     staff: [],
+    emailIngest: {
+      technicalInbox: 'riderratech@gmail.com',
+      internalUrl: '',
+      tokenConfigured: false
+    },
     sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица', detailsTabName: 'подробности' },
     staffDrafts: {},
     abacDrafts: {},
@@ -258,6 +286,12 @@ export default {
             subtitle: 'Здесь собраны только служебные настройки: откуда брать данные, кого связали с Telegram и кому какие команды доступны.',
             sheetSources: 'Источники заказов',
             sheetSourcesHint: 'Подключение месячных Google Sheets, синхронизация и маппинг колонок для таблицы заказов Riderra.',
+            emailIngestTitle: 'Техническая почта для AI Inbox',
+            emailIngestHint: 'Сюда пересылаются письма с заказами. Внутренний endpoint принимает raw email и превращает его в pending draft для проверки в AI Inbox.',
+            emailIngestReady: 'Контур готов',
+            emailIngestNotReady: 'Нужен token',
+            emailIngestInbox: 'Технический ящик',
+            emailIngestEndpoint: 'Internal endpoint',
             staffTelegram: 'Сотрудники и Telegram',
             staffTelegramHint: 'Привязка Telegram User ID к сотрудникам, чтобы команды и уведомления попадали нужным людям.',
             accessScopes: 'Права доступа',
@@ -294,6 +328,12 @@ export default {
             subtitle: 'Operational settings only: data sources, Telegram links, and access scopes.',
             sheetSources: 'Order sources',
             sheetSourcesHint: 'Monthly Google Sheets, sync control, and order column mapping.',
+            emailIngestTitle: 'Technical inbox for AI Inbox',
+            emailIngestHint: 'Forwarded order emails land here. The internal endpoint converts raw email into a pending draft for review in AI Inbox.',
+            emailIngestReady: 'Ready',
+            emailIngestNotReady: 'Token missing',
+            emailIngestInbox: 'Technical inbox',
+            emailIngestEndpoint: 'Internal endpoint',
             staffTelegram: 'Staff and Telegram',
             staffTelegramHint: 'Link Telegram User IDs so commands and alerts reach the right staff members.',
             accessScopes: 'Access scopes',
@@ -361,12 +401,14 @@ export default {
       return body
     },
     async load () {
-      const [sheets, staff] = await Promise.all([
+      const [sheets, staff, emailIngest] = await Promise.all([
         this.jsonRequest('/api/admin/sheet-sources', { headers: this.headers() }),
-        this.jsonRequest('/api/admin/staff-users', { headers: this.headers() })
+        this.jsonRequest('/api/admin/staff-users', { headers: this.headers() }),
+        this.jsonRequest('/api/admin/email-ingest/status', { headers: this.headers() })
       ])
       this.sheets = Array.isArray(sheets) ? sheets : []
       this.staff = staff.rows || []
+      this.emailIngest = emailIngest || this.emailIngest
       this.staffDrafts = this.staff.reduce((acc, user) => {
         acc[user.id] = (user.telegramLinks && user.telegramLinks[0] && user.telegramLinks[0].telegramUserId) || ''
         return acc
@@ -535,6 +577,9 @@ export default {
 .section-pill--active { background:linear-gradient(135deg,#ff017a 0%,#702283 100%); border-color:transparent; color:#fff; box-shadow:0 18px 34px rgba(112,34,131,.24); }
 .section-pill--active small { color:rgba(255,255,255,.78); }
 .settings-card { background:#fff; border:1px solid #d8d8e6; border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 8px 20px rgba(16,24,40,.06); }
+.email-ingest-card { display:grid; gap:12px; border:1px solid #e6ebf5; border-radius:14px; padding:14px; background:linear-gradient(180deg,#fff 0%,#f8fbff 100%); margin-bottom:14px; }
+.email-ingest-card__head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.email-ingest-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:12px; }
 .card-hint { margin:6px 0 0; color:#64748b; line-height:1.5; }
 .notice { border-radius:10px; padding:10px 12px; margin:10px 0 14px; font-weight:600; }
@@ -559,6 +604,7 @@ export default {
 .row-actions--stack-tight .btn { width:100%; min-width:130px; }
 .select-input { min-height:44px; }
 .scope-pill { display:inline-block; border:1px solid #b8d1ff; background:#f1f7ff; color:#1f4d96; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:600; }
+.scope-pill--warn { border-color:#fde68a; background:#fff8dc; color:#92400e; }
 .staff-identity { display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
 .staff-identity strong { color:#1d2c4a; font-size:14px; }
 .cell-wrap { word-break:break-all; }
@@ -577,6 +623,8 @@ export default {
   .settings-overview { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .form-grid { grid-template-columns:1fr; }
   .form-grid__wide { grid-column:auto; }
+  .email-ingest-card__head { flex-direction:column; align-items:stretch; }
+  .email-ingest-grid { grid-template-columns:1fr; }
 }
 @media (max-width: 640px) {
   .settings-overview { grid-template-columns:1fr; }
