@@ -4,12 +4,6 @@
     <div class="page-background"><div class="page-background__gradient"></div><div class="page-background__overlay"></div></div>
     <section class="site-section site-section--pf admin-section">
       <div class="container">
-        <div class="page-head">
-          <div>
-            <h1 class="h2">{{ t.title }}</h1>
-            <p class="page-subtitle">{{ t.subtitle }}</p>
-          </div>
-        </div>
         <admin-tabs />
 
         <div class="settings-overview">

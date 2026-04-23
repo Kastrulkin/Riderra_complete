@@ -8,18 +8,11 @@
 
     <section class="site-section site-section--pf admin-overview">
       <div class="container">
-        <div class="hero-card">
-          <div>
-            <p class="eyebrow">{{ t.section }}</p>
-            <h1 class="h2">{{ t.title }}</h1>
-            <p class="hero-copy">{{ t.subtitle }}</p>
-          </div>
-          <div class="hero-actions">
-            <button class="btn" @click="reloadAll">{{ loading ? t.loading : t.refresh }}</button>
-          </div>
-        </div>
-
         <admin-tabs />
+
+        <div class="section-actions">
+          <button class="btn" @click="reloadAll">{{ loading ? t.loading : t.refresh }}</button>
+        </div>
 
         <div v-if="notice" class="notice">{{ notice }}</div>
 

@@ -7,15 +7,11 @@
     </div>
     <section class="site-section site-section--pf ai-section">
       <div class="container">
-        <div class="page-head">
-          <div>
-            <h1 class="h2">AI Inbox</h1>
-            <p class="page-subtitle">Черновики для проверки перед созданием заказа. Сначала видно, что мешает, чего не хватает и какой следующий шаг нужен.</p>
-          </div>
+        <admin-tabs />
+
+        <div class="section-actions">
           <button class="btn btn--primary" @click="load">Обновить</button>
         </div>
-
-        <admin-tabs />
 
         <div class="ops-rail">
           <div>

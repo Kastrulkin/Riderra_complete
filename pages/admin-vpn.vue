@@ -8,18 +8,11 @@
 
     <section class="site-section site-section--pf admin-section">
       <div class="container">
-        <div class="hero-card">
-          <div>
-            <p class="eyebrow">{{ t.section }}</p>
-            <h1 class="h2">{{ t.title }}</h1>
-            <p class="hero-copy">{{ t.subtitle }}</p>
-          </div>
-          <div class="hero-actions">
-            <button class="btn" @click="reloadAll">{{ t.refresh }}</button>
-          </div>
-        </div>
-
         <admin-tabs />
+
+        <div class="section-actions">
+          <button class="btn" @click="reloadAll">{{ t.refresh }}</button>
+        </div>
 
         <div v-if="notice.text" class="notice" :class="notice.type === 'error' ? 'notice--error' : 'notice--ok'">
           {{ notice.text }}

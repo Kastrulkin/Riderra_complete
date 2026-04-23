@@ -7,17 +7,11 @@
     </div>
     <section class="site-section site-section--pf matrix-section">
       <div class="container">
-        <div class="page-head">
-          <div>
-            <h1 class="h2">{{ t.title }}</h1>
-            <p class="page-subtitle">{{ t.subtitle }}</p>
-          </div>
-          <div class="page-head-actions">
-            <button class="btn btn--ghost" @click="load">{{ t.refresh }}</button>
-          </div>
-        </div>
-
         <admin-tabs />
+
+        <div class="section-actions">
+          <button class="btn btn--ghost" @click="load">{{ t.refresh }}</button>
+        </div>
 
         <div class="overview-strip">
           <div v-for="card in overviewCards" :key="card.key" class="overview-card" :class="`overview-card--${card.tone}`">

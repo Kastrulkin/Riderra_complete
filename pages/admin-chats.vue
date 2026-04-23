@@ -7,19 +7,13 @@
     </div>
     <section class="site-section site-section--pf chat-section">
       <div class="container">
-        <div class="page-head">
-          <div>
-            <h1 class="h2">Чаты</h1>
-            <p class="page-subtitle">Очередь по уточнениям и отправке клиенту: что требует ответа, что просрочено и какой следующий шаг нужен прямо сейчас.</p>
-          </div>
-          <div class="page-actions">
-            <button class="btn btn--ghost" @click="syncFromOrders">Синхронизировать из заказов</button>
-            <button class="btn btn--primary" @click="reloadAll">Обновить</button>
-          </div>
+        <admin-tabs />
+
+        <div class="section-actions">
+          <button class="btn btn--ghost" @click="syncFromOrders">Синхронизировать из заказов</button>
+          <button class="btn btn--primary" @click="reloadAll">Обновить</button>
         </div>
         <div v-if="notice" class="hint">{{ notice }}</div>
-
-        <admin-tabs />
 
         <div class="ops-rail">
           <div>

@@ -350,6 +350,56 @@ input[type="tel"]{
   }
 }
 
+/* Internal staff cabinet: keep the new contour header as the only page intro. */
+.site-section--pf.admin-overview,
+.site-section--pf.admin-section,
+.site-section--pf.crm-section,
+.site-section--pf.matrix-section,
+.site-section--pf.ai-section,
+.site-section--pf.chat-section {
+  padding-top: 112px !important;
+}
+
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -6px 0 18px;
+}
+
+@media (max-width: 980px) {
+  .site-section--pf.admin-overview,
+  .site-section--pf.admin-section,
+  .site-section--pf.crm-section,
+  .site-section--pf.matrix-section,
+  .site-section--pf.ai-section,
+  .site-section--pf.chat-section {
+    padding-top: 96px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-section--pf.admin-overview,
+  .site-section--pf.admin-section,
+  .site-section--pf.crm-section,
+  .site-section--pf.matrix-section,
+  .site-section--pf.ai-section,
+  .site-section--pf.chat-section {
+    padding-top: 84px !important;
+  }
+
+  .section-actions {
+    justify-content: stretch;
+    margin-top: -4px;
+  }
+
+  .section-actions .btn {
+    width: 100%;
+  }
+}
+
 .button {
   background: linear-gradient(90deg, #FF017A 36.45%, #702283 105.02%), #702283;
   -webkit-border-radius: 40px;

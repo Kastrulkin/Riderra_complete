@@ -7,18 +7,12 @@
     </div>
     <section class="site-section site-section--pf chat-section">
       <div class="container">
-        <div class="page-head">
-          <div>
-            <h1 class="h2">{{ t.title }}</h1>
-            <p class="page-subtitle">{{ t.subtitle }}</p>
-          </div>
-          <div class="page-actions">
-            <button class="btn btn--ghost" @click="startNewAgent">{{ t.newAgent }}</button>
-            <button class="btn btn--primary" @click="reloadAll">{{ t.refresh }}</button>
-          </div>
-        </div>
-
         <admin-tabs />
+
+        <div class="section-actions">
+          <button class="btn btn--ghost" @click="startNewAgent">{{ t.newAgent }}</button>
+          <button class="btn btn--primary" @click="reloadAll">{{ t.refresh }}</button>
+        </div>
 
         <div v-if="notice" class="hint">{{ notice }}</div>
 

@@ -8,7 +8,6 @@
 
     <section class="site-section site-section--pf admin-section">
       <div class="container">
-        <h1 class="h2 admin-title">{{ t.title }}</h1>
         <admin-tabs />
 
         <div class="subtabs">

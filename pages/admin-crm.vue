@@ -7,16 +7,11 @@
     </div>
     <section class="site-section site-section--pf crm-section">
       <div class="container">
-        <div class="crm-header">
-          <div>
-            <h1 class="h2">CRM</h1>
-            <p class="crm-subtitle">Кого открыть, где не хватает связей и что делать дальше.</p>
-          </div>
-          <div class="crm-actions">
-            <button class="btn btn--ghost" @click="reload">Обновить</button>
-          </div>
-        </div>
         <admin-tabs />
+
+        <div class="section-actions">
+          <button class="btn btn--ghost" @click="reload">Обновить</button>
+        </div>
 
         <div class="overview-strip">
           <div v-for="card in overviewCards" :key="card.key" class="overview-card" :class="`overview-card--${card.tone}`">
