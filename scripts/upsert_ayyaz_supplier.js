@@ -109,7 +109,7 @@ async function upsertDriver(tenantId, supplierContactId) {
     `Primary source: ${SOURCE_LABEL}.`,
     'Use supplier route prices for pre-assignment margin checks.',
     'Cars seen in fleet: Mercedes EQV (BL 99 351), Mercedes EQS (BN 98 458).',
-    'Current route rates are generic for airport-city and city-airport; class-specific split is not yet confirmed.'
+    'Current route rates are confirmed одинаковыми для business (EQS) и minivan (EQV).'
   ].join('\n')
 
   if (driver) {
@@ -148,14 +148,14 @@ async function upsertDriver(tenantId, supplierContactId) {
   return driver
 }
 
-async function upsertRoute(driverId, tenantId, fromPoint, toPoint, driverPrice) {
+async function upsertRoute(driverId, tenantId, fromPoint, toPoint, vehicleType, driverPrice) {
   const existing = await prisma.driverRoute.findFirst({
     where: {
       tenantId,
       driverId,
       fromPoint,
       toPoint,
-      vehicleType: null
+      vehicleType
     }
   })
 
@@ -164,7 +164,7 @@ async function upsertRoute(driverId, tenantId, fromPoint, toPoint, driverPrice) 
     driverId,
     fromPoint,
     toPoint,
-    vehicleType: null,
+    vehicleType,
     driverPrice,
     ourPrice: null,
     currency: 'DKK',
@@ -219,8 +219,19 @@ async function main() {
   const tenant = await getTenant()
   const contact = await upsertSupplierContact(tenant.id)
   const driver = await upsertDriver(tenant.id, contact.id)
-  const routeAirport = await upsertRoute(driver.id, tenant.id, 'Airport', 'Copenhagen City', 500)
-  const routeCity = await upsertRoute(driver.id, tenant.id, 'Copenhagen City', 'Airport', 500)
+  await prisma.driverRoute.deleteMany({
+    where: {
+      tenantId: tenant.id,
+      driverId: driver.id,
+      fromPoint: { in: ['Airport', 'Copenhagen City'] },
+      toPoint: { in: ['Airport', 'Copenhagen City'] },
+      vehicleType: null
+    }
+  })
+  const routeAirportBusiness = await upsertRoute(driver.id, tenant.id, 'Airport', 'Copenhagen City', 'business', 500)
+  const routeAirportVan = await upsertRoute(driver.id, tenant.id, 'Airport', 'Copenhagen City', 'van', 500)
+  const routeCityBusiness = await upsertRoute(driver.id, tenant.id, 'Copenhagen City', 'Airport', 'business', 500)
+  const routeCityVan = await upsertRoute(driver.id, tenant.id, 'Copenhagen City', 'Airport', 'van', 500)
   const eqv = await upsertVehicle(tenant.id, driver.id, 'van', 'Mercedes-Benz', 'EQV 300', 'BL 99 351', 6)
   const eqs = await upsertVehicle(tenant.id, driver.id, 'sedan', 'Mercedes-Benz', 'EQS 450+', 'BN 98 458', 3)
 
@@ -229,8 +240,10 @@ async function main() {
     contact: { id: contact.id, fullName: contact.fullName, phone: contact.phone },
     driver: { id: driver.id, name: driver.name, city: driver.city, country: driver.country },
     routes: [
-      { id: routeAirport.id, fromPoint: routeAirport.fromPoint, toPoint: routeAirport.toPoint, driverPrice: routeAirport.driverPrice, currency: routeAirport.currency },
-      { id: routeCity.id, fromPoint: routeCity.fromPoint, toPoint: routeCity.toPoint, driverPrice: routeCity.driverPrice, currency: routeCity.currency }
+      { id: routeAirportBusiness.id, vehicleType: routeAirportBusiness.vehicleType, fromPoint: routeAirportBusiness.fromPoint, toPoint: routeAirportBusiness.toPoint, driverPrice: routeAirportBusiness.driverPrice, currency: routeAirportBusiness.currency },
+      { id: routeAirportVan.id, vehicleType: routeAirportVan.vehicleType, fromPoint: routeAirportVan.fromPoint, toPoint: routeAirportVan.toPoint, driverPrice: routeAirportVan.driverPrice, currency: routeAirportVan.currency },
+      { id: routeCityBusiness.id, vehicleType: routeCityBusiness.vehicleType, fromPoint: routeCityBusiness.fromPoint, toPoint: routeCityBusiness.toPoint, driverPrice: routeCityBusiness.driverPrice, currency: routeCityBusiness.currency },
+      { id: routeCityVan.id, vehicleType: routeCityVan.vehicleType, fromPoint: routeCityVan.fromPoint, toPoint: routeCityVan.toPoint, driverPrice: routeCityVan.driverPrice, currency: routeCityVan.currency }
     ],
     vehicles: [
       { id: eqv.id, vehicleClass: eqv.vehicleClass, model: eqv.model, plateNumber: eqv.plateNumber },
