@@ -9865,6 +9865,146 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
   }
 }
 
+function findManualEmailLine(text, labels = []) {
+  const safeLabels = labels
+    .map((label) => String(label || '').trim())
+    .filter(Boolean)
+    .map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  if (!safeLabels.length) return ''
+  const re = new RegExp(`(?:^|\\n)\\s*(?:${safeLabels.join('|')})\\s*[:\\-–—]\\s*(.+)`, 'i')
+  return String(text || '').match(re)?.[1]?.trim() || ''
+}
+
+function findManualEmailNumber(text, labels = []) {
+  const value = findManualEmailLine(text, labels)
+  const source = value || String(text || '')
+  const match = source.match(/-?\d+(?:[.,]\d+)?/)
+  if (!match) return null
+  const num = Number(match[0].replace(',', '.'))
+  return Number.isFinite(num) ? num : null
+}
+
+function parseManualEmailPickupAt(text) {
+  const labeled = findManualEmailLine(text, [
+    'date',
+    'datetime',
+    'pickup time',
+    'pickup date',
+    'service date',
+    'дата',
+    'дата и время',
+    'время подачи',
+    'подача'
+  ])
+  const source = labeled || String(text || '')
+  const dateMatch = source.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})(?:[^\d]{1,12}(\d{1,2})[:.](\d{2}))?/)
+  if (dateMatch) {
+    const dd = dateMatch[1].padStart(2, '0')
+    const mm = dateMatch[2].padStart(2, '0')
+    const yyyy = dateMatch[3].length === 2 ? `20${dateMatch[3]}` : dateMatch[3]
+    const hh = (dateMatch[4] || '00').padStart(2, '0')
+    const min = (dateMatch[5] || '00').padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}:00`
+  }
+  const isoMatch = source.match(/\b(20\d{2}-\d{2}-\d{2})(?:[ T](\d{1,2}:\d{2}))?/)
+  if (isoMatch) return `${isoMatch[1]}T${isoMatch[2] || '00:00'}:00`
+  const parsed = Date.parse(labeled)
+  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString()
+}
+
+function parseManualEmailPrice(text) {
+  const labeled = findManualEmailLine(text, ['price', 'total', 'amount', 'sum', 'цена', 'стоимость', 'сумма'])
+  const source = labeled || String(text || '')
+  const match = labeled
+    ? source.match(/(?:€|EUR|USD|GBP|\$|£)?\s*(\d+(?:[.,]\d{1,2})?)\s*(EUR|USD|GBP|€|\$|£)?/i)
+    : source.match(/(?:€|\$|£)\s*(\d+(?:[.,]\d{1,2})?)|\b(\d+(?:[.,]\d{1,2})?)\s*(EUR|USD|GBP)\b/i)
+  if (!match) return { value: null, currency: 'EUR' }
+  const currencyMap = { '€': 'EUR', '$': 'USD', '£': 'GBP' }
+  const rawAmount = match[1] || match[2]
+  const rawCurrency = match[3] || match[0].match(/[€$£]/)?.[0] || match[0].match(/\b(EUR|USD|GBP)\b/i)?.[1]
+  return {
+    value: Number(rawAmount.replace(',', '.')),
+    currency: currencyMap[rawCurrency] || String(rawCurrency || '').toUpperCase() || 'EUR'
+  }
+}
+
+function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = '' }) {
+  const text = String(rawText || '').trim()
+  const price = parseManualEmailPrice(text)
+  const flightNumber = normalizeFlightNumber(
+    findManualEmailLine(text, ['flight', 'flight number', 'рейс', 'номер рейса']) ||
+    text.match(/\b([A-Z0-9]{2,3}\s?\d{2,5}[A-Z]?)\b/)?.[1] ||
+    ''
+  )
+  const externalMessageId = crypto
+    .createHash('sha256')
+    .update([subject, fromEmail, text].join('\n'))
+    .digest('hex')
+    .slice(0, 24)
+
+  const customerName = findManualEmailLine(text, ['customer', 'client', 'partner', 'контрагент', 'клиент', 'заказчик']) ||
+    String(fromEmail || '').split('@')[0] ||
+    null
+  const fromPoint = findManualEmailLine(text, ['from', 'pickup', 'pickup address', 'pick up', 'откуда', 'адрес подачи', 'место подачи'])
+  const toPoint = findManualEmailLine(text, ['to', 'dropoff', 'drop off', 'destination', 'куда', 'адрес назначения', 'место назначения'])
+  const pickupAt = parseManualEmailPickupAt(text)
+  const city = findManualEmailLine(text, ['city', 'город'])
+
+  const orderDraft = {
+    externalMessageId,
+    sourceChannel: 'email',
+    sourceChatId: fromEmail || 'manual-email',
+    sourceActorId: fromEmail || 'manual-email',
+    sourceType: 'email',
+    rawText: text,
+    customerName,
+    orderNumber: findManualEmailLine(text, ['order', 'order number', 'booking', 'booking id', 'номер заказа', 'заказ']),
+    city,
+    fromPoint,
+    toPoint,
+    pickupAt,
+    flightNumber,
+    vehicleType: normalizeVehicleType(findManualEmailLine(text, ['vehicle', 'car class', 'class', 'car', 'машина', 'класс'])),
+    passengers: findManualEmailNumber(text, ['passengers', 'pax', 'пассажиры', 'количество пассажиров']),
+    luggage: findManualEmailNumber(text, ['luggage', 'bags', 'baggage', 'багаж', 'чемоданы']),
+    clientPrice: Number.isFinite(price.value) ? price.value : null,
+    currency: price.currency || 'EUR',
+    comment: [
+      subject ? `Subject: ${subject}` : null,
+      fromEmail ? `From: ${fromEmail}` : null
+    ].filter(Boolean).join('\n') || null,
+    lang: /[а-яё]/i.test(text) ? 'ru' : 'en'
+  }
+
+  const requiredFields = [
+    ['pickupAt', orderDraft.pickupAt],
+    ['fromPoint', orderDraft.fromPoint],
+    ['toPoint', orderDraft.toPoint],
+    ['customerName', orderDraft.customerName],
+    ['clientPrice', orderDraft.clientPrice]
+  ]
+  const missingFields = requiredFields
+    .filter(([, value]) => value == null || String(value).trim() === '')
+    .map(([key]) => key)
+
+  return {
+    externalMessageId,
+    sourceChannel: 'email',
+    sourceType: 'email',
+    sourceChatId: fromEmail || 'manual-email',
+    sourceActorId: fromEmail || 'manual-email',
+    rawText: text,
+    messageText: text,
+    confidence: missingFields.length ? 0.55 : 0.75,
+    missingFields,
+    proposedActions: missingFields.length
+      ? ['Проверить письмо вручную и уточнить недостающие поля перед созданием заказа']
+      : ['Проверить черновик и подтвердить создание заказа'],
+    contractVersion: 'riderra.order_draft.manual_email.v1',
+    orderDraft
+  }
+}
+
 async function saveOpsDraftFromOpenClaw({ tenantId, payload }) {
   const basePayload = await buildOpenClawDraftPayload(payload, tenantId)
   const withFlightPayload = await maybeAutoAttachFlightCheck(basePayload)
@@ -10242,6 +10382,61 @@ app.post('/api/webhooks/openclaw/order-draft', resolveActorContext, requireActor
   } catch (error) {
     console.error('Error ingesting OpenClaw order draft:', error)
     res.status(500).json({ error: 'Failed to ingest OpenClaw order draft' })
+  }
+})
+
+app.post('/api/admin/ops/drafts/manual-email', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'orders.create_draft']), async (req, res) => {
+  try {
+    const rawText = String(req.body?.rawText || '').trim()
+    const subject = String(req.body?.subject || '').trim()
+    const fromEmail = String(req.body?.fromEmail || req.body?.from || '').trim()
+    if (rawText.length < 10) {
+      return res.status(400).json({ error: 'Paste email/order text first' })
+    }
+
+    const payload = buildManualEmailOrderDraftPayload({ rawText, subject, fromEmail })
+    const fingerprintPayload = {
+      externalMessageId: payload.externalMessageId,
+      sourceType: 'manual_email'
+    }
+    ensureIdempotencyKey(req, 'ops.draft.manual_email.create', fingerprintPayload)
+    const wrapped = await withIdempotency(req, 'ops.draft.manual_email.create', fingerprintPayload, async () => {
+      const draft = await saveOpsDraftFromOpenClaw({
+        tenantId: req.actorContext.tenantId,
+        payload: {
+          ...payload,
+          sourceType: 'manual_email',
+          sourceChannel: 'email'
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'ops.draft.manual_email.create',
+        resource: 'ops_draft',
+        resourceId: draft.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: {
+          subject: subject || null,
+          fromEmail: fromEmail || null,
+          externalMessageId: payload.externalMessageId,
+          missingFields: payload.missingFields || []
+        }
+      })
+      return draft
+    })
+
+    res.json({
+      success: true,
+      draft: wrapped.data,
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error creating manual email ops draft:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to create manual email draft' })
   }
 })
 

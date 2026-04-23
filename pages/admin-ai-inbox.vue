@@ -20,6 +20,27 @@
           </div>
         </div>
 
+        <details class="manual-import">
+          <summary class="manual-import__summary">Добавить письмо вручную</summary>
+          <div class="manual-import__body">
+            <div class="manual-import__grid">
+              <input v-model="manualEmail.fromEmail" class="input" placeholder="От кого (email, необязательно)" />
+              <input v-model="manualEmail.subject" class="input" placeholder="Тема письма (необязательно)" />
+            </div>
+            <textarea
+              v-model="manualEmail.rawText"
+              class="input manual-import__text"
+              placeholder="Вставьте текст письма или сырой заказ. AI Inbox создаст черновик, проверит обязательные поля, рейс, адреса и цену."
+            ></textarea>
+            <div class="manual-import__actions">
+              <button class="btn btn--small btn--primary" :disabled="manualSaving || manualEmail.rawText.trim().length < 10" @click="createManualEmailDraft">
+                {{ manualSaving ? 'Создаю черновик...' : 'Создать AI-черновик' }}
+              </button>
+              <span v-if="manualResult" class="hint">{{ manualResult }}</span>
+            </div>
+          </div>
+        </details>
+
         <div class="overview-grid">
           <div class="overview-card">
             <span class="overview-card__label">Ждут подтверждения</span>
@@ -251,7 +272,14 @@ export default {
     actionResult: '',
     saving: false,
     flightChecking: false,
-    flightCheckError: ''
+    flightCheckError: '',
+    manualSaving: false,
+    manualResult: '',
+    manualEmail: {
+      fromEmail: '',
+      subject: '',
+      rawText: ''
+    }
   }),
   computed: {
     payload () {
@@ -378,6 +406,33 @@ export default {
       const data = await res.json()
       this.rows = data.rows || []
     },
+    async createManualEmailDraft () {
+      this.manualSaving = true
+      this.manualResult = ''
+      try {
+        const res = await fetch('/api/admin/ops/drafts/manual-email', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({
+            fromEmail: this.manualEmail.fromEmail || null,
+            subject: this.manualEmail.subject || null,
+            rawText: this.manualEmail.rawText
+          })
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось создать черновик')
+        this.manualResult = data.idempotent
+          ? 'Такой черновик уже был создан ранее.'
+          : 'Черновик создан и добавлен в очередь.'
+        this.manualEmail.rawText = ''
+        await this.load()
+        if (data.draft?.id) await this.openDraft(data.draft.id)
+      } catch (error) {
+        this.manualResult = error.message || 'Не удалось создать черновик'
+      } finally {
+        this.manualSaving = false
+      }
+    },
     async openDraft (id) {
       const res = await fetch(`/api/admin/ops/drafts/${id}`, { headers: this.headers() })
       const data = await res.json()
@@ -464,6 +519,14 @@ export default {
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
 .page-subtitle { margin: 6px 0 0; max-width: 760px; color: #60708f; font-size: 15px; line-height: 1.55; }
 .ops-rail { display: flex; justify-content: space-between; align-items: center; gap: 14px; border: 1px solid #ead7f0; background: #fcf7fd; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.manual-import { border: 1px solid #d8d8e6; background: #fff; border-radius: 14px; margin-bottom: 14px; overflow: hidden; }
+.manual-import__summary { cursor: pointer; list-style: none; padding: 14px 16px; font-weight: 800; color: #17233d; }
+.manual-import__summary::-webkit-details-marker { display: none; }
+.manual-import[open] .manual-import__summary { border-bottom: 1px solid #eef1f7; background: #f8fbff; }
+.manual-import__body { display: grid; gap: 10px; padding: 14px 16px 16px; }
+.manual-import__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.manual-import__text { width: 100%; min-height: 150px; resize: vertical; line-height: 1.45; }
+.manual-import__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .overview-card { background: #fff; border: 1px solid #d8d8e6; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .overview-card strong { font-size: 24px; color: #0f172a; }
@@ -516,6 +579,7 @@ export default {
 @media (max-width: 900px) {
   .page-head, .toolbar, .actions, .ops-rail, .focus-card__head, .focus-actions { flex-direction: column; align-items: stretch; }
   .overview-grid,
-  .meta-grid { grid-template-columns: 1fr; }
+  .meta-grid,
+  .manual-import__grid { grid-template-columns: 1fr; }
 }
 </style>
