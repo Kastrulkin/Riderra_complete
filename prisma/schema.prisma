@@ -109,8 +109,9 @@ model Driver {
   tenantId        String?
   createdAt       DateTime @default(now())
   name            String
-  email           String
+  email           String?
   phone           String
+  supplierContactId String?
   country         String?
   city            String
   telegramUserId  String?
@@ -151,11 +152,13 @@ model Driver {
   cityRoutes     DriverCityRoute[]
   unavailability DriverUnavailability[]
   vehicles       FleetVehicle[]
+  supplierContact CustomerContact?       @relation("SupplierContactDriverLink", fields: [supplierContactId], references: [id], onDelete: SetNull)
   tenant         Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, country, city])
   @@index([country, city])
   @@index([telegramUserId])
+  @@index([tenantId, supplierContactId])
 }
 
 model FleetVehicle {
@@ -188,15 +191,23 @@ model DriverRoute {
   driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
   fromPoint   String
   toPoint     String
+  vehicleType String?
   driverPrice Float // Цена водителя
-  ourPrice    Float // Наша целевая цена
+  ourPrice    Float? // Наша целевая цена
   currency    String   @default("EUR")
+  sourceType     String? // whatsapp, email, call, manual, sheet
+  sourceLabel    String?
+  sourceQuotedAt DateTime?
+  sourceMessage  String?
+  sourceStatus   String   @default("approved") // approved, pending_clarification, archived
+  sourceMetaJson String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, driverId, isActive])
+  @@index([tenantId, vehicleType, isActive])
 }
 
 model Order {
@@ -379,6 +390,12 @@ model DriverCityRoute {
   cityRouteId String
   cityRoute   CityRoute @relation(fields: [cityRouteId], references: [id], onDelete: Cascade)
   bestPrice   Float? // Ваше лучшее предложение (может быть null, если водитель еще не указал)
+  sourceType     String? // whatsapp, email, call, manual, sheet
+  sourceLabel    String?
+  sourceQuotedAt DateTime?
+  sourceMessage  String?
+  sourceStatus   String   @default("approved") // approved, pending_clarification, archived
+  sourceMetaJson String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
@@ -567,6 +584,7 @@ model CustomerContact {
   ownerName           String?
   links               CustomerCompanyContact[]
   segments            CustomerContactSegment[]
+  supplierDrivers     Driver[]                  @relation("SupplierContactDriverLink")
   tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])

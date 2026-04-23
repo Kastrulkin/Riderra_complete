@@ -905,12 +905,33 @@ function requireDriver(req, res, next) {
   next()
 }
 
-function findMatchingRoute(routes, fromPoint, toPoint) {
-  const safeFrom = String(fromPoint || '').toLowerCase()
-  const safeTo = String(toPoint || '').toLowerCase()
+function normalizeRouteToken(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function routePointMatches(routeValue, requestedValue) {
+  const routeToken = normalizeRouteToken(routeValue)
+  const requestedToken = normalizeRouteToken(requestedValue)
+  if (!routeToken || !requestedToken) return false
+  return routeToken.includes(requestedToken) || requestedToken.includes(routeToken)
+}
+
+function vehicleTypeMatches(routeVehicleType, requestedVehicleType) {
+  const routeToken = normalizeRouteToken(routeVehicleType)
+  const requestedToken = normalizeRouteToken(requestedVehicleType)
+  if (!requestedToken) return true
+  if (!routeToken) return true
+  return routeToken === requestedToken
+}
+
+function findMatchingRoute(routes, fromPoint, toPoint, vehicleType = null) {
   return routes.find((route) =>
-    route.fromPoint.toLowerCase().includes(safeFrom) &&
-    route.toPoint.toLowerCase().includes(safeTo)
+    routePointMatches(route.fromPoint, fromPoint) &&
+    routePointMatches(route.toPoint, toPoint) &&
+    vehicleTypeMatches(route.vehicleType, vehicleType)
   )
 }
 
@@ -2738,6 +2759,23 @@ app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireAct
         tenantId: req.actorContext.tenantId,
         ...buildGeoScopeWhere(req, 'country', 'city')
       },
+      include: {
+        supplierContact: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            email: true
+          }
+        },
+        _count: {
+          select: {
+            routes: true,
+            vehicles: true,
+            orders: true
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     })
     res.json(rows)
@@ -3016,7 +3054,7 @@ app.post('/api/drivers/priority', resolveActorContext, requireActorContext, asyn
     
     // Рассчитываем приоритет для каждого водителя
     const prioritizedDrivers = drivers.map(driver => {
-      const score = calculateDriverScore(driver, fromPoint, toPoint)
+      const score = calculateDriverScore(driver, fromPoint, toPoint, vehicleType)
       return {
         ...driver,
         priorityScore: score
@@ -3031,7 +3069,7 @@ app.post('/api/drivers/priority', resolveActorContext, requireActorContext, asyn
 })
 
 // Функция расчета приоритета водителя
-function calculateDriverScore(driver, fromPoint, toPoint) {
+function calculateDriverScore(driver, fromPoint, toPoint, vehicleType = null) {
   // Базовые параметры
   const commissionRate = Number(driver.commissionRate || 30)
   const normalizedCommission = Math.max(0, Math.min(30, commissionRate))
@@ -3039,12 +3077,12 @@ function calculateDriverScore(driver, fromPoint, toPoint) {
   const ratingScore = (driver.rating / 5) * 100 // 1-5 -> 0-100 баллов
   
   // Проверяем, есть ли подходящий маршрут
-  const matchingRoute = findMatchingRoute(driver.routes, fromPoint, toPoint)
+  const matchingRoute = findMatchingRoute(driver.routes, fromPoint, toPoint, vehicleType)
   
   let priceScore = 50 // Базовый балл, если маршрут не найден
   if (matchingRoute) {
     // Если цена водителя меньше или равна нашей целевой цене - высокий балл
-    priceScore = matchingRoute.driverPrice <= matchingRoute.ourPrice ? 100 : 50
+    priceScore = matchingRoute.ourPrice != null && matchingRoute.driverPrice <= matchingRoute.ourPrice ? 100 : 50
   }
   
   // Итоговый балл: 50% комиссия, 30% цена, 20% рейтинг
@@ -3057,7 +3095,20 @@ function calculateDriverScore(driver, fromPoint, toPoint) {
 app.post('/api/drivers/:driverId/routes', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { driverId } = req.params
-    const { fromPoint, toPoint, driverPrice, ourPrice, currency = 'EUR' } = req.body
+    const {
+      fromPoint,
+      toPoint,
+      vehicleType = null,
+      driverPrice,
+      ourPrice = null,
+      currency = 'EUR',
+      sourceType = null,
+      sourceLabel = null,
+      sourceQuotedAt = null,
+      sourceMessage = null,
+      sourceStatus = 'approved',
+      sourceMetaJson = null
+    } = req.body
     const driver = await prisma.driver.findFirst({
       where: { id: driverId, tenantId: req.actorContext.tenantId },
       select: { id: true }
@@ -3070,9 +3121,16 @@ app.post('/api/drivers/:driverId/routes', resolveActorContext, requireActorConte
         driverId: driver.id,
         fromPoint,
         toPoint,
+        vehicleType: vehicleType ? normalizeVehicleType(vehicleType) : null,
         driverPrice: parseFloat(driverPrice),
-        ourPrice: parseFloat(ourPrice),
-        currency
+        ourPrice: ourPrice === null || ourPrice === '' || ourPrice === undefined ? null : parseFloat(ourPrice),
+        currency,
+        sourceType: sourceType ? String(sourceType).trim() : null,
+        sourceLabel: sourceLabel ? String(sourceLabel).trim() : null,
+        sourceQuotedAt: sourceQuotedAt ? new Date(sourceQuotedAt) : null,
+        sourceMessage: sourceMessage ? String(sourceMessage).trim() : null,
+        sourceStatus: sourceStatus ? String(sourceStatus).trim() : 'approved',
+        sourceMetaJson: sourceMetaJson ? String(sourceMetaJson) : null
       }
     })
     
@@ -3101,6 +3159,51 @@ app.get('/api/drivers/:driverId/routes', resolveActorContext, requireActorContex
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'failed' })
+  }
+})
+
+app.put('/api/drivers/routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    const { routeId } = req.params
+    const driver = await prisma.driver.findFirst({
+      where: { userId: req.user.id, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+
+    if (!driver) return res.status(404).json({ error: 'Driver not found' })
+
+    const route = await prisma.driverRoute.findFirst({
+      where: {
+        id: routeId,
+        tenantId: req.actorContext.tenantId,
+        driverId: driver.id
+      }
+    })
+    if (!route) return res.status(404).json({ error: 'Route not found' })
+
+    const data = {}
+    const nullableTextFields = ['fromPoint', 'toPoint', 'currency', 'sourceType', 'sourceLabel', 'sourceMessage', 'sourceStatus', 'sourceMetaJson']
+    for (const field of nullableTextFields) {
+      if (req.body[field] !== undefined) {
+        data[field] = req.body[field] ? String(req.body[field]).trim() : null
+      }
+    }
+    if (req.body.vehicleType !== undefined) {
+      data.vehicleType = req.body.vehicleType ? normalizeVehicleType(req.body.vehicleType) : null
+    }
+    if (req.body.driverPrice !== undefined) data.driverPrice = req.body.driverPrice === null || req.body.driverPrice === '' ? null : parseFloat(req.body.driverPrice)
+    if (req.body.ourPrice !== undefined) data.ourPrice = req.body.ourPrice === null || req.body.ourPrice === '' ? null : parseFloat(req.body.ourPrice)
+    if (req.body.sourceQuotedAt !== undefined) data.sourceQuotedAt = req.body.sourceQuotedAt ? new Date(req.body.sourceQuotedAt) : null
+    if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
+
+    const updated = await prisma.driverRoute.update({
+      where: { id: route.id },
+      data
+    })
+    res.json(updated)
+  } catch (error) {
+    console.error('Error updating driver route:', error)
+    res.status(500).json({ error: 'Failed to update route' })
   }
 })
 
@@ -3280,7 +3383,7 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
   try {
     const { driverId } = req.params
     const data = {}
-    const nullableTextFields = ['country', 'city', 'comment', 'telegramUserId']
+    const nullableTextFields = ['name', 'email', 'phone', 'country', 'city', 'comment', 'telegramUserId', 'pricingCurrency']
     for (const field of nullableTextFields) {
       if (req.body[field] !== undefined) {
         data[field] = req.body[field] ? String(req.body[field]).trim() : null
@@ -3291,8 +3394,26 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
         ? null
         : parseFloat(req.body.commissionRate)
     }
+    if (req.body.kmRate !== undefined) data.kmRate = req.body.kmRate === null || req.body.kmRate === '' ? null : parseFloat(req.body.kmRate)
+    if (req.body.hourlyRate !== undefined) data.hourlyRate = req.body.hourlyRate === null || req.body.hourlyRate === '' ? null : parseFloat(req.body.hourlyRate)
+    if (req.body.childSeatPrice !== undefined) data.childSeatPrice = req.body.childSeatPrice === null || req.body.childSeatPrice === '' ? null : parseFloat(req.body.childSeatPrice)
     if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
     if (req.body.verificationStatus !== undefined) data.verificationStatus = String(req.body.verificationStatus)
+    if (req.body.supplierContactId !== undefined) {
+      if (!req.body.supplierContactId) {
+        data.supplierContactId = null
+      } else {
+        const contact = await prisma.customerContact.findFirst({
+          where: {
+            id: String(req.body.supplierContactId),
+            tenantId: req.actorContext.tenantId
+          },
+          select: { id: true }
+        })
+        if (!contact) return res.status(404).json({ error: 'Supplier contact not found' })
+        data.supplierContactId = contact.id
+      }
+    }
 
     const existing = await prisma.driver.findFirst({
       where: { id: driverId, tenantId: req.actorContext.tenantId },
@@ -3402,7 +3523,7 @@ app.post('/api/webhooks/easytaxi/order', resolveActorContext, requireActorContex
 
       if (prioritizedDrivers.length > 0) {
         const topDriver = prioritizedDrivers[0]
-        const matchedRoute = findMatchingRoute(topDriver.routes, fromPoint, toPoint)
+        const matchedRoute = findMatchingRoute(topDriver.routes, fromPoint, toPoint, vehicleType)
         const clientPriceNumber = parseFloat(clientPrice)
         await prisma.order.update({
           where: { id: orderId },
@@ -7551,8 +7672,26 @@ app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
     const driver = await prisma.driver.findFirst({
       where: { id: driverId, tenantId: req.actorContext.tenantId },
       include: {
+        supplierContact: {
+          include: {
+            segments: true,
+            links: {
+              include: {
+                company: {
+                  include: { segments: true }
+                }
+              }
+            }
+          }
+        },
         routes: {
           orderBy: { createdAt: 'desc' }
+        },
+        cityRoutes: {
+          include: {
+            cityRoute: true
+          },
+          orderBy: { updatedAt: 'desc' }
         },
         orders: {
           orderBy: { createdAt: 'desc' },
@@ -7573,6 +7712,91 @@ app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
   } catch (e) {
     console.error('Error fetching driver details:', e)
     res.status(500).json({ error: 'failed' })
+  }
+})
+
+app.post('/api/admin/drivers/:driverId/routes', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver', async (req) => {
+  const driver = await prisma.driver.findFirst({
+    where: { id: req.params.driverId, tenantId: req.actorContext.tenantId },
+    select: { country: true, city: true }
+  })
+  return {
+    country: driver?.country || null,
+    city: driver?.city || null
+  }
+}), async (req, res) => {
+  try {
+    const route = await prisma.driverRoute.create({
+      data: {
+        tenantId: req.actorContext.tenantId,
+        driverId: String(req.params.driverId),
+        fromPoint: String(req.body?.fromPoint || '').trim(),
+        toPoint: String(req.body?.toPoint || '').trim(),
+        vehicleType: req.body?.vehicleType ? normalizeVehicleType(req.body.vehicleType) : null,
+        driverPrice: Number(req.body?.driverPrice),
+        ourPrice: req.body?.ourPrice === null || req.body?.ourPrice === '' || req.body?.ourPrice === undefined ? null : Number(req.body.ourPrice),
+        currency: String(req.body?.currency || 'EUR').trim() || 'EUR',
+        sourceType: req.body?.sourceType ? String(req.body.sourceType).trim() : null,
+        sourceLabel: req.body?.sourceLabel ? String(req.body.sourceLabel).trim() : null,
+        sourceQuotedAt: req.body?.sourceQuotedAt ? new Date(req.body.sourceQuotedAt) : null,
+        sourceMessage: req.body?.sourceMessage ? String(req.body.sourceMessage).trim() : null,
+        sourceStatus: req.body?.sourceStatus ? String(req.body.sourceStatus).trim() : 'approved',
+        sourceMetaJson: req.body?.sourceMetaJson ? String(req.body.sourceMetaJson) : null
+      }
+    })
+    res.json(route)
+  } catch (error) {
+    console.error('Error creating admin driver route:', error)
+    res.status(500).json({ error: 'Failed to create driver route' })
+  }
+})
+
+app.put('/api/admin/drivers/routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver'), async (req, res) => {
+  try {
+    const existing = await prisma.driverRoute.findFirst({
+      where: { id: String(req.params.routeId), tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Driver route not found' })
+
+    const data = {}
+    const nullableTextFields = ['fromPoint', 'toPoint', 'currency', 'sourceType', 'sourceLabel', 'sourceMessage', 'sourceStatus', 'sourceMetaJson']
+    for (const field of nullableTextFields) {
+      if (req.body[field] !== undefined) data[field] = req.body[field] ? String(req.body[field]).trim() : null
+    }
+    if (req.body.vehicleType !== undefined) data.vehicleType = req.body.vehicleType ? normalizeVehicleType(req.body.vehicleType) : null
+    if (req.body.driverPrice !== undefined) data.driverPrice = req.body.driverPrice === null || req.body.driverPrice === '' ? null : Number(req.body.driverPrice)
+    if (req.body.ourPrice !== undefined) data.ourPrice = req.body.ourPrice === null || req.body.ourPrice === '' ? null : Number(req.body.ourPrice)
+    if (req.body.sourceQuotedAt !== undefined) data.sourceQuotedAt = req.body.sourceQuotedAt ? new Date(req.body.sourceQuotedAt) : null
+    if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
+
+    const updated = await prisma.driverRoute.update({
+      where: { id: existing.id },
+      data
+    })
+    res.json(updated)
+  } catch (error) {
+    console.error('Error updating admin driver route:', error)
+    res.status(500).json({ error: 'Failed to update driver route' })
+  }
+})
+
+app.delete('/api/admin/drivers/routes/:routeId', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.manage', 'driver'), async (req, res) => {
+  try {
+    const existing = await prisma.driverRoute.findFirst({
+      where: { id: String(req.params.routeId), tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!existing) return res.status(404).json({ error: 'Driver route not found' })
+
+    await prisma.driverRoute.update({
+      where: { id: existing.id },
+      data: { isActive: false }
+    })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting admin driver route:', error)
+    res.status(500).json({ error: 'Failed to delete driver route' })
   }
 })
 
@@ -9721,6 +9945,39 @@ function buildOrderDraftQualityChecks(extracted, pricing = {}) {
     })
   }
 
+  const supplierCost = pricing?.supplierCost || null
+  const effectiveSellPrice = extractedPrice != null ? extractedPrice : authoritativePrice
+  if (supplierCost?.supplierPrice != null && effectiveSellPrice != null) {
+    const marginAbs = Number(effectiveSellPrice) - Number(supplierCost.supplierPrice)
+    const supplierLabel = supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || 'поставщик'
+    if (marginAbs < 0) {
+      checks.push({
+        key: 'supplierCost',
+        level: 'error',
+        message: `Цена клиента ниже закупки: продажа ${effectiveSellPrice.toFixed(2)}, закупка ${Number(supplierCost.supplierPrice).toFixed(2)} (${supplierLabel})`
+      })
+    } else if (marginAbs < 10) {
+      checks.push({
+        key: 'supplierCost',
+        level: 'warn',
+        message: `Низкая маржа против закупки ${supplierLabel}: ${marginAbs.toFixed(2)} ${supplierCost.currency || pricing?.authoritativeCurrency || extracted?.currency || 'EUR'}`
+      })
+    } else {
+      checks.push({
+        key: 'supplierCost',
+        level: 'ok',
+        message: `Есть закупка для сверки: ${Number(supplierCost.supplierPrice).toFixed(2)} ${supplierCost.currency || pricing?.authoritativeCurrency || extracted?.currency || 'EUR'} (${supplierLabel})`
+      })
+    }
+  } else if (supplierCost?.supplierPrice != null) {
+    const supplierLabel = supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || 'поставщик'
+    checks.push({
+      key: 'supplierCost',
+      level: 'warn',
+      message: `Закупка известна (${Number(supplierCost.supplierPrice).toFixed(2)} ${supplierCost.currency || pricing?.authoritativeCurrency || extracted?.currency || 'EUR'} от ${supplierLabel}), но продажная цена ещё не определена`
+    })
+  }
+
   return checks
 }
 
@@ -9734,7 +9991,10 @@ function buildSheetRowPreviewFromDraft(extracted, pricing = {}) {
   const commentParts = [
     extracted?.comment || null,
     extracted?.flightNumber ? `рейс ${normalizeFlightNumber(extracted.flightNumber)}` : null,
-    pricing?.conflict ? 'расхождение с прайсом Riderra' : null
+    pricing?.conflict ? 'расхождение с прайсом Riderra' : null,
+    pricing?.supplierCost?.supplierPrice != null
+      ? `закупка ${Number(pricing.supplierCost.supplierPrice).toFixed(2)} ${pricing?.supplierCost?.currency || extracted?.currency || 'EUR'} (${pricing?.supplierCost?.driver?.name || pricing?.supplierCost?.driver?.supplierContact?.fullName || 'поставщик'})`
+      : null
   ].filter(Boolean)
 
   return {
@@ -9841,6 +10101,134 @@ async function findAuthoritativePriceForDraft({
   return cityOnly || null
 }
 
+async function findBestSupplierCostForDraft({
+  tenantId,
+  city = '',
+  fromPoint = '',
+  toPoint = '',
+  vehicleType = ''
+}) {
+  const vehicleNorm = normalizeVehicleType(vehicleType)
+  const driverRoutes = await prisma.driverRoute.findMany({
+    where: {
+      tenantId: tenantId || null,
+      isActive: true,
+      driver: {
+        isActive: true
+      },
+      ...(vehicleNorm ? {
+        OR: [
+          { vehicleType: vehicleNorm },
+          { vehicleType: null }
+        ]
+      } : {})
+    },
+    include: {
+      driver: {
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          country: true,
+          supplierContact: {
+            select: {
+              id: true,
+              fullName: true,
+              phone: true,
+              email: true
+            }
+          }
+        }
+      }
+    },
+    take: 500
+  })
+
+  const routeCandidates = driverRoutes
+    .filter((row) => routePointMatches(row.fromPoint, fromPoint) && routePointMatches(row.toPoint, toPoint))
+    .filter((row) => row.driverPrice != null)
+    .map((row) => ({
+      sourceModel: 'driver_route',
+      sourceId: row.id,
+      matchScore: 100,
+      supplierPrice: Number(row.driverPrice),
+      currency: row.currency || 'EUR',
+      vehicleType: row.vehicleType || null,
+      sourceType: row.sourceType || null,
+      sourceLabel: row.sourceLabel || null,
+      sourceQuotedAt: row.sourceQuotedAt || null,
+      sourceMessage: row.sourceMessage || null,
+      sourceStatus: row.sourceStatus || 'approved',
+      driver: row.driver
+    }))
+
+  const cityNorm = String(city || '').trim()
+  const cityRouteRows = await prisma.driverCityRoute.findMany({
+    where: {
+      tenantId: tenantId || null,
+      driver: {
+        isActive: true
+      },
+      cityRoute: {
+        isActive: true,
+        ...(cityNorm ? { city: { equals: cityNorm, mode: 'insensitive' } } : {}),
+        ...(vehicleNorm ? { vehicleType: vehicleNorm } : {})
+      }
+    },
+    include: {
+      driver: {
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          country: true,
+          supplierContact: {
+            select: {
+              id: true,
+              fullName: true,
+              phone: true,
+              email: true
+            }
+          }
+        }
+      },
+      cityRoute: true
+    },
+    take: 500
+  })
+
+  const cityRouteCandidates = cityRouteRows
+    .filter((row) => row.bestPrice != null)
+    .filter((row) => routePointMatches(row.cityRoute.fromPoint, fromPoint) && routePointMatches(row.cityRoute.toPoint, toPoint))
+    .map((row) => ({
+      sourceModel: 'driver_city_route',
+      sourceId: row.id,
+      matchScore: 90,
+      supplierPrice: Number(row.bestPrice),
+      currency: row.cityRoute.currency || 'EUR',
+      vehicleType: row.cityRoute.vehicleType || null,
+      sourceType: row.sourceType || null,
+      sourceLabel: row.sourceLabel || null,
+      sourceQuotedAt: row.sourceQuotedAt || null,
+      sourceMessage: row.sourceMessage || null,
+      sourceStatus: row.sourceStatus || 'approved',
+      driver: row.driver
+    }))
+
+  const candidates = [...routeCandidates, ...cityRouteCandidates]
+    .filter((row) => row.sourceStatus !== 'archived')
+    .sort((a, b) => {
+      const statusRank = (value) => value === 'approved' ? 0 : value === 'pending_clarification' ? 1 : 2
+      const byStatus = statusRank(a.sourceStatus) - statusRank(b.sourceStatus)
+      if (byStatus !== 0) return byStatus
+      const byMatch = b.matchScore - a.matchScore
+      if (byMatch !== 0) return byMatch
+      return a.supplierPrice - b.supplierPrice
+    })
+
+  return candidates[0] || null
+}
+
 async function buildOpenClawDraftPayload(payload, tenantId) {
   const draft = payload?.orderDraft && typeof payload.orderDraft === 'object'
     ? payload.orderDraft
@@ -9881,6 +10269,13 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     toPoint: extracted.toPoint,
     vehicleType: extracted.vehicleType
   })
+  const supplierCost = await findBestSupplierCostForDraft({
+    tenantId,
+    city: extracted.city,
+    fromPoint: extracted.fromPoint,
+    toPoint: extracted.toPoint,
+    vehicleType: extracted.vehicleType
+  })
 
   const authoritativeClientPrice = authoritativePricing?.fixedPrice != null
     ? Number(authoritativePricing.fixedPrice)
@@ -9894,13 +10289,15 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
   const qualityChecks = buildOrderDraftQualityChecks(extracted, {
     authoritativeClientPrice,
     authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
-    conflict: priceConflict
+    conflict: priceConflict,
+    supplierCost
   })
   const infoReason = buildInfoReasonFromDraftChecks(qualityChecks, extracted.missingFields)
   const sheetRowPreview = buildSheetRowPreviewFromDraft(extracted, {
     authoritativeClientPrice,
     authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
-    conflict: priceConflict
+    conflict: priceConflict,
+    supplierCost
   })
 
   return {
@@ -9922,7 +10319,8 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
       authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
       pricingRuleId: authoritativePricing?.id || null,
       pricingSource: authoritativePricing ? 'riderra_pricing' : null,
-      conflict: priceConflict
+      conflict: priceConflict,
+      supplierCost
     }
   }
 }

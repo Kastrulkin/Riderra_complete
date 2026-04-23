@@ -26,24 +26,24 @@
             <div>{{ t.name }}</div>
             <div>{{ t.email }}</div>
             <div>{{ t.phone }}</div>
+            <div>{{ t.supplierContact }}</div>
             <div>{{ t.country }}</div>
             <div>{{ t.city }}</div>
-            <div>{{ t.commission }}</div>
+            <div>{{ t.pricing }}</div>
             <div>{{ t.rating }}</div>
             <div>{{ t.status }}</div>
-            <div>{{ t.telegramId }}</div>
             <div>{{ t.actions }}</div>
           </div>
           <div v-for="driver in rows" :key="driver.id" class="table-row">
             <div>{{ driver.name }}</div>
             <div>{{ driver.email }}</div>
             <div>{{ driver.phone || '-' }}</div>
+            <div>{{ driver.supplierContact ? driver.supplierContact.fullName : '-' }}</div>
             <div>{{ driver.country || '-' }}</div>
             <div>{{ driver.city || '-' }}</div>
-            <div>{{ driver.commissionRate || '-' }}%</div>
+            <div>{{ pricingSummary(driver) }}</div>
             <div>{{ driver.rating || '-' }}</div>
             <div>{{ driver.verificationStatus }}</div>
-            <div>{{ driver.telegramUserId || '-' }}</div>
             <div>
               <button class="btn btn--small btn--primary" @click="editDriver(driver)">{{ t.edit }}</button>
               <button class="btn btn--small" :class="driver.isActive ? 'btn--danger' : 'btn--success'" @click="toggleDriver(driver)">
@@ -82,6 +82,18 @@
             <h3>{{ t.editDriver }}</h3>
             <div class="form-grid">
               <div>
+                <label>{{ t.name }}</label>
+                <input v-model="editForm.name" class="input" />
+              </div>
+              <div>
+                <label>{{ t.email }}</label>
+                <input v-model="editForm.email" class="input" />
+              </div>
+              <div>
+                <label>{{ t.phone }}</label>
+                <input v-model="editForm.phone" class="input" />
+              </div>
+              <div>
                 <label>{{ t.country }}</label>
                 <input v-model="editForm.country" class="input" />
               </div>
@@ -94,14 +106,105 @@
                 <input v-model="editForm.commissionRate" class="input" type="number" min="0" max="100" step="0.1" />
               </div>
               <div>
+                <label>{{ t.pricingCurrency }}</label>
+                <input v-model="editForm.pricingCurrency" class="input" />
+              </div>
+              <div>
                 <label>{{ t.telegramId }}</label>
                 <input v-model="editForm.telegramUserId" class="input" />
+              </div>
+              <div>
+                <label>{{ t.supplierContact }}</label>
+                <select v-model="editForm.supplierContactId" class="input">
+                  <option value="">-</option>
+                  <option v-for="contact in supplierContacts" :key="contact.id" :value="contact.id">
+                    {{ contact.fullName }}{{ contact.phone ? ` · ${contact.phone}` : '' }}
+                  </option>
+                </select>
               </div>
             </div>
             <div>
               <label>{{ t.comment }}</label>
               <textarea v-model="editForm.comment" class="input" rows="3"></textarea>
             </div>
+
+            <div class="route-panel">
+              <div class="route-panel__head">
+                <h4>{{ t.routePricing }}</h4>
+                <div class="route-panel__hint">{{ t.routePricingHint }}</div>
+              </div>
+
+              <div v-if="routeRows.length" class="route-list">
+                <div v-for="route in routeRows" :key="route.id" class="route-card">
+                  <div class="route-card__title">
+                    <strong>{{ route.vehicleType || '-' }}</strong>
+                    <span>{{ route.fromPoint }} → {{ route.toPoint }}</span>
+                  </div>
+                  <div class="route-card__meta">
+                    <span>{{ route.driverPrice }} {{ route.currency || editForm.pricingCurrency || 'EUR' }}</span>
+                    <span v-if="route.sourceLabel">{{ route.sourceLabel }}</span>
+                    <span v-if="route.sourceQuotedAt">{{ formatDate(route.sourceQuotedAt) }}</span>
+                    <span v-if="route.sourceStatus">{{ route.sourceStatus }}</span>
+                  </div>
+                  <div v-if="route.sourceMessage" class="route-card__message">{{ route.sourceMessage }}</div>
+                  <div class="route-card__actions">
+                    <button class="btn btn--small btn--primary" @click="startRouteEdit(route)">{{ t.edit }}</button>
+                    <button class="btn btn--small btn--danger" @click="deleteRoute(route)">{{ t.delete }}</button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="hint">{{ t.noRoutes }}</div>
+
+              <div class="route-form">
+                <div class="form-grid">
+                  <div>
+                    <label>{{ t.fromPoint }}</label>
+                    <input v-model="routeForm.fromPoint" class="input" />
+                  </div>
+                  <div>
+                    <label>{{ t.toPoint }}</label>
+                    <input v-model="routeForm.toPoint" class="input" />
+                  </div>
+                  <div>
+                    <label>{{ t.vehicleClass }}</label>
+                    <input v-model="routeForm.vehicleType" class="input" />
+                  </div>
+                  <div>
+                    <label>{{ t.driverPriceLabel }}</label>
+                    <input v-model="routeForm.driverPrice" class="input" type="number" step="0.01" min="0" />
+                  </div>
+                  <div>
+                    <label>{{ t.pricingCurrency }}</label>
+                    <input v-model="routeForm.currency" class="input" />
+                  </div>
+                  <div>
+                    <label>{{ t.sourceType }}</label>
+                    <input v-model="routeForm.sourceType" class="input" placeholder="whatsapp" />
+                  </div>
+                  <div>
+                    <label>{{ t.sourceLabel }}</label>
+                    <input v-model="routeForm.sourceLabel" class="input" placeholder="WhatsApp, 23.04.2026 18:47" />
+                  </div>
+                  <div>
+                    <label>{{ t.sourceStatus }}</label>
+                    <select v-model="routeForm.sourceStatus" class="input">
+                      <option value="approved">approved</option>
+                      <option value="pending_clarification">pending_clarification</option>
+                      <option value="archived">archived</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label>{{ t.sourceMessage }}</label>
+                  <textarea v-model="routeForm.sourceMessage" class="input" rows="3"></textarea>
+                </div>
+                <div class="actions">
+                  <button class="btn btn--primary" @click="saveRoute">{{ routeEditingId ? t.updateRoute : t.addRoute }}</button>
+                  <button class="btn btn--ghost" @click="resetRouteForm">{{ t.cancel }}</button>
+                </div>
+              </div>
+            </div>
+
             <div class="actions">
               <button class="btn btn--primary" @click="saveDriver">{{ t.save }}</button>
               <button class="btn btn--ghost" @click="editing = null">{{ t.cancel }}</button>
@@ -179,14 +282,33 @@ export default {
       rows: [],
       vehicleRows: [],
       driverOptions: [],
+      supplierContacts: [],
       editing: null,
       vehicleEditing: null,
       editForm: {
+        name: '',
+        email: '',
+        phone: '',
         country: '',
         city: '',
         commissionRate: '',
+        pricingCurrency: 'EUR',
         telegramUserId: '',
+        supplierContactId: '',
         comment: ''
+      },
+      routeRows: [],
+      routeEditingId: '',
+      routeForm: {
+        fromPoint: '',
+        toPoint: '',
+        vehicleType: '',
+        driverPrice: '',
+        currency: 'EUR',
+        sourceType: 'whatsapp',
+        sourceLabel: '',
+        sourceStatus: 'approved',
+        sourceMessage: ''
       },
       vehicleForm: {
         vehicleClass: '',
@@ -218,9 +340,12 @@ export default {
             country: 'Страна',
             city: 'Город',
             commission: 'Комиссия',
+            pricing: 'Закупка',
+            pricingCurrency: 'Валюта',
             rating: 'Рейтинг',
             status: 'Статус',
             telegramId: 'Telegram ID',
+            supplierContact: 'Контакт поставщика',
             actions: 'Действия',
             edit: 'Редактировать',
             activate: 'Активировать',
@@ -241,6 +366,18 @@ export default {
             active: 'active',
             inactive: 'off',
             comment: 'Комментарий',
+            routePricing: 'Закупочные тарифы',
+            routePricingHint: 'Маршруты и источники цен поставщика для будущей сверки с продажной ценой.',
+            noRoutes: 'Пока нет закупочных тарифов',
+            fromPoint: 'Откуда',
+            toPoint: 'Куда',
+            driverPriceLabel: 'Закупочная цена',
+            sourceType: 'Тип источника',
+            sourceLabel: 'Источник',
+            sourceStatus: 'Статус источника',
+            sourceMessage: 'Текст / цитата источника',
+            addRoute: 'Добавить тариф',
+            updateRoute: 'Обновить тариф',
             save: 'Сохранить',
             cancel: 'Отмена'
           }
@@ -258,9 +395,12 @@ export default {
             country: 'Country',
             city: 'City',
             commission: 'Commission',
+            pricing: 'Buy rate',
+            pricingCurrency: 'Currency',
             rating: 'Rating',
             status: 'Status',
             telegramId: 'Telegram ID',
+            supplierContact: 'Supplier contact',
             actions: 'Actions',
             edit: 'Edit',
             activate: 'Activate',
@@ -281,6 +421,18 @@ export default {
             active: 'active',
             inactive: 'off',
             comment: 'Comment',
+            routePricing: 'Supplier rates',
+            routePricingHint: 'Operational buy rates with provenance, used later for margin checks.',
+            noRoutes: 'No supplier rates yet',
+            fromPoint: 'From',
+            toPoint: 'To',
+            driverPriceLabel: 'Buy price',
+            sourceType: 'Source type',
+            sourceLabel: 'Source',
+            sourceStatus: 'Source status',
+            sourceMessage: 'Source quote',
+            addRoute: 'Add rate',
+            updateRoute: 'Update rate',
             save: 'Save',
             cancel: 'Cancel'
           }
@@ -328,6 +480,11 @@ export default {
       }
       this.rows = rows
     },
+    async loadSupplierContacts () {
+      const res = await fetch('/api/admin/crm/contacts?segment=supplier_contact&limit=300', { headers: this.authHeaders() })
+      const data = await res.json().catch(() => ({}))
+      this.supplierContacts = Array.isArray(data.rows) ? data.rows : []
+    },
     async loadDriverOptions () {
       const res = await fetch('/api/admin/drivers', { headers: this.authHeaders() })
       const data = await res.json()
@@ -339,15 +496,25 @@ export default {
       const data = await res.json().catch(() => ({}))
       this.vehicleRows = Array.isArray(data.rows) ? data.rows : []
     },
-    editDriver (driver) {
-      this.editing = driver
+    async editDriver (driver) {
+      const res = await fetch(`/api/admin/drivers/${driver.id}`, { headers: this.authHeaders() })
+      const details = await res.json().catch(() => driver)
+      this.editing = details
       this.editForm = {
-        country: driver.country || '',
-        city: driver.city || '',
-        commissionRate: driver.commissionRate ?? '',
-        telegramUserId: driver.telegramUserId || '',
-        comment: driver.comment || ''
+        name: details.name || '',
+        email: details.email || '',
+        phone: details.phone || '',
+        country: details.country || '',
+        city: details.city || '',
+        commissionRate: details.commissionRate ?? '',
+        pricingCurrency: details.pricingCurrency || 'EUR',
+        telegramUserId: details.telegramUserId || '',
+        supplierContactId: details.supplierContactId || '',
+        comment: details.comment || ''
       }
+      this.routeRows = Array.isArray(details.routes) ? details.routes.filter((route) => route.isActive !== false) : []
+      this.resetRouteForm()
+      if (!this.supplierContacts.length) await this.loadSupplierContacts()
     },
     async saveDriver () {
       if (!this.editing) return
@@ -360,7 +527,79 @@ export default {
         body: JSON.stringify(this.editForm)
       })
       this.editing = null
+      this.routeRows = []
+      this.resetRouteForm()
       await this.loadDrivers()
+    },
+    pricingSummary (driver) {
+      const routesCount = driver?._count?.routes || 0
+      const currency = driver?.pricingCurrency || 'EUR'
+      if (!routesCount) return '-'
+      return `${routesCount} ${currency}`
+    },
+    resetRouteForm () {
+      this.routeEditingId = ''
+      this.routeForm = {
+        fromPoint: '',
+        toPoint: '',
+        vehicleType: '',
+        driverPrice: '',
+        currency: this.editForm.pricingCurrency || 'EUR',
+        sourceType: 'whatsapp',
+        sourceLabel: '',
+        sourceStatus: 'approved',
+        sourceMessage: ''
+      }
+    },
+    startRouteEdit (route) {
+      this.routeEditingId = route.id
+      this.routeForm = {
+        fromPoint: route.fromPoint || '',
+        toPoint: route.toPoint || '',
+        vehicleType: route.vehicleType || '',
+        driverPrice: route.driverPrice ?? '',
+        currency: route.currency || this.editForm.pricingCurrency || 'EUR',
+        sourceType: route.sourceType || 'whatsapp',
+        sourceLabel: route.sourceLabel || '',
+        sourceStatus: route.sourceStatus || 'approved',
+        sourceMessage: route.sourceMessage || ''
+      }
+    },
+    async saveRoute () {
+      if (!this.editing) return
+      const payload = { ...this.routeForm }
+      const isEdit = !!this.routeEditingId
+      const url = isEdit ? `/api/admin/drivers/routes/${this.routeEditingId}` : `/api/admin/drivers/${this.editing.id}/routes`
+      const method = isEdit ? 'PUT' : 'POST'
+      await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.authHeaders()
+        },
+        body: JSON.stringify(payload)
+      })
+      const refreshed = await fetch(`/api/admin/drivers/${this.editing.id}`, { headers: this.authHeaders() })
+      const details = await refreshed.json().catch(() => ({}))
+      this.editing = { ...this.editing, ...details }
+      this.routeRows = Array.isArray(details.routes) ? details.routes.filter((route) => route.isActive !== false) : []
+      this.resetRouteForm()
+      await this.loadDrivers()
+    },
+    async deleteRoute (route) {
+      await fetch(`/api/admin/drivers/routes/${route.id}`, {
+        method: 'DELETE',
+        headers: this.authHeaders()
+      })
+      this.routeRows = this.routeRows.filter((item) => item.id !== route.id)
+      await this.loadDrivers()
+    },
+    formatDate (value) {
+      try {
+        return new Date(value).toLocaleString()
+      } catch (_) {
+        return value
+      }
     },
     async toggleDriver (driver) {
       await fetch(`/api/admin/drivers/${driver.id}/status`, {
@@ -432,13 +671,23 @@ export default {
 .toolbar { display: flex; gap: 12px; margin-bottom: 16px; }
 .input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; }
 .drivers-table, .vehicles-table { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); border-radius: 12px; overflow: auto; }
-.table-header, .table-row { display: grid; grid-template-columns: 1.2fr 1.6fr 1fr .9fr .9fr .8fr .7fr .9fr 1fr 1.2fr; gap: 10px; padding: 12px; min-width: 1200px; align-items: center; }
+.table-header, .table-row { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr 1fr .8fr .8fr .8fr .7fr .9fr; gap: 10px; padding: 12px; min-width: 1240px; align-items: center; }
 .table-header { font-weight: 600; background: rgba(255,255,255,.08); }
 .table-row { border-top: 1px solid rgba(255,255,255,.08); }
 .table-header--vehicles, .table-row--vehicles { grid-template-columns: .8fr 1.2fr .9fr 1fr 1fr .7fr 1fr; min-width: 980px; }
 .class-chip { display: inline-block; padding: 4px 9px; border-radius: 999px; background: rgba(14,165,233,.18); color: #d8f3ff; font-weight: 600; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-.modal { width: min(760px, 96vw); background: #0f172a; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 18px; }
+.modal { width: min(980px, 96vw); max-height: 92vh; overflow: auto; background: #0f172a; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 18px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .actions { display: flex; gap: 10px; margin-top: 12px; }
+.route-panel { margin-top: 18px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 16px; }
+.route-panel__head h4 { margin: 0 0 4px; }
+.route-panel__hint { color: rgba(255,255,255,.65); font-size: 13px; margin-bottom: 12px; }
+.route-list { display: grid; gap: 10px; margin-bottom: 14px; }
+.route-card { border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 12px; background: rgba(255,255,255,.04); }
+.route-card__title { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.route-card__meta { display: flex; gap: 10px; flex-wrap: wrap; color: rgba(255,255,255,.7); font-size: 13px; margin-bottom: 6px; }
+.route-card__message { white-space: pre-wrap; color: rgba(255,255,255,.85); font-size: 13px; margin-bottom: 8px; }
+.route-card__actions { display: flex; gap: 8px; }
+.route-form { border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 12px; background: rgba(255,255,255,.03); }
 </style>
