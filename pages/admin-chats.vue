@@ -136,7 +136,9 @@
                   <div class="message-actions">
                     <button class="btn btn--small" @click="approveMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Одобрить</button>
                     <button class="btn btn--small btn--warn" @click="rejectMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Отклонить</button>
-                    <button class="btn btn--small btn--primary" @click="sendMessage(message.id)" v-if="canSend(message)">Отправить</button>
+                    <button class="btn btn--small" @click="copyMessage(message)" v-if="message.direction === 'outbound'">Скопировать</button>
+                    <button class="btn btn--small btn--primary" @click="markManualSent(message.id)" v-if="canMarkManualSent(message)">Отметить отправленным вручную</button>
+                    <button class="btn btn--small btn--ghost" @click="sendMessage(message.id)" v-if="canSend(message)">Отправить через OpenClaw</button>
                   </div>
                 </div>
                 <div v-if="!(selectedTask.messages || []).length" class="empty">Сообщений пока нет</div>
@@ -189,14 +191,14 @@
                   :disabled="quickSendLoading || !selectedTask || selectedTask.taskType !== 'clarification'"
                   @click="sendClarificationQuick"
                 >
-                  {{ quickSendLoading ? 'Отправляю...' : 'Уточнение в 1 клик' }}
+                  {{ quickSendLoading ? 'Готовлю...' : 'Подготовить уточнение' }}
                 </button>
                 <button
                   class="btn btn--ghost"
                   :disabled="quickDispatchLoading || !selectedTask || selectedTask.taskType !== 'dispatch_info'"
                   @click="sendDispatchQuick"
                 >
-                  {{ quickDispatchLoading ? 'Отправляю...' : 'Детали поездки в 1 клик' }}
+                  {{ quickDispatchLoading ? 'Готовлю...' : 'Подготовить детали' }}
                 </button>
                 <button class="btn btn--primary" @click="createDraft">Сохранить черновик</button>
               </div>
@@ -312,6 +314,7 @@ export default {
     promptText: '',
     promptDescription: '',
     promptSaving: false,
+    copyStatus: '',
     inboundText: '',
     inboundProcessing: false,
     quickSendLoading: false,
@@ -434,7 +437,7 @@ export default {
       const reason = String(this.selectedTask?.order?.infoReason || '').trim()
       if (this.selectedTask.state === 'customer_replied') return 'Сначала разберите входящий ответ и подтвердите поле.'
       if (this.selectedTask.state === 'request_sent') return 'Проверьте, нужен ли follow-up или передача человеку.'
-      if (this.selectedTask.taskType === 'dispatch_info') return 'Отправьте подтверждённые детали поездки и зафиксируйте ответ.'
+      if (this.selectedTask.taskType === 'dispatch_info') return 'Подготовьте подтверждённые детали поездки, отправьте вручную и зафиксируйте результат.'
       if (reason) return `Фокус задачи: ${reason}`
       return 'Соберите короткое сообщение, получите ответ и доведите задачу до следующего статуса.'
     },
@@ -442,9 +445,9 @@ export default {
       if (!this.selectedTask) return 'Действие'
       if (this.selectedTask.state === 'customer_replied') return 'Разобрать ответ'
       if (this.selectedTask.taskType === 'dispatch_info') {
-        return this.quickDispatchLoading ? 'Отправляю...' : 'Отправить детали'
+        return this.quickDispatchLoading ? 'Готовлю...' : 'Подготовить детали'
       }
-      return this.quickSendLoading ? 'Отправляю...' : 'Отправить уточнение'
+      return this.quickSendLoading ? 'Готовлю...' : 'Подготовить уточнение'
     },
     primaryTaskActionDisabled() {
       if (!this.selectedTask) return true
@@ -831,7 +834,7 @@ export default {
     async sendClarificationQuick() {
       if (!this.selectedTask?.id || this.quickSendLoading) return
       if (this.selectedTask.taskType !== 'clarification') {
-        this.notice = 'Быстрая отправка доступна только для уточнений'
+        this.notice = 'Подготовка доступна только для уточнений'
         return
       }
       this.quickSendLoading = true
@@ -847,30 +850,12 @@ export default {
         const messageId = buildData?.message?.id
         if (!messageId) throw new Error('Не найден ID сообщения после сборки')
 
-        const approveResponse = await fetch(`/api/admin/chats/messages/${messageId}/approve`, {
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({})
-        })
-        const approveData = await approveResponse.json()
-        if (!approveResponse.ok) throw new Error(approveData?.error || 'Не удалось одобрить уточнение')
-
-        const sendResponse = await fetch(`/api/admin/chats/messages/${messageId}/send`, {
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({})
-        })
-        const sendData = await sendResponse.json()
-        if (!sendResponse.ok) throw new Error(sendData?.error || 'Не удалось отправить уточнение')
-
-        this.notice = sendData?.runtime?.configured
-          ? 'Уточнение отправлено через OpenClaw'
-          : 'Уточнение отправлено (fallback)'
+        this.notice = 'Черновик уточнения готов. Одобрите, скопируйте текст и отметьте ручную отправку.'
         this.draftText = ''
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
       } catch (error) {
-        this.notice = error?.message || 'Ошибка быстрой отправки уточнения'
+        this.notice = error?.message || 'Ошибка подготовки уточнения'
       } finally {
         this.quickSendLoading = false
       }
@@ -878,7 +863,7 @@ export default {
     async sendDispatchQuick() {
       if (!this.selectedTask?.id || this.quickDispatchLoading) return
       if (this.selectedTask.taskType !== 'dispatch_info') {
-        this.notice = 'Быстрая рассылка доступна только для задач dispatch_info'
+        this.notice = 'Подготовка рассылки доступна только для задач dispatch_info'
         return
       }
       this.quickDispatchLoading = true
@@ -894,30 +879,12 @@ export default {
         const messageId = buildData?.message?.id
         if (!messageId) throw new Error('Не найден ID сообщения после сборки')
 
-        const approveResponse = await fetch(`/api/admin/chats/messages/${messageId}/approve`, {
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({})
-        })
-        const approveData = await approveResponse.json()
-        if (!approveResponse.ok) throw new Error(approveData?.error || 'Не удалось одобрить сообщение')
-
-        const sendResponse = await fetch(`/api/admin/chats/messages/${messageId}/send`, {
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({})
-        })
-        const sendData = await sendResponse.json()
-        if (!sendResponse.ok) throw new Error(sendData?.error || 'Не удалось отправить сообщение')
-
-        this.notice = sendData?.runtime?.configured
-          ? 'Детали поездки отправлены через OpenClaw'
-          : 'Детали поездки отправлены (fallback)'
+        this.notice = 'Черновик деталей готов. Одобрите, скопируйте текст и отметьте ручную отправку.'
         this.draftText = ''
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
       } catch (error) {
-        this.notice = error?.message || 'Ошибка быстрой рассылки'
+        this.notice = error?.message || 'Ошибка подготовки деталей'
       } finally {
         this.quickDispatchLoading = false
       }
@@ -964,6 +931,47 @@ export default {
       this.draftText = ''
       await this.openTask(this.selectedTask.id)
       await this.loadTasks()
+    },
+    async copyMessage(message) {
+      const text = String(message?.bodyText || '').trim()
+      if (!text) return
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text)
+        } else {
+          const el = document.createElement('textarea')
+          el.value = text
+          el.setAttribute('readonly', 'readonly')
+          el.style.position = 'fixed'
+          el.style.left = '-9999px'
+          document.body.appendChild(el)
+          el.select()
+          document.execCommand('copy')
+          document.body.removeChild(el)
+        }
+        this.copyStatus = 'Текст скопирован'
+        this.notice = this.copyStatus
+      } catch (_) {
+        this.copyStatus = 'Не удалось скопировать автоматически. Выделите текст вручную.'
+        this.notice = this.copyStatus
+      }
+    },
+    async markManualSent(id) {
+      if (!id || !this.selectedTask?.id) return
+      try {
+        const response = await fetch(`/api/admin/chats/messages/${id}/mark-manual-sent`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось отметить ручную отправку')
+        this.notice = 'Сообщение отмечено как отправленное вручную'
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка ручной отправки'
+      }
     },
     async processInboundMessage() {
       if (!this.selectedTask?.id || this.inboundProcessing || !this.inboundText.trim()) return
@@ -1037,6 +1045,9 @@ export default {
       await this.sendClarificationQuick()
     },
     canSend(message) {
+      return message.direction === 'outbound' && (message.approvalStatus === 'approved' || message.approvalStatus === null)
+    },
+    canMarkManualSent(message) {
       return message.direction === 'outbound' && (message.approvalStatus === 'approved' || message.approvalStatus === null)
     },
     taskTypeLabel(code) {

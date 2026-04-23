@@ -5821,6 +5821,108 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
   }
 })
 
+app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const message = await prisma.chatMessage.findFirst({
+      where: { id: req.params.id, tenantId },
+      include: { chatTask: true }
+    })
+    if (!message) return res.status(404).json({ error: 'Message not found' })
+    if (String(message.direction || '') !== 'outbound') {
+      return res.status(409).json({ error: 'Only outbound messages can be marked as sent' })
+    }
+    if (message.approvalStatus && !['approved', 'sent'].includes(message.approvalStatus)) {
+      return res.status(409).json({ error: 'Message must be approved before manual send' })
+    }
+
+    const payload = { messageId: message.id, taskId: message.chatTask.id, manual: true }
+    ensureIdempotencyKey(req, 'admin.chat_message.mark_manual_sent', payload)
+
+    const wrapped = await withIdempotency(req, 'admin.chat_message.mark_manual_sent', payload, async () => {
+      const providerMessageId = message.providerMessageId || `manual:${Date.now()}`
+      const nextState = message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent'
+      const currentState = String(message.chatTask.state || '')
+      const transition = await transitionChatTaskIfAllowed(message.chatTask.id, currentState, nextState)
+      if (!transition.changed && currentState !== nextState) {
+        const error = new Error('Manual send transition is not allowed from current state')
+        error.statusCode = 409
+        error.details = { fromState: currentState, toState: nextState }
+        throw error
+      }
+      const updated = await prisma.chatMessage.update({
+        where: { id: message.id },
+        data: {
+          approvalStatus: 'sent',
+          providerMessageId,
+          source: message.source || 'operator'
+        }
+      })
+
+      await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: message.chatTask.id,
+          direction: 'internal',
+          source: 'system',
+          channel: 'manual',
+          bodyText: 'Оператор отметил сообщение как отправленное вручную.',
+          bodyJson: JSON.stringify({
+            kind: 'manual_send',
+            messageId: message.id,
+            providerMessageId,
+            fromState: currentState,
+            nextState
+          }),
+          traceId: req.actorContext.traceId,
+          createdByUserId: req.user?.id || null
+        }
+      })
+
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_message.mark_manual_sent',
+        resource: 'chat_message',
+        resourceId: message.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { taskId: message.chatTask.id, fromState: currentState, nextState, providerMessageId }
+      })
+
+      await recordAiLearningEvent({
+        tenantId,
+        agentConfigId: message.chatTask.agentConfigId || null,
+        chatTaskId: message.chatTask.id,
+        chatMessageId: message.id,
+        promptKey: null,
+        promptVersion: null,
+        capability: 'riderra.customer.message.send',
+        intent: inferIntentFromTaskType(message.chatTask.taskType),
+        outcome: 'manual_sent',
+        context: { channel: 'manual', state: nextState }
+      })
+
+      return { updated, nextState, providerMessageId }
+    })
+
+    res.json({
+      message: wrapped.data.updated,
+      taskState: wrapped.data.nextState,
+      providerMessageId: wrapped.data.providerMessageId,
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error marking chat message as manually sent:', error)
+    if (error.statusCode === 409) {
+      return res.status(409).json({ error: error.message, ...(error.details || {}) })
+    }
+    res.status(500).json({ error: 'Failed to mark message as manually sent' })
+  }
+})
+
 app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
