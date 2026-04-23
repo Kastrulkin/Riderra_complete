@@ -112,6 +112,7 @@ model Driver {
   email           String?
   phone           String
   supplierContactId String?
+  supplierCompanyId String?
   country         String?
   city            String
   telegramUserId  String?
@@ -153,12 +154,14 @@ model Driver {
   unavailability DriverUnavailability[]
   vehicles       FleetVehicle[]
   supplierContact CustomerContact?       @relation("SupplierContactDriverLink", fields: [supplierContactId], references: [id], onDelete: SetNull)
+  supplierCompany CustomerCompany?       @relation("SupplierCompanyDriverLink", fields: [supplierCompanyId], references: [id], onDelete: SetNull)
   tenant         Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, country, city])
   @@index([country, city])
   @@index([telegramUserId])
   @@index([tenantId, supplierContactId])
+  @@index([tenantId, supplierCompanyId])
 }
 
 model FleetVehicle {
@@ -553,6 +556,7 @@ model CustomerCompany {
   links               CustomerCompanyContact[]
   segments            CustomerCompanySegment[]
   pricingRules        CounterpartyPriceRule[]
+  supplierDrivers     Driver[]                  @relation("SupplierCompanyDriverLink")
   tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])

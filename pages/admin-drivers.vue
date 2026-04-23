@@ -114,6 +114,15 @@
                 <input v-model="editForm.telegramUserId" class="input" />
               </div>
               <div>
+                <label>{{ t.supplierCompany }}</label>
+                <select v-model="editForm.supplierCompanyId" class="input">
+                  <option value="">-</option>
+                  <option v-for="company in supplierCompanies" :key="company.id" :value="company.id">
+                    {{ company.name }}{{ company.phone ? ` · ${company.phone}` : '' }}
+                  </option>
+                </select>
+              </div>
+              <div>
                 <label>{{ t.supplierContact }}</label>
                 <select v-model="editForm.supplierContactId" class="input">
                   <option value="">-</option>
@@ -300,6 +309,7 @@ export default {
       rows: [],
       vehicleRows: [],
       driverOptions: [],
+      supplierCompanies: [],
       supplierContacts: [],
       editing: null,
       vehicleEditing: null,
@@ -312,6 +322,7 @@ export default {
         commissionRate: '',
         pricingCurrency: 'EUR',
         telegramUserId: '',
+        supplierCompanyId: '',
         supplierContactId: '',
         comment: ''
       },
@@ -363,6 +374,7 @@ export default {
             rating: 'Рейтинг',
             status: 'Статус',
             telegramId: 'Telegram ID',
+            supplierCompany: 'Перевозчик',
             supplierContact: 'Контакт поставщика',
             actions: 'Действия',
             edit: 'Редактировать',
@@ -421,6 +433,7 @@ export default {
             rating: 'Rating',
             status: 'Status',
             telegramId: 'Telegram ID',
+            supplierCompany: 'Carrier',
             supplierContact: 'Supplier contact',
             actions: 'Actions',
             edit: 'Edit',
@@ -538,6 +551,11 @@ export default {
       const data = await res.json().catch(() => ({}))
       this.supplierContacts = Array.isArray(data.rows) ? data.rows : []
     },
+    async loadSupplierCompanies () {
+      const res = await fetch('/api/admin/crm/companies?limit=300', { headers: this.authHeaders() })
+      const data = await res.json().catch(() => ({}))
+      this.supplierCompanies = Array.isArray(data.rows) ? data.rows : []
+    },
     async loadDriverOptions () {
       const res = await fetch('/api/admin/drivers', { headers: this.authHeaders() })
       const data = await res.json()
@@ -562,11 +580,13 @@ export default {
         commissionRate: details.commissionRate ?? '',
         pricingCurrency: details.pricingCurrency || 'EUR',
         telegramUserId: details.telegramUserId || '',
+        supplierCompanyId: details.supplierCompanyId || '',
         supplierContactId: details.supplierContactId || '',
         comment: details.comment || ''
       }
       this.routeRows = Array.isArray(details.routes) ? details.routes.filter((route) => route.isActive !== false) : []
       this.resetRouteForm()
+      if (!this.supplierCompanies.length) await this.loadSupplierCompanies()
       if (!this.supplierContacts.length) await this.loadSupplierContacts()
     },
     async saveDriver () {

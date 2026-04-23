@@ -100,7 +100,81 @@ async function upsertSupplierContact(tenantId) {
   return contact
 }
 
-async function upsertDriver(tenantId, supplierContactId) {
+async function upsertSupplierCompany(tenantId, contactId) {
+  let company = await prisma.customerCompany.findFirst({
+    where: {
+      tenantId,
+      OR: [
+        { externalId: 'manual:carrier:naveed:copenhagen' },
+        { name: { equals: 'Naveed', mode: 'insensitive' } }
+      ]
+    }
+  })
+
+  const comment = [
+    'Individual carrier in Copenhagen.',
+    `Price source: ${SOURCE_LABEL}.`,
+    'Classes covered: sedan, minivan.'
+  ].join('\n')
+
+  const data = {
+    tenantId,
+    sourceSystem: 'manual_supplier',
+    externalId: 'manual:carrier:naveed:copenhagen',
+    name: 'Naveed',
+    phone: '+45 25 30 17 86',
+    registrationCountry: 'Denmark',
+    registrationCity: 'Copenhagen',
+    presenceCountries: 'Denmark',
+    presenceCities: 'Copenhagen',
+    countryPresence: 'Denmark',
+    cityPresence: 'Copenhagen',
+    companyType: 'individual_carrier',
+    comment
+  }
+
+  company = company
+    ? await prisma.customerCompany.update({ where: { id: company.id }, data })
+    : await prisma.customerCompany.create({ data })
+
+  await prisma.customerCompanySegment.upsert({
+    where: {
+      companyId_segment: {
+        companyId: company.id,
+        segment: 'supplier_company'
+      }
+    },
+    update: { sourceFile: 'manual_ui' },
+    create: {
+      companyId: company.id,
+      segment: 'supplier_company',
+      sourceFile: 'manual_ui'
+    }
+  })
+
+  await prisma.customerCompanyContact.upsert({
+    where: {
+      companyId_contactId: {
+        companyId: company.id,
+        contactId
+      }
+    },
+    update: {
+      source: 'manual_ui',
+      matchType: 'contact_name'
+    },
+    create: {
+      companyId: company.id,
+      contactId,
+      source: 'manual_ui',
+      matchType: 'contact_name'
+    }
+  })
+
+  return company
+}
+
+async function upsertDriver(tenantId, supplierContactId, supplierCompanyId) {
   let driver = await prisma.driver.findFirst({
     where: {
       tenantId,
@@ -132,6 +206,7 @@ async function upsertDriver(tenantId, supplierContactId) {
         verificationStatus: 'verified',
         isActive: true,
         supplierContactId,
+        supplierCompanyId,
         comment
       }
     })
@@ -148,6 +223,7 @@ async function upsertDriver(tenantId, supplierContactId) {
         verificationStatus: 'verified',
         isActive: true,
         supplierContactId,
+        supplierCompanyId,
         comment
       }
     })
@@ -196,13 +272,15 @@ async function upsertRoute(driverId, tenantId, vehicleType, driverPrice) {
 async function main() {
   const tenant = await getTenant()
   const contact = await upsertSupplierContact(tenant.id)
-  const driver = await upsertDriver(tenant.id, contact.id)
+  const company = await upsertSupplierCompany(tenant.id, contact.id)
+  const driver = await upsertDriver(tenant.id, contact.id, company.id)
   const sedan = await upsertRoute(driver.id, tenant.id, 'sedan', 80)
   const van = await upsertRoute(driver.id, tenant.id, 'van', 90)
 
   console.log(JSON.stringify({
     ok: true,
     tenant: { id: tenant.id, code: tenant.code, name: tenant.name },
+    company: { id: company.id, name: company.name, companyType: company.companyType },
     contact: { id: contact.id, fullName: contact.fullName, phone: contact.phone },
     driver: { id: driver.id, name: driver.name, city: driver.city, country: driver.country },
     routes: [

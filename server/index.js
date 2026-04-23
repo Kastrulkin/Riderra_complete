@@ -2760,6 +2760,15 @@ app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireAct
         ...buildGeoScopeWhere(req, 'country', 'city')
       },
       include: {
+        supplierCompany: {
+          select: {
+            id: true,
+            name: true,
+            companyType: true,
+            phone: true,
+            email: true
+          }
+        },
         supplierContact: {
           select: {
             id: true,
@@ -3412,6 +3421,21 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
         })
         if (!contact) return res.status(404).json({ error: 'Supplier contact not found' })
         data.supplierContactId = contact.id
+      }
+    }
+    if (req.body.supplierCompanyId !== undefined) {
+      if (!req.body.supplierCompanyId) {
+        data.supplierCompanyId = null
+      } else {
+        const company = await prisma.customerCompany.findFirst({
+          where: {
+            id: String(req.body.supplierCompanyId),
+            tenantId: req.actorContext.tenantId
+          },
+          select: { id: true }
+        })
+        if (!company) return res.status(404).json({ error: 'Supplier company not found' })
+        data.supplierCompanyId = company.id
       }
     }
 
@@ -6887,6 +6911,7 @@ app.get(
         supplierCost,
         fallbackCurrency: orderDraft.currency || draftPayload?.pricing?.authoritativeCurrency || 'EUR'
       })
+      const supplierDisplay = buildSupplierCostDisplay(supplierCost, BASE_CURRENCY)
       const qualityChecksBase = Array.isArray(draftPayload.qualityChecks) ? draftPayload.qualityChecks : []
       const qualityChecks = supplierSignal
         ? [
@@ -6930,6 +6955,7 @@ app.get(
           sourceType: orderDraft.sourceType || draftPayload.sourceType || null,
           customerName: orderDraft.customerName || null,
           supplierCost,
+          supplierDisplay,
           rawText: String(draftPayload.rawText || draft?.messageText || '').trim() || null,
           latestSnapshot: latestSnapshot
             ? {
@@ -7293,6 +7319,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         supplierCost,
         fallbackCurrency: parsePriceCurrency(sum, supplierCost?.currency || 'EUR')
       })
+      const supplierDisplay = buildSupplierCostDisplay(supplierCost, BASE_CURRENCY)
 
       rows.push({
         id: snapshot.order?.id || '',
@@ -7319,7 +7346,11 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         supplierCostShort: supplierSignal?.short || null,
         supplierCostValue: supplierCost?.supplierPrice ?? null,
         supplierCostCurrency: supplierCost?.currency || null,
-        supplierCostDriver: supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || null
+        supplierCostDriver: supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || null,
+        supplierCostCompany: supplierCost?.driver?.supplierCompany?.name || null,
+        supplierCostVehicleType: supplierCost?.vehicleType || null,
+        supplierCostBaseValue: supplierDisplay?.baseAmount ?? null,
+        supplierCostBaseCurrency: supplierDisplay?.baseCurrency || BASE_CURRENCY
       })
 
     }
@@ -7377,6 +7408,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         supplierCost,
         fallbackCurrency: payload?.pricing?.authoritativeCurrency || orderDraft?.currency || parsePriceCurrency(preview?.sum, supplierCost?.currency || 'EUR')
       })
+      const supplierDisplay = buildSupplierCostDisplay(supplierCost, BASE_CURRENCY)
 
       rows.push({
         id: order?.id || '',
@@ -7403,7 +7435,11 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         supplierCostShort: supplierSignal?.short || null,
         supplierCostValue: supplierCost?.supplierPrice ?? null,
         supplierCostCurrency: supplierCost?.currency || null,
-        supplierCostDriver: supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || null
+        supplierCostDriver: supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || null,
+        supplierCostCompany: supplierCost?.driver?.supplierCompany?.name || null,
+        supplierCostVehicleType: supplierCost?.vehicleType || null,
+        supplierCostBaseValue: supplierDisplay?.baseAmount ?? null,
+        supplierCostBaseCurrency: supplierDisplay?.baseCurrency || BASE_CURRENCY
       })
     }
 
@@ -7741,6 +7777,18 @@ app.get('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
     const driver = await prisma.driver.findFirst({
       where: { id: driverId, tenantId: req.actorContext.tenantId },
       include: {
+        supplierCompany: {
+          include: {
+            segments: true,
+            links: {
+              include: {
+                contact: {
+                  include: { segments: true }
+                }
+              }
+            }
+          }
+        },
         supplierContact: {
           include: {
             segments: true,
@@ -8509,6 +8557,34 @@ app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorCo
               include: { segments: true }
             }
           }
+        },
+        supplierDrivers: {
+          include: {
+            supplierContact: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+                email: true
+              }
+            },
+            vehicles: {
+              where: { isActive: true },
+              orderBy: [{ updatedAt: 'desc' }]
+            },
+            routes: {
+              where: { isActive: true },
+              orderBy: [{ updatedAt: 'desc' }]
+            },
+            _count: {
+              select: {
+                vehicles: true,
+                routes: true,
+                orders: true
+              }
+            }
+          },
+          orderBy: [{ name: 'asc' }]
         }
       }
     })
@@ -10043,9 +10119,7 @@ function buildSheetRowPreviewFromDraft(extracted, pricing = {}) {
     extracted?.comment || null,
     extracted?.flightNumber ? `рейс ${normalizeFlightNumber(extracted.flightNumber)}` : null,
     pricing?.conflict ? 'расхождение с прайсом Riderra' : null,
-    pricing?.supplierCost?.supplierPrice != null
-      ? `закупка ${Number(pricing.supplierCost.supplierPrice).toFixed(2)} ${pricing?.supplierCost?.currency || extracted?.currency || 'EUR'} (${pricing?.supplierCost?.driver?.name || pricing?.supplierCost?.driver?.supplierContact?.fullName || 'поставщик'})`
-      : null
+    buildSupplierCostDisplay(pricing?.supplierCost || null)?.line || null
   ].filter(Boolean)
 
   return {
@@ -10073,6 +10147,69 @@ function buildInfoReasonFromDraftChecks(checks = [], missingFields = []) {
     }
   }
   return [...new Set(parts.filter(Boolean))].join('; ') || null
+}
+
+const BASE_CURRENCY = 'EUR'
+const APPROX_EUR_RATES = {
+  EUR: 1,
+  DKK: 0.134,
+  USD: 0.92,
+  GBP: 1.17
+}
+
+function getApproxBaseAmount(amount, currency, baseCurrency = BASE_CURRENCY) {
+  const normalizedCurrency = String(currency || baseCurrency || 'EUR').toUpperCase()
+  const normalizedBase = String(baseCurrency || 'EUR').toUpperCase()
+  const numericAmount = Number(amount)
+  if (!Number.isFinite(numericAmount)) return null
+  if (normalizedCurrency === normalizedBase) return numericAmount
+  if (normalizedBase !== 'EUR') return null
+  const rate = APPROX_EUR_RATES[normalizedCurrency]
+  if (!Number.isFinite(rate)) return null
+  return numericAmount * rate
+}
+
+function getSupplierDisplayName(supplierCost = null) {
+  return (
+    supplierCost?.driver?.supplierCompany?.name ||
+    supplierCost?.driver?.name ||
+    supplierCost?.driver?.supplierContact?.fullName ||
+    'поставщик'
+  )
+}
+
+function getSupplierVehicleDisplay(vehicleType = '') {
+  const normalized = normalizeVehicleType(vehicleType)
+  const map = {
+    sedan: 'sedan',
+    comfort: 'comfort',
+    business: 'business',
+    van: 'minivan',
+    suv: 'suv'
+  }
+  return map[normalized] || normalized || 'class'
+}
+
+function buildSupplierCostDisplay(supplierCost = null, baseCurrency = BASE_CURRENCY) {
+  if (supplierCost?.supplierPrice == null) return null
+  const nativeAmount = Number(supplierCost.supplierPrice)
+  const nativeCurrency = String(supplierCost.currency || baseCurrency || 'EUR').toUpperCase()
+  const baseAmount = getApproxBaseAmount(nativeAmount, nativeCurrency, baseCurrency)
+  const supplierName = getSupplierDisplayName(supplierCost)
+  const vehicleLabel = getSupplierVehicleDisplay(supplierCost.vehicleType)
+  const nativePart = `${nativeAmount.toFixed(2)} ${nativeCurrency}`
+  const basePart = baseAmount != null
+    ? `≈ ${baseAmount.toFixed(2)} ${String(baseCurrency || 'EUR').toUpperCase()}`
+    : null
+  return {
+    supplierName,
+    vehicleLabel,
+    nativeAmount,
+    nativeCurrency,
+    baseAmount,
+    baseCurrency: String(baseCurrency || 'EUR').toUpperCase(),
+    line: `${supplierName} / ${vehicleLabel} — ${nativePart}${basePart ? ` (${basePart})` : ''}`
+  }
 }
 
 function normalizeVehicleType(raw) {
@@ -10168,6 +10305,13 @@ async function loadSupplierCostCandidates(tenantId) {
           name: true,
           city: true,
           country: true,
+          supplierCompany: {
+            select: {
+              id: true,
+              name: true,
+              companyType: true
+            }
+          },
           supplierContact: {
             select: {
               id: true,
@@ -10199,6 +10343,13 @@ async function loadSupplierCostCandidates(tenantId) {
           name: true,
           city: true,
           country: true,
+          supplierCompany: {
+            select: {
+              id: true,
+              name: true,
+              companyType: true
+            }
+          },
           supplierContact: {
             select: {
               id: true,
@@ -10327,14 +10478,16 @@ function buildSupplierCostSignal({
   const effectiveSellPrice = Number.isFinite(Number(sellPrice)) ? Number(sellPrice) : null
   const supplierPrice = Number(supplierCost.supplierPrice)
   const currency = supplierCost.currency || fallbackCurrency || 'EUR'
-  const supplierLabel = supplierCost?.driver?.name || supplierCost?.driver?.supplierContact?.fullName || 'поставщик'
+  const display = buildSupplierCostDisplay(supplierCost, BASE_CURRENCY)
+  const supplierLabel = display?.supplierName || getSupplierDisplayName(supplierCost)
+  const displayLine = display?.line || `${supplierLabel} / ${getSupplierVehicleDisplay(supplierCost?.vehicleType)} — ${supplierPrice.toFixed(2)} ${currency}`
 
   if (effectiveSellPrice == null) {
     return {
       key: 'supplierCost',
       level: 'warn',
-      message: `Закупка известна (${supplierPrice.toFixed(2)} ${currency} от ${supplierLabel}), но продажная цена ещё не определена`,
-      short: `Закупка ${supplierPrice.toFixed(0)} ${currency}`
+      message: `Закупка известна (${displayLine}), но продажная цена ещё не определена`,
+      short: displayLine
     }
   }
 
@@ -10343,23 +10496,23 @@ function buildSupplierCostSignal({
     return {
       key: 'supplierCost',
       level: 'error',
-      message: `Цена клиента ниже закупки: продажа ${effectiveSellPrice.toFixed(2)}, закупка ${supplierPrice.toFixed(2)} (${supplierLabel})`,
-      short: `Ниже закупки ${supplierPrice.toFixed(0)} ${currency}`
+      message: `Цена клиента ниже закупки: продажа ${effectiveSellPrice.toFixed(2)} ${fallbackCurrency || currency}, закупка ${displayLine}`,
+      short: `Ниже закупки: ${displayLine}`
     }
   }
   if (marginAbs < 10) {
     return {
       key: 'supplierCost',
       level: 'warn',
-      message: `Низкая маржа против закупки ${supplierLabel}: ${marginAbs.toFixed(2)} ${currency}`,
-      short: `Маржа ${marginAbs.toFixed(0)} ${currency}`
+      message: `Низкая маржа против закупки ${displayLine}: ${marginAbs.toFixed(2)} ${fallbackCurrency || currency}`,
+      short: `Маржа ${marginAbs.toFixed(0)} ${fallbackCurrency || currency} / ${displayLine}`
     }
   }
   return {
     key: 'supplierCost',
     level: 'ok',
-    message: `Есть закупка для сверки: ${supplierPrice.toFixed(2)} ${currency} (${supplierLabel})`,
-    short: `Закупка ${supplierPrice.toFixed(0)} ${currency}`
+    message: `Есть закупка для сверки: ${displayLine}`,
+    short: displayLine
   }
 }
 

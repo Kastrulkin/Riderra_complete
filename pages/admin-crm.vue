@@ -197,6 +197,94 @@
             </div>
           </details>
 
+          <details v-if="detailsMode==='company' && (details.supplierDrivers || []).length" class="links-block detail-card crm-detail-panel" open>
+            <summary class="section-summary">Перевозчик и покрытие</summary>
+            <h4>Водители, машины и закупочные тарифы</h4>
+            <div class="hint">
+              Здесь собран рабочий контур перевозчика: кто возит, какие классы реально доступны и по каким тарифам сейчас считаем закупку.
+            </div>
+
+            <div
+              v-for="driver in details.supplierDrivers || []"
+              :key="driver.id"
+              class="supplier-driver-card"
+            >
+              <div class="supplier-driver-card__head">
+                <div>
+                  <div class="supplier-driver-card__title">{{ driver.name || 'Без имени' }}</div>
+                  <div class="supplier-driver-card__sub">
+                    {{ driver.phone || driver.supplierContact?.phone || 'Телефон не указан' }}
+                    <span v-if="driver.supplierContact?.fullName && driver.supplierContact?.fullName !== driver.name">
+                      · контакт: {{ driver.supplierContact.fullName }}
+                    </span>
+                  </div>
+                </div>
+                <div class="supplier-driver-card__stats">
+                  <span class="summary-chip">
+                    <span>Машины</span>
+                    <strong>{{ driver._count?.vehicles || 0 }}</strong>
+                  </span>
+                  <span class="summary-chip">
+                    <span>Тарифы</span>
+                    <strong>{{ driver._count?.routes || 0 }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div class="supplier-driver-grid">
+                <div class="supplier-driver-panel">
+                  <div class="supplier-driver-panel__label">Доступные классы</div>
+                  <div v-if="carrierClasses(driver).length" class="segment-badges">
+                    <span
+                      v-for="vehicleType in carrierClasses(driver)"
+                      :key="`${driver.id}-${vehicleType}`"
+                      class="segment-badge"
+                    >
+                      {{ vehicleClassLabel(vehicleType) }}
+                    </span>
+                  </div>
+                  <div v-else class="hint">Классы пока не заполнены</div>
+                </div>
+
+                <div class="supplier-driver-panel">
+                  <div class="supplier-driver-panel__label">Машины</div>
+                  <div v-if="(driver.vehicles || []).length" class="carrier-vehicle-list">
+                    <div
+                      v-for="vehicle in driver.vehicles || []"
+                      :key="vehicle.id"
+                      class="carrier-vehicle-row"
+                    >
+                      <strong>{{ vehicle.make || 'Машина' }} {{ vehicle.model || '' }}</strong>
+                      <span>{{ vehicleClassLabel(vehicle.vehicleType) }}</span>
+                      <span>{{ vehicle.plate || 'Без номера' }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="hint">Машины пока не добавлены</div>
+                </div>
+              </div>
+
+              <div class="supplier-driver-panel supplier-driver-panel--wide">
+                <div class="supplier-driver-panel__label">Актуальные закупочные тарифы</div>
+                <div v-if="(driver.routes || []).length" class="carrier-rate-list">
+                  <div
+                    v-for="route in driver.routes || []"
+                    :key="route.id"
+                    class="carrier-rate-row"
+                  >
+                    <div class="carrier-rate-row__route">{{ route.fromPoint }} → {{ route.toPoint }}</div>
+                    <div class="carrier-rate-row__meta">
+                      <span>{{ vehicleClassLabel(route.vehicleType) }}</span>
+                      <strong>{{ formatMoney(route.supplierPrice, route.currency) }}</strong>
+                      <span v-if="route.sourceLabel">· {{ route.sourceLabel }}</span>
+                      <span v-if="route.sourceQuotedAt">· {{ formatDateTime(route.sourceQuotedAt) }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="hint">Закупочные тарифы пока не внесены</div>
+              </div>
+            </div>
+          </details>
+
           <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel">
             <summary class="section-summary">Связанные контакты</summary>
             <h4>Контакты компании</h4>
@@ -430,6 +518,45 @@ export default {
     },
     formatSegments(list) {
       return list.length ? list.map((s) => this.segmentLabel(s.segment || s)).join(', ') : '-'
+    },
+    vehicleClassLabel(value) {
+      const map = {
+        sedan: 'Седан',
+        comfort: 'Комфорт',
+        business: 'Бизнес',
+        van: 'Минивэн',
+        suv: 'SUV'
+      }
+      return map[String(value || '').toLowerCase()] || value || 'Не указан'
+    },
+    carrierClasses(driver) {
+      const classes = new Set()
+      for (const vehicle of driver?.vehicles || []) {
+        if (vehicle?.vehicleType) classes.add(String(vehicle.vehicleType).toLowerCase())
+      }
+      for (const route of driver?.routes || []) {
+        if (route?.vehicleType) classes.add(String(route.vehicleType).toLowerCase())
+      }
+      return Array.from(classes)
+    },
+    formatMoney(amount, currency) {
+      const numeric = Number(amount)
+      if (!Number.isFinite(numeric)) return '-'
+      return `${numeric.toFixed(2)} ${currency || 'EUR'}`
+    },
+    formatDateTime(value) {
+      if (!value) return ''
+      try {
+        return new Date(value).toLocaleString('ru-RU', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      } catch (_) {
+        return String(value)
+      }
     },
     splitPresenceList(raw) {
       return String(raw || '')
@@ -700,6 +827,84 @@ export default {
 .segment-item { display:flex; align-items:center; gap:8px; font-size:14px; color:#2f3e60; }
 .links-block { margin:0; }
 .linked-row { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:10px; padding:8px 0; border-bottom:1px solid #f1f4f8; }
+.supplier-driver-card {
+  display:grid;
+  gap:14px;
+  padding:14px;
+  border:1px solid #e7ebf2;
+  border-radius:14px;
+  background:#fff;
+}
+.supplier-driver-card + .supplier-driver-card {
+  margin-top:12px;
+}
+.supplier-driver-card__head {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.supplier-driver-card__title {
+  font-size:18px;
+  font-weight:800;
+  color:#17233d;
+}
+.supplier-driver-card__sub {
+  margin-top:4px;
+  color:#64748b;
+  line-height:1.5;
+}
+.supplier-driver-card__stats {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.supplier-driver-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.supplier-driver-panel {
+  display:grid;
+  gap:10px;
+  padding:12px;
+  border:1px solid #eef2f8;
+  border-radius:12px;
+  background:#fbfcff;
+}
+.supplier-driver-panel--wide {
+  background:linear-gradient(180deg,#fff 0%,#fcf7fd 100%);
+}
+.supplier-driver-panel__label {
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:#702283;
+}
+.carrier-vehicle-list,
+.carrier-rate-list {
+  display:grid;
+  gap:8px;
+}
+.carrier-vehicle-row,
+.carrier-rate-row {
+  display:grid;
+  gap:4px;
+  padding:10px 12px;
+  border:1px solid #eef2f8;
+  border-radius:10px;
+  background:#fff;
+}
+.carrier-vehicle-row span,
+.carrier-rate-row__meta {
+  color:#64748b;
+  line-height:1.45;
+}
+.carrier-rate-row__route {
+  font-weight:700;
+  color:#17233d;
+}
 .actions { display:flex; gap:10px; justify-content:flex-end; }
 @media (max-width: 1100px) {
   .overview-strip { grid-template-columns:repeat(3,minmax(0,1fr)); }
@@ -708,6 +913,8 @@ export default {
   .crm-header, .crm-filters { grid-template-columns:1fr; display:grid; }
   .crm-actions { justify-content:flex-start; }
   .crm-focus-card, .detail-sections, .card-grid { grid-template-columns:1fr; }
+  .supplier-driver-grid,
+  .supplier-driver-card__head { grid-template-columns:1fr; display:grid; }
   .overview-strip { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .crm-table__head, .crm-table__row { min-width:900px; }
 }
