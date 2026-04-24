@@ -65,83 +65,97 @@
             <div>{{ t.issue }}</div>
             <div>{{ t.nextStep }}</div>
           </div>
-          <div v-for="o in displayedTableRows" :key="`${o.sourceRow}-${o.id}`" class="table-row main-grid">
-            <div class="order-meta">
-              <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
-              <div class="order-meta__date">{{ o.date || '-' }}</div>
-              <div class="order-meta__sub">{{ orderIdentity(o) }}</div>
+          <template v-for="zone in operationalZones">
+            <div v-if="zone.rows.length" :key="`${zone.key}-head`" class="zone-head" :class="`zone-head--${zone.tone}`">
+              <div>
+                <div class="zone-head__title">{{ zone.title }}</div>
+                <div class="zone-head__hint">{{ zone.hint }}</div>
+              </div>
+              <span class="zone-head__count">{{ zone.rows.length }}</span>
             </div>
+            <div
+              v-for="o in zone.rows"
+              :key="`${zone.key}-${o.sourceRow}-${o.id}`"
+              class="table-row main-grid"
+              :class="`table-row--${zone.tone}`"
+            >
+              <div class="order-meta">
+                <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
+                <div class="order-meta__date">{{ o.date || '-' }}</div>
+                <div class="order-meta__sub">{{ orderIdentity(o) }}</div>
+              </div>
 
-            <div class="route-block">
-              <div class="route-block__title">{{ o.contractor || '-' }}</div>
-              <div class="route-block__route">{{ routeLabel(o) }}</div>
-              <div class="route-block__sub">
-                <button
-                  v-if="o.orderNumber"
-                  class="order-link"
-                  type="button"
-                  @click="openOrderDetails(o.orderNumber)"
+              <div class="route-block">
+                <div class="route-block__title">{{ o.contractor || '-' }}</div>
+                <div class="route-block__route">{{ routeLabel(o) }}</div>
+                <div class="route-block__sub">
+                  <button
+                    v-if="o.orderNumber"
+                    class="order-link"
+                    type="button"
+                    @click="openOrderDetails(o.orderNumber)"
+                  >
+                    {{ t.openDetailsByOrder }}: {{ o.orderNumber }}
+                  </button>
+                  <span v-else>{{ t.noOrderNumber }}</span>
+                </div>
+              </div>
+
+              <div class="client-block">
+                <div class="client-block__line"><strong>ID:</strong> <span class="cell-ellipsis" :title="o.id">{{ o.id || '-' }}</span></div>
+                <div class="client-block__line"><strong>{{ t.source }}:</strong> {{ o.source || '-' }}</div>
+                <div class="client-block__line"><strong>{{ t.internalOrderNumber }}:</strong> {{ o.internalOrderNumber || '-' }}</div>
+              </div>
+
+              <div class="price-block">
+                <div class="price-block__sum">{{ o.sum || '-' }}</div>
+                <div class="price-block__hint" :class="supplierCostHintClass(o)">{{ priceContextLabel(o) }}</div>
+              </div>
+
+              <div class="driver-block">
+                <div class="driver-block__name">{{ o.driver || t.driverMissing }}</div>
+                <div class="driver-block__hint">{{ driverStateLabel(o) }}</div>
+              </div>
+
+              <div class="issue-block">
+                <div class="issue-block__title">{{ issueSummary(o) }}</div>
+                <div
+                  v-if="o.needsInfo || o.infoReason"
+                  class="info-reason"
+                  :title="infoReasonTooltip(o.infoReason)"
                 >
-                  {{ t.openDetailsByOrder }}: {{ o.orderNumber }}
+                  {{ o.infoReason || t.infoFlagged }}
+                </div>
+                <div v-else class="issue-block__hint">{{ commentSummary(o) }}</div>
+              </div>
+
+              <div class="row-actions">
+                <button
+                  class="card-link card-link--primary"
+                  type="button"
+                  :disabled="!o.id || rowPrimaryBusy(o)"
+                  @click="runPrimaryAction(o)"
+                >
+                  {{ primaryActionLabel(o) }}
                 </button>
-                <span v-else>{{ t.noOrderNumber }}</span>
+                <div class="row-actions__secondary">
+                  <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
+                    {{ t.openCard }}
+                  </button>
+                  <button class="card-link" type="button" :disabled="!o.id || queueSavingByOrder[o.id]" @click="queueOrder(o)">
+                    {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
+                  </button>
+                </div>
+                <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
+                  <option value="none">{{ t.infoNone }}</option>
+                  <option value="baggage">{{ t.infoPresetBaggage }}</option>
+                  <option value="pickup">{{ t.infoPresetPickup }}</option>
+                  <option value="flight">{{ t.infoPresetFlight }}</option>
+                  <option value="other">{{ t.infoPresetOther }}</option>
+                </select>
               </div>
             </div>
-
-            <div class="client-block">
-              <div class="client-block__line"><strong>ID:</strong> <span class="cell-ellipsis" :title="o.id">{{ o.id || '-' }}</span></div>
-              <div class="client-block__line"><strong>{{ t.source }}:</strong> {{ o.source || '-' }}</div>
-              <div class="client-block__line"><strong>{{ t.internalOrderNumber }}:</strong> {{ o.internalOrderNumber || '-' }}</div>
-            </div>
-
-            <div class="price-block">
-              <div class="price-block__sum">{{ o.sum || '-' }}</div>
-              <div class="price-block__hint" :class="supplierCostHintClass(o)">{{ priceContextLabel(o) }}</div>
-            </div>
-
-            <div class="driver-block">
-              <div class="driver-block__name">{{ o.driver || t.driverMissing }}</div>
-              <div class="driver-block__hint">{{ driverStateLabel(o) }}</div>
-            </div>
-
-            <div class="issue-block">
-              <div class="issue-block__title">{{ issueSummary(o) }}</div>
-              <div
-                v-if="o.needsInfo || o.infoReason"
-                class="info-reason"
-                :title="infoReasonTooltip(o.infoReason)"
-              >
-                {{ o.infoReason || t.infoFlagged }}
-              </div>
-              <div v-else class="issue-block__hint">{{ commentSummary(o) }}</div>
-            </div>
-
-            <div class="row-actions">
-              <button
-                class="card-link card-link--primary"
-                type="button"
-                :disabled="!o.id || rowPrimaryBusy(o)"
-                @click="runPrimaryAction(o)"
-              >
-                {{ primaryActionLabel(o) }}
-              </button>
-              <div class="row-actions__secondary">
-                <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
-                  {{ t.openCard }}
-                </button>
-                <button class="card-link" type="button" :disabled="!o.id || queueSavingByOrder[o.id]" @click="queueOrder(o)">
-                  {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
-                </button>
-              </div>
-              <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
-                <option value="none">{{ t.infoNone }}</option>
-                <option value="baggage">{{ t.infoPresetBaggage }}</option>
-                <option value="pickup">{{ t.infoPresetPickup }}</option>
-                <option value="flight">{{ t.infoPresetFlight }}</option>
-                <option value="other">{{ t.infoPresetOther }}</option>
-              </select>
-            </div>
-          </div>
+          </template>
         </div>
 
         <div v-else class="table-wrap">
@@ -228,6 +242,17 @@
         </div>
 
         <div v-if="orderCardDetailError" class="hint hint--error">{{ orderCardDetailError }}</div>
+
+        <div v-if="primarySupplierOption(selectedOrder)" class="recommended-supplier">
+          <div>
+            <div class="recommended-supplier__label">{{ t.recommendedSupplierTitle }}</div>
+            <div class="recommended-supplier__value">{{ primarySupplierOption(selectedOrder).display?.line || supplierOptionFallback(primarySupplierOption(selectedOrder)) }}</div>
+            <div class="recommended-supplier__hint">{{ recommendedSupplierHint(primarySupplierOption(selectedOrder), selectedOrder) }}</div>
+          </div>
+          <span class="status-pill" :class="supplierCandidatePillClass(primarySupplierOption(selectedOrder), selectedOrder)">
+            {{ supplierCandidatePillLabel(primarySupplierOption(selectedOrder), selectedOrder) }}
+          </span>
+        </div>
 
         <details class="detail-panel" open>
           <summary class="section-summary">{{ t.economicsTitle }}</summary>
@@ -602,6 +627,14 @@ export default {
             supplierWarningLabel: 'Источник закупки',
             supplierOptionsTitle: 'Подходящие перевозчики',
             supplierStatusLabel: 'Статус источника',
+            recommendedSupplierTitle: 'Рекомендуемый перевозчик',
+            supplierMarginLabel: 'Маржа',
+            attentionZoneTitle: 'Требуют действия',
+            attentionZoneHint: 'Сначала разберите эти заказы: уточнение, водитель, маржа или инцидент.',
+            flowZoneTitle: 'В рабочем потоке',
+            flowZoneHint: 'Назначены или готовы к следующему штатному действию.',
+            doneZoneTitle: 'Закрытие и финансы',
+            doneZoneHint: 'Завершённые, финансовые и закрытые заказы.',
             changeStatus: 'Сменить статус',
             selectStatus: 'Выберите статус',
             reasonPlaceholder: 'Причина (необязательно)',
@@ -713,6 +746,14 @@ export default {
             supplierWarningLabel: 'Supplier source',
             supplierOptionsTitle: 'Matching suppliers',
             supplierStatusLabel: 'Source status',
+            recommendedSupplierTitle: 'Recommended supplier',
+            supplierMarginLabel: 'Margin',
+            attentionZoneTitle: 'Needs action',
+            attentionZoneHint: 'Handle these first: clarification, driver, margin or incident.',
+            flowZoneTitle: 'In flow',
+            flowZoneHint: 'Assigned or ready for the next normal action.',
+            doneZoneTitle: 'Done and finance',
+            doneZoneHint: 'Completed, finance-ready and closed orders.',
             changeStatus: 'Change status',
             selectStatus: 'Select status',
             reasonPlaceholder: 'Reason (optional)',
@@ -771,6 +812,20 @@ export default {
     },
     displayedTableRows () {
       return this.filteredRows.filter((row) => this.matchesActiveView(row))
+    },
+    operationalZones () {
+      const rows = this.displayedTableRows
+      const zones = [
+        { key: 'attention', title: this.t.attentionZoneTitle, hint: this.t.attentionZoneHint, tone: 'critical', rows: [] },
+        { key: 'flow', title: this.t.flowZoneTitle, hint: this.t.flowZoneHint, tone: 'info', rows: [] },
+        { key: 'done', title: this.t.doneZoneTitle, hint: this.t.doneZoneHint, tone: 'done', rows: [] }
+      ]
+      rows.forEach((row) => {
+        const key = this.operationalZoneKey(row)
+        const zone = zones.find((item) => item.key === key) || zones[1]
+        zone.rows.push(row)
+      })
+      return zones
     },
     currentViewLabel () {
       return this.savedViews.find((view) => view.key === this.activeView)?.label || this.savedViews[0]?.label || '-'
@@ -1198,6 +1253,12 @@ export default {
       if (!String(row?.sum || '').trim()) return true
       return ['dispatch_risk', 'incident_open', 'incident_reported', 'finance_hold', 'cancelled'].includes(status)
     },
+    operationalZoneKey (row) {
+      const status = String(row?.status || '').toLowerCase()
+      if (['completed', 'ready_finance', 'paid', 'closed'].includes(status)) return 'done'
+      if (this.isProblemRow(row)) return 'attention'
+      return 'flow'
+    },
     isLikelyToday (row) {
       const token = String(row?.date || '').trim()
       if (!token) return false
@@ -1323,6 +1384,19 @@ export default {
       const vehicle = option?.vehicleType || 'class'
       const amount = option?.supplierPrice != null ? `${Number(option.supplierPrice).toFixed(2)} ${option?.currency || 'EUR'}` : '-'
       return `${name} / ${vehicle} — ${amount}`
+    },
+    primarySupplierOption (row) {
+      const options = Array.isArray(row?.supplierOptions) ? row.supplierOptions : []
+      if (!options.length) return null
+      return options[0]
+    },
+    recommendedSupplierHint (option, row) {
+      const { sell } = this.economicsNumbers(row)
+      const baseAmount = this.parseNumeric(option?.display?.baseAmount)
+      const source = option?.sourceLabel || this.supplierSourceStatusLabel(option?.sourceStatus)
+      if (sell == null || baseAmount == null) return source || '-'
+      const margin = sell - baseAmount
+      return `${this.t.supplierMarginLabel}: ${margin.toFixed(2)} EUR · ${source || '-'}`
     },
     supplierSourceStatusLabel (status) {
       const code = String(status || '').toLowerCase()
@@ -1867,10 +1941,58 @@ export default {
 .table-head, .table-row { gap: 14px; min-width: 1500px; padding: 12px 14px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; }
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
+.table-row--critical { background: linear-gradient(90deg, rgba(255, 247, 247, .96) 0%, #fff 42%); }
+.table-row--info { background: #fff; }
+.table-row--done { background: linear-gradient(90deg, rgba(248, 250, 252, .96) 0%, #fff 42%); }
 .table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
 .main-grid { display: grid; grid-template-columns: 180px minmax(260px, 1.25fr) 200px 120px 150px 220px 240px; align-items: start; }
 .raw-grid { display: grid; }
+.zone-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 1500px;
+  padding: 12px 14px;
+  border-top: 1px solid #e4e7f0;
+  background: #f8fafc;
+}
+.zone-head:first-of-type {
+  border-top: none;
+}
+.zone-head--critical {
+  background: linear-gradient(90deg, #fff1f2 0%, #fff 64%);
+}
+.zone-head--info {
+  background: linear-gradient(90deg, #eff6ff 0%, #fff 64%);
+}
+.zone-head--done {
+  background: linear-gradient(90deg, #f8fafc 0%, #fff 64%);
+}
+.zone-head__title {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #17233d;
+}
+.zone-head__hint {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #64748b;
+}
+.zone-head__count {
+  display: inline-flex;
+  min-width: 34px;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #d8e0ef;
+  color: #17233d;
+  font-weight: 900;
+}
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint { margin-top: 10px; color: #637191; }
@@ -2159,6 +2281,35 @@ export default {
   color: #334155;
   line-height: 1.55;
 }
+.recommended-supplier {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(180deg, #f7fff9 0%, #edfff3 100%);
+}
+.recommended-supplier__label {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #166534;
+}
+.recommended-supplier__value {
+  margin-top: 4px;
+  font-weight: 800;
+  color: #17233d;
+  line-height: 1.45;
+}
+.recommended-supplier__hint {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #64748b;
+}
 .supplier-options-list {
   display: grid;
   gap: 10px;
@@ -2345,6 +2496,7 @@ export default {
   .order-focus-card,
   .order-summary-grid { grid-template-columns: 1fr; }
   .economics-grid { grid-template-columns: 1fr; }
+  .recommended-supplier { grid-template-columns: 1fr; }
   .supplier-option-row { grid-template-columns: 1fr; }
   .main-grid {
     min-width: 1180px;
