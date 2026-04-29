@@ -10656,14 +10656,22 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
   }
 }
 
-function findManualEmailLine(text, labels = []) {
+function findManualEmailLine(text, labels = [], options = {}) {
   const safeLabels = labels
     .map((label) => String(label || '').trim())
     .filter(Boolean)
     .map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   if (!safeLabels.length) return ''
-  const re = new RegExp(`(?:^|\\n)\\s*(?:${safeLabels.join('|')})\\s*[:\\-–—]\\s*(.+)`, 'i')
-  return String(text || '').match(re)?.[1]?.trim() || ''
+  const re = new RegExp(`(?:^|\\n)\\s*(?:${safeLabels.join('|')})\\s*[:\\-–—]\\s*(.+)`, 'ig')
+  const source = String(text || '')
+  let match = null
+  while ((match = re.exec(source))) {
+    const value = match?.[1]?.trim() || ''
+    if (!value) continue
+    if (typeof options.reject === 'function' && options.reject(value)) continue
+    return value
+  }
+  return ''
 }
 
 function findManualEmailNumber(text, labels = []) {
@@ -10739,27 +10747,41 @@ function parseManualEmailPickupAt(text) {
 function parseManualEmailPrice(text) {
   const labeled = findManualEmailLine(text, ['price', 'total', 'amount', 'sum', 'цена', 'стоимость', 'сумма'])
   const source = labeled || String(text || '')
+  const currencyPattern = 'EUR|USD|GBP|RUB|RUR|AED|TRY|KZT|€|\\$|£|₽'
   const match = labeled
-    ? source.match(/(?:€|EUR|USD|GBP|\$|£)?\s*(\d+(?:[.,]\d{1,2})?)\s*(EUR|USD|GBP|€|\$|£)?/i)
-    : source.match(/(?:€|\$|£)\s*(\d+(?:[.,]\d{1,2})?)|\b(\d+(?:[.,]\d{1,2})?)\s*(EUR|USD|GBP)\b/i)
+    ? source.match(new RegExp(`(?:${currencyPattern})?\\s*(\\d+(?:[.,]\\d{1,2})?)\\s*(${currencyPattern})?`, 'i'))
+    : source.match(new RegExp(`(?:€|\\$|£|₽)\\s*(\\d+(?:[.,]\\d{1,2})?)|\\b(\\d+(?:[.,]\\d{1,2})?)\\s*(${currencyPattern})\\b`, 'i'))
   if (!match) return { value: null, currency: 'EUR' }
-  const currencyMap = { '€': 'EUR', '$': 'USD', '£': 'GBP' }
-  const rawAmount = match[1] || match[2]
-  const rawCurrency = match[3] || match[0].match(/[€$£]/)?.[0] || match[0].match(/\b(EUR|USD|GBP)\b/i)?.[1]
+  const currencyMap = { '€': 'EUR', '$': 'USD', '£': 'GBP', '₽': 'RUB', RUR: 'RUB' }
+  const rawAmount = labeled ? match[1] : (match[1] || match[2])
+  const rawCurrency = labeled
+    ? (match[2] || match[0].match(/[€$£₽]/)?.[0] || match[0].match(/\b(EUR|USD|GBP|RUB|RUR|AED|TRY|KZT)\b/i)?.[1])
+    : (match[3] || match[0].match(/[€$£₽]/)?.[0] || match[0].match(/\b(EUR|USD|GBP|RUB|RUR|AED|TRY|KZT)\b/i)?.[1])
   return {
     value: Number(rawAmount.replace(',', '.')),
-    currency: currencyMap[rawCurrency] || String(rawCurrency || '').toUpperCase() || 'EUR'
+    currency: currencyMap[String(rawCurrency || '').toUpperCase()] || currencyMap[rawCurrency] || String(rawCurrency || '').toUpperCase() || 'EUR'
   }
+}
+
+function looksLikeEmailHeaderValue(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return false
+  if (/[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+/.test(raw)) return true
+  return /^(mailto:|.+<[^>]+@[^>]+>)$/i.test(raw)
+}
+
+function extractManualEmailFlightNumber(text) {
+  const labeled = normalizeFlightNumber(findManualEmailLine(text, ['flight', 'flight number', 'рейс', 'номер рейса']))
+  if (labeled) return labeled
+  const source = String(text || '')
+  const matches = source.match(/\b(?:[A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])\s?\d{2,5}[A-Z]?\b/g) || []
+  return normalizeFlightNumber(matches[0] || '')
 }
 
 function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = '' }) {
   const text = String(rawText || '').trim()
   const price = parseManualEmailPrice(text)
-  const flightNumber = normalizeFlightNumber(
-    findManualEmailLine(text, ['flight', 'flight number', 'рейс', 'номер рейса']) ||
-    text.match(/\b([A-Z0-9]{2,3}\s?\d{2,5}[A-Z]?)\b/)?.[1] ||
-    ''
-  )
+  const flightNumber = extractManualEmailFlightNumber(text)
   const externalMessageId = crypto
     .createHash('sha256')
     .update([subject, fromEmail, text].join('\n'))
@@ -10769,8 +10791,8 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
   const customerName = findManualEmailLine(text, ['name', 'customer', 'client', 'partner', 'контрагент', 'клиент', 'заказчик', 'имя']) ||
     String(fromEmail || '').split('@')[0] ||
     null
-  const fromPoint = findManualEmailLine(text, ['pick-up location', 'pickup location', 'pickup address', 'pick up location', 'pick up', 'pickup', 'from', 'откуда', 'адрес подачи', 'место подачи'])
-  const toPoint = findManualEmailLine(text, ['drop-off location', 'dropoff location', 'drop-off', 'dropoff', 'drop off location', 'drop off', 'destination', 'to', 'куда', 'адрес назначения', 'место назначения'])
+  const fromPoint = findManualEmailLine(text, ['pick-up location', 'pickup location', 'pickup address', 'pick up location', 'pick up', 'pickup', 'from', 'откуда', 'адрес подачи', 'место подачи'], { reject: looksLikeEmailHeaderValue })
+  const toPoint = findManualEmailLine(text, ['drop-off location', 'dropoff location', 'drop-off', 'dropoff', 'drop off location', 'destination', 'to', 'куда', 'адрес назначения', 'место назначения'], { reject: looksLikeEmailHeaderValue })
   const pickupAt = parseManualEmailPickupAt(text)
   const city = findManualEmailLine(text, ['city', 'город'])
   const orderNumber = findManualEmailLine(text, ['booking id', 'booking number', 'order number', 'номер заказа']) ||
