@@ -10,6 +10,7 @@ pids
 *.pid
 *.seed
 *.pid.lock
+reports/*.json
 
 # Coverage
 coverage
@@ -41,6 +42,7 @@ typings/
 # IDE/editor
 .idea/
 .DS_Store
+._*
 
 # Misc
 *.tgz
