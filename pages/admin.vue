@@ -49,6 +49,61 @@
           </div>
         </div>
 
+        <div class="card ops-stats-card">
+          <div class="section-head">
+            <div>
+              <h3>{{ t.monthStats }}</h3>
+              <p class="muted">{{ orderStatsLabel }}</p>
+            </div>
+            <select v-model="selectedStatsMonth" class="month-select" @change="loadOrderStats">
+              <option v-for="month in orderStatsMonths" :key="month.monthLabel" :value="month.monthLabel">
+                {{ month.name || month.monthLabel }}
+              </option>
+            </select>
+          </div>
+          <div class="ops-stats-grid">
+            <div class="mini-stat"><span>{{ t.completedTrips }}</span><strong>{{ orderSummary.completed || 0 }}</strong></div>
+            <div class="mini-stat"><span>{{ t.cancelledTrips }}</span><strong>{{ orderSummary.cancelled || 0 }}</strong></div>
+            <div class="mini-stat"><span>{{ t.complaints }}</span><strong>{{ orderSummary.complaints || 0 }}</strong></div>
+            <div class="mini-stat"><span>{{ t.gross }}</span><strong>{{ formatGross(orderSummary.grossByCurrency) }}</strong></div>
+          </div>
+          <div class="stats-tables">
+            <div>
+              <h4>{{ t.driverOutput }}</h4>
+              <div class="compact-table">
+                <div v-for="row in topDriverStats" :key="`driver-${row.driver}`" class="compact-row">
+                  <strong>{{ row.driver }}</strong>
+                  <span>{{ row.completed }} / {{ row.total }}</span>
+                  <span>{{ formatMoney(row.grossAmount, row.currency) }}</span>
+                  <span>{{ t.issuesShort }} {{ row.issueCount }}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4>{{ t.clientRevenue }}</h4>
+              <div class="compact-table">
+                <div v-for="row in topCounterpartyStats" :key="`client-${row.counterparty}`" class="compact-row">
+                  <strong>{{ row.counterparty }}</strong>
+                  <span>{{ row.completed }} / {{ row.total }}</span>
+                  <span>{{ formatMoney(row.grossAmount, row.currency) }}</span>
+                  <span>{{ t.complaintsShort }} {{ row.complaints }}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4>{{ t.qualityRisks }}</h4>
+              <div class="compact-table">
+                <div v-for="row in qualityDriverStats" :key="`quality-${row.driver}`" class="compact-row">
+                  <strong>{{ row.driver }}</strong>
+                  <span>{{ row.completed }} {{ t.tripsShort }}</span>
+                  <span>{{ t.issuesShort }} {{ row.issueCount }}</span>
+                  <span>{{ Math.round((row.issueRate || 0) * 100) }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="workspace-grid">
           <div class="card">
             <div class="section-head">
@@ -171,7 +226,9 @@ export default {
     pricingRows: [],
     crmCompaniesTotal: 0,
     crmContactsTotal: 0,
-    pricingConflicts: []
+    pricingConflicts: [],
+    orderStats: null,
+    selectedStatsMonth: ''
   }),
   computed: {
     t () {
@@ -217,6 +274,18 @@ export default {
             totalClients: 'Компаний в CRM',
             totalContacts: 'Контактов в CRM',
             pricingRows: 'Строк прайса',
+            monthStats: 'Статистика месяца',
+            month: 'Месяц',
+            completedTrips: 'Выполнено',
+            cancelledTrips: 'Отмены',
+            complaints: 'Жалобы',
+            gross: 'Выручка',
+            driverOutput: 'Выработка водителей',
+            clientRevenue: 'Клиенты по деньгам',
+            qualityRisks: 'Качество и косяки',
+            issuesShort: 'косяки',
+            complaintsShort: 'жалобы',
+            tripsShort: 'поездок',
             recentRisk: 'Сигналы риска',
             recentRiskHint: 'Что может сорвать работу или деньги.',
             noRisks: 'Явных сигналов риска сейчас нет.',
@@ -266,6 +335,18 @@ export default {
             totalClients: 'CRM companies',
             totalContacts: 'CRM contacts',
             pricingRows: 'Pricing rows',
+            monthStats: 'Monthly stats',
+            month: 'Month',
+            completedTrips: 'Completed',
+            cancelledTrips: 'Cancelled',
+            complaints: 'Complaints',
+            gross: 'Gross',
+            driverOutput: 'Driver output',
+            clientRevenue: 'Client revenue',
+            qualityRisks: 'Quality risks',
+            issuesShort: 'issues',
+            complaintsShort: 'complaints',
+            tripsShort: 'trips',
             recentRisk: 'Risk signals',
             recentRiskHint: 'What may hurt ops or margin.',
             noRisks: 'No obvious risk signals right now.',
@@ -299,6 +380,26 @@ export default {
       const source = this.sheetView?.source
       if (!source) return '—'
       return source.name || source.monthLabel || source.googleSheetId || '—'
+    },
+    orderStatsLabel () {
+      const source = this.orderStats?.source
+      if (!source) return '—'
+      return [source.name, source.monthLabel].filter(Boolean).join(' · ')
+    },
+    orderSummary () {
+      return this.orderStats?.summary || {}
+    },
+    orderStatsMonths () {
+      return this.orderStats?.months || []
+    },
+    topDriverStats () {
+      return (this.orderStats?.driverStats || []).slice(0, 8)
+    },
+    topCounterpartyStats () {
+      return (this.orderStats?.counterpartyStats || []).slice(0, 8)
+    },
+    qualityDriverStats () {
+      return (this.orderStats?.qualityDrivers || []).slice(0, 8)
     },
     riskItems () {
       const items = []
@@ -336,7 +437,8 @@ export default {
         this.safeJson('/api/admin/crm/companies?limit=1').then((body) => { this.crmCompaniesTotal = body.total || 0 }).catch(() => { this.crmCompaniesTotal = 0 }),
         this.safeJson('/api/admin/crm/contacts?limit=1').then((body) => { this.crmContactsTotal = body.total || 0 }).catch(() => { this.crmContactsTotal = 0 }),
         this.safeJson('/api/admin/pricing/cities?limit=500').then((body) => { this.pricingRows = body.rows || [] }).catch(() => { this.pricingRows = [] }),
-        this.safeJson('/api/admin/pricing/conflicts').then((body) => { this.pricingConflicts = body.rows || [] }).catch(() => { this.pricingConflicts = [] })
+        this.safeJson('/api/admin/pricing/conflicts').then((body) => { this.pricingConflicts = body.rows || [] }).catch(() => { this.pricingConflicts = [] }),
+        this.loadOrderStats()
       ]
       try {
         await Promise.all(tasks)
@@ -345,6 +447,23 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+    async loadOrderStats () {
+      const query = this.selectedStatsMonth ? `?month=${encodeURIComponent(this.selectedStatsMonth)}` : ''
+      const body = await this.safeJson(`/api/admin/order-stats${query}`)
+      this.orderStats = body
+      if (!this.selectedStatsMonth && body?.source?.monthLabel) {
+        this.selectedStatsMonth = body.source.monthLabel
+      }
+    },
+    formatMoney (amount, currency) {
+      const value = Number(amount || 0)
+      return `${value.toLocaleString(this.$store.state.language === 'ru' ? 'ru-RU' : 'en-US', { maximumFractionDigits: 0 })} ${currency || 'EUR'}`
+    },
+    formatGross (grossByCurrency) {
+      const entries = Object.entries(grossByCurrency || {})
+      if (!entries.length) return '—'
+      return entries.map(([currency, amount]) => this.formatMoney(amount, currency)).join(' · ')
     }
   }
 }
@@ -435,6 +554,62 @@ export default {
   margin-bottom: 20px;
 }
 
+.ops-stats-card {
+  margin-bottom: 20px;
+}
+
+.ops-stats-grid,
+.stats-tables {
+  display: grid;
+  gap: 14px;
+}
+
+.ops-stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.stats-tables {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mini-stat {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.mini-stat span,
+.compact-row span {
+  color: #64748b;
+}
+
+.mini-stat strong {
+  font-size: 24px;
+}
+
+.compact-table {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+}
+
+.compact-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 80px 96px 78px;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+
+.compact-row:last-child {
+  border-bottom: none;
+}
+
 .stat-card,
 .card {
   padding: 22px;
@@ -477,6 +652,17 @@ export default {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.month-select {
+  min-width: 180px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #dbe4f2;
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .task-stack,
@@ -574,7 +760,9 @@ export default {
   .section-head,
   .workspace-grid,
   .quick-grid,
-  .overview-grid {
+  .overview-grid,
+  .ops-stats-grid,
+  .stats-tables {
     grid-template-columns: 1fr;
     flex-direction: column;
   }

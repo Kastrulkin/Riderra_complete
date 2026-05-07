@@ -2998,6 +2998,14 @@ app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireAct
             vehicles: true,
             orders: true
           }
+        },
+        routes: {
+          where: {
+            tenantId: req.actorContext.tenantId,
+            isActive: true
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 200
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -7467,16 +7475,331 @@ app.post(
   }
 )
 
+function currentMonthLabel() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function compareMonthLabels(a, b) {
+  return String(a || '').localeCompare(String(b || ''))
+}
+
+function monthDisplayName(monthLabel, lang = 'ru') {
+  const raw = String(monthLabel || '').trim()
+  const match = raw.match(/^(\d{4})-(\d{2})$/)
+  if (!match) return raw || '-'
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const ru = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+  const en = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const names = lang === 'en' ? en : ru
+  return `${names[month - 1] || raw} ${year}`
+}
+
+function sheetSourceUrl(source) {
+  const sheetId = normalizeGoogleSheetId(source?.googleSheetId)
+  return sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : ''
+}
+
+function sheetSourceMonthStatus(source) {
+  const monthLabel = String(source?.monthLabel || '')
+  if (!source?.isActive) return 'archived'
+  return compareMonthLabels(monthLabel, currentMonthLabel()) >= 0 ? 'open' : 'archived'
+}
+
+function latestSnapshotsBySourceRow(snapshots) {
+  const seen = new Set()
+  const rows = []
+  for (const snapshot of snapshots || []) {
+    const key = `${snapshot.sheetSourceId || ''}:${snapshot.sourceRow}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    rows.push(snapshot)
+  }
+  return rows
+}
+
+function rawPayloadFromSnapshot(snapshot) {
+  const payload = parseJsonSafe(snapshot?.rawPayload || '{}', {})
+  return payload && payload.row && typeof payload.row === 'object' ? payload.row : payload
+}
+
+function rawFirst(raw, keys, fallback = '') {
+  for (const key of keys) {
+    const value = raw?.[key]
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  return fallback
+}
+
+function numericRaw(raw, keys, fallback = 0) {
+  const value = rawFirst(raw, keys, null)
+  if (value === null || value === undefined || value === '') return fallback
+  const parsed = Number(String(value).replace(',', '.').replace(/[^\d.-]/g, ''))
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function boolRaw(raw, keys) {
+  const value = rawFirst(raw, keys, false)
+  if (typeof value === 'boolean') return value
+  const text = String(value || '').trim().toLowerCase()
+  return ['true', '1', 'yes', 'да', 'y'].includes(text)
+}
+
+function issueFlagsFromRaw(raw, order = null) {
+  const flags = Array.isArray(raw?.issue_flags) ? [...raw.issue_flags] : []
+  if (order?.needsInfo) flags.push('needs_info')
+  const comment = String(rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || '').toLowerCase()
+  if (comment.includes('жалоб') || comment.includes('complaint')) flags.push('complaint_comment')
+  return [...new Set(flags.filter(Boolean))]
+}
+
+function tripRowFromSnapshot(snapshot, source = null) {
+  const raw = rawPayloadFromSnapshot(snapshot)
+  const order = snapshot.order || null
+  const amount = order?.clientPrice ?? numericRaw(raw, ['client_price', 'clientPrice', 'sum', 'сумма', 'price'], 0)
+  const driverCost = order?.driverPrice ?? numericRaw(raw, ['driver_price', 'driverPrice', 'supplier_price'], null)
+  const currency = String(rawFirst(raw, ['currency', 'валюта'], parsePriceCurrency(rawFirst(raw, ['sum', 'сумма'], ''), 'EUR')) || 'EUR')
+  const status = String(order?.status || rawFirst(raw, ['status', 'статус'], 'pending') || 'pending')
+  const issueFlags = issueFlagsFromRaw(raw, order)
+  const hasComplaint = boolRaw(raw, ['has_complaint', 'complaint']) || issueFlags.some((flag) => String(flag).toLowerCase().includes('complaint'))
+  const driver = String(rawFirst(raw, ['driver', 'водитель'], '') || '')
+  const counterparty = String(rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '')
+  const profit = driverCost === null || driverCost === undefined ? null : Number((Number(amount || 0) - Number(driverCost || 0)).toFixed(2))
+  return {
+    id: order?.id || '',
+    sourceId: snapshot.sheetSourceId,
+    sourceName: source?.name || '',
+    monthLabel: source?.monthLabel || rawFirst(raw, ['month_label'], ''),
+    sourceRow: snapshot.sourceRow,
+    orderNumber: String(rawFirst(raw, ['order_number', 'orderNumber', 'номер заказа'], '') || ''),
+    internalOrderNumber: String(rawFirst(raw, ['internal_order_number', 'internalOrderNumber'], '') || ''),
+    pickupAt: order?.pickupAt || rawFirst(raw, ['pickup_at', 'date', 'дата'], ''),
+    fromPoint: order?.fromPoint || String(rawFirst(raw, ['from_point', 'fromPoint', 'from', 'откуда'], '') || ''),
+    toPoint: order?.toPoint || String(rawFirst(raw, ['to_point', 'toPoint', 'to', 'куда'], '') || ''),
+    counterparty,
+    driver,
+    vehicleType: order?.vehicleType || String(rawFirst(raw, ['vehicle_type', 'vehicleType', 'class', 'класс'], '') || ''),
+    status,
+    clientPrice: Number(Number(amount || 0).toFixed(2)),
+    driverPrice: driverCost === null || driverCost === undefined ? null : Number(Number(driverCost || 0).toFixed(2)),
+    profit,
+    currency,
+    comment: String(rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || ''),
+    hasComplaint,
+    issueFlags,
+    issueCount: issueFlags.length,
+    needsInfo: Boolean(order?.needsInfo),
+    infoReason: order?.infoReason || null
+  }
+}
+
+function addCurrencyTotal(bucket, currency, amount) {
+  const key = String(currency || 'EUR')
+  bucket[key] = Number(((bucket[key] || 0) + Number(amount || 0)).toFixed(2))
+}
+
+function summarizeTrips(trips) {
+  const summary = {
+    total: 0,
+    completed: 0,
+    cancelled: 0,
+    pending: 0,
+    complaints: 0,
+    issueCount: 0,
+    missingDriverCount: 0,
+    priceRiskCount: 0,
+    grossByCurrency: {},
+    driverCostByCurrency: {},
+    profitByCurrency: {},
+    roiByCurrency: {}
+  }
+  for (const trip of trips || []) {
+    const status = String(trip.status || 'pending')
+    summary.total += 1
+    summary[status] = (summary[status] || 0) + 1
+    if (trip.hasComplaint) summary.complaints += 1
+    summary.issueCount += Number(trip.issueCount || 0)
+    if (!String(trip.driver || '').trim()) summary.missingDriverCount += 1
+    if (trip.profit !== null && trip.profit < 0) summary.priceRiskCount += 1
+    addCurrencyTotal(summary.grossByCurrency, trip.currency, trip.clientPrice)
+    if (trip.driverPrice !== null && trip.driverPrice !== undefined) {
+      addCurrencyTotal(summary.driverCostByCurrency, trip.currency, trip.driverPrice)
+      addCurrencyTotal(summary.profitByCurrency, trip.currency, trip.profit)
+    }
+  }
+  for (const [currency, profit] of Object.entries(summary.profitByCurrency)) {
+    const cost = Number(summary.driverCostByCurrency[currency] || 0)
+    summary.roiByCurrency[currency] = cost ? Number((profit / cost).toFixed(3)) : null
+  }
+  return summary
+}
+
+function groupTripStats(trips, keyName, outName) {
+  const map = new Map()
+  for (const trip of trips || []) {
+    const name = String(trip[keyName] || '(empty)').trim() || '(empty)'
+    if (!map.has(name)) {
+      map.set(name, {
+        [outName]: name,
+        total: 0,
+        completed: 0,
+        cancelled: 0,
+        pending: 0,
+        complaints: 0,
+        issueCount: 0,
+        grossByCurrency: {},
+        driverCostByCurrency: {},
+        profitByCurrency: {},
+        issueRate: 0
+      })
+    }
+    const row = map.get(name)
+    row.total += 1
+    row[trip.status] = (row[trip.status] || 0) + 1
+    if (trip.hasComplaint) row.complaints += 1
+    row.issueCount += Number(trip.issueCount || 0)
+    addCurrencyTotal(row.grossByCurrency, trip.currency, trip.clientPrice)
+    if (trip.driverPrice !== null && trip.driverPrice !== undefined) {
+      addCurrencyTotal(row.driverCostByCurrency, trip.currency, trip.driverPrice)
+      addCurrencyTotal(row.profitByCurrency, trip.currency, trip.profit)
+    }
+  }
+  return [...map.values()]
+    .filter((row) => row[outName] !== '(empty)')
+    .map((row) => ({ ...row, issueRate: row.total ? Number((row.issueCount / row.total).toFixed(3)) : 0 }))
+    .sort((a, b) => b.completed - a.completed || b.total - a.total || a[outName].localeCompare(b[outName]))
+}
+
+async function tripsForSources(tenantId, sources) {
+  const sourceIds = (sources || []).map((source) => source.id).filter(Boolean)
+  if (!sourceIds.length) return []
+  const sourceById = new Map(sources.map((source) => [source.id, source]))
+  const snapshots = await prisma.orderSourceSnapshot.findMany({
+    where: { tenantId, sheetSourceId: { in: sourceIds } },
+    include: {
+      order: {
+        select: {
+          id: true,
+          status: true,
+          needsInfo: true,
+          infoReason: true,
+          pickupAt: true,
+          fromPoint: true,
+          toPoint: true,
+          vehicleType: true,
+          driverPrice: true,
+          clientPrice: true
+        }
+      }
+    },
+    orderBy: [{ sheetSourceId: 'asc' }, { sourceRow: 'asc' }, { createdAt: 'desc' }],
+    take: 50000
+  })
+  return latestSnapshotsBySourceRow(snapshots).map((snapshot) => tripRowFromSnapshot(snapshot, sourceById.get(snapshot.sheetSourceId)))
+}
+
+function publicMonthFromSources(sources, trips, lang = 'ru') {
+  const source = sources[0] || {}
+  const summary = summarizeTrips(trips)
+  return {
+    monthLabel: source.monthLabel || '',
+    displayName: monthDisplayName(source.monthLabel, lang),
+    status: sheetSourceMonthStatus(source),
+    sourceSheetName: source.name || source.monthLabel || '',
+    sourceSheetId: normalizeGoogleSheetId(source.googleSheetId),
+    sourceSheetUrl: sheetSourceUrl(source),
+    sourceCount: sources.length,
+    lastSyncedAt: sources.map((item) => item.lastSyncAt).filter(Boolean).sort().slice(-1)[0] || null,
+    closedAt: sheetSourceMonthStatus(source) === 'archived' ? source.updatedAt : null,
+    ...summary
+  }
+}
+
+app.get('/api/admin/orders/open-months', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const lang = String(req.query.lang || 'ru')
+    const sources = await prisma.sheetSource.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: [{ monthLabel: 'asc' }, { updatedAt: 'desc' }]
+    })
+    const openSources = sources.filter((source) => sheetSourceMonthStatus(source) === 'open')
+    const grouped = new Map()
+    for (const source of openSources) {
+      if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])
+      grouped.get(source.monthLabel).push(source)
+    }
+    const months = []
+    for (const group of grouped.values()) {
+      const trips = await tripsForSources(tenantId, group)
+      months.push(publicMonthFromSources(group, trips, lang))
+    }
+    res.json({ months })
+  } catch (error) {
+    console.error('Error fetching open order months:', error)
+    res.status(500).json({ error: 'Failed to fetch open order months' })
+  }
+})
+
+app.post('/api/admin/orders/months/:monthLabel/archive', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const { monthLabel } = req.params
+    const tenantId = req.actorContext.tenantId
+    const sources = await prisma.sheetSource.findMany({ where: { tenantId, monthLabel } })
+    if (!sources.length) return res.status(404).json({ error: 'Order month not found' })
+    const payload = { monthLabel }
+    ensureIdempotencyKey(req, 'orders.month.archive', payload)
+    const wrapped = await withIdempotency(req, 'orders.month.archive', payload, async () => {
+      await prisma.sheetSource.updateMany({
+        where: { tenantId, monthLabel },
+        data: { isActive: false, syncEnabled: false }
+      })
+      return { monthLabel, archivedSources: sources.length }
+    })
+    res.json({ success: true, ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error archiving order month:', error)
+    res.status(500).json({ error: 'Failed to archive order month' })
+  }
+})
+
+app.post('/api/admin/orders/months/:monthLabel/sync', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const { monthLabel } = req.params
+    const tenantId = req.actorContext.tenantId
+    const sources = await prisma.sheetSource.findMany({ where: { tenantId, monthLabel, syncEnabled: true } })
+    if (!sources.length) return res.status(404).json({ error: 'Sync-enabled order month not found' })
+    const results = []
+    for (const source of sources) {
+      results.push({ sourceId: source.id, stats: await syncSheetSource(source.id, tenantId) })
+    }
+    res.json({ success: true, monthLabel, results })
+  } catch (error) {
+    console.error('Error syncing order month:', error)
+    res.status(500).json({ error: 'Failed to sync order month', details: error.message })
+  }
+})
+
 app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
-    const { sourceId = '' } = req.query
+    const { sourceId = '', monthLabel = '' } = req.query
     const tenantId = req.actorContext.tenantId
-    const source = sourceId
-      ? await prisma.sheetSource.findFirst({ where: { id: String(sourceId), tenantId } })
-      : await prisma.sheetSource.findFirst({
-          where: { isActive: true, tenantId },
-          orderBy: [{ updatedAt: 'desc' }]
-        })
+    let source = null
+    if (sourceId) {
+      source = await prisma.sheetSource.findFirst({ where: { id: String(sourceId), tenantId } })
+    } else if (monthLabel) {
+      source = await prisma.sheetSource.findFirst({
+        where: { monthLabel: String(monthLabel), tenantId },
+        orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
+      })
+    } else {
+      const activeSources = await prisma.sheetSource.findMany({
+        where: { isActive: true, tenantId },
+        orderBy: [{ monthLabel: 'asc' }, { updatedAt: 'desc' }]
+      })
+      source = activeSources.find((item) => sheetSourceMonthStatus(item) === 'open') || activeSources[0] || null
+    }
 
     if (!source) {
       return res.json({ source: null, headers: [], rows: [], rawRows: [] })
@@ -7766,6 +8089,359 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
   } catch (error) {
     console.error('Error fetching sheet view orders:', error)
     res.status(500).json({ error: 'Failed to fetch sheet view orders' })
+  }
+})
+
+app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const requestedMonth = String(req.query.month || '').trim()
+    const sources = await prisma.sheetSource.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        id: true,
+        name: true,
+        monthLabel: true,
+        googleSheetId: true,
+        updatedAt: true
+      }
+    })
+    const source = requestedMonth
+      ? sources.find((item) => item.monthLabel === requestedMonth)
+      : sources[0]
+
+    if (!source) {
+      return res.json({ source: null, months: [], summary: {}, driverStats: [], counterpartyStats: [], qualityDrivers: [] })
+    }
+
+    const snapshots = await prisma.orderSourceSnapshot.findMany({
+      where: { tenantId, sheetSourceId: source.id },
+      orderBy: [{ sourceRow: 'asc' }, { createdAt: 'desc' }],
+      take: 10000
+    })
+    const seenRows = new Set()
+    const byDriver = new Map()
+    const byCounterparty = new Map()
+    const grossByCurrency = {}
+    const summary = {
+      total: 0,
+      completed: 0,
+      cancelled: 0,
+      pending: 0,
+      complaints: 0,
+      issueCount: 0
+    }
+
+    const ensure = (map, key, field) => {
+      const name = String(key || '(empty)')
+      if (!map.has(name)) {
+        map.set(name, {
+          [field]: name,
+          total: 0,
+          completed: 0,
+          cancelled: 0,
+          pending: 0,
+          complaints: 0,
+          issueCount: 0,
+          issueRate: 0,
+          grossAmount: 0,
+          currency: '',
+          topCities: {},
+          topCounterparties: {},
+          topDrivers: {}
+        })
+      }
+      return map.get(name)
+    }
+    const incBucket = (bucket, key) => {
+      const name = String(key || '').trim()
+      if (!name) return
+      bucket[name] = (bucket[name] || 0) + 1
+    }
+
+    for (const snapshot of snapshots) {
+      if (seenRows.has(snapshot.sourceRow)) continue
+      seenRows.add(snapshot.sourceRow)
+      const row = parseJsonSafe(snapshot.rawPayload || '{}', {})
+      const status = String(row.status || 'pending')
+      const amount = Number(row.client_price || 0)
+      const currency = String(row.currency || 'EUR')
+      const driverName = String(row.driver || '(empty)')
+      const counterpartyName = String(row.counterparty || '(empty)')
+      const issueFlags = Array.isArray(row.issue_flags) ? row.issue_flags : []
+
+      summary.total += 1
+      summary[status] = (summary[status] || 0) + 1
+      summary.complaints += row.has_complaint ? 1 : 0
+      summary.issueCount += issueFlags.length
+      grossByCurrency[currency] = Number(((grossByCurrency[currency] || 0) + amount).toFixed(2))
+
+      const driver = ensure(byDriver, driverName, 'driver')
+      driver.total += 1
+      driver[status] = (driver[status] || 0) + 1
+      driver.complaints += row.has_complaint ? 1 : 0
+      driver.issueCount += issueFlags.length
+      driver.grossAmount += amount
+      driver.currency = currency
+      incBucket(driver.topCities, row.city_code)
+      incBucket(driver.topCounterparties, counterpartyName)
+
+      const counterparty = ensure(byCounterparty, counterpartyName, 'counterparty')
+      counterparty.total += 1
+      counterparty[status] = (counterparty[status] || 0) + 1
+      counterparty.complaints += row.has_complaint ? 1 : 0
+      counterparty.issueCount += issueFlags.length
+      counterparty.grossAmount += amount
+      counterparty.currency = currency
+      incBucket(counterparty.topCities, row.city_code)
+      incBucket(counterparty.topDrivers, driverName)
+    }
+
+    const topBucket = (bucket) => Object.entries(bucket || {})
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 3)
+      .map(([name, count]) => `${name} x${count}`)
+      .join('; ')
+    const finalize = (rows) => rows.map((row) => ({
+      ...row,
+      grossAmount: Number(row.grossAmount.toFixed(2)),
+      issueRate: row.total ? Number((row.issueCount / row.total).toFixed(3)) : 0,
+      topCities: topBucket(row.topCities),
+      topCounterparties: topBucket(row.topCounterparties),
+      topDrivers: topBucket(row.topDrivers)
+    }))
+
+    const driverStats = finalize([...byDriver.values()])
+      .filter((row) => row.driver !== '(empty)')
+      .sort((a, b) => b.completed - a.completed || b.grossAmount - a.grossAmount)
+    const counterpartyStats = finalize([...byCounterparty.values()])
+      .filter((row) => row.counterparty !== '(empty)')
+      .sort((a, b) => b.grossAmount - a.grossAmount || b.completed - a.completed)
+    const qualityDrivers = [...driverStats]
+      .filter((row) => row.issueCount > 0)
+      .sort((a, b) => b.issueCount - a.issueCount || b.issueRate - a.issueRate)
+
+    res.json({
+      source,
+      months: sources.map((item) => ({
+        id: item.id,
+        name: item.name,
+        monthLabel: item.monthLabel
+      })),
+      summary: {
+        ...summary,
+        grossByCurrency
+      },
+      driverStats: driverStats.slice(0, 20),
+      counterpartyStats: counterpartyStats.slice(0, 20),
+      qualityDrivers: qualityDrivers.slice(0, 20)
+    })
+  } catch (error) {
+    console.error('Error fetching order stats:', error)
+    res.status(500).json({ error: 'Failed to fetch order stats' })
+  }
+})
+
+app.get('/api/admin/economics/order-archive/months', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const lang = String(req.query.lang || 'ru')
+    const year = String(req.query.year || '').trim()
+    const q = String(req.query.q || '').trim().toLowerCase()
+    const sources = await prisma.sheetSource.findMany({
+      where: { tenantId },
+      orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }]
+    })
+    const archiveSources = sources.filter((source) => {
+      if (source.lastSyncStatus === 'superseded') return false
+      if (sheetSourceMonthStatus(source) !== 'archived') return false
+      if (year && !String(source.monthLabel || '').startsWith(`${year}-`)) return false
+      if (q) {
+        const haystack = [source.name, source.monthLabel, source.googleSheetId].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+    const grouped = new Map()
+    for (const source of archiveSources) {
+      if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])
+      grouped.get(source.monthLabel).push(source)
+    }
+    const months = []
+    for (const group of grouped.values()) {
+      const trips = await tripsForSources(tenantId, group)
+      months.push(publicMonthFromSources(group, trips, lang))
+    }
+    months.sort((a, b) => compareMonthLabels(b.monthLabel, a.monthLabel))
+    res.json({ months })
+  } catch (error) {
+    console.error('Error fetching order archive months:', error)
+    res.status(500).json({ error: 'Failed to fetch order archive months' })
+  }
+})
+
+async function archiveMonthPayload(req, monthLabel) {
+  const tenantId = req.actorContext.tenantId
+  const lang = String(req.query.lang || 'ru')
+  const sources = await prisma.sheetSource.findMany({
+    where: { tenantId, monthLabel },
+    orderBy: [{ updatedAt: 'desc' }]
+  })
+  if (!sources.length) return null
+  const trips = await tripsForSources(tenantId, sources)
+  return {
+    month: publicMonthFromSources(sources, trips, lang),
+    sources: sources.map((source) => ({
+      id: source.id,
+      name: source.name,
+      monthLabel: source.monthLabel,
+      googleSheetId: normalizeGoogleSheetId(source.googleSheetId),
+      googleSheetUrl: sheetSourceUrl(source),
+      tabName: source.tabName,
+      detailsTabName: source.detailsTabName,
+      isActive: source.isActive,
+      syncEnabled: source.syncEnabled,
+      lastSyncAt: source.lastSyncAt,
+      lastSyncStatus: source.lastSyncStatus,
+      lastSyncError: source.lastSyncError
+    })),
+    trips
+  }
+}
+
+app.get('/api/admin/economics/order-archive/:monthLabel', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const payload = await archiveMonthPayload(req, req.params.monthLabel)
+    if (!payload) return res.status(404).json({ error: 'Order month not found' })
+    res.json({ month: payload.month, sources: payload.sources })
+  } catch (error) {
+    console.error('Error fetching order archive month:', error)
+    res.status(500).json({ error: 'Failed to fetch order archive month' })
+  }
+})
+
+app.get('/api/admin/economics/order-archive/:monthLabel/trips', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const payload = await archiveMonthPayload(req, req.params.monthLabel)
+    if (!payload) return res.status(404).json({ error: 'Order month not found' })
+    const q = String(req.query.q || '').trim().toLowerCase()
+    const status = String(req.query.status || '').trim().toLowerCase()
+    const complaintsOnly = ['1', 'true', 'yes'].includes(String(req.query.complaintsOnly || '').toLowerCase())
+    const issuesOnly = ['1', 'true', 'yes'].includes(String(req.query.issuesOnly || '').toLowerCase())
+    const rows = payload.trips.filter((trip) => {
+      if (status && String(trip.status || '').toLowerCase() !== status) return false
+      if (complaintsOnly && !trip.hasComplaint) return false
+      if (issuesOnly && !trip.issueCount && !trip.needsInfo) return false
+      if (q) {
+        const haystack = [trip.orderNumber, trip.internalOrderNumber, trip.fromPoint, trip.toPoint, trip.counterparty, trip.driver, trip.comment, trip.vehicleType].join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+    res.json({ rows, total: rows.length, summary: summarizeTrips(rows) })
+  } catch (error) {
+    console.error('Error fetching order archive trips:', error)
+    res.status(500).json({ error: 'Failed to fetch order archive trips' })
+  }
+})
+
+app.get('/api/admin/economics/order-archive/:monthLabel/drivers', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const payload = await archiveMonthPayload(req, req.params.monthLabel)
+    if (!payload) return res.status(404).json({ error: 'Order month not found' })
+    res.json({ rows: groupTripStats(payload.trips, 'driver', 'driver') })
+  } catch (error) {
+    console.error('Error fetching order archive drivers:', error)
+    res.status(500).json({ error: 'Failed to fetch order archive drivers' })
+  }
+})
+
+app.get('/api/admin/economics/order-archive/:monthLabel/counterparties', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const payload = await archiveMonthPayload(req, req.params.monthLabel)
+    if (!payload) return res.status(404).json({ error: 'Order month not found' })
+    res.json({ rows: groupTripStats(payload.trips, 'counterparty', 'counterparty') })
+  } catch (error) {
+    console.error('Error fetching order archive counterparties:', error)
+    res.status(500).json({ error: 'Failed to fetch order archive counterparties' })
+  }
+})
+
+app.get('/api/admin/economics/order-archive/:monthLabel/finance', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const payload = await archiveMonthPayload(req, req.params.monthLabel)
+    if (!payload) return res.status(404).json({ error: 'Order month not found' })
+    res.json({ summary: summarizeTrips(payload.trips) })
+  } catch (error) {
+    console.error('Error fetching order archive finance:', error)
+    res.status(500).json({ error: 'Failed to fetch order archive finance' })
+  }
+})
+
+app.get('/api/admin/economics/order-archive/:monthLabel/risks', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const payload = await archiveMonthPayload(req, req.params.monthLabel)
+    if (!payload) return res.status(404).json({ error: 'Order month not found' })
+    const rows = payload.trips
+      .filter((trip) => trip.hasComplaint || trip.issueCount || trip.needsInfo || !String(trip.driver || '').trim() || (trip.profit !== null && trip.profit < 0) || trip.status === 'cancelled')
+      .map((trip) => ({
+        ...trip,
+        riskType: trip.hasComplaint
+          ? 'complaint'
+          : trip.status === 'cancelled'
+            ? 'cancellation'
+            : !String(trip.driver || '').trim()
+              ? 'missing_driver'
+              : trip.profit !== null && trip.profit < 0
+                ? 'low_margin'
+                : 'incomplete_data'
+      }))
+    res.json({ rows, total: rows.length })
+  } catch (error) {
+    console.error('Error fetching order archive risks:', error)
+    res.status(500).json({ error: 'Failed to fetch order archive risks' })
+  }
+})
+
+app.get('/api/admin/economics/analytics/overview', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const lang = String(req.query.lang || 'ru')
+    const fromMonth = String(req.query.fromMonth || '').trim()
+    const toMonth = String(req.query.toMonth || '').trim()
+    const status = String(req.query.status || 'archived')
+    const sources = await prisma.sheetSource.findMany({
+      where: { tenantId },
+      orderBy: [{ monthLabel: 'asc' }, { updatedAt: 'desc' }]
+    })
+    const filtered = sources.filter((source) => {
+      if (status === 'archived' && sheetSourceMonthStatus(source) !== 'archived') return false
+      if (fromMonth && compareMonthLabels(source.monthLabel, fromMonth) < 0) return false
+      if (toMonth && compareMonthLabels(source.monthLabel, toMonth) > 0) return false
+      return true
+    })
+    const grouped = new Map()
+    for (const source of filtered) {
+      if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])
+      grouped.get(source.monthLabel).push(source)
+    }
+    const months = []
+    const allTrips = []
+    for (const group of grouped.values()) {
+      const trips = await tripsForSources(tenantId, group)
+      allTrips.push(...trips)
+      months.push(publicMonthFromSources(group, trips, lang))
+    }
+    res.json({
+      months,
+      summary: summarizeTrips(allTrips),
+      drivers: groupTripStats(allTrips, 'driver', 'driver').slice(0, 50),
+      counterparties: groupTripStats(allTrips, 'counterparty', 'counterparty').slice(0, 50)
+    })
+  } catch (error) {
+    console.error('Error fetching economics analytics overview:', error)
+    res.status(500).json({ error: 'Failed to fetch economics analytics overview' })
   }
 })
 

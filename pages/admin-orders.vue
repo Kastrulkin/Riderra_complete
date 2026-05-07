@@ -18,6 +18,25 @@
           </button>
         </div>
 
+        <div class="month-workbar">
+          <div class="month-workbar__main">
+            <span class="month-workbar__label">{{ t.openMonths }}</span>
+            <select v-model="selectedMonth" class="input month-select" @change="load">
+              <option value="">{{ t.defaultMonth }}</option>
+              <option v-for="month in openMonths" :key="month.monthLabel" :value="month.monthLabel">
+                {{ month.displayName || month.monthLabel }} · {{ month.total || 0 }}
+              </option>
+            </select>
+          </div>
+          <div class="month-workbar__meta">
+            <span>{{ t.currentSource }}:</span>
+            <strong>{{ currentSourceLabel }}</strong>
+            <button class="btn btn--small btn--danger" :disabled="!selectedMonth || archiveSaving" @click="archiveSelectedMonth">
+              {{ archiveSaving ? t.archivingMonth : t.archiveMonth }}
+            </button>
+          </div>
+        </div>
+
         <div class="overview-strip">
           <div v-for="card in overviewCards" :key="card.key" class="overview-card" :class="`overview-card--${card.tone}`">
             <div class="overview-card__value">{{ card.value }}</div>
@@ -508,6 +527,10 @@ export default {
     rows: [],
     rawRows: [],
     rawHeaders: [],
+    openMonths: [],
+    selectedMonth: '',
+    currentSource: null,
+    archiveSaving: false,
     filteredRows: [],
     filteredRawRows: [],
     drilldownToken: '',
@@ -563,6 +586,13 @@ export default {
             activeViewLabel: 'Показаны заказы',
             refresh: 'Обновить',
             loading: 'Загрузка...',
+            openMonths: 'Открытые месяцы',
+            defaultMonth: 'Автовыбор месяца',
+            currentSource: 'Источник',
+            archiveMonth: 'Закрыть месяц',
+            archivingMonth: 'Закрываю...',
+            archiveConfirm: 'Закрыть выбранный месяц и перенести его в Экономика → Архив заказов?',
+            archiveDone: 'Месяц закрыт и перенесён в архив',
             queueOne: 'В чат',
             sendToChat: 'Открыть чат',
             sendingToChat: 'Открываю...',
@@ -682,6 +712,13 @@ export default {
             activeViewLabel: 'Current view',
             refresh: 'Refresh',
             loading: 'Loading...',
+            openMonths: 'Open months',
+            defaultMonth: 'Auto-select month',
+            currentSource: 'Source',
+            archiveMonth: 'Close month',
+            archivingMonth: 'Closing...',
+            archiveConfirm: 'Close selected month and move it to Economics → Order archive?',
+            archiveDone: 'Month closed and moved to archive',
             queueOne: 'To chat',
             sendToChat: 'Open chat',
             sendingToChat: 'Opening...',
@@ -856,16 +893,63 @@ export default {
             { key: 'today', value: today, label: 'Today', hint: 'Quick focus', tone: 'neutral' }
           ]
     },
+    currentSourceLabel () {
+      const source = this.currentSource || {}
+      return [source.name, source.monthLabel].filter(Boolean).join(' · ') || '-'
+    },
     rawGridStyle () {
       const cols = Math.max(this.rawHeaders.length, 1)
       return { gridTemplateColumns: `170px 120px 80px repeat(${cols}, minmax(180px, 1fr))` }
     }
   },
-  mounted () { this.load().catch(() => {}) },
+  mounted () {
+    this.loadOpenMonths()
+      .then(() => this.load())
+      .catch(() => this.load().catch(() => {}))
+  },
   methods: {
     headers () {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '' }
+    },
+    async loadOpenMonths () {
+      try {
+        const params = new URLSearchParams({ lang: this.$store.state.language || 'ru' })
+        const response = await fetch(`/api/admin/orders/open-months?${params.toString()}`, { headers: this.headers() })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`)
+        this.openMonths = data.months || []
+        if (!this.selectedMonth && this.openMonths.length) this.selectedMonth = this.openMonths[0].monthLabel
+      } catch (_) {
+        this.openMonths = []
+      }
+    },
+    async archiveSelectedMonth () {
+      if (!this.selectedMonth || this.archiveSaving) return
+      if (!window.confirm(this.t.archiveConfirm)) return
+      this.archiveSaving = true
+      this.queueNotice = ''
+      try {
+        const response = await fetch(`/api/admin/orders/months/${encodeURIComponent(this.selectedMonth)}/archive`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `archive-order-month-${this.selectedMonth}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({})
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`)
+        this.queueNotice = this.t.archiveDone
+        this.selectedMonth = ''
+        await this.loadOpenMonths()
+        await this.load()
+      } catch (error) {
+        this.queueNotice = error?.message || 'Failed to close month'
+      } finally {
+        this.archiveSaving = false
+      }
     },
     async load () {
       this.loading = true
@@ -873,7 +957,9 @@ export default {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
       const timeoutId = controller ? setTimeout(() => controller.abort(), 20000) : null
       try {
-        const response = await fetch('/api/admin/orders-sheet-view', {
+        const params = new URLSearchParams()
+        if (this.selectedMonth) params.set('monthLabel', this.selectedMonth)
+        const response = await fetch(`/api/admin/orders-sheet-view${params.toString() ? `?${params.toString()}` : ''}`, {
           headers: this.headers(),
           ...(controller ? { signal: controller.signal } : {})
         })
@@ -884,6 +970,7 @@ export default {
         this.rows = data.rows || []
         this.rawRows = data.rawRows || []
         this.rawHeaders = data.headers || []
+        this.currentSource = data.source || null
         this.drilldownNotice = ''
         this.drilldownToken = ''
         this.queueNotice = ''
@@ -892,6 +979,7 @@ export default {
         this.rows = []
         this.rawRows = []
         this.rawHeaders = []
+        this.currentSource = null
         this.filteredRows = []
         this.filteredRawRows = []
         this.loadError = this.$store.state.language === 'ru'
@@ -1819,6 +1907,41 @@ export default {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+.month-workbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #d8e0ef;
+  border-radius: 8px;
+  background: #fff;
+}
+.month-workbar__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.month-workbar__label {
+  font-weight: 800;
+  color: #223356;
+  white-space: nowrap;
+}
+.month-select {
+  max-width: 360px;
+}
+.month-workbar__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+.month-workbar__meta strong {
+  color: #223356;
 }
 .overview-strip {
   display: grid;

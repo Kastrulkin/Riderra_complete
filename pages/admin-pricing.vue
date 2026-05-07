@@ -77,34 +77,30 @@
           <div class="panel-head">
             <div>
               <h3>{{ t.counterparty }}</h3>
-              <p class="panel-hint">{{ t.counterpartyHint }}</p>
             </div>
           </div>
           <div class="pricing-list">
-            <div class="pricing-list__head pricing-list__head--counterparty">
-              <div>{{ t.counterpartyName }}</div>
-              <div>{{ t.routeScope }}</div>
+            <div class="pricing-list__head pricing-list__head--compact-price">
+              <div>{{ t.counterpartyRoute }}</div>
+              <div>{{ t.vehicleClass }}</div>
               <div>{{ t.priceAndCurrency }}</div>
-              <div>{{ t.managementSignal }}</div>
+              <div>{{ t.status }}</div>
             </div>
-            <div v-for="r in filteredCpRows" :key="r.id" class="pricing-row pricing-row--counterparty">
-              <div class="route-cell">
-                <div class="route-cell__title">{{ r.counterpartyName || '-' }}</div>
-                <div class="route-cell__sub">{{ r.city || t.noCity }}</div>
-              </div>
+            <div v-for="r in filteredCpRows" :key="r.id" class="pricing-row pricing-row--compact-price">
               <div class="route-cell">
                 <div class="route-cell__title">{{ routeSummary(r) }}</div>
-                <div class="route-cell__sub">
-                  <span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span>
-                </div>
+                <div class="route-cell__sub">{{ r.counterpartyName || '-' }}<span v-if="r.city"> · {{ r.city }}</span></div>
+              </div>
+              <div>
+                <span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span>
               </div>
               <div class="price-cell">
                 <strong>{{ priceLabel(r.sellPrice, r.currency) }}</strong>
                 <span class="muted">{{ t.markup }}: {{ markupLabel(r.markupPercent) }}</span>
               </div>
               <div class="signal-cell">
-                <div class="signal-cell__title">{{ r.isActive ? t.ruleActive : t.ruleInactive }}</div>
-                <div class="signal-cell__copy">{{ counterpartySignalCopy(r) }}</div>
+                <span class="status-pill" :class="{ 'status-pill--inactive': !r.isActive }">{{ r.isActive ? t.ruleActive : t.ruleInactive }}</span>
+                <span class="muted">{{ rulePeriodLabel(r) }}</span>
               </div>
             </div>
             <div v-if="!filteredCpRows.length" class="empty-state">{{ t.empty }}</div>
@@ -115,32 +111,30 @@
           <div class="panel-head">
             <div>
               <h3>{{ t.driver }}</h3>
-              <p class="panel-hint">{{ t.driverHint }}</p>
             </div>
           </div>
           <div class="pricing-list">
-            <div class="pricing-list__head pricing-list__head--driver">
-              <div>{{ t.name }}</div>
-              <div>{{ t.coverage }}</div>
-              <div>{{ t.driverEconomics }}</div>
-              <div>{{ t.managementSignal }}</div>
+            <div class="pricing-list__head pricing-list__head--compact-price">
+              <div>{{ t.driverRoute }}</div>
+              <div>{{ t.vehicleClass }}</div>
+              <div>{{ t.priceAndCurrency }}</div>
+              <div>{{ t.source }}</div>
             </div>
-            <div v-for="d in filteredDriverRows" :key="d.id" class="pricing-row pricing-row--driver">
+            <div v-for="d in filteredDriverRows" :key="d.id" class="pricing-row pricing-row--compact-price">
               <div class="route-cell">
-                <div class="route-cell__title">{{ d.name || '-' }}</div>
-                <div class="route-cell__sub">{{ d.comment || t.noComment }}</div>
+                <div class="route-cell__title">{{ routeSummary(d) }}</div>
+                <div class="route-cell__sub">{{ d.driverName || '-' }}<span v-if="d.coverage"> · {{ d.coverage }}</span></div>
               </div>
-              <div class="route-cell">
-                <div class="route-cell__title">{{ [d.country, d.city].filter(Boolean).join(' · ') || t.noCoverage }}</div>
-                <div class="route-cell__sub">{{ t.childSeat }}: {{ simpleValue(d.childSeatPrice) }}</div>
+              <div>
+                <span :class="['class-badge', { 'class-badge--missing': !d.vehicleType }]">{{ d.vehicleType || t.missingClass }}</span>
               </div>
               <div class="price-cell">
-                <strong>{{ t.perKm }}: {{ simpleValue(d.kmRate) }}</strong>
-                <span class="muted">{{ t.hourly }}: {{ simpleValue(d.hourlyRate) }}</span>
+                <strong>{{ priceLabel(d.driverPrice, d.currency) }}</strong>
+                <span class="muted">{{ t.sale }}: {{ priceLabel(d.ourPrice, d.currency) }}</span>
               </div>
               <div class="signal-cell">
-                <div class="signal-cell__title">{{ driverSignalTitle(d) }}</div>
-                <div class="signal-cell__copy">{{ driverSignalCopy(d) }}</div>
+                <span class="status-pill" :class="{ 'status-pill--pending': d.sourceStatus && d.sourceStatus !== 'approved' }">{{ d.sourceStatus || t.ruleActive }}</span>
+                <span class="muted">{{ d.sourceLabel || d.sourceType || '-' }}</span>
               </div>
             </div>
             <div v-if="!filteredDriverRows.length" class="empty-state">{{ t.empty }}</div>
@@ -359,6 +353,9 @@ export default {
             sale: 'Цена',
             priceAndCurrency: 'Цена и валюта',
             currency: 'Валюта',
+            counterpartyRoute: 'Контрагент и маршрут',
+            driverRoute: 'Водитель и маршрут',
+            source: 'Источник',
             perKm: 'За км',
             hourly: 'Почасовая',
             childSeat: 'Детское кресло',
@@ -417,6 +414,9 @@ export default {
             sale: 'Price',
             priceAndCurrency: 'Price and currency',
             currency: 'Currency',
+            counterpartyRoute: 'Counterparty and route',
+            driverRoute: 'Driver and route',
+            source: 'Source',
             perKm: 'Per km',
             hourly: 'Hourly',
             childSeat: 'Child seat',
@@ -460,7 +460,7 @@ export default {
     },
     overviewCards () {
       const specialDeals = this.cpRows.filter((row) => row.isActive).length
-      const driverWithEconomics = this.driverRows.filter((row) => row.kmRate || row.hourlyRate || row.childSeatPrice).length
+      const driverWithEconomics = this.driverPriceRows.length
       const penalties = this.adjustmentTotals.adjustmentCount || 0
       return [
         { key: 'base', value: this.baseRows.length, label: this.t.base, hint: this.t.baseHint, tone: 'neutral' },
@@ -485,8 +485,21 @@ export default {
     },
     filteredDriverRows () {
       const q = this.q.trim().toLowerCase()
-      if (!q) return this.driverRows
-      return this.driverRows.filter((row) => `${row.name || ''} ${row.country || ''} ${row.city || ''} ${row.comment || ''}`.toLowerCase().includes(q))
+      if (!q) return this.driverPriceRows
+      return this.driverPriceRows.filter((row) => `${row.driverName || ''} ${row.country || ''} ${row.city || ''} ${row.fromPoint || ''} ${row.toPoint || ''} ${row.vehicleType || ''} ${row.sourceLabel || ''}`.toLowerCase().includes(q))
+    },
+    driverPriceRows () {
+      return this.driverRows.flatMap((driver) => {
+        const coverage = [driver.country, driver.city].filter(Boolean).join(' · ')
+        return (driver.routes || []).map((route) => ({
+          ...route,
+          driverName: driver.name,
+          country: driver.country,
+          city: driver.city,
+          coverage,
+          supplierName: driver.supplierCompany?.name || driver.supplierContact?.fullName || ''
+        }))
+      })
     },
     filteredConflictRows () {
       const q = this.q.trim().toLowerCase()
@@ -547,6 +560,10 @@ export default {
     markupLabel (value) {
       if (value === null || value === undefined || value === '') return '-'
       return `${value}%`
+    },
+    rulePeriodLabel (row) {
+      const dates = [row.startsAt, row.endsAt].filter(Boolean).map((value) => String(value).slice(0, 10))
+      return dates.length ? dates.join(' → ') : '-'
     },
     percentLabel (value) {
       if (value === null || value === undefined || Number.isNaN(Number(value))) return '-'
@@ -861,10 +878,8 @@ export default {
 
 .pricing-list__head--base,
 .pricing-row--base,
-.pricing-list__head--counterparty,
-.pricing-row--counterparty,
-.pricing-list__head--driver,
-.pricing-row--driver,
+.pricing-list__head--compact-price,
+.pricing-row--compact-price,
 .pricing-list__head--conflicts,
 .pricing-row--conflicts,
 .pricing-list__head--adjustments,
@@ -938,6 +953,29 @@ export default {
 
 .price-cell strong {
   color: #102b63;
+}
+
+.status-pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eefdf3;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-pill--inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.status-pill--pending {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .class-badge {

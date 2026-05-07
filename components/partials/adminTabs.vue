@@ -92,7 +92,9 @@ export default {
           description: 'Здесь команда держит под контролем базовый прайс, специальные договорённости, водительские ставки и риски для маржи.',
           defaultTo: '/admin-pricing',
           tabs: [
-            { to: '/admin-pricing', label: 'Прайс', hint: 'Продажные цены' }
+            { to: '/admin-pricing', label: 'Прайс', hint: 'Продажные цены' },
+            { to: '/admin-order-archive', label: 'Архив заказов', hint: 'Прошлые месяцы' },
+            { to: '/admin-order-analytics', label: 'Аналитика', hint: 'ROI и выработка' }
           ]
         },
         {
@@ -145,7 +147,9 @@ export default {
           description: 'This is where the team controls the base price book, special agreements, driver rates, and margin risk across the network.',
           defaultTo: '/admin-pricing',
           tabs: [
-            { to: '/admin-pricing', label: 'Pricing', hint: 'Sales prices' }
+            { to: '/admin-pricing', label: 'Pricing', hint: 'Sales prices' },
+            { to: '/admin-order-archive', label: 'Order archive', hint: 'Past months' },
+            { to: '/admin-order-analytics', label: 'Analytics', hint: 'ROI and output' }
           ]
         },
         {
