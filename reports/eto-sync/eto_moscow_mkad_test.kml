@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Riderra ETO missing zones batch</name>
+    <Placemark>
+      <name>Moscow</name>
+      <description>source=Riderra price book; count=24; countries=Russia; boundaryRule=named; geocode=Moscow, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>37.842000,55.774600,0 37.839000,55.818000,0 37.785000,55.866000,0 37.692000,55.912000,0 37.590000,55.912000,0 37.478000,55.884000,0 37.398000,55.820000,0 37.369000,55.736000,0 37.394000,55.652000,0 37.458000,55.583000,0 37.560000,55.558000,0 37.690000,55.573000,0 37.789000,55.638000,0 37.839000,55.716000,0 37.842000,55.774600,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

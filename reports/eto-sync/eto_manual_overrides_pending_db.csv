@@ -1,0 +1,2 @@
+"date";"system";"routeFrom";"routeTo";"vehicleType";"etoVehicleId";"price";"currency";"reason";"dbStatus";"report"
+"2026-05-07";"ETO";"Helsinki Vantaa airport (HEL)";"Vantaa city, Finland";"Standard minivan 6 pax / MV 6 pax";"205";"70";"EUR";"User confirmed minivan should exist for airport to Vantaa; DB export had only Standard class car 38";"pending Riderra DB insert when DB is reachable";"reports/eto-sync/helsinki_vantaa_fixedprice_5155_mv6_restore_update.json"

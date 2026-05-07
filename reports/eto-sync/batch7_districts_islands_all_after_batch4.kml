@@ -1,0 +1,633 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Riderra ETO missing zones batch</name>
+    <Placemark>
+      <name>Geoje Island</name>
+      <description>source=Riderra price book; count=3; countries=South Korea; category=island; geometrySource=named-boundary; boundaryRule=named; geocode=Geojedo, Geoje-si</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>128.450000,34.600000,0 128.750000,34.600000,0 128.750000,35.050000,0 128.450000,35.050000,0 128.450000,34.600000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Koh Lanta Island</name>
+      <description>source=Riderra price book; count=3; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=99.01862,7.46723,99.13059,7.68801; geocode=Ko Lanta, Ko Lanta District, Krabi 81150, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.018621,7.467232,0 99.130589,7.467232,0 99.130589,7.688008,0 99.018621,7.688008,0 99.018621,7.467232,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Koh Samui (Island)</name>
+      <description>source=Riderra price book; count=3; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=99.91217,9.40865,100.09065,9.59352; geocode=Ko Samui, Ko Samui District, Surat Thani, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.912174,9.408651,0 100.090651,9.408651,0 100.090651,9.593523,0 99.912174,9.593523,0 99.912174,9.408651,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Konyaalti district, Antalya</name>
+      <description>source=Riderra price book; count=3; countries=Turkey; category=district_area; geometrySource=google-viewport; googleViewport=30.58096,36.82029,30.85525,36.97559; geocode=Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.580959,36.820289,0 30.855251,36.820289,0 30.855251,36.975586,0 30.580959,36.975586,0 30.580959,36.820289,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Laem Set, Koh Samui, Surat Thani</name>
+      <description>source=Riderra price book; count=3; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=99.99682,9.42150,100.01919,9.43250; geocode=Laem-Set Rd, Amphoe Ko Samui, Chang Wat Surat Thani, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.996817,9.421497,0 100.019186,9.421497,0 100.019186,9.432503,0 99.996817,9.432503,0 99.996817,9.421497,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Lampang District</name>
+      <description>source=Riderra price book; count=3; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.30231,18.17707,99.77305,18.61093; geocode=Mueang Lampang District, Lampang, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.302312,18.177073,0 99.773053,18.177073,0 99.773053,18.610933,0 99.302312,18.610933,0 99.302312,18.177073,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Lara beach</name>
+      <description>source=Riderra price book; count=3; countries=Turkey; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Lara Beach, Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.800000,36.835000,0 30.915000,36.835000,0 30.915000,36.885000,0 30.800000,36.885000,0 30.800000,36.835000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Mae Rim district</name>
+      <description>source=Riderra price book; count=3; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.74739,18.83163,99.00117,19.07631; geocode=Mae Rim District, Chiang Mai, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.747391,18.831633,0 99.001174,18.831633,0 99.001174,19.076315,0 98.747391,19.076315,0 98.747391,18.831633,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Mae-Hongsorn district</name>
+      <description>source=Riderra price book; count=3; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=97.78271,18.93355,98.25219,19.64042; geocode=Mueang Mae Hong Son District, Mae Hong Son 58000, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>97.782711,18.933548,0 98.252187,18.933548,0 98.252187,19.640417,0 97.782711,19.640417,0 97.782711,18.933548,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Maetang district</name>
+      <description>source=Riderra price book; count=3; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.56796,19.02501,99.15501,19.35404; geocode=Mae Taeng District, Chiang Mai, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.567964,19.025011,0 99.155007,19.025011,0 99.155007,19.354036,0 98.567964,19.354036,0 98.567964,19.025011,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Singapore city center</name>
+      <description>source=Riderra price book; count=3; countries=Singapore; category=district_area; geometrySource=google-viewport; googleViewport=103.59400,1.14960,104.09450,1.47840; geocode=Singapore</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>103.594000,1.149600,0 104.094500,1.149600,0 104.094500,1.478400,0 103.594000,1.478400,0 103.594000,1.149600,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Singapore Sentosa Island</name>
+      <description>source=Riderra price book; count=3; countries=Singapore; category=island; geometrySource=google-viewport; googleViewport=103.80663,1.23783,103.84848,1.26010; geocode=Sentosa, Singapore</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>103.806631,1.237828,0 103.848480,1.237828,0 103.848480,1.260100,0 103.806631,1.260100,0 103.806631,1.237828,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Älvsjö district (Alvsjo), Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=17.99143,59.26645,18.02170,59.28237; geocode=Älvsjö, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.991432,59.266452,0 18.021696,59.266452,0 18.021696,59.282370,0 17.991432,59.282370,0 17.991432,59.266452,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Årsta district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=18.02741,59.28986,18.08102,59.30656; geocode=Årsta, Enskede-Årsta-Vantör, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.027410,59.289860,0 18.081019,59.289860,0 18.081019,59.306557,0 18.027410,59.306557,0 18.027410,59.289860,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Baan HuaHin (Koh Lanta) Thailand/ Hua Hin (Lanta) Thailand</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=99.91610,12.54757,99.96579,12.63505; geocode=Hua Hin, Hua Hin District, Prachuap Khiri Khan 77110, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.916104,12.547570,0 99.965795,12.547570,0 99.965795,12.635051,0 99.916104,12.635051,0 99.916104,12.547570,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bromma district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=17.84249,59.31065,17.99836,59.37294; geocode=Bromma, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.842494,59.310646,0 17.998359,59.310646,0 17.998359,59.372944,0 17.842494,59.372944,0 17.842494,59.310646,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Cairo city centre</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=265H+7FV, El-Darb El-Gadid Ln, Al Kafour, Old Cairo, Cairo Governorate 4241231, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>31.220000,30.020000,0 31.275000,30.020000,0 31.275000,30.070000,0 31.220000,30.070000,0 31.220000,30.020000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Chiang Mai Outskirts</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.86173,18.74443,99.05122,18.84406; geocode=Chiang Mai, Mueang Chiang Mai District, Chiang Mai, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.861733,18.744432,0 99.051222,18.744432,0 99.051222,18.844060,0 98.861733,18.844060,0 98.861733,18.744432,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Doi Saket district</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.05116,18.76825,99.40180,19.09565; geocode=Doi Saket District, Chiang Mai 50220, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.051159,18.768246,0 99.401803,18.768246,0 99.401803,19.095650,0 99.051159,19.095650,0 99.051159,18.768246,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Don Muang district</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.55902,13.88756,100.62669,13.95515; geocode=Don Mueang, Bangkok, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.559020,13.887565,0 100.626695,13.887565,0 100.626695,13.955154,0 100.559020,13.955154,0 100.559020,13.887565,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Estern district Hong Kong</name>
+      <description>source=Riderra price book; count=2; countries=China; category=district_area; geometrySource=google-viewport; googleViewport=114.18951,22.25641,114.25747,22.29484; geocode=Eastern District, Hong Kong</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>114.189511,22.256413,0 114.257475,22.256413,0 114.257475,22.294839,0 114.189511,22.294839,0 114.189511,22.256413,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Farsta district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=18.04384,59.22444,18.14687,59.27922; geocode=Farsta, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.043841,59.224443,0 18.146870,59.224443,0 18.146870,59.279222,0 18.043841,59.279222,0 18.043841,59.224443,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hammarby Sjöstad district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=18.10147,59.30216,18.11433,59.30859; geocode=Hammarby Sjöstad, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.101467,59.302162,0 18.114335,59.302162,0 18.114335,59.308594,0 18.101467,59.308594,0 18.101467,59.302162,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hässelby district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=17.76588,59.35331,17.83955,59.39982; geocode=Hässelby, Hässelby-Vällingby, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.765876,59.353315,0 17.839547,59.353315,0 17.839547,59.399824,0 17.765876,59.399824,0 17.765876,59.353315,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Johanneshov district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=18.07001,59.28661,18.09469,59.30194; geocode=Johanneshov, Enskede-Årsta-Vantör, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.070010,59.286609,0 18.094688,59.286609,0 18.094688,59.301940,0 18.070010,59.301940,0 18.070010,59.286609,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Khao Phanom District, Krabi</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.90721,8.11196,99.33624,8.45718; geocode=Khao Phanom District, Krabi, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.907212,8.111955,0 99.336241,8.111955,0 99.336241,8.457185,0 98.907212,8.457185,0 98.907212,8.111955,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Khura Buri district, Phang Nga</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=97.63083,8.47529,98.53120,9.47896; geocode=Khura Buri District, Phang Nga, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>97.630830,8.475295,0 98.531199,8.475295,0 98.531199,9.478956,0 97.630830,9.478956,0 97.630830,8.475295,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kista district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=17.91618,59.39110,17.96963,59.41454; geocode=Kista, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.916180,59.391096,0 17.969626,59.391096,0 17.969626,59.414538,0 17.916180,59.414538,0 17.916180,59.391096,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Klong Muang Beach, Krabi</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Unnamed Road Tambon, ตำบล หนองทะเล อำเภอเมืองกระบี่ กระบี่ 81000, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.735000,8.020000,0 98.785000,8.020000,0 98.785000,8.085000,0 98.735000,8.085000,0 98.735000,8.020000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Klong Thom District, Krabi</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.06385,7.64829,99.33854,8.17953; geocode=Khlong Thom District, Krabi, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.063850,7.648291,0 99.338537,7.648291,0 99.338537,8.179534,0 99.063850,8.179534,0 99.063850,7.648291,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Koh Chang</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=102.24925,11.95167,102.44679,12.15728; geocode=Koh Chang, Trat, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>102.249253,11.951669,0 102.446791,11.951669,0 102.446791,12.157285,0 102.249253,12.157285,0 102.249253,11.951669,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Koh Jum Island, Krabi</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=98.95919,7.78219,98.99277,7.83458; geocode=Koh Jum, Nuea Khlong District, Krabi, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.959190,7.782186,0 98.992767,7.782186,0 98.992767,7.834575,0 98.959190,7.834575,0 98.959190,7.782186,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Koh Matsum (Including boat transfer) Thailand</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=99.97174,9.36685,99.98199,9.37886; geocode=Ko Mat Sum ตำบล ตลิ่งงาม อำเภอเกาะสมุย สุราษฎร์ธานี Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.971737,9.366851,0 99.981985,9.366851,0 99.981985,9.378858,0 99.971737,9.378858,0 99.971737,9.366851,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Noppharat Thara Beach, Krabi</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=2QWX+FJ2, Ao Nang, Mueang Krabi District, Krabi 81180, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.795000,8.020000,0 98.835000,8.020000,0 98.835000,8.065000,0 98.795000,8.065000,0 98.795000,8.020000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pak Meng Beach,Trang</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.31081,7.46393,99.33944,7.50903; geocode=Pak Meng Beach, Trang, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.310809,7.463928,0 99.339444,7.463928,0 99.339444,7.509029,0 99.310809,7.509029,0 99.310809,7.463928,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pratunam, Bangkok</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Soi Phetchaburi 21, Khwaeng Thanon Phaya Thai, Khet Ratchathewi, Krung Thep Maha Nakhon 10400, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.535000,13.745000,0 100.555000,13.745000,0 100.555000,13.765000,0 100.535000,13.765000,0 100.535000,13.745000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Samoeng district</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.40948,18.72660,98.81928,19.07640; geocode=Samoeng District, Chiang Mai 50250, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.409477,18.726600,0 98.819280,18.726600,0 98.819280,19.076400,0 98.409477,19.076400,0 98.409477,18.726600,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sikao, Sikao District, Trang</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.23263,7.40015,99.51956,7.82530; geocode=Sikao District, Trang, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.232627,7.400154,0 99.519562,7.400154,0 99.519562,7.825302,0 99.232627,7.825302,0 99.232627,7.400154,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Skarpnäck district, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=district_area; geometrySource=google-viewport; googleViewport=18.10489,59.25334,18.15680,59.28167; geocode=Skarpnäcks Gård, Stockholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.104892,59.253341,0 18.156803,59.253341,0 18.156803,59.281673,0 18.104892,59.281673,0 18.104892,59.253341,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Suez city centre</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=district_area; geometrySource=google-viewport; googleViewport=32.43749,29.93295,32.58550,30.02118; geocode=Suez, Suez Governorate, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.437494,29.932945,0 32.585496,29.932945,0 32.585496,30.021181,0 32.437494,30.021181,0 32.437494,29.932945,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Wan Chai district, Hong Kong</name>
+      <description>source=Riderra price book; count=2; countries=China; category=district_area; geometrySource=google-viewport; googleViewport=114.16641,22.25966,114.19806,22.28822; geocode=Wan Chai District, Hong Kong</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>114.166410,22.259661,0 114.198056,22.259661,0 114.198056,22.288220,0 114.166410,22.288220,0 114.166410,22.259661,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Aarhus outside city center</name>
+      <description>source=Riderra price book; count=1; countries=Denmark; category=district_area; geometrySource=google-viewport; googleViewport=10.04602,56.07894,10.33920,56.24413; geocode=Aarhus, Denmark</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>10.046021,56.078942,0 10.339197,56.078942,0 10.339197,56.244133,0 10.046021,56.244133,0 10.046021,56.078942,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Amed Beach</name>
+      <description>source=Riderra price book; count=1; countries=Indonesia; category=district_area; geometrySource=google-viewport; googleViewport=115.64014,-8.33861,115.66193,-8.33227; geocode=Amed Beach, Bali, Indonesia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>115.640143,-8.338608,0 115.661932,-8.338608,0 115.661932,-8.332270,0 115.640143,-8.332270,0 115.640143,-8.338608,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ao Nang Beach</name>
+      <description>source=Riderra price book; count=1; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.81687,8.02687,98.82668,8.03521; geocode=Ao Nang Beach, Ao Nang, Mueang Krabi District, Krabi 81180, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.816867,8.026870,0 98.826677,8.026870,0 98.826677,8.035208,0 98.816867,8.035208,0 98.816867,8.026870,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dania Beach</name>
+      <description>source=Riderra price book; count=1; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-80.20786,26.03350,-80.10646,26.09152; geocode=Dania Beach, FL, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.207861,26.033496,0 -80.106463,26.033496,0 -80.106463,26.091523,0 -80.207861,26.091523,0 -80.207861,26.033496,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hang Dong District</name>
+      <description>source=Riderra price book; count=1; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.78004,18.58826,98.98745,18.86038; geocode=Hang Dong District, Chiang Mai, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.780038,18.588258,0 98.987453,18.588258,0 98.987453,18.860378,0 98.780038,18.860378,0 98.780038,18.588258,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Jeju city center</name>
+      <description>source=Riderra price book; count=1; countries=South Korea; category=district_area; geometrySource=google-viewport; googleViewport=126.14412,33.27296,126.97043,34.01320; geocode=Jeju-si, Jeju-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.144116,33.272963,0 126.970428,33.272963,0 126.970428,34.013202,0 126.144116,34.013202,0 126.144116,33.272963,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Jeju outskirts</name>
+      <description>source=Riderra price book; count=1; countries=South Korea; category=district_area; geometrySource=google-viewport; googleViewport=126.14412,33.27296,126.97043,34.01320; geocode=Jeju-si, Jeju-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.144116,33.272963,0 126.970428,33.272963,0 126.970428,34.013202,0 126.144116,34.013202,0 126.144116,33.272963,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Khaosan, Bangkok</name>
+      <description>source=Riderra price book; count=1; countries=Thailand; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Thanon Khao San, Khwaeng Talat Yot, Khet Phra Nakhon, Krung Thep Maha Nakhon 10200, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.493000,13.755000,0 100.505000,13.755000,0 100.505000,13.765000,0 100.493000,13.765000,0 100.493000,13.755000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Khlong Thoei, bangkok</name>
+      <description>source=Riderra price book; count=1; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.55067,13.69558,100.60163,13.74286; geocode=Khlong Toei, Bangkok, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.550670,13.695580,0 100.601626,13.695580,0 100.601626,13.742857,0 100.550670,13.742857,0 100.550670,13.695580,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Lovina Beach</name>
+      <description>source=Riderra price book; count=1; countries=Indonesia; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Lovina Beach, Anturan, Buleleng, Buleleng Regency, Bali, Indonesia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>114.950000,-8.185000,0 115.055000,-8.185000,0 115.055000,-8.135000,0 114.950000,-8.135000,0 114.950000,-8.185000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>mae salong district</name>
+      <description>source=Riderra price book; count=1; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.59350,20.14078,99.63648,20.17910; geocode=Santi Khiri, Mae Salong Nok, Mae Fa Luang District, Chiang Rai 57110, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.593504,20.140776,0 99.636478,20.140776,0 99.636478,20.179103,0 99.593504,20.179103,0 99.593504,20.140776,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Philadelphia City Center, USA</name>
+      <description>source=Riderra price book; count=1; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-75.18630,39.94052,-75.13422,39.96528; geocode=Center City, Philadelphia, PA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-75.186301,39.940516,0 -75.134220,39.940516,0 -75.134220,39.965280,0 -75.186301,39.965280,0 -75.186301,39.940516,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Philadelphia City Center, USA (11-25 miles)</name>
+      <description>source=Riderra price book; count=1; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-75.18630,39.94052,-75.13422,39.96528; geocode=Center City, Philadelphia, PA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-75.186301,39.940516,0 -75.134220,39.940516,0 -75.134220,39.965280,0 -75.186301,39.965280,0 -75.186301,39.940516,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Philadelphia City Center, USA (26-30 miles)</name>
+      <description>source=Riderra price book; count=1; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-75.18630,39.94052,-75.13422,39.96528; geocode=Center City, Philadelphia, PA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-75.186301,39.940516,0 -75.134220,39.940516,0 -75.134220,39.965280,0 -75.186301,39.965280,0 -75.186301,39.940516,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Philadelphia City Center, USA (up to 10 miles)</name>
+      <description>source=Riderra price book; count=1; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-75.18630,39.94052,-75.13422,39.96528; geocode=Center City, Philadelphia, PA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-75.186301,39.940516,0 -75.134220,39.940516,0 -75.134220,39.965280,0 -75.186301,39.965280,0 -75.186301,39.940516,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Seogwipo City Center</name>
+      <description>source=Riderra price book; count=1; countries=South Korea; category=district_area; geometrySource=google-viewport; googleViewport=126.16872,33.11371,126.94784,33.48308; geocode=Seogwipo-si, Jeju-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.168723,33.113711,0 126.947839,33.113711,0 126.947839,33.483080,0 126.168723,33.483080,0 126.168723,33.113711,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

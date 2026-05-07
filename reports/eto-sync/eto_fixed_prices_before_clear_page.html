@@ -1,0 +1,2660 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="csrf-token" content="0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Fixed Prices - Riderra</title>
+
+    
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/font-awesome/font-awesome.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/ionicons/ionicons.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/AdminLTE.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.min.css">
+
+    
+    
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://u3211.eto2.taxi/assets/plugins/html5shiv/html5shiv.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/respond/respond.min.js"></script>
+    <![endif]-->
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery.min.js"></script>
+        <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery-migrate.min.js"></script>
+    
+    <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.js"></script>
+
+            <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.min.js"></script>
+    
+    <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.contentWindow.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-loading-overlay/loadingoverlay.min.js"></script>
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.js?_dc=1773668664"></script> 
+<script src="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.js"></script>
+
+<script src="https://u3211.eto2.taxi/assets/js/password-utils.js?_dc=1773668664"></script>
+<script src="https://u3211.eto2.taxi/assets/js/eto/eto.js?_dc=1773668664"></script>
+
+<script>
+ETO.setConfig({"config":{"csrfToken":"0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP","appPath":"https:\/\/u3211.eto2.taxi","timestamp":1773668664,"timezone":"UTC","currency_symbol":"EUR","currency_code":"","date_format":"d.m.Y","time_format":"H:i","unit_format":"metric","phone_number_prefix":"auto","date_start_of_week":1,"site_id":1,"theme":"light"},"current_user":{"id":1,"fleet_id":0,"name":"Aleksandr Demianov","username":"admin","email":"demyanov@riderra.com","avatar":"https:\/\/u3211.eto2.taxi\/storage\/avatars\/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg","lat":null,"lng":null,"role":"admin","roles":["admin.root"],"permissions":["admin.*"]},"lang":{"common":{"daterangepicker":{"today":"Today","tomorrow":"Tomorrow","after_tomorrow":"After Tomorrow","next_week":"Next Week","next_month":"Next Month","custom_range":"Custom Range"},"button":{"view":"View"},"loading":"Loading...","no_data":"No data available.","yes":"Yes","no":"No","booking_status_options":{"accepted":"Job accepted","arrived":"Arrived","assigned":"Assigned","auto_dispatch":"Auto dispatch","canceled":"Cancelled","changed":"Booking update","completed":"Completed","confirmed":"Confirmed","incomplete":"Incomplete","noshow":"No-show","onboard":"On board","onroute":"En route","pending":"Confirmed","quote":"Request quote","rejected":"Job rejected","requested":"Unconfirmed","unfinished":"Driver cancelled"},"unit":{"imperial":{"mile":"mile","mile_plural":"miles","mile_short":"mi","yard":"yard","yard_plural":"yards","yard_short":"yd"},"metric":{"kilometer":"kilometre","kilometer_plural":"kilometres","kilometer_short":"km","meter":"metre","meter_plural":"metres","meter_short":"m"}},"user_profile_type_options":{"company":"Company","private":"Private"},"user_status_options":{"approved":"Approved","awaiting_admin_review":"Pending review","awaiting_email_confirmation":"Waiting for email confirmation","inactive":"Inactive","rejected":"Rejected"},"vehicle_status_options":{"activated":"Activated","inactive":"Inactive"}}}});
+
+$(function() {
+    if ($.inArray(ETO.getBrowserName(), ['Edge', 'IE']) != -1) {
+        $('body').append('<style>'+
+            'aside.main-sidebar section.sidebar {overflow-y:auto !important;}'+
+            'aside.main-sidebar div.slimScrollBar {display:none !important;}'+
+        '</style>');
+    }
+});
+</script>
+    
+    <script>
+    $(function() {
+        $.LoadingOverlaySetup({
+            image: '',
+            fontawesome: 'fa fa-spinner fa-spin',
+            maxSize: '80px',
+            minSize: '20px',
+            resizeInterval: 0,
+            size: '50%',
+            fade: [0,200]
+        });
+    });
+
+    var EasyTaxiOffice = {
+        csrfToken: '0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP',
+        appPath: 'https://u3211.eto2.taxi',
+        timestamp: '1773668664',
+        timezone: 'UTC',
+        cookiePath: '/',
+        cookieSecure: true,
+        cookieSameSite: 'none',
+        siteId: 1,
+        unitFormat: 'metric',
+    };
+    </script>
+
+                <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/select2/select2.min.css">
+
+      <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/dataTables.bootstrap.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/css/buttons.dataTables.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/css/buttons.bootstrap.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/ColReorder/css/colReorder.dataTables.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/ColReorder/css/colReorder.bootstrap.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/select2/select2.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap-touchspin/jquery.bootstrap-touchspin.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap-daterangepicker/daterangepicker.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation.min.css">
+  <style>
+  .popover {
+    max-width: 700px !important;
+  }
+  .popover-content {
+    overflow: auto;
+    height: 240px;
+    width: 350px;
+  }
+
+    </style>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/eto.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/admin.css?_dc=1773668664">
+
+    
+    
+        
+    </head>
+<body class="skin-blue admin-panel fixed hold-transition dt-height-fallback ">
+    <!--
+    Copyright (c) 2026 by EasyTaxiOffice - All Rights Reserved
+    Website: https://easytaxioffice.com
+    Email: support@easytaxioffice.com
+    -->
+
+                <div class="wrapper">
+        <header class="main-header">
+            <nav class="navbar navbar-static-top">
+                <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </a>
+                <span class="main-page-title">Settings > Pricing > Fixed Prices</span>
+                <div class="navbar-custom-menu">
+                    <ul class="nav navbar-nav">
+                        <li class="dropdown user user-menu">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="user-image" alt="">
+                                <span class="hidden-xs">Aleksandr Demianov</span>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li class="user-header">
+                                    <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                                    <p>
+                                        Aleksandr Demianov
+                                        <small>Member since 1 year 4 months</small>
+                                    </p>
+                                </li>
+                                <li class="user-footer">
+                                    <div class="admin-topbar-user-actions">
+                                        <a href="https://u3211.eto2.taxi/admin/account" class="btn btn-default btn-flat">
+                                            <i class="fa fa-user"></i>
+                                            <span>Account</span>
+                                        </a>
+                                                                                <a href="https://u3211.eto2.taxi/admin/kb" class="btn btn-default btn-flat">
+                                            <i class="fa fa-question-circle"></i>
+                                            <span>Knowledge Base</span>
+                                        </a>
+                                                                                <a href="#" class="btn btn-default btn-flat btnAdminToolboxDarkMode">
+                                            <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                            <span class="admin-topbar-dark-mode-label">
+                                                Switch to dark theme
+                                            </span>
+                                        </a>
+                                        <a href="https://u3211.eto2.taxi/logout" class="btn btn-default btn-flat logout-container" onclick="event.preventDefault();document.getElementById('logout-form').submit();">
+                                            <i class="fa fa-sign-out"></i>
+                                            <span>Log out</span>
+                                        </a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </header>
+
+        <aside class="main-sidebar">
+            <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                <span class="icon-toggle"></span>
+            </a>
+            <section class="sidebar">
+                <div class="dropdown admin-sidebar-user-dropdown">
+                    <a href="#" class="admin-sidebar-user-trigger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <div class="admin-sidebar-user-panel">
+                            <div class="admin-sidebar-user-avatar">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                            </div>
+                            <div class="admin-sidebar-user-info">
+                                <p class="admin-sidebar-user-name">
+                                    <span class="admin-sidebar-user-name-text">Aleksandr Demianov</span>
+                                    <i class="fa fa-angle-down" aria-hidden="true"></i>
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu admin-sidebar-user-menu-items">
+                        <li>
+                            <a href="https://u3211.eto2.taxi/admin/account">
+                                <i class="fa fa-user"></i>
+                                <span>Account</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="https://u3211.eto2.taxi/admin/kb">
+                                <i class="fa fa-question-circle"></i>
+                                <span>Knowledge Base</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="#" class="btnAdminToolboxDarkMode">
+                                <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                <span class="admin-sidebar-dark-mode-label">
+                                    Switch to dark theme
+                                </span>
+                            </a>
+                        </li>
+                        <li class="logout-container">
+                            <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="fa fa-sign-out"></i>
+                                <span>Log out</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                                    <div class="switch-profile-box"  style="display:none;" >
+                        <select name="switch_profile" id="switch_profile" title="Switch profile" class="form-control select2" style="width:100%;">
+                                                    <option value="1"  selected="selected" >Riderra</option>
+                                                </select>
+                    </div>
+                
+                
+                <ul class="sidebar-menu">
+                    
+
+                                        <li >
+                        <a href="https://u3211.eto2.taxi/admin/dispatch" class="menu-dispatch-new-jobs">
+                            <span>Dispatch</span>
+                            <span class="pull-right-container" title="New bookings">
+                                <small class="label pull-right bg-aqua " id="latest-jobs">582</small>
+                            </span>
+                        </a>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/bookings">
+                            <span>Bookings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                        <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings/transferz/offers" class="menu-transferz-offers">
+                                        <span>Transferz Offers</span>
+                                        <span class="pull-right-container">
+                                            <small class="label pull-right bg-aqua  hide " id="transferz-offers-unread">New</small>
+                                        </span>
+                                    </a>
+                                </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=next24" class="menu-next24-jobs">
+                                    <span>Next 24h</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua  hide " id="next24-jobs">0</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=latest" class="menu-latest-jobs">
+                                    <span>Latest</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua " id="latest-jobs" title="New bookings">582</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="  ">
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=requested" class="menu-requested-jobs">
+                                    <span>Unconfirmed</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-orange " id="requested-jobs">216</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=completed" class="menu-completed-jobs">
+                                    <span>Completed</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=canceled" class="menu-canceled-jobs">
+                                    <span>Cancelled</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings">
+                                    <span>All</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=trash">
+                                    <span>Trash</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/calendar">
+                                    <span>Calendar</span>
+                                </a>
+                            </li>
+
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings?page=recurring" class="menu-recurring-jobs">
+                                        <span>Recurring</span>
+                                    </a>
+                                </li>
+                                                        
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/passengers">
+                                    <span>Passengers</span>
+                                </a>
+                            </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings/create">
+                                    <span>New booking</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                      <a href="https://u3211.eto2.taxi/admin/feedback">
+                        <span>Feedback</span>
+                        <span class="pull-right-container">
+                          <i class="fa fa-angle-left pull-right"></i>
+                          <small class="label pull-right bg-gray  hide " style="padding: .2em .3em .2em .3em;" id="menu-feedback-icon">
+                              <i class="fa fa-exclamation"></i>
+                          </small>
+                        </span>
+                      </a>
+                      <ul class="treeview-menu">
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=comment">
+                            <span>Comments</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-comments">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=lost_found">
+                            <span>Lost &amp; Found</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=complaint">
+                            <span>Complaints</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                                                <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback/create">
+                            <span>Add new</span>
+                          </a>
+                        </li>
+                                              </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/reports">
+                            <span>Reports</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/fleet">
+                                    <span>Fleet Report</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/driver">
+                                    <span>Driver Report</span>
+                                </a>
+                            </li>
+                            
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/payment">
+                                    <span>Payment Report</span>
+                                </a>
+                            </li>
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/driver-activities">
+                                    <span>Driver Activities</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/users">
+                            <span>Users</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+
+                                
+                                                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/customers">
+                                    <span>Customers</span>
+                                </a>
+                            </li>
+                            
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=driver">
+                                    <span>Drivers</span>
+                                    
+                                </a>
+                            </li>
+                            
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/users?role=fleet">
+                                        <span>Fleet Operators</span>
+                                    </a>
+                                </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=admin">
+                                    <span>Admins</span>
+                                </a>
+                            </li>
+                            
+                            
+                            
+
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users/removal">
+                                    <span>Deletion Requests</span>
+                                                                    </a>
+                            </li>
+                            
+                        </ul>
+                    </li>
+                    
+                                                            
+                                        <li class="treeview  active ">
+                        <a href="https://u3211.eto2.taxi/admin/settings/general">
+                            <span>Settings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li class="treeview  active ">
+
+                               <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                   <span>Pricing</span>
+                                   <span class="pull-right-container">
+                                       <i class="fa fa-angle-left pull-right"></i>
+                                   </span>
+                               </a>
+                               <ul class="treeview-menu">
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/deposit-payments">
+                                         <span>Deposit Payments</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/mileage-time">
+                                         <span>Distance &amp; Time</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                      <a href="https://u3211.eto2.taxi/admin/fixed-prices?type=2">
+                                        <span>Distance Modifier</span>
+                                      </a>
+                                    </li>
+                                  
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/driver-income">
+                                         <span>Driver Income</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li  class="active" >
+                                       <a href="https://u3211.eto2.taxi/admin/fixed-prices">
+                                         <span>Fixed Prices</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/holiday-surcharge">
+                                         <span>Holiday / Rush Hours Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/additional-charges">
+                                         <span>Item Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                     <a href="https://u3211.eto2.taxi/admin/settings/charges">
+                                      <span>Location Surcharge</span>
+                                     </a>
+                                   </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/night-surcharge">
+                                         <span>Night Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/other-discounts">
+                                         <span>Other Discounts</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/tax">
+                                         <span>Tax</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/discounts">
+                                         <span>Voucher Discounts</span>
+                                       </a>
+                                     </li>
+                                                                  </ul>
+                            </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/getting-started">
+                                  <span>Getting Started</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/airport-detection">
+                                  <span>Airport Detection</span>
+                                </a>
+                              </li>
+                            
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/booking">
+                                  <span>Booking</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                  <span>General</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/google">
+                                  <span>Google</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/integration">
+                                  <span>Integration</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/invoices">
+                                  <span>Invoices</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/localization">
+                                  <span>Localization</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/categories">
+                                  <span>Location Categories</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/locations">
+                                  <span>Locations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/mail">
+                                  <span>Email</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/meeting-points">
+                                  <span>Meeting Points</span>
+                                </a>
+                              </li>
+                            
+                                                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/mobile-app">
+                                      <span>Mobile Apps</span>
+
+                                                                          </a>
+                                  </li>
+                                                          
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/notifications">
+                                  <span>Notifications</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/bases">
+                                  <span>Operating Areas</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/payments">
+                                  <span>Payment Methods</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/excluded-routes">
+                                  <span>Booking Restrictions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/roles">
+                                  <span>Roles &amp; Permissions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-scheduled-routes">
+                                <a href="https://u3211.eto2.taxi/admin/scheduled-routes">
+                                  <span>Scheduled Routes</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-services">
+                                <a href="https://u3211.eto2.taxi/admin/services">
+                                  <span>Services</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/styles">
+                                  <span>Styles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/translations">
+                                  <span>Translations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/vehicle-types">
+                                  <span>Types of Vehicles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class="">
+                                <a href="https://u3211.eto2.taxi/admin/vehicles">
+                                  <span>Vehicles</span>
+                                  <span class="pull-right-container">
+                                                                      </span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/users">
+                                  <span>Users</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/web-booking-widget">
+                                  <span>Web Booking Widget</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/web-widget">
+                                  <span>Web Widgets</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/zones">
+                                  <span>Zones</span>
+                                </a>
+                              </li>
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        </ul>
+                    </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/kb">
+                          <span>Knowledge Base</span>
+                        </a>
+                      </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/updates">
+                          <span>Updates</span>
+                                                  </a>
+                      </li>
+                    
+                    
+                    
+                    <li >
+                      <a href="https://u3211.eto2.taxi/admin/account">
+                        <span>Account</span>
+                      </a>
+                    </li>
+
+                    <li class="logout-container">
+                      <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                        <span>Log out</span>
+                      </a>
+                    </li>
+                </ul>
+
+                <div class="copyright-box">
+                  &copy; 2026 <a href="https://easytaxioffice.com" target="_blank">EasyTaxiOffice</a>                   
+                </div>
+            </section>
+        </aside>
+
+        <div class="content-wrapper ">
+            
+            <section class="content">
+                  <div class="pageTitle pageTitle--with-breadcrumbs clearfix">
+    <div class="pageTitle-row clearfix">
+        <h3 class="pageTitle-title pull-left hidden-xs">
+                            <span class="pageBreadcrumbs">
+                                                                                                                        <a href="https://u3211.eto2.taxi/admin/settings">Settings</a>
+                                                                                                <span class="pageBreadcrumbs-separator">&gt;</span>
+                                                                                                    <span>Pricing</span>
+                                                                <span class="pageBreadcrumbs-separator pageBreadcrumbs-separator--title">&gt;</span>
+                </span>
+                        <span class="pageTitle-titleText">Fixed Prices</span>
+        </h3>
+
+        
+                    <div class="pageTitle-help pull-right hidden-xs">
+                <a href="https://u3211.eto2.taxi/admin/kb?q=fixed-prices-for-routes"
+                    target="_blank"                    class="pageTitle-help-link"
+                    title="Fixed Prices"                     data-toggle="popover" data-title="Fixed Prices" data-content="This panel allow management of Fixed Prices between location A and B which automatically overwrites mileage/kilometer calculation.<br><br>If you would like to add new price just press <b>Add new</b><br><br>Symbol <b>&quot;Z&quot;</b> in Fixed prices means the fixed price is using Zone based location.<br><br>Please note postcodes like <b>W1, EC1, EC2, etc</b> is not accepted by the system. Reason for it is such postcodes does not exist, they are broken down into smaller districts like for <b>W1</b> are <b>WC1A, WC1B, WC1E, WC1H, WC1N, etc</b><br><br>For more details please see Wikipedia map: <a href=&quot;https://en.wikipedia.org/wiki/London_postal_district&quot; target=&quot;_blank&quot;>https://en.wikipedia.org/wiki/London_postal_district</a>" >
+                    <i class="ion-ios-help-outline"></i>
+                                            <span class="sr-only">Click here to learn more</span>
+                                    </a>
+            </div>
+        
+            </div>
+
+    </div>
+
+  <div class="pageContainer" id="fixed-prices">
+    <div class="pageFilters pageFiltersHide">
+
+      <form method="post" class="form-inline">
+        <a href="#" class="pull-right btnClose" title="Close" onclick="$('.pageFilters').toggle(); return false;">
+          <i class="fa fa-times"></i>
+        </a>
+        <div class="form-group field-service_ids">
+          <label for="filter-service_ids">Service Type</label>
+          <select name="filter-service_ids[]" id="filter-service_ids" multiple="multiple" size="1" class="form-control select2" data-placeholder="Service Type" data-allow-clear="true"></select>
+        </div>
+        <div class="form-group field-type hidden">
+          <label for="filter-type">Type</label>
+          <select name="filter-type[]" id="filter-type" multiple="multiple" size="1" class="form-control select2" data-placeholder="Type" data-allow-clear="true"></select>
+        </div>
+        <div class="form-group field-keywords">
+          <label for="filter-keywords">Keywords</label>
+          <input type="text" name="filter-keywords" id="filter-keywords" class="form-control" placeholder="Keywords">
+        </div>
+        <div class="form-group field-published">
+          <label for="filter-published">Status</label>
+          <select name="filter-published" id="filter-published" class="form-control select2" data-placeholder="Status" data-allow-clear="true" data-minimum-results-for-search="Infinity">
+            <option></option>
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+        <div class="form-group field-btn-search">
+          <button type="button" class="btn btn-default btnSearch" title=""><i class="fa fa-search"></i> <span>Search</span></button>
+        </div>
+        <div class="form-group field-btn-reset">
+          <button type="button" class="btn btn-link btnReset" title=""><i class="fa fa-times"></i> <span>Reset</span></button>
+        </div>
+      </form>
+
+    </div>
+    <div class="pageContent">
+
+      <div class="dataTablesHeaderActionsSource hidden">
+        <a href="#" class="btn btn-default btn-sm btnFilters buttons-space pull-left" title="Search">
+            <i class="fa fa-search"></i>
+        </a>
+
+        
+        
+
+                    <a href="#" onclick="updateRecord(); return false;" class="btn btn-success btn-sm btnAdd buttons-space pull-left" title="Add new">
+                <i class="fa fa-plus"></i> <span class="hidden-xs">Add new</span>
+            </a>
+        
+                    <a href="#" onclick="return false;" class="btn btn-danger btn-sm dt-btn-destroy_selected buttons-space pull-left hidden">
+                <span>Delete selected</span>
+            </a>
+              </div>
+
+      <table class="table table-hover" id="dtable" style="width:100%;"></table>
+
+      <div id="dmodal" class="modal fade" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title"></h4>
+            </div>
+            <div class="modal-body"></div>
+            <div class="modal-overlay"><i class="fa fa-refresh fa-spin"></i></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+            </section>
+        </div>
+
+        <form id="logout-form" action="https://u3211.eto2.taxi/logout" method="POST" style="display:none;">
+            <input type="hidden" name="_token" value="0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP">
+        </form>
+    </div>
+
+    
+            
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-cookie/jquery.cookie.js?_dc=1773668664"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/select2/select2.full.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/js/app.js?_dc=1773668664"></script>
+
+    
+    <script>
+    
+    var isDarkMode = false;
+
+    function toggleDarkMode() {
+        var darkModeLabel = '';
+
+        if (isDarkMode) {
+            darkModeLabel = "Switch to light theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-sun-o').addClass('fa-moon-o');
+            $('body').addClass('dark-mode');
+        } else {
+            darkModeLabel = "Switch to dark theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-moon-o').addClass('fa-sun-o');
+            $('body').removeClass('dark-mode');
+        }
+
+        $('.admin-sidebar-dark-mode-label, .admin-topbar-dark-mode-label').text(darkModeLabel);
+    }
+
+    function updateDataTableScrollBodyHeight(options) {
+        options = options || {};
+
+        var wrapperSelector = options.wrapperSelector || '#dataTableBuilder_wrapper';
+        var scrollBodySelector = options.scrollBodySelector || '.dataTables_scrollBody';
+        // Default: allow overflow expansion on all screen sizes.
+        // Legacy mobile behavior (natural page scroll) can be enabled per table with expandOnMobile: true.
+        var expandOnMobile = options.expandOnMobile === true;
+        var expandWhenOverflow = options.expandWhenOverflow !== false;
+        var mobileBreakpoint = parseInt(options.mobileBreakpoint, 10);
+        var minHeight = parseInt(options.minHeight, 10);
+        var extraOffset = parseInt(options.extraOffset, 10);
+        var wrapper = $(wrapperSelector).first();
+        var scrollBody = $(scrollBodySelector).first();
+
+        if (!wrapper.length || !scrollBody.length) {
+            return;
+        }
+
+        if (!wrapper.is(':visible') || !scrollBody.is(':visible')) {
+            return;
+        }
+
+        if (isNaN(mobileBreakpoint) || mobileBreakpoint < 0) {
+            mobileBreakpoint = 767;
+        }
+
+        var viewportWidth = window.innerWidth || $(window).width() || 0;
+        var shouldExpandOnMobile = expandOnMobile && viewportWidth > 0 && viewportWidth <= mobileBreakpoint;
+
+        if (shouldExpandOnMobile) {
+            // On small screens avoid inner vertical scroll and let the page scroll naturally.
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': '0px',
+                'overflow-y': 'visible'
+            });
+
+            $('body').removeClass('dt-height-fallback');
+            return;
+        }
+
+        if (isNaN(minHeight) || minHeight < 0) {
+            minHeight = 200;
+        }
+
+        if (isNaN(extraOffset)) {
+            extraOffset = 0;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+
+        if (!scrollBodyElement) {
+            return;
+        }
+
+        scrollBody.css({
+            'height': 'auto',
+            'max-height': 'none',
+            'min-height': '0px'
+        });
+
+        var viewportHeight = window.innerHeight || $(window).height() || 0;
+        var viewportBottom = viewportHeight - extraOffset;
+        var bottomContainer = wrapper.find('> .bottomContainer').first();
+        var referenceElement = bottomContainer.length ? bottomContainer.get(0) : wrapper.get(0);
+        var referenceRect = referenceElement && typeof referenceElement.getBoundingClientRect === 'function'
+            ? referenceElement.getBoundingClientRect()
+            : null;
+
+        if (!referenceRect) {
+            return;
+        }
+
+        var clampHeight = function(value) {
+            var height = Math.floor(value);
+            if (height < minHeight) {
+                height = minHeight;
+            }
+            if (height < 0) {
+                height = 0;
+            }
+            return height;
+        };
+
+        var currentBodyHeight = scrollBody.outerHeight() || 0;
+        var delta = viewportBottom - referenceRect.bottom;
+        var targetHeight = clampHeight(currentBodyHeight + delta);
+
+        var naturalBodyHeight = scrollBodyElement.scrollHeight || 0;
+        var applyScrollBodyHeight = function(height) {
+            scrollBody.css({
+                'height': height + 'px',
+                'max-height': height + 'px',
+                'min-height': '0px'
+            });
+        };
+
+        var contentWrapperElement = wrapper.closest('.content-wrapper').get(0);
+        var measureOverflow = function() {
+            var contentWrapperRect = contentWrapperElement && typeof contentWrapperElement.getBoundingClientRect === 'function'
+                ? contentWrapperElement.getBoundingClientRect()
+                : null;
+            var contentOverflow = contentWrapperRect ? Math.ceil(contentWrapperRect.bottom - viewportBottom) : 0;
+            return contentOverflow > 0 ? contentOverflow : 0;
+        };
+
+        for (var i = 0; i < 3; i++) {
+            applyScrollBodyHeight(targetHeight);
+            var overflow = measureOverflow();
+
+            if (overflow <= 0) {
+                break;
+            }
+
+            var nextHeight = clampHeight(targetHeight - overflow);
+            if (nextHeight === targetHeight) {
+                break;
+            }
+
+            targetHeight = nextHeight;
+        }
+        if (expandWhenOverflow && naturalBodyHeight > (targetHeight + 1)) {
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': targetHeight + 'px'
+            });
+        } else {
+            applyScrollBodyHeight(targetHeight);
+        }
+
+        $('body').removeClass('dt-height-fallback');
+    }
+
+    var updateTableHeightRafId = null;
+    var updateTableHeightImmediateTimeoutId = null;
+    var updateTableHeightDelayedTimeoutId = null;
+
+    function scheduleUpdateTableHeight() {
+        var hasDataTableApi = !!($.fn.dataTable && $.fn.dataTable.tables);
+        var hasUpdateTableHeightFn = (typeof window.updateTableHeight === 'function');
+
+        if (!hasDataTableApi && !hasUpdateTableHeightFn) {
+            return;
+        }
+
+        var refreshLayout = function() {
+            if (hasDataTableApi) {
+                var tablesApi = $.fn.dataTable.tables({ visible: true, api: true });
+                if (tablesApi && tablesApi.columns) {
+                    tablesApi.columns.adjust();
+                }
+            }
+
+            if (hasUpdateTableHeightFn) {
+                window.updateTableHeight();
+            }
+        };
+
+        if (updateTableHeightRafId && window.cancelAnimationFrame) {
+            window.cancelAnimationFrame(updateTableHeightRafId);
+        }
+
+        if (updateTableHeightImmediateTimeoutId) {
+            clearTimeout(updateTableHeightImmediateTimeoutId);
+        }
+
+        if (updateTableHeightDelayedTimeoutId) {
+            clearTimeout(updateTableHeightDelayedTimeoutId);
+        }
+
+        if (window.requestAnimationFrame) {
+            updateTableHeightRafId = window.requestAnimationFrame(function() {
+                updateTableHeightRafId = null;
+                refreshLayout();
+            });
+        } else {
+            updateTableHeightImmediateTimeoutId = setTimeout(function() {
+                updateTableHeightImmediateTimeoutId = null;
+                refreshLayout();
+            }, 0);
+        }
+
+        // Secondary pass for animated layout changes (sidebar / tabs / collapse).
+        updateTableHeightDelayedTimeoutId = setTimeout(function() {
+            updateTableHeightDelayedTimeoutId = null;
+            refreshLayout();
+        }, 180);
+    }
+
+    function bindPageFiltersHeightWatchers() {
+        $(document).on('click', '.btnFilters, .pageFilters .btnClose, .pageFilters .btnReset, .pageFilters .btnSearch', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        if (!window.MutationObserver) {
+            return;
+        }
+
+        $('.pageFilters').each(function() {
+            var panel = $(this);
+
+            if (panel.data('dt-height-observer-bound')) {
+                return;
+            }
+
+            var observer = new MutationObserver(function() {
+                scheduleUpdateTableHeight();
+            });
+
+            observer.observe(this, {
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+
+            panel.data('dt-height-observer-bound', true);
+        });
+    }
+
+    function setDataTableDropdownDirection(dropdown) {
+        var scrollBody = dropdown.closest('.dataTables_scrollBody');
+        var menu = dropdown.children('.dropdown-menu').first();
+        var toggle = dropdown.children('[data-toggle="dropdown"]').first();
+
+        dropdown.removeClass('dropup');
+
+        if (!scrollBody.length || !menu.length || !toggle.length) {
+            return;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+        var toggleElement = toggle.get(0);
+
+        if (!scrollBodyElement || !toggleElement || typeof scrollBodyElement.getBoundingClientRect !== 'function' || typeof toggleElement.getBoundingClientRect !== 'function') {
+            return;
+        }
+
+        var scrollRect = scrollBodyElement.getBoundingClientRect();
+        var toggleRect = toggleElement.getBoundingClientRect();
+
+        if (!scrollRect || !toggleRect) {
+            return;
+        }
+
+        var originalStyle = menu.attr('style');
+        menu.css({
+            display: 'block',
+            visibility: 'hidden'
+        });
+
+        var menuHeight = menu.outerHeight() || 0;
+
+        if (typeof originalStyle === 'string') {
+            menu.attr('style', originalStyle);
+        } else {
+            menu.removeAttr('style');
+        }
+
+        var availableAbove = Math.max(0, toggleRect.top - scrollRect.top);
+        var availableBelow = Math.max(0, scrollRect.bottom - toggleRect.bottom);
+        var fitsAbove = menuHeight <= availableAbove;
+        var fitsBelow = menuHeight <= availableBelow;
+        var shouldOpenUp = fitsAbove && (!fitsBelow || availableAbove > availableBelow);
+
+        if (shouldOpenUp) {
+            dropdown.addClass('dropup');
+        }
+    }
+
+    $(document).ready(function() {
+        toggleDarkMode();
+        bindPageFiltersHeightWatchers();
+
+        if (typeof window.updateTableHeight !== 'function') {
+            $('body').removeClass('dt-height-fallback');
+        }
+
+        $(document).on('init.dt draw.dt', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('load', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('resize.etoTableHeight orientationchange.etoTableHeight', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document).on('expanded.pushMenu collapsed.pushMenu shown.bs.tab shown.bs.collapse hidden.bs.collapse', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document)
+            .on('show.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                setDataTableDropdownDirection($(this));
+            })
+            .on('hidden.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                $(this).removeClass('dropup');
+            });
+
+        $('.btnAdminToolboxDarkMode').click(function(e) {
+            isDarkMode = !isDarkMode;
+
+            if (isDarkMode) {
+              $.cookie('app_state_dark_mode', 1, {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            } else {
+              $.removeCookie('app_state_dark_mode', {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            }
+
+            toggleDarkMode();
+            window.location.reload();
+            e.preventDefault();
+        });
+
+        // Select
+        $('.select2').not('#switch_profile').select2({
+            minimumResultsForSearch: 5
+        });
+
+        $('#switch_profile').select2({
+            minimumResultsForSearch: Infinity,
+            dropdownParent: $('.switch-profile-box')
+        });
+
+        // Tooltip
+        $('[title]').tooltip({
+            placement: 'auto',
+            container: 'body',
+            selector: '',
+            html: true,
+            trigger: 'hover',
+            delay: { show: 500, hide: 100 }
+        });
+
+        // Switch profile
+        $('#switch_profile').on('change', function(e) {
+            $.ajax({
+                headers : {
+                    'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+                },
+                url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+                type: 'POST',
+                dataType: 'json',
+                cache: false,
+                async: false,
+                data: {
+                    task: 'profile',
+                    action: 'switch',
+                    id: $(this).val()
+                },
+                success: function(response) {
+                    if ( response.success ) {
+                        window.location.reload();
+                    } else {
+                        alert("Could not switch to this profile.");
+                    }
+                },
+                error: function(response) {
+                    alert("An error occurred while processing your request.");
+                }
+            });
+
+            e.preventDefault();
+        });
+    });
+    </script>
+
+      <script src="https://u3211.eto2.taxi/assets/plugins/moment/moment.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/jquery.dataTables.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/dataTables.bootstrap.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/dataTables.buttons.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/buttons.bootstrap.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/buttons.colVis.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/buttons.server-side.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/ColReorder/js/dataTables.colReorder.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Select/js/dataTables.select.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/select2/select2.full.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap-touchspin/jquery.bootstrap-touchspin.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap-daterangepicker/daterangepicker.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation-bootstrap.min.js"></script>
+  <script>
+  window.i18n = window.i18n || {};
+  window.i18n.fixed_prices = {
+    buttons: {
+      delete: "Delete",
+      delete_confirm: "Yes, delete",
+      cancel: "Cancel",
+      duplicate: "Duplicate",
+      duplicate_confirm: "Yes, duplicate",
+      edit: "Edit",
+      add: "Add",
+      add_new: "Add new",
+      save: "Save",
+      save_edit: "Save \u0026 Edit"    },
+    status: {
+      active: "Active",
+      inactive: "Inactive"    },
+    messages: {
+      delete_confirm_title: "Are you sure?",
+      delete_failed: "The data could not be deleted.",
+      request_error: "An error occurred while processing your request.",
+      duplicate_confirm: "Are you sure you want to duplicate this price?",
+      copy_failed: "The data could not be copied.",
+      loading: "Loading",
+      in_progress: "In progress",
+      load_failed: "The data could not be loaded.",
+      added: "Added.",
+      saved: "Saved."    },
+    labels: {
+      type: "Type",
+      direction: "Direction",
+      direction_both: "Both ways",
+      direction_from_to: "From -\u0026gt; To",
+      zone: "Zone",
+      zone_short: "Z",
+      zones: "Zones",
+      postcodes: "Postcodes",
+      add_zone: "Add zone",
+      add_postcode: "Add postcode",
+      zone_warning: "We recommend using Zones instead of Postcodes. Zone-based prices rely on geographical coordinates rather than postcodes, which makes them more reliable, especially in locations where postcodes are missing or inconsistent. If you use Zones, disable \u0022Settings \u003E Google \u003E General \u003E Better use of postcode based Fixed Price system\u0022 to avoid unnecessary postcode checks.",
+      from_match: "From match",
+      to_match: "To match",
+      from: "From",
+      to: "To",
+      price: "Price",
+      base_price: "Base price",
+      action: "Action",
+      deposit: "Deposit",
+      deposit_type_flat: "Flat",
+      deposit_type_percent: "Percent",
+      limit_date_time: "Limit to specific date and time",
+      start_date: "Start date",
+      end_date: "End date",
+      ordering: "Ordering",
+      assign_services: "Assign to selected services (all if no options are selected)",
+      active: "Active",
+      zone: "Zone"    },
+    actions: {
+      include: "Include",
+      exclude: "Exclude",
+      price_multiply: "Price * X",
+      price_add: "Price + X",
+      override_flat: "Override - Flat (\u0022Base price\u0022 not available as there is nothing to override)",
+      multiply: "Multiply - Increase base price by %",
+      add: "Add - Increase base price by X"    },
+    table: {
+      actions: "Actions",
+      select_all: "Select all",
+      info: "Info",
+      services: "Services",
+      location_type: "Location type",
+      from: "From",
+      to: "To",
+      direction: "Direction",
+      price: "Price",
+      deposit: "Deposit",
+      start_date: "Start date",
+      end_date: "End date",
+      active: "Active",
+      ordering: "Ordering",
+      created_date: "Created date",
+      modified_date: "Modified date",
+      site_id: "Site ID",
+      id: "ID"    },
+    popovers: {
+      modal_distance_title: "How to add Distance Modifier?",
+      modal_fixed_title: "How to add Fixed Price?",
+      modal_distance_content: "\u003Cb\u003EDirection\u003C\/b\u003E\u003Cbr\u003EIt define if new price will be apply one way from A to B only or both direction.\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EFrom and To\u003C\/b\u003E\u003Cbr\u003E\u003Cul style=\u0022padding-left:20px; margin-bottom:20px;\u0022\u003E\u003Cli\u003EAdd postcode(s) by typing first part of postcode e.g. E1 and click enter. If there is more than one postcode then put next postcode and click enter e.g. E2 and click enter, E3 and click enter, so on.\u003C\/li\u003E\u003Cli\u003EWhen typing a new postcode or location, system will make suggestion display in dropdown list, you can choose those by simply clicking on of the suggestions e.g. Heathrow Terminal 1 (TW6 1AP) or E2\u003C\/li\u003E\u003Cli\u003ETo add new suggestion go to Settings \u003E Location \u003E Add new location\u003C\/li\u003E\u003C\/ul\u003EImportant: Distance prices only work with postcodes and pre-set location (Settings \u003E Location \u003E Add new location). Any location names not added in Location tab e.g. towns, areas, etc. won\u0027t be detected.\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EPrice\u003C\/b\u003E\u003Cbr\u003E\u0022Action\u0022 option allows to choose how price will be calculated\u003Cbr\u003E\u003Cul style=\u0022padding-left:20px; margin-bottom:20px;\u0022\u003E\u003Cli\u003E\u003Cb\u003EPrice * X\u003C\/b\u003E - add Distance price value and for each vehicle type add % value by which Distance price will be multiply, e.g.\u003Cbr\u003E\u003Cbr\u003EDistance price is \u0026pound;50\u003Cbr\u003E\u003Cbr\u003Eset Saloon value to \u00221\u0022, calculated price for Saloon is \u0026pound;50\u003Cbr\u003E\u003Cbr\u003Eset Estate value to \u00221.1\u0022, calculated price for Estate is \u0026pound;55 (10% increase)\u003Cbr\u003E\u003Cbr\u003Eset Executive value to \u00221.3\u0022, calculated price for Executive is \u0026pound;65 (30% increase)\u003Cbr\u003E\u003Cbr\u003E\u003C\/li\u003E\u003Cli\u003E\u003Cb\u003EPrice + X\u003C\/b\u003E - add Distance price value and for each vehicle type add X value by which Distance price will be increase, e.g.\u003Cbr\u003E\u003Cbr\u003EDistance price = \u0026pound;50\u003Cbr\u003E\u003Cbr\u003Eset Saloon value to \u00220\u0022, calculated price for Saloon is \u0026pound;50\u003Cbr\u003E\u003Cbr\u003Eset Estate value to \u00226\u0022, calculated cost price Estate is \u0026pound;56\u003Cbr\u003E\u003Cbr\u003Eset Executive value to \u002213\u0022, calculated price for Executive is \u0026pound;63\u003C\/li\u003E\u003C\/ul\u003E\u003Cb\u003ELimit to specific Time and Date\u003C\/b\u003E\u003Cbr\u003ESetting specific time and date will set Distance Price to be available only to specific period of time, e.g christmas or school break time.\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EActive\u003C\/b\u003E tickbox\u003Cbr\u003EWhen the tixbox is marked, Distance Price is set to active.",
+      modal_fixed_content: "\u003Cb\u003EDirection\u003C\/b\u003E\u003Cbr\u003EIt define if new price will be apply one way from A to B only or both direction.\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EFrom and To\u003C\/b\u003E\u003Cbr\u003E\u003Cul style=\u0022padding-left:20px; margin-bottom:20px;\u0022\u003E\u003Cli\u003EAdd postcode(s) by typing first part of postcode e.g. E1 and click enter. If there is more than one postcode then put next postcode and click enter e.g. E2 and click enter, E3 and click enter, so on.\u003C\/li\u003E\u003Cli\u003EWhen typing a new postcode or location, system will make suggestion display in dropdown list, you can choose those by simply clicking on of the suggestions e.g. Heathrow Terminal 1 (TW6 1AP) or E2\u003C\/li\u003E\u003Cli\u003ETo add new suggestion go to Settings \u003E Location \u003E Add new location\u003C\/li\u003E\u003C\/ul\u003EImportant: Fixed prices only work with postcodes and pre-set location (Settings \u003E Location \u003E Add new location). Any location names not added in Location tab e.g. towns, areas, etc. won\u0027t be detected.\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EPrice\u003C\/b\u003E\u003Cbr\u003E\u0022Action\u0022 option allows to choose how price will be calculated\u003Cbr\u003E\u003Cul style=\u0022padding-left:20px; margin-bottom:20px;\u0022\u003E\u003Cli\u003E\u003Cb\u003EFlat\u003C\/b\u003E - this is a final value which will be display as a price\u003Cbr\u003E\u003Cbr\u003E\u003C\/li\u003E\u003Cli\u003E\u003Cb\u003EIncrease base price by %\u003C\/b\u003E - add Base price value and for each vehicle type add % value by which Base price will be multiply, e.g.\u003Cbr\u003E\u003Cbr\u003EBase price is \u0026pound;50\u003Cbr\u003E\u003Cbr\u003Eset Saloon value to \u00221\u0022, calculated price for Saloon is \u0026pound;50\u003Cbr\u003E\u003Cbr\u003Eset Estate value to \u00221.1\u0022, calculated price for Estate is \u0026pound;55 (10% increase)\u003Cbr\u003E\u003Cbr\u003Eset Executive value to \u00221.3\u0022, calculated price for Executive is \u0026pound;65 (30% increase)\u003Cbr\u003E\u003Cbr\u003E\u003C\/li\u003E\u003Cli\u003E\u003Cb\u003EIncrease base price by X\u003C\/b\u003E - add Base price value and for each vehicle type add X value by which Base price will be increase, e.g.\u003Cbr\u003E\u003Cbr\u003EBase price = \u0026pound;50\u003Cbr\u003Eset Saloon value to \u00220\u0022, calculated price for Saloon is \u0026pound;50\u003Cbr\u003E\u003Cbr\u003Eset Estate value to \u00226\u0022, calculated cost price Estate is \u0026pound;56\u003Cbr\u003E\u003Cbr\u003Eset Executive value to \u002213\u0022, calculated price for Executive is \u0026pound;63\u003C\/li\u003E\u003C\/ul\u003E\u003Cb\u003ELimit to specific Time and Date\u003C\/b\u003E\u003Cbr\u003ESetting specific time and date will set Fixed Price to be available only to specific period of time, e.g christmas or school break time.\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EActive\u003C\/b\u003E tickbox\u003Cbr\u003EWhen the tixbox is marked, Fixed Price is set to active.",
+      deposit_title: "Fixed Price Deposit",
+      deposit_content: "To enable\/disable individual deposit for each vehicle type, first Save this Fixed Price then go to Settings \u003E Deposit Payment \u003E click Active Fixed Price deposit \u003E choose type of deposit: Percent or Flat\u003Cbr\u003E\u003Cbr\u003E\u003Cul style=\u0022padding-left:20px; margin-bottom:20px;\u0022\u003E\u003Cli\u003Ee.g. Saloon price is set \u0026pound;100, deposit Percent value is set to 30, then customer will be asked for \u0026pound;30 deposit.\u003C\/li\u003E\u003Cli\u003Ee.g. Saloon price is set \u0026pound;100, deposit Flat value is set to 20, then customer will be asked for 20 deposit.\u003C\/li\u003E\u003C\/ul\u003EIf Deposit is set for one vehicle type in this Fixed Price, then it should to be set to all vehicle types, otherwise if is left as 0, deposit will not be taken. Default deposit doesn\u0027t apply in this case.\u003Cbr\u003E\u003Cbr\u003EIf Fixed Price deposit setting is set to active but in none of the vehicle type deposit is set in this Fixed Price, then default site deposit is apply instead.",
+      deposit_action_note: "You can change action in deposit configuration in settings tab."    }
+  };
+  var i18nData = window.i18n.fixed_prices;
+
+  var isReady = 1;
+
+  function escapeAttrQuotes(value) {
+    if (value === null || typeof value === 'undefined') {
+      return '';
+    }
+    return String(value)
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function filterTable(isDelete, isPageReset) {
+      var values = $('.pageFilters form').serialize();
+      var isDelete = isDelete ? true : false;
+      var isPageReset = isPageReset ? true : false;
+      var dTable = $('#dtable').DataTable();
+      var dInfo = dTable.page.info();
+      var dRows = dTable.rows({page:'current'}).nodes();
+      // console.log(dRows.any(), dRows.length, isDelete, dInfo);
+
+      values = ETO.cleanQueryString(values);
+
+      dTable.search(values);
+      if (dInfo.page > 0 && dRows.length - 1 <= 0 && isDelete === true) {
+          dTable.page('previous');
+      }
+      dTable.draw(isPageReset);
+
+      updateFilters(values);
+  }
+
+  function updateFilters(search) {
+    var searchValue = search || '';
+
+    if (typeof search == 'undefined') {
+      var state = $('#dtable').DataTable().state.loaded();
+
+      if (state) {
+        searchValue = state.search.search;
+      }
+    }
+
+    try {
+      searchValue = decodeURIComponent(searchValue);
+    } catch (error) {
+      console.error('Error decoding search value:', error);
+    }
+
+    $('.btnFilters > .badge').remove();
+
+    if (searchValue) {
+      var filterData = ETO.parseQueryString(searchValue);
+
+      if (filterData) {
+        var filterCount = 0;
+
+        $.each(filterData, function(i, item) {
+          $('#'+ i).val(item).trigger('change');
+          filterCount++;
+        });
+
+        if (filterCount) {
+          $('.btnFilters').append('<span class="badge bg-yellow">'+ filterCount +'</span>');
+        }
+      }
+    }
+  }
+
+  function updateTableHeight() {
+    updateDataTableScrollBodyHeight({
+      wrapperSelector: '#dtable_wrapper',
+      scrollBodySelector: '#fixed-prices .dataTables_scrollBody'
+    });
+  }
+
+  function deleteRecord(id) {
+      var html = '';
+      var title = '';
+
+      title = i18nData.messages.delete_confirm_title;
+      html = '<button type="button" class="btn btn-danger btnConfirm" title="'+ i18nData.buttons.delete +'"><i class="fa fa-trash"></i> '+ i18nData.buttons.delete_confirm +'</button>\
+              <button type="button" class="btn btn-link btnCancel" title="'+ i18nData.buttons.cancel +'">'+ i18nData.buttons.cancel +'</button>\
+              <span id="statusMsg"></span>';
+
+      $('#dmodal .modal-title').html(title);
+      $('#dmodal .modal-body').html(html);
+      $('#dmodal').modal({
+          show: true
+      });
+
+      $('#dmodal .btnConfirm').off('click').on('click', function() {
+        $.ajax({
+          headers : {
+            'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+          },
+          url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+          type: 'POST',
+          dataType: 'json',
+          cache: false,
+          data: {
+            task: 'fixedprices',
+            action: 'destroy',
+            id: id
+          },
+          success: function(response) {
+            if(response.success) {
+              $('#dmodal #statusMsg').html('');
+              $('#dmodal').modal('hide');
+              filterTable(true);
+            }
+            else {
+              $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.delete_failed +'</span>');
+            }
+          },
+          error: function(response) {
+            $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+          },
+          beforeSend: function() {
+            $('#dmodal #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.messages.loading);
+            $('#dmodal .modal-overlay').show();
+          },
+          complete: function() {
+            $('#dmodal .modal-overlay').hide();
+          }
+        });
+      });
+
+      $('#dmodal .btnCancel').off('click').on('click', function() {
+        $('#dmodal').modal('hide');
+      });
+  }
+
+  function changeStatus(id) {
+      if( !isReady ) {
+          return false;
+      }
+
+      $.ajax({
+          headers : {
+              'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+          },
+          url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+          type: 'POST',
+          dataType: 'json',
+          cache: false,
+          data: {
+              task: 'fixedprices',
+              action: 'changeStatus',
+              id: id
+          },
+          success: function(response) {
+              isReady = 1;
+
+              if (response.status == 1) {
+                  var h = '<span class="text-success status-icon" title="'+ i18nData.status.active +'"><i class="fa fa-check-circle"></i></span>';
+              } else {
+                  var h = '<span class="text-danger status-icon" title="'+ i18nData.status.inactive +'"><i class="fa fa-times-circle"></i></span>';
+              }
+              $('#dtable_wrapper .row-fp-status-'+ id +' .button-fp-changeStatus').html(h);
+
+              if (response.error) {
+                  alert(response.error);
+              }
+          },
+          error: function(response) {
+              //
+          },
+          beforeSend: function() {
+              isReady = 0;
+              $('#dtable_wrapper .row-fp-status-'+ id +' .button-fp-changeStatus i').attr('class', 'fa fa-spinner fa-spin');
+          },
+          complete: function() {
+              isReady = 1;
+          }
+      });
+  }
+
+  function copyRecord(id) {
+      var html = '';
+      var title = '';
+
+      title = i18nData.buttons.duplicate;
+      html = '<p style="margin-bottom:20px;">'+ i18nData.messages.duplicate_confirm +'</p>\
+              <button type="button" class="btn btn-success btnConfirm" title="'+ i18nData.buttons.duplicate +'"> '+ i18nData.buttons.duplicate_confirm +'</button>\
+              <button type="button" class="btn btn-link btnCancel" title="'+ i18nData.buttons.cancel +'">'+ i18nData.buttons.cancel +'</button>\
+              <span id="statusMsg"></span>';
+
+      $('#dmodal .modal-title').html(title);
+      $('#dmodal .modal-body').html(html);
+      $('#dmodal').modal({
+          show: true
+      });
+
+      $('#dmodal .btnConfirm').off('click').on('click', function() {
+          $.ajax({
+              headers : {
+                'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+              },
+              url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+              type: 'POST',
+              dataType: 'json',
+              cache: false,
+              data: {
+                  task: 'fixedprices',
+                  action: 'copy',
+                  id: id
+              },
+              success: function(response) {
+                if(response.success) {
+                    $('#dmodal #statusMsg').html('');
+                    $('#dmodal').modal('hide');
+                    filterTable(true);
+                }
+                else {
+                    $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.copy_failed +'</span>');
+                }
+              },
+              error: function(response) {
+                  $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+              },
+              beforeSend: function() {
+                  $('#dmodal #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.messages.loading);
+                  $('#dmodal .modal-overlay').show();
+              },
+              complete: function() {
+                  $('#dmodal .modal-overlay').hide();
+              }
+          });
+      });
+
+      $('#dmodal .btnCancel').off('click').on('click', function() {
+          $('#dmodal').modal('hide');
+      });
+  }
+
+  function updateFormPlaceholder(that) {
+      var $container = $(that).closest('.form-group:not(.placeholder-disabled)');
+
+      if( $(that).val() != '' || $container.hasClass('placeholder-visible') ) {
+          $container.find('label').show();
+      } else {
+          $container.find('label').hide();
+      }
+  }
+
+  function applyFieldOptions() {
+      if( 0 ) {
+          $('#table-pricing .deposit').show();
+      }
+      else {
+          $('#table-pricing .deposit').hide();
+      }
+
+      // Select
+      $('#dmodal form .select2').select2();
+
+      // Spinner
+      $('#dmodal form input[type="text"].touchspin').TouchSpin({
+        max: null,
+        booster: true,
+        boostat: 5,
+        mousewheel: true,
+        verticalbuttons: true,
+        verticalupclass: 'fa fa-plus',
+        verticaldownclass: 'fa fa-minus'
+      });
+
+      // Date picker
+      $('#dmodal form .datepicker').daterangepicker({
+        drops: 'up',
+        singleDatePicker: true,
+        showDropdowns: true,
+        timePicker: true,
+        timePicker24Hour: true,
+        autoUpdateInput: false,
+        minYear: new Date().getFullYear() - 10,
+        maxYear: new Date().getFullYear() + 5,
+        locale: {
+          format: 'YYYY-MM-DD HH:mm',
+          firstDay: 1
+        },
+        ranges: ETO.getDateRanges(),
+      })
+      .on('apply.daterangepicker', function(ev, picker) {
+        $(this).val(picker.startDate.format('YYYY-MM-DD HH:mm')).change();
+      });
+
+      // Placeholder
+      $('#dmodal form').find('input:not([type="submit"]), textarea, select').each(function() {
+          updateFormPlaceholder(this);
+      })
+      .bind('change keyup', function(e) {
+          updateFormPlaceholder(this);
+      });
+
+      $('[data-toggle="popover"]').popover({
+          placement: 'auto right',
+          container: 'body',
+          trigger: 'click focus hover',
+          html: true
+      });
+
+      $('body').on('click', function (e) {
+          // did not click a popover toggle, or icon in popover toggle, or popover
+          if ($(e.target).data('toggle') !== 'popover'
+              && $(e.target).parents('[data-toggle="popover"]').length === 0
+              && $(e.target).parents('.popover.in').length === 0) {
+              $('[data-toggle="popover"]').popover('hide');
+          }
+      });
+  }
+
+  function checkType() {
+    var type = $('#dmodal form #type').val() == 2 ? 2 : 1;
+
+    if (type == 2) {
+      $('.fp-table-base-price').addClass('hidden');
+      $('.fp-table-base-price input#value').val(0);
+
+      $('select#factor_type option[value="2"]').addClass('hidden');
+      $('select#factor_type option[value="0"]').text(i18nData.actions.price_multiply);
+      $('select#factor_type option[value="1"]').text(i18nData.actions.price_add);
+    } else {
+      $('.fp-table-base-price').removeClass('hidden');
+      $('select#factor_type option[value="2"]').removeClass('hidden');
+      $('select#factor_type option[value="0"]').text(i18nData.actions.multiply);
+      $('select#factor_type option[value="1"]').text(i18nData.actions.add);
+    }
+  }
+
+  function updateRecord(id) {
+    var html = '';
+    var title = '';
+    var btnIcon = '';
+    var btnTitle = '';
+    var msgSuccess = '';
+    var buttonsHTML = '';
+
+    if( id && id >= 0 ) {
+        title = i18nData.buttons.edit;
+        btnIcon = 'fa fa-pencil-square-o';
+        btnTitle = i18nData.buttons.save;
+        msgSuccess = i18nData.messages.saved;
+        buttonsHTML = '<div class="btn-group dropdown">\
+            <button class="btn btn-success btnSaveClose" type="button" onclick="$(\'#dmodal form #submit_action\').val(\'save\'); $(\'#dmodal form #submit_action\').submit(); return false;">\
+                <span>'+ btnTitle +'</span>\
+            </button>\
+            <button type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown">\
+                <i class="fa fa-angle-down"></i>\
+            </button>\
+            <ul class="dropdown-menu" role="menu">\
+                <li>\
+                    <a href="#" onclick="$(\'#dmodal form #submit_action\').val(\'save_edit\'); $(\'#dmodal form #submit_action\').submit(); return false;">'+ i18nData.buttons.save_edit +'</a>\
+                </li>\
+            </ul>\
+          </div>';
+    }
+    else {
+        title = i18nData.buttons.add_new;
+        btnIcon = 'fa fa-plus';
+        btnTitle = i18nData.buttons.add;
+        msgSuccess = i18nData.messages.added;
+        buttonsHTML = '<button type="submit" class="btn btn-success btnSave" title="'+ btnTitle +'" onclick="$(\'#dmodal form #submit_action\').val(\'save\');"><span>'+ btnTitle +'</span></button>';
+    }
+
+    // <i class="'+ btnIcon +'"></i>\
+    // <button class="btn btn-success btnSave" type="button" onclick="$(\'#dmodal form #submit_action\').val(\'save\');"><span>'+ btnTitle +'</span></button>\
+
+          var popTitle = i18nData.popovers.modal_fixed_title;
+      var popContent = i18nData.popovers.modal_fixed_content;
+    
+    var popDeposit = i18nData.popovers.deposit_content;
+
+      title += '<a style="margin-left:5px; display:inline-block;" href="#" class="help-button" data-toggle="popover" data-title="'+ popTitle +'" data-content="'+ escapeAttrQuotes(popContent) +'"><i class="ion-ios-information-outline"></i></a>';
+
+      html = '<form method="post">\
+        <input type="hidden" name="submit_action" id="submit_action" value="save">\
+        <input type="hidden" name="id" id="id" value="0">\
+        <input type="hidden" name="site_id" id="site_id" value="0">\
+        <div class="form-group field-type">\
+              <label for="type">'+ i18nData.labels.type +'</label>\
+              <select name="type" id="type" data-placeholder="'+ i18nData.labels.type +'" data-minimum-results-for-search="Infinity" required class="form-control select2"></select>\
+            </div>\
+            <div class="form-group field-direction">\
+              <label for="direction">'+ i18nData.labels.direction +'</label>\
+              <select name="direction" id="direction" data-placeholder="'+ i18nData.labels.direction +'" data-minimum-results-for-search="Infinity" required class="form-control select2">\
+                <option value="0">'+ i18nData.labels.direction_both +'</option>\
+                <option value="1">'+ i18nData.labels.direction_from_to +'</option>\
+              </select>\
+            </div>\
+            <div class="field-is_zone">\
+                <label style="margin-right: 20px;font-weight: normal;">\
+                <input name="is_zone" id="is_zone_1" data-placeholder="'+ i18nData.labels.zones +'" type="radio" value="1" class="is_zone" checked="checked">\
+                '+ i18nData.labels.zones +' <a href="https://u3211.eto2.taxi/admin/zones/map" target="_blank" data-toggle="tooltip" data-title="'+ i18nData.labels.add_zone +'" class="zones-add-new"><i class="fa fa-plus"></i></a>\
+                </label>\
+                <label style="font-weight: normal;">\
+                <input name="is_zone" id="is_zone_0" data-placeholder="'+ i18nData.labels.postcodes +'" type="radio" value="0" class="is_zone">\
+                '+ i18nData.labels.postcodes +' <a href="https://u3211.eto2.taxi/admin/locations?action=add" target="_blank" data-toggle="tooltip" data-title="'+ i18nData.labels.add_postcode +'" class="zones-add-new"><i class="fa fa-plus"></i></a>\
+                </label>\
+            </div>\
+            <p class="field-postcode-zone-info text-warning hidden" style="margin-top:5px; margin-bottom:15px;">\
+              <i class="fa fa-info-circle"></i> '+ i18nData.labels.zone_warning +'\
+            </p>\
+            <div class="form-group field-start_type">\
+              <label for="start_type">'+ i18nData.labels.from_match +'</label>\
+              <select name="start_type" id="start_type" data-placeholder="'+ i18nData.labels.from_match +'" data-minimum-results-for-search="Infinity" required class="form-control select2">\
+                <option value="0">'+ i18nData.actions.include +'</option>\
+                <option value="1">'+ i18nData.actions.exclude +'</option>\
+              </select>\
+            </div>\
+            <div class="form-group field-start_zone">\
+              <label for="start_zone">'+ i18nData.labels.from +'</label>\
+              <select required="required" name="start_zone[]" id="start_zone" data-placeholder="'+ i18nData.labels.from +'" data-tags="false" data-allow-clear="true" multiple="multiple" size="1" class="form-control select2"></select>\
+            </div>\
+            <div class="form-group field-start_postcode hidden">\
+              <label for="start_postcode">'+ i18nData.labels.from +'</label>\
+              <select required="" name="start_postcode[]" id="start_postcode" data-placeholder="'+ i18nData.labels.from +'" data-tags="true" data-allow-clear="true" multiple="multiple" size="1" class="form-control select2"></select>\
+            </div>\
+            <div class="form-group field-end_type">\
+              <label for="end_type">'+ i18nData.labels.to_match +'</label>\
+              <select name="end_type" id="end_type" data-placeholder="'+ i18nData.labels.to_match +'" data-minimum-results-for-search="Infinity" required class="form-control select2">\
+                <option value="0">'+ i18nData.actions.include +'</option>\
+                <option value="1">'+ i18nData.actions.exclude +'</option>\
+              </select>\
+            </div>\
+            <div class="form-group field-end_zone">\
+              <label for="end_zone">'+ i18nData.labels.to +'</label>\
+              <select required="required" name="end_zone[]" id="end_zone" data-placeholder="'+ i18nData.labels.to +'" data-tags="false" data-allow-clear="true" multiple="multiple" size="1" class="form-control select2"></select>\
+            </div>\
+            <div class="form-group field-end_postcode hidden">\
+              <label for="end_postcode">'+ i18nData.labels.to +'</label>\
+              <select required="" name="end_postcode[]" id="end_postcode" data-placeholder="'+ i18nData.labels.to +'" data-tags="true" data-allow-clear="true" multiple="multiple" size="1" class="form-control select2"></select>\
+            </div>\
+            <table id="table-pricing" class="table table-condensed table-hover table-blank-inputs">\
+              <thead>\
+                <th></th>\
+                <th>'+ i18nData.labels.price +'</th>\
+                <th class="deposit">'+ i18nData.labels.deposit +'  <i class="ion-ios-information-outline" style="font-size:16px; margin-left:2px;" data-toggle="popover" data-title="'+ i18nData.popovers.deposit_title +'" data-content="'+ escapeAttrQuotes(popDeposit) +'"></i></th>\
+              </thead>\
+              <tbody>\
+                <tr class="fp-table-base-price hidden">\
+                  <td>\
+                    '+ i18nData.labels.base_price +'\
+                  </td>\
+                  <td>\
+                    <div class="form-group">\
+                      <input type="number" name="value" id="value" value="0" required class="form-control" step="0.01" min="0">\
+                    </div>\
+                  </td>\
+                  <td class="deposit">\
+                    <div class="form-group">\
+                      <input type="number" name="deposit" id="deposit" value="0" required class="form-control" step="0.01" min="0">\
+                    </div>\
+                  </td>\
+                </tr>\
+                <tr>\
+                  <td>'+ i18nData.labels.action +'</td>\
+                  <td>\
+                    <div class="form-group">\
+                      <select name="factor_type" id="factor_type" class="form-control">\
+                        <option value="2">'+ i18nData.actions.override_flat +'</option>\
+                        <option value="0">'+ i18nData.actions.multiply +'</option>\
+                        <option value="1">'+ i18nData.actions.add +'</option>\
+                      </select>\
+                    </div>\
+                  </td>\
+                  <td class="deposit" style="padding:0 10px;">\
+                    Percent <i class="ion-ios-information-outline" style="font-size:16px; margin-left:2px;" title="'+ i18nData.popovers.deposit_action_note +'"></i>\
+                  </td>\
+                </tr>\
+              </tbody>\
+            </table>\
+            <p>'+ i18nData.labels.limit_date_time +'</p>\
+            <div class="clearfix">\
+              <div class="form-group field-start_date">\
+                <label for="start_date">'+ i18nData.labels.start_date +'</label>\
+                <input type="text" name="start_date" id="start_date" placeholder="'+ i18nData.labels.start_date +'" class="form-control datepicker" autocomplete="off">\
+              </div>\
+              <div class="form-group field-end_date">\
+                <label for="end_date">'+ i18nData.labels.end_date +'</label>\
+                <input type="text" name="end_date" id="end_date" placeholder="'+ i18nData.labels.end_date +'" class="form-control datepicker" autocomplete="off">\
+              </div>\
+            </div>\
+            <div class="form-group field-ordering">\
+              <label for="ordering">'+ i18nData.labels.ordering +'</label>\
+              <input type="text" name="ordering" id="ordering" placeholder="'+ i18nData.labels.ordering +'" value="0" required class="form-control touchspin" data-bts-step="1" data-bts-min="0">\
+            </div>\
+            <div class="form-group field-service_ids" style="margin-top:20px; margin-bottom:20px; max-width:100%;">\
+              <div style="margin-bottom:10px;">'+ i18nData.labels.assign_services +'</div>\
+              <div id="service_ids"></div>\
+            </div>\
+            <div class="form-group field-published">\
+              <label for="published" class="checkbox-inline">\
+                <input type="checkbox" name="published" id="published" value="1" checked> '+ i18nData.labels.active +'\
+              </label>\
+            </div>\
+            <div class="form-buttons">\
+              '+ buttonsHTML +'\
+              <button type="button" class="btn btn-default btnCancel" title="'+ i18nData.buttons.cancel +'" onclick="$(\'#dmodal form #submit_action\').val(\'cancel\');"><span>'+ i18nData.buttons.cancel +'</span></button>\
+              <span id="statusMsg"></span>\
+            </div>\
+          </form>';
+
+    $('#dmodal .modal-title').html(title);
+    $('#dmodal .modal-body').html(html);
+    $('#dmodal').modal({
+      show: true
+    });
+
+    $('#dmodal form #type').change(function() {
+      checkType();
+    });
+
+    // Load filters
+    $.ajax({
+      headers : {
+        'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+      },
+      url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+      type: 'POST',
+      dataType: 'json',
+      cache: false,
+      async: false,
+      data: {
+        task: 'fixedprices',
+        action: 'init'
+      },
+      success: function(response) {
+
+          // Services
+          html = '';
+          if (response.servicesList) {
+            $.each(response.servicesList, function(index, item) {
+              html += '<div><label for="service_ids'+ item.id +'" class="checkbox-inline">';
+                html += '<input type="checkbox" name="service_ids[]" id="service_ids'+ item.id +'" value="'+ item.id +'"> '+ item.name +'';
+              html += '</label></div>';
+            });
+          }
+          $('#dmodal #service_ids').html(html);
+
+          if( html ) {
+              $('#dmodal .field-service_ids').show();
+          }
+          else {
+              $('#dmodal .field-service_ids').hide();
+          }
+
+        // Type
+        html = '';
+        if (response.typeList) {
+          $.each(response.typeList, function(index, item) {
+            html += '<option value="'+ item.value +'">'+ item.text +'</option>';
+          });
+        }
+        $('#type').html(html);
+
+        // Postcodes
+        html = '';
+        if (response.postcodeList) {
+          $.each(response.postcodeList, function(index, item) {
+            html += '<option value="'+ item.value +'">'+ item.text +'</option>';
+          });
+        }
+        $('#dmodal #start_postcode').html(html);
+        $('#dmodal #end_postcode').html(html);
+
+        // Zones
+        html = '';
+        if (response.zoneList) {
+          $.each(response.zoneList, function(index, item) {
+            html += '<option value="'+ item.value +'">'+ item.text +'</option>';
+          });
+        }
+        $('#dmodal #start_zone').html(html);
+        $('#dmodal #end_zone').html(html);
+
+        // Vehicle types
+        html = '';
+        if (response.vehicleTypesList) {
+          $.each(response.vehicleTypesList, function(index, item) {
+            html += '<tr>\
+                        <td>\
+                          '+ item.name +'\
+                        </td>\
+                        <td>\
+                          <div class="form-group">\
+                            <input type="number" name="vehicle_'+ item.id +'" id="vehicle_'+ item.id +'" value="0" required class="form-control" step="0.01" min="0">\
+                          </div>\
+                        </td>\
+                        <td class="deposit">\
+                          <div class="form-group">\
+                            <input type="number" name="vehicle_deposit_'+ item.id +'" id="vehicle_deposit_'+ item.id +'" value="0" required class="form-control" step="0.01" min="0">\
+                          </div>\
+                        </td>\
+                    </tr>';
+          });
+        }
+        $('#dmodal #table-pricing tbody tr:last-child').after(html);
+      },
+      error: function(response) {
+        $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+      }
+    });
+
+    // Load data
+    if( id && id >= 0 ) {
+      $.ajax({
+        headers : {
+          'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+        },
+        url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+        type: 'POST',
+        dataType: 'json',
+        cache: false,
+        data: {
+          task: 'fixedprices',
+          action: 'read',
+          id: id
+        },
+        success: function(response) {
+          if( response.success ) {
+            $('#dmodal #statusMsg').html('');
+
+            if( response.record ) {
+              $.each(response.record, function(key, value) {
+                if (key == 'is_zone') {
+                    var field = $('#dmodal form input.is_zone');
+                } else {
+                    var field = $('#dmodal form #'+ key);
+                }
+
+                if( field.hasClass('select2') ) {
+                  field.val(value).trigger('change');
+                }
+                else if( field.is(':checkbox') ) {
+                  if( parseInt(value) ) {
+                    field.attr('checked', true);
+                  }
+                  else {
+                    field.attr('checked', false);
+                  }
+                }
+                else if( field.is(':radio') ) {
+                  field.each(function(k,el) {
+                    if(parseInt($(el).val()) === parseInt(value)) {
+                      $(el).attr('checked', true)
+                    }
+                    else {
+                      $(el).attr('checked', false);
+                    }
+                  });
+                }
+                else if( key == 'params' ) {
+                    $('#dmodal form #factor_type').val(value.factor_type);
+                    $('#dmodal form #deposit').val(value.deposit ? value.deposit : 0);
+                    if( value.vehicle ) {
+                        $.each(value.vehicle, function(key2, value2) {
+                            $('#dmodal form #vehicle_'+ value2.id).val(value2.value);
+                            $('#dmodal form #vehicle_deposit_'+ value2.id).val(value2.deposit ? value2.deposit : 0);
+                        });
+                    }
+                }
+                else if( key == 'service_ids' ) {
+                    $.each(value, function(key2, value2) {
+                        if( $('#dmodal form #service_ids'+ value2).length > 0 ) {
+                            $('#dmodal form #service_ids'+ value2).attr('checked', true);
+                        }
+                    });
+                }
+                else {
+                  field.val(value);
+                }
+              });
+
+              applyFieldOptions();
+              checkType();
+              $('.is_zone').change();
+            }
+          }
+          else {
+            $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.load_failed +'</span>');
+          }
+        },
+        error: function(response) {
+          $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+        },
+        beforeSend: function() {
+          $('#dmodal #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.messages.in_progress);
+          $('#dmodal .modal-overlay').show();
+        },
+        complete: function() {
+          $('#dmodal .modal-overlay').hide();
+        }
+      });
+    }
+    else {
+        $('#dmodal form #type').val('1').trigger('change');
+        $('#dmodal form #factor_type').val('2');
+        applyFieldOptions();
+    }
+
+    // Form validation and submission
+    $form = $('#dmodal form');
+
+    $form.formValidation({
+      framework: 'bootstrap',
+      icon: {
+        valid: 'glyphicon glyphicon-ok',
+        invalid: 'glyphicon glyphicon-remove',
+        validating: 'glyphicon glyphicon-refresh'
+      },
+      excluded: [':disabled', ':hidden', ':not(:visible)']
+    })
+    .on('err.field.fv', function(e, data) {
+      e.preventDefault();
+      if( data.fv.getSubmitButton() ) {
+        data.fv.disableSubmitButtons(false);
+      }
+    })
+    .on('success.field.fv', function(e, data) {
+      e.preventDefault();
+      if( data.fv.getSubmitButton() ) {
+        data.fv.disableSubmitButtons(false);
+      }
+    })
+    .on('success.form.fv', function(e) {
+      e.preventDefault();
+      if( isReady ) {
+        var formValues = $("#dmodal form").serializeArray();
+
+        var values = {};
+        $.each(formValues, function() {
+          if (values[this.name] || values[this.name] == '') {
+            if (!values[this.name].push) {
+              values[this.name] = [values[this.name]];
+            }
+            values[this.name].push(this.value || '');
+          } else {
+            values[this.name] = this.value || '';
+          }
+        });
+
+        var params = {
+          task: 'fixedprices',
+          action: 'update'
+        };
+
+        $.ajax({
+          headers : {
+            'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+          },
+          url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+          type: 'POST',
+          dataType: 'json',
+          cache: false,
+          data: $.extend(params, values),
+          success: function(response) {
+            if(response.success) {
+              $('#dmodal #statusMsg').html('<span class="text-green"><i class="fa fa-check-circle"></i> '+ msgSuccess +'</span>');
+
+              if( parseInt(values.id) <= 0 ) {
+                  $('#dmodal form').trigger('reset');
+                  $('#dmodal').modal('hide');
+              }
+
+              switch( $('#dmodal form').find('#submit_action').val() ) {
+                  case 'save':
+                      $('#dmodal form').trigger('reset');
+                      $('#dmodal').modal('hide');
+                  break;
+                  case 'save_edit':
+                      //
+                  break;
+              }
+
+              filterTable();
+            }
+            else {
+                var msg = i18nData.messages.update_failed;
+                if (response.message) { msg = response.message; }
+                $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ msg +'</span>');
+            }
+          },
+          error: function(response) {
+            $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+          },
+          beforeSend: function() {
+            $('#dmodal #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.messages.in_progress);
+            isReady = 0;
+          },
+          complete: function() {
+            isReady = 1;
+          }
+        });
+      }
+    });
+
+    $('body').on('change', '.is_zone', function() {
+      if($(this).closest('.field-is_zone').find(':checked').val() == '1') {
+        $form.find('#start_zone, #end_zone').attr('required', true);
+        $form.find('.field-start_zone, .field-end_zone').removeClass('hidden');
+
+        $form.find('#start_postcode, #end_postcode').attr('required', false);
+        $form.find('.field-start_postcode, .field-end_postcode').addClass('hidden');
+        $form.find('.field-postcode-zone-info').addClass('hidden');
+      }
+      else {
+        $form.find('#start_zone, #end_zone').attr('required', false);
+        $form.find('.field-start_zone, .field-end_zone').addClass('hidden');
+
+        $form.find('#start_postcode, #end_postcode').attr('required', true);
+        $form.find('.field-start_postcode, .field-end_postcode').removeClass('hidden');
+        $form.find('.field-postcode-zone-info').removeClass('hidden');
+      }
+    });
+
+    // Cancel button
+    $('#dmodal .btnCancel').on('click', function() {
+      $('#dmodal').modal('hide');
+    });
+  }
+
+  function initCompleteDT() {
+    var dt = $('#dtable').DataTable();
+    var checkbox = $('th.select-checkbox');
+    var btn = $('.dt-btn-destroy_selected');
+    var isReady = 1;
+
+    checkbox.on('click', function() {
+      if (checkbox.hasClass('selected')) {
+        dt.rows().deselect();
+        checkbox.removeClass('selected');
+      } else {
+        dt.rows().select();
+        checkbox.addClass('selected');
+      }
+    });
+
+    dt.on('select deselect', function() {
+      var count = dt.rows({ selected: true }).count();
+
+      if (count !== dt.rows().count()) {
+        checkbox.removeClass('selected');
+      } else {
+        checkbox.addClass('selected');
+      }
+
+      btn.find('span.counter').remove();
+      if (count > 0) {
+        btn.append('<span class="counter">('+ count +')</span>');
+        btn.attr('disabled', false).removeClass('hidden');
+      } else {
+        btn.attr('disabled', true).addClass('hidden');
+      }
+    });
+
+    btn.on('click', function() {
+      if (!isReady) { return false; }
+
+      if (confirm("Are you sure you want to delete selected records?")) {
+        var IDs = [];
+        $.each(dt.rows({ selected: true }).data(), function(k, v) {
+            IDs.push(v.id);
+        });
+
+        $.ajax({
+            headers : {
+              'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+            },
+            url: 'https://u3211.eto2.taxi/admin/fixed-prices/destroy-selected',
+            type: 'POST',
+            dataType: 'json',
+            cache: false,
+            data: {
+              ids: IDs
+            },
+            success: function(response) {
+              if (response.errors) {
+                var errors = '';
+                $.each(response.errors, function(index, error) {
+                  errors += (errors ? ', ' : '') + error;
+                });
+                alert(errors);
+              }
+              else {
+                dt.ajax.reload(null, false); // paging is not reset on reload
+              }
+            },
+            error: function(response) {
+              alert("An error occurred while processing your request.");
+            },
+            beforeSend: function() {
+              isReady = 0;
+              btn.append('<i class="button-submit-status-icon fa fa-spinner fa-spin"></i>');
+            },
+            complete: function() {
+              isReady = 1;
+              btn.find('.button-submit-status-icon').remove();
+            }
+        });
+      }
+    });
+  }
+
+  function drawCallbackDT() {
+    var dt = $('#dtable').DataTable();
+    var checkbox = $('th.select-checkbox');
+    var btn = $('.dt-btn-destroy_selected');
+    var count = dt.rows({ selected: true }).count();
+
+    btn.find('span.counter').remove();
+    if (count > 0) {
+      btn.append('<span class="counter">('+ count +')</span>');
+      btn.attr('disabled', false).removeClass('hidden');
+    } else {
+      btn.attr('disabled', true).addClass('hidden');
+      checkbox.removeClass('selected');
+    }
+
+    $('#fixed-prices [data-toggle="tooltip"]').tooltip('hide');
+
+    $('#fixed-prices [title]').tooltip({
+     placement: 'auto',
+     container: 'body',
+     selector: '',
+     html: true,
+     trigger: 'hover',
+     delay: {
+       show: 500,
+       hide: 100
+     }
+    });
+
+    // Edit button
+    $('#dtable').find('button.btnEdit').hover(
+      function() {
+        $(this).removeClass('btn-default').addClass('btn-success');
+      },
+      function() {
+        $(this).removeClass('btn-success').addClass('btn-default');
+      }
+    );
+
+    // Delete button
+    $('#dtable').find('button.btnDelete').hover(
+      function() {
+        $(this).removeClass('btn-default').addClass('btn-danger');
+      },
+      function() {
+        $(this).removeClass('btn-danger').addClass('btn-default');
+      }
+    );
+  }
+
+  $(document).ready(function(){
+    $('[data-toggle="popover"]').popover({
+        placement: 'auto right',
+        container: 'body',
+        trigger: 'click focus hover',
+        html: true
+    });
+
+    $('body').on('click', function (e) {
+        // did not click a popover toggle, or icon in popover toggle, or popover
+        if ($(e.target).data('toggle') !== 'popover'
+            && $(e.target).parents('[data-toggle="popover"]').length === 0
+            && $(e.target).parents('.popover.in').length === 0) {
+            $('[data-toggle="popover"]').popover('hide');
+        }
+    });
+
+    // Select
+    $('.pageFilters .select2').select2();
+
+    // Toggle filters
+    $('.btnFilters').on('click', function() {
+      $('.pageFilters').toggle();
+    });
+
+    // Reset form
+    $('.btnReset').on('click', function(e) {
+      // $('.pageFilters form').trigger('reset');
+      $('.pageFilters form input[type="text"]').val('').trigger('change');
+
+      $('.pageFilters form select.select2').each(function( index ) {
+        $(this).val([]).trigger('change');
+        // $(this).val(null).trigger('change');
+        // $(this).select2('val', 0);
+      });
+
+      // $('#dtable').DataTable().search('').draw();
+      $('#dtable').DataTable().search('');
+      filterTable(false, true);
+      e.preventDefault();
+    });
+
+    // Filter table
+    $('.pageFilters .btnSearch').on('click', function(e) {
+      filterTable(false, true);
+      e.preventDefault();
+    });
+
+    $('.pageFilters form').submit(function(e) {
+      filterTable();
+      e.preventDefault();
+    });
+
+    // Display labels
+    $('.pageFilters form').find('input, select').on('change', function(e) {
+      if( $(this).val() ) {
+        $(this).parent('.form-group').find('label').show();
+      }
+      else {
+        $(this).parent('.form-group').find('label').hide();
+      }
+      // filterTable();
+      e.preventDefault();
+    });
+
+    // Load filters
+    $.ajax({
+      headers : {
+        'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+      },
+      url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+      type: 'POST',
+      dataType: 'json',
+      cache: false,
+      data: {
+        task: 'fixedprices',
+        action: 'init'
+      },
+      success: function(response) {
+        // Services
+        html = '';
+        if (response.servicesList) {
+          $.each(response.servicesList, function(index, item) {
+            html += '<option value="'+ item.id +'">'+ item.name +'</option>';
+          });
+        }
+        $('#filter-service_ids').html(html);
+
+        // Type
+        html = '';
+        if (response.typeList) {
+          $.each(response.typeList, function(index, item) {
+            html += '<option value="'+ item.value +'">'+ item.text +'</option>';
+          });
+        }
+        $('#filter-type').html(html);
+
+        updateFilters();
+      },
+      error: function(response) {
+        // Msg
+      }
+    });
+
+    var tableOptions = {
+        processing: true,
+        serverSide: true,
+        ajax: {
+            headers : {
+                'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+            },
+            url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+            method: 'POST',
+            dataType: 'json',
+            cache: false,
+            data: {
+                task: 'fixedprices',
+                action: 'list',
+                type: '1',
+            },
+            dataSrc: 'list'
+        },
+        columns: [
+                {
+            title: '<span class="sr-only">' + i18nData.table.actions + '</span>',
+            data: null,
+            defaultContent: '',
+            orderable: false,
+            className: 'actionColumn'
+        }, {
+            defaultContent: '',
+            data: 'checkbox',
+            name: 'checkbox',
+            title: '<span class="hidden">' + i18nData.table.select_all + '</span>',
+            render: null,
+            orderable: false,
+            searchable: false,
+            exportable: false,
+            printable: false,
+            width: '15px'
+        },
+                {
+            title: i18nData.table.info,
+            data: null,
+            defaultContent: '',
+            orderable: false,
+            className: 'infoColumn',
+            width: '50px',
+        }, {
+            title: i18nData.table.services,
+            data: 'service_ids',
+            width: '200px',
+            class: 'column-service_ids'
+        }, {
+            title: i18nData.table.location_type,
+            data: 'is_zone_text',
+            width: '150px',
+            visible: false
+        }, {
+            title: i18nData.table.from,
+            data: 'start_postcode',
+            width: '280px',
+            orderable: false,
+        }, {
+            title: i18nData.table.to,
+            data: 'end_postcode',
+            width: '280px',
+            orderable: false,
+        }, {
+            title: i18nData.table.direction,
+            data: 'direction',
+            width: '130px'
+        }, {
+            title: i18nData.table.price,
+            data: 'price',
+            width: '250px',
+            orderable: false
+        },
+                {
+            title: i18nData.table.start_date,
+            data: 'start_date',
+            width: '150px'
+        }, {
+            title: i18nData.table.end_date,
+            data: 'end_date',
+            width: '150px'
+        }, {
+            title: i18nData.table.active,
+            data: 'published',
+            width: '80px'
+        }, {
+            title: i18nData.table.ordering,
+            data: 'ordering',
+            width: '100px',
+            visible: false
+        }, {
+            title: i18nData.table.created_date,
+            data: 'created_at',
+            width: '140px',
+            visible: false
+        }, {
+            title: i18nData.table.modified_date,
+            data: 'modified_date',
+            width: '140px',
+            visible: false
+        }, {
+            title: i18nData.table.site_id,
+            data: 'site_id',
+            width: '100px',
+            visible: false
+        }, {
+            title: i18nData.table.id,
+            data: 'id',
+            width: '50px',
+            // class: 'hide',
+            visible: false
+        }],
+        columnDefs: [{
+            targets: 0,
+            data: null,
+            render: function(data, type, row) {
+                var h = '';
+                h += '<div class="btn-group" role="group" aria-label="..." style="width:100px;">';
+                                    h += '<button type="button" onclick="updateRecord('+ row.id +'); return false;" class="btn btn-default btn-sm btnEdit" title="'+ i18nData.buttons.edit +'"><i class="fa fa-pencil-square-o"></i></button>';
+                                                    h += '<button type="button" onclick="copyRecord('+ row.id +'); return false;" class="btn btn-default btn-sm btnCopy" title="'+ i18nData.buttons.duplicate +'"><i class="fa fa-files-o"></i></button>';
+                                                    h += '<button type="button" onclick="deleteRecord('+ row.id +'); return false;" class="btn btn-default btn-sm btnDelete" title="'+ i18nData.buttons.delete +'"><i class="fa fa-trash"></i></button>';
+                                h += '</div>';
+                return h;
+            }
+        }, {
+            targets: 1,
+            className: 'select-checkbox',
+        }, {
+            targets: 2,
+            data: null,
+            render: function(data, type, row) {
+                var h = '<div style="width:40px;">';
+                h += parseInt(row.is_zone) == 1 ? '<span class="eto-fixedprice-symbol" data-toggle="tooltip" data-title="'+ i18nData.labels.zone +'">'+ i18nData.labels.zone_short +'</span>' : '';
+                h += '</div>';
+                return h;
+            }
+        }],
+        select: {
+            style: 'multi', // 'single', 'multi', 'os', 'multi+shift'
+            selector: 'td.select-checkbox',
+        },
+        // colReorder: true,
+        paging: true,
+        pagingType: 'full_numbers',
+        // dom: 'rt<"row"<"col-xs-12 col-md-5 dataTablesFooterLeft"li><"col-xs-12 col-md-7 dataTablesFooterRight"p>><"clear">',
+        dom: '<"row topContainer"<"col-xs-12 col-sm-12 col-md-12 dataTablesHeaderLeft"B>><"dataTablesBody"rt><"row bottomContainer"<"col-xs-12 col-sm-6 col-md-7 pull-right dataTablesFooterRight"p><"col-xs-12 col-sm-6 col-md-5 dataTablesFooterLeft"li>>',
+        buttons: [{
+            'extend': 'colvis',
+            'collectionLayout': 'fixed two-column',
+            'text': '<i class="fa fa-eye"></i>',
+            'titleAttr': "Column visibility",
+            'postfixButtons': ['colvisRestore'],
+            'className': 'btn-datatable btn-sm'
+        }, {
+            'text': '<div onclick="$(\'#dtable\').DataTable().state.clear(); window.location.reload();"><i class="fa fa-undo"></i></div>',
+            'titleAttr': "Reset",
+            'className': 'btn-datatable btn-sm'
+        }, {
+            'extend': 'reload',
+            'text': '<i class="fa fa-refresh"></i>',
+            'titleAttr': "Refresh",
+            'className': 'btn-datatable btn-sm'
+        }],
+        scrollX: true,
+        searching: true,
+        ordering: true,
+        lengthChange: true,
+        info: true,
+        autoWidth: false,
+        stateSave: true,
+        stateDuration: 0,
+        order: [
+            [14, 'desc']
+        ],
+        pageLength: 10,
+        lengthMenu: [5, 10, 15, 20, 25, 50],
+        language: {
+            lengthMenu: '_MENU_',
+            paginate: {
+                first: '<i class="fa fa-angle-double-left"></i>',
+                previous: '<i class="fa fa-angle-left"></i>',
+                next: '<i class="fa fa-angle-right"></i>',
+                last: '<i class="fa fa-angle-double-right"></i>'
+            },
+            buttons: {
+                colvisRestore: "Restore visibility"            }
+        },
+        initComplete: function() { initCompleteDT(); },
+        drawCallback: function() {
+            var pagination = $(this).closest('.dataTables_wrapper').find('.dataTables_paginate');
+            pagination.toggle(this.api().page.info().pages > 1);
+            drawCallbackDT();
+        },
+        infoCallback: function(settings, start, end, max, total, pre) {
+            return '<i class="ion-ios-information-outline" title="'+ pre +'"></i>';
+        }
+    };
+
+    if (!ETO.hasPermission(['admin.fixed_prices.edit', 'admin.fixed_prices.create', 'admin.fixed_prices.destroy'], true)) {
+        delete tableOptions.columnDefs[0];
+        delete tableOptions.columnDefs[1];
+    }
+
+    // Table
+    $('#dtable').DataTable(tableOptions);
+
+    var $headerActions = $('#fixed-prices .dataTablesHeaderActionsSource');
+    var $headerTarget = $('#fixed-prices .dataTablesHeaderLeft');
+    if ($headerActions.length && $headerTarget.length) {
+      $headerActions.find('.pull-left').removeClass('pull-left');
+      $headerActions.removeClass('hidden').addClass('dataTablesHeaderActions');
+      $headerTarget.append($headerActions);
+    }
+
+    updateTableHeight();
+  });
+
+  </script>
+    
+    </body>
+</html>

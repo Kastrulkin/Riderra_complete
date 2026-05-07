@@ -24,6 +24,7 @@
           <button class="subtab" :class="{ 'subtab--active': tab==='counterparty' }" @click="tab='counterparty'">{{ t.counterparty }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='driver' }" @click="tab='driver'">{{ t.driver }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='conflicts' }" @click="tab='conflicts'">{{ t.conflicts }}</button>
+          <button class="subtab" :class="{ 'subtab--active': tab==='adjustments' }" @click="tab='adjustments'">{{ t.adjustments }}</button>
         </div>
 
         <div class="toolbar">
@@ -183,6 +184,80 @@
             <div v-if="!filteredConflictRows.length" class="empty-state">{{ t.empty }}</div>
           </div>
         </div>
+
+        <div v-if="tab==='adjustments'" class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>{{ t.adjustments }}</h3>
+              <p class="panel-hint">{{ t.adjustmentsHint }}</p>
+            </div>
+          </div>
+          <div class="stats-grid">
+            <div class="mini-stat">
+              <span>{{ t.penaltyCount }}</span>
+              <strong>{{ adjustmentTotals.adjustmentCount || 0 }}</strong>
+            </div>
+            <div class="mini-stat">
+              <span>{{ t.penaltyAmount }}</span>
+              <strong>{{ currencyTotalsLabel('penaltyAmount') }}</strong>
+            </div>
+            <div class="mini-stat">
+              <span>{{ t.netProfit }}</span>
+              <strong>{{ currencyTotalsLabel('netProfit') }}</strong>
+            </div>
+          </div>
+
+          <div class="split-panels">
+            <div class="pricing-list">
+              <div class="pricing-list__head pricing-list__head--adjustment-stat">
+                <div>{{ t.name }}</div>
+                <div>{{ t.penaltyCount }}</div>
+                <div>{{ t.penaltyAmount }}</div>
+              </div>
+              <div v-for="d in filteredAdjustmentDrivers" :key="d.key" class="pricing-row pricing-row--adjustment-stat">
+                <div class="route-cell__title">{{ d.name }}</div>
+                <div>{{ d.count }}</div>
+                <div class="price-cell"><strong>{{ priceLabel(d.amount, d.currency) }}</strong></div>
+              </div>
+              <div v-if="!filteredAdjustmentDrivers.length" class="empty-state">{{ t.empty }}</div>
+            </div>
+
+            <div class="pricing-list">
+              <div class="pricing-list__head pricing-list__head--adjustment-stat">
+                <div>{{ t.counterpartyName }}</div>
+                <div>{{ t.penaltyCount }}</div>
+                <div>{{ t.penaltyAmount }}</div>
+              </div>
+              <div v-for="c in filteredAdjustmentCounterparties" :key="c.key" class="pricing-row pricing-row--adjustment-stat">
+                <div class="route-cell__title">{{ c.name }}</div>
+                <div>{{ c.count }}</div>
+                <div class="price-cell"><strong>{{ priceLabel(c.amount, c.currency) }}</strong></div>
+              </div>
+              <div v-if="!filteredAdjustmentCounterparties.length" class="empty-state">{{ t.empty }}</div>
+            </div>
+          </div>
+
+          <div class="pricing-list adjustments-recent">
+            <div class="pricing-list__head pricing-list__head--adjustments">
+              <div>{{ t.routeScope }}</div>
+              <div>{{ t.counterpartyName }}</div>
+              <div>{{ t.name }}</div>
+              <div>{{ t.penaltyAmount }}</div>
+            </div>
+            <div v-for="row in filteredAdjustmentRows" :key="row.id" class="pricing-row pricing-row--adjustments">
+              <div class="route-cell">
+                <div class="route-cell__title">{{ row.order ? `${row.order.fromPoint || '-'} → ${row.order.toPoint || '-'}` : '-' }}</div>
+                <div class="route-cell__sub">{{ row.reason || row.rawText || '-' }}</div>
+              </div>
+              <div>{{ row.customerCompany?.name || row.counterpartyName || '-' }}</div>
+              <div>{{ row.driver?.name || row.driverNameRaw || '-' }}</div>
+              <div class="price-cell">
+                <strong>{{ priceLabel(row.amount, row.currency) }}</strong>
+              </div>
+            </div>
+            <div v-if="!filteredAdjustmentRows.length" class="empty-state">{{ t.empty }}</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -244,6 +319,7 @@ export default {
     cpRows: [],
     conflictRows: [],
     driverRows: [],
+    adjustmentSummary: null,
     notice: '',
     editingBase: null,
     baseForm: {
@@ -265,6 +341,7 @@ export default {
             counterparty: 'Контрагенты',
             driver: 'Цены водителей',
             conflicts: 'Риски и расхождения',
+            adjustments: 'Штрафы',
             refresh: 'Обновить',
             addRow: 'Добавить строку',
             editRow: 'Редактировать строку',
@@ -298,6 +375,9 @@ export default {
             issue: 'Проблема',
             driverCost: 'Цена водителя',
             margin: 'Маржа',
+            penaltyCount: 'Количество штрафов',
+            penaltyAmount: 'Сумма штрафов',
+            netProfit: 'Профит после штрафов',
             managementSignal: 'Следующий шаг',
             loadedRows: 'Загружено строк базового прайса',
             save: 'Сохранить',
@@ -307,6 +387,7 @@ export default {
             counterpartyHint: 'Отдельные договорённости с контрагентами. Здесь важно быстро видеть, где мы живём не по базовому прайсу.',
             driverHint: 'Экономика исполнителей: стоимость по км, почасовая аренда и детские кресла.',
             conflictsHint: 'Открытые ситуации, где цена водителя уже конфликтует с продажной ценой или маржа стала опасной.',
+            adjustmentsHint: 'Штрафы и удержания из заказов. Здесь видно, на каких водителей и клиентов приходится больше всего потерь, и как это меняет реальный профит.',
             baseFormHint: 'Добавляем или редактируем строку основного прайса Riderra. Это опорная цена для команды.',
             ruleActive: 'Правило активно',
             ruleInactive: 'Правило выключено'
@@ -318,6 +399,7 @@ export default {
             counterparty: 'Counterparties',
             driver: 'Driver prices',
             conflicts: 'Risks and conflicts',
+            adjustments: 'Penalties',
             refresh: 'Refresh',
             addRow: 'Add row',
             editRow: 'Edit row',
@@ -351,6 +433,9 @@ export default {
             issue: 'Issue',
             driverCost: 'Driver cost',
             margin: 'Margin',
+            penaltyCount: 'Penalty count',
+            penaltyAmount: 'Penalty amount',
+            netProfit: 'Profit after penalties',
             managementSignal: 'Next step',
             loadedRows: 'Loaded base pricing rows',
             save: 'Save',
@@ -360,6 +445,7 @@ export default {
             counterpartyHint: 'Special deals with counterparties. This is where the team should quickly see where pricing diverges from the base book.',
             driverHint: 'Supplier economics: per-km rate, hourly rental, and child seat pricing.',
             conflictsHint: 'Open situations where driver cost already conflicts with the sell price or margin became risky.',
+            adjustmentsHint: 'Penalties and deductions from orders. This shows which drivers and clients create the largest loss and how real profit changes.',
             baseFormHint: 'Add or edit a base pricing row. This is the anchor sale price for the team.',
             ruleActive: 'Rule active',
             ruleInactive: 'Rule disabled'
@@ -369,19 +455,23 @@ export default {
       if (this.tab === 'base') return this.$store.state.language === 'ru' ? 'Поиск по стране, маршруту или классу авто' : 'Search by country, route, or vehicle class'
       if (this.tab === 'counterparty') return this.$store.state.language === 'ru' ? 'Поиск по контрагенту, городу или маршруту' : 'Search by counterparty, city, or route'
       if (this.tab === 'driver') return this.$store.state.language === 'ru' ? 'Поиск по водителю, стране или городу' : 'Search by driver, country, or city'
+      if (this.tab === 'adjustments') return this.$store.state.language === 'ru' ? 'Поиск по водителю, клиенту или маршруту' : 'Search by driver, client, or route'
       return this.$store.state.language === 'ru' ? 'Поиск по проблеме, ID заказа или маршруту' : 'Search by issue, order ID, or route'
     },
     overviewCards () {
-      const risky = this.conflictRows.filter((row) => String(row.severity || '').toLowerCase() === 'high').length
       const specialDeals = this.cpRows.filter((row) => row.isActive).length
       const driverWithEconomics = this.driverRows.filter((row) => row.kmRate || row.hourlyRate || row.childSeatPrice).length
+      const penalties = this.adjustmentTotals.adjustmentCount || 0
       return [
         { key: 'base', value: this.baseRows.length, label: this.t.base, hint: this.t.baseHint, tone: 'neutral' },
         { key: 'counterparty', value: specialDeals, label: this.t.counterparty, hint: this.t.counterpartyHint, tone: specialDeals ? 'info' : 'neutral' },
         { key: 'driver', value: driverWithEconomics, label: this.t.driver, hint: this.t.driverHint, tone: driverWithEconomics ? 'ok' : 'neutral' },
         { key: 'conflicts', value: this.conflictRows.length, label: this.t.conflicts, hint: this.t.conflictsHint, tone: this.conflictRows.length ? 'warn' : 'neutral' },
-        { key: 'high', value: risky, label: this.$store.state.language === 'ru' ? 'Высокий риск' : 'High risk', hint: this.$store.state.language === 'ru' ? 'Нужен разбор в первую очередь' : 'Needs attention first', tone: risky ? 'critical' : 'neutral' }
+        { key: 'penalties', value: penalties, label: this.t.adjustments, hint: this.t.adjustmentsHint, tone: penalties ? 'critical' : 'neutral' }
       ]
+    },
+    adjustmentTotals () {
+      return this.adjustmentSummary?.totals || {}
     },
     filteredBaseRows () {
       const q = this.q.trim().toLowerCase()
@@ -405,6 +495,27 @@ export default {
         const route = row.order ? `${row.order.fromPoint || ''} ${row.order.toPoint || ''}` : ''
         return `${row.issueType || ''} ${row.orderId || ''} ${route}`.toLowerCase().includes(q)
       })
+    },
+    filteredAdjustmentRows () {
+      const rows = this.adjustmentSummary?.recent || []
+      const q = this.q.trim().toLowerCase()
+      if (!q) return rows
+      return rows.filter((row) => {
+        const route = row.order ? `${row.order.fromPoint || ''} ${row.order.toPoint || ''}` : ''
+        return `${row.driver?.name || ''} ${row.driverNameRaw || ''} ${row.customerCompany?.name || ''} ${row.counterpartyName || ''} ${route} ${row.reason || ''}`.toLowerCase().includes(q)
+      })
+    },
+    filteredAdjustmentDrivers () {
+      const rows = this.adjustmentSummary?.byDriver || []
+      const q = this.q.trim().toLowerCase()
+      if (!q) return rows
+      return rows.filter((row) => `${row.name || ''}`.toLowerCase().includes(q))
+    },
+    filteredAdjustmentCounterparties () {
+      const rows = this.adjustmentSummary?.byCounterparty || []
+      const q = this.q.trim().toLowerCase()
+      if (!q) return rows
+      return rows.filter((row) => `${row.name || ''}`.toLowerCase().includes(q))
     }
   },
   mounted () { this.reloadAll() },
@@ -440,6 +551,14 @@ export default {
     percentLabel (value) {
       if (value === null || value === undefined || Number.isNaN(Number(value))) return '-'
       return `${Number(value).toFixed(1)}%`
+    },
+    currencyTotalsLabel (field) {
+      const rows = this.adjustmentTotals.byCurrency || []
+      if (!rows.length) return '-'
+      return rows
+        .filter((row) => row[field] !== null && row[field] !== undefined)
+        .map((row) => this.priceLabel(Number(row[field]).toFixed(2), row.currency))
+        .join(' / ') || '-'
     },
     simpleValue (value) {
       return value === null || value === undefined || value === '' ? '-' : value
@@ -484,7 +603,7 @@ export default {
     },
     conflictSignalCopy (row) {
       const severity = String(row.severity || '').toLowerCase()
-      if (severity === 'high') {
+      if (severity === 'high' || severity === 'critical') {
         return this.$store.state.language === 'ru'
           ? 'Маржа уже опасно низкая или отрицательная. Это нужно разбирать в первую очередь.'
           : 'Margin is already dangerously low or negative. This should be handled first.'
@@ -551,18 +670,20 @@ export default {
     },
     async reloadAll () {
       this.notice = ''
-      const [base, cp, cf, dr] = await Promise.allSettled([
+      const [base, cp, cf, dr, adj] = await Promise.allSettled([
         this.fetchJson('/api/admin/pricing/cities?limit=5000'),
         this.fetchJson('/api/admin/pricing/counterparty-rules'),
         this.fetchJson('/api/admin/pricing/conflicts?status=open&limit=500'),
-        this.fetchJson('/api/admin/drivers')
+        this.fetchJson('/api/admin/drivers'),
+        this.fetchJson('/api/admin/pricing/adjustments/summary?type=penalty&limit=1000')
       ])
       this.baseRows = base.status === 'fulfilled' ? (base.value.rows || []) : []
       this.cpRows = cp.status === 'fulfilled' ? (cp.value.rows || []) : []
       this.conflictRows = cf.status === 'fulfilled' ? (cf.value.rows || []) : []
       this.driverRows = dr.status === 'fulfilled' ? (Array.isArray(dr.value) ? dr.value : []) : []
+      this.adjustmentSummary = adj.status === 'fulfilled' ? adj.value : null
 
-      const errors = [base, cp, cf, dr]
+      const errors = [base, cp, cf, dr, adj]
         .filter((x) => x.status === 'rejected')
         .map((x) => x.reason?.message || 'unknown')
       this.notice = errors.length
@@ -745,8 +866,53 @@ export default {
 .pricing-list__head--driver,
 .pricing-row--driver,
 .pricing-list__head--conflicts,
-.pricing-row--conflicts {
+.pricing-row--conflicts,
+.pricing-list__head--adjustments,
+.pricing-row--adjustments {
   grid-template-columns: minmax(240px, 1.1fr) minmax(180px, .8fr) minmax(160px, .7fr) minmax(260px, 1fr);
+}
+
+.pricing-list__head--adjustment-stat,
+.pricing-row--adjustment-stat {
+  grid-template-columns: minmax(160px, 1fr) 90px minmax(120px, .7fr);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.mini-stat {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #e6ebf5;
+  border-radius: 12px;
+  background: #fbfcff;
+}
+
+.mini-stat span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mini-stat strong {
+  color: #17233d;
+  font-size: 22px;
+}
+
+.split-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.adjustments-recent {
+  margin-top: 14px;
 }
 
 .route-cell,
@@ -806,7 +972,17 @@ export default {
   color: #991b1b;
 }
 
+.severity-pill--critical {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 .severity-pill--medium {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.severity-pill--warning {
   background: #fff7ed;
   color: #c2410c;
 }
@@ -908,7 +1084,9 @@ export default {
   }
 
   .pricing-list__head,
-  .pricing-row {
+  .pricing-row,
+  .split-panels,
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 }

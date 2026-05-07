@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="csrf-token" content="0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Import - Riderra</title>
+
+    
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/font-awesome/font-awesome.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/ionicons/ionicons.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/AdminLTE.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.min.css">
+
+    
+    
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://u3211.eto2.taxi/assets/plugins/html5shiv/html5shiv.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/respond/respond.min.js"></script>
+    <![endif]-->
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery.min.js"></script>
+        <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery-migrate.min.js"></script>
+    
+    <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.js"></script>
+
+            <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.min.js"></script>
+    
+    <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.contentWindow.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-loading-overlay/loadingoverlay.min.js"></script>
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.js?_dc=1773668664"></script> 
+<script src="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.js"></script>
+
+<script src="https://u3211.eto2.taxi/assets/js/password-utils.js?_dc=1773668664"></script>
+<script src="https://u3211.eto2.taxi/assets/js/eto/eto.js?_dc=1773668664"></script>
+
+<script>
+ETO.setConfig({"config":{"csrfToken":"0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP","appPath":"https:\/\/u3211.eto2.taxi","timestamp":1773668664,"timezone":"UTC","currency_symbol":"EUR","currency_code":"","date_format":"d.m.Y","time_format":"H:i","unit_format":"metric","phone_number_prefix":"auto","date_start_of_week":1,"site_id":1,"theme":"light"},"current_user":{"id":1,"fleet_id":0,"name":"Aleksandr Demianov","username":"admin","email":"demyanov@riderra.com","avatar":"https:\/\/u3211.eto2.taxi\/storage\/avatars\/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg","lat":null,"lng":null,"role":"admin","roles":["admin.root"],"permissions":["admin.*"]},"lang":{"common":{"daterangepicker":{"today":"Today","tomorrow":"Tomorrow","after_tomorrow":"After Tomorrow","next_week":"Next Week","next_month":"Next Month","custom_range":"Custom Range"},"button":{"view":"View"},"loading":"Loading...","no_data":"No data available.","yes":"Yes","no":"No","booking_status_options":{"accepted":"Job accepted","arrived":"Arrived","assigned":"Assigned","auto_dispatch":"Auto dispatch","canceled":"Cancelled","changed":"Booking update","completed":"Completed","confirmed":"Confirmed","incomplete":"Incomplete","noshow":"No-show","onboard":"On board","onroute":"En route","pending":"Confirmed","quote":"Request quote","rejected":"Job rejected","requested":"Unconfirmed","unfinished":"Driver cancelled"},"unit":{"imperial":{"mile":"mile","mile_plural":"miles","mile_short":"mi","yard":"yard","yard_plural":"yards","yard_short":"yd"},"metric":{"kilometer":"kilometre","kilometer_plural":"kilometres","kilometer_short":"km","meter":"metre","meter_plural":"metres","meter_short":"m"}},"user_profile_type_options":{"company":"Company","private":"Private"},"user_status_options":{"approved":"Approved","awaiting_admin_review":"Pending review","awaiting_email_confirmation":"Waiting for email confirmation","inactive":"Inactive","rejected":"Rejected"},"vehicle_status_options":{"activated":"Activated","inactive":"Inactive"}}}});
+
+$(function() {
+    if ($.inArray(ETO.getBrowserName(), ['Edge', 'IE']) != -1) {
+        $('body').append('<style>'+
+            'aside.main-sidebar section.sidebar {overflow-y:auto !important;}'+
+            'aside.main-sidebar div.slimScrollBar {display:none !important;}'+
+        '</style>');
+    }
+});
+</script>
+    
+    <script>
+    $(function() {
+        $.LoadingOverlaySetup({
+            image: '',
+            fontawesome: 'fa fa-spinner fa-spin',
+            maxSize: '80px',
+            minSize: '20px',
+            resizeInterval: 0,
+            size: '50%',
+            fade: [0,200]
+        });
+    });
+
+    var EasyTaxiOffice = {
+        csrfToken: '0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP',
+        appPath: 'https://u3211.eto2.taxi',
+        timestamp: '1773668664',
+        timezone: 'UTC',
+        cookiePath: '/',
+        cookieSecure: true,
+        cookieSameSite: 'none',
+        siteId: 1,
+        unitFormat: 'metric',
+    };
+    </script>
+
+                <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/select2/select2.min.css">
+
+        <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap-daterangepicker/daterangepicker.css">
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/eto.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/admin.css?_dc=1773668664">
+
+    
+    
+        
+    </head>
+<body class="skin-blue admin-panel fixed hold-transition dt-height-fallback ">
+    <!--
+    Copyright (c) 2026 by EasyTaxiOffice - All Rights Reserved
+    Website: https://easytaxioffice.com
+    Email: support@easytaxioffice.com
+    -->
+
+                <div class="wrapper">
+        <header class="main-header">
+            <nav class="navbar navbar-static-top">
+                <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </a>
+                <span class="main-page-title">Settings > Pricing > Fixed Prices > Import</span>
+                <div class="navbar-custom-menu">
+                    <ul class="nav navbar-nav">
+                        <li class="dropdown user user-menu">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="user-image" alt="">
+                                <span class="hidden-xs">Aleksandr Demianov</span>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li class="user-header">
+                                    <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                                    <p>
+                                        Aleksandr Demianov
+                                        <small>Member since 1 year 4 months</small>
+                                    </p>
+                                </li>
+                                <li class="user-footer">
+                                    <div class="admin-topbar-user-actions">
+                                        <a href="https://u3211.eto2.taxi/admin/account" class="btn btn-default btn-flat">
+                                            <i class="fa fa-user"></i>
+                                            <span>Account</span>
+                                        </a>
+                                                                                <a href="https://u3211.eto2.taxi/admin/kb" class="btn btn-default btn-flat">
+                                            <i class="fa fa-question-circle"></i>
+                                            <span>Knowledge Base</span>
+                                        </a>
+                                                                                <a href="#" class="btn btn-default btn-flat btnAdminToolboxDarkMode">
+                                            <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                            <span class="admin-topbar-dark-mode-label">
+                                                Switch to dark theme
+                                            </span>
+                                        </a>
+                                        <a href="https://u3211.eto2.taxi/logout" class="btn btn-default btn-flat logout-container" onclick="event.preventDefault();document.getElementById('logout-form').submit();">
+                                            <i class="fa fa-sign-out"></i>
+                                            <span>Log out</span>
+                                        </a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </header>
+
+        <aside class="main-sidebar">
+            <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                <span class="icon-toggle"></span>
+            </a>
+            <section class="sidebar">
+                <div class="dropdown admin-sidebar-user-dropdown">
+                    <a href="#" class="admin-sidebar-user-trigger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <div class="admin-sidebar-user-panel">
+                            <div class="admin-sidebar-user-avatar">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                            </div>
+                            <div class="admin-sidebar-user-info">
+                                <p class="admin-sidebar-user-name">
+                                    <span class="admin-sidebar-user-name-text">Aleksandr Demianov</span>
+                                    <i class="fa fa-angle-down" aria-hidden="true"></i>
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu admin-sidebar-user-menu-items">
+                        <li>
+                            <a href="https://u3211.eto2.taxi/admin/account">
+                                <i class="fa fa-user"></i>
+                                <span>Account</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="https://u3211.eto2.taxi/admin/kb">
+                                <i class="fa fa-question-circle"></i>
+                                <span>Knowledge Base</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="#" class="btnAdminToolboxDarkMode">
+                                <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                <span class="admin-sidebar-dark-mode-label">
+                                    Switch to dark theme
+                                </span>
+                            </a>
+                        </li>
+                        <li class="logout-container">
+                            <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="fa fa-sign-out"></i>
+                                <span>Log out</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                                    <div class="switch-profile-box"  style="display:none;" >
+                        <select name="switch_profile" id="switch_profile" title="Switch profile" class="form-control select2" style="width:100%;">
+                                                    <option value="1"  selected="selected" >Riderra</option>
+                                                </select>
+                    </div>
+                
+                
+                <ul class="sidebar-menu">
+                    
+
+                                        <li >
+                        <a href="https://u3211.eto2.taxi/admin/dispatch" class="menu-dispatch-new-jobs">
+                            <span>Dispatch</span>
+                            <span class="pull-right-container" title="New bookings">
+                                <small class="label pull-right bg-aqua " id="latest-jobs">582</small>
+                            </span>
+                        </a>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/bookings">
+                            <span>Bookings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                        <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings/transferz/offers" class="menu-transferz-offers">
+                                        <span>Transferz Offers</span>
+                                        <span class="pull-right-container">
+                                            <small class="label pull-right bg-aqua  hide " id="transferz-offers-unread">New</small>
+                                        </span>
+                                    </a>
+                                </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=next24" class="menu-next24-jobs">
+                                    <span>Next 24h</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua  hide " id="next24-jobs">0</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=latest" class="menu-latest-jobs">
+                                    <span>Latest</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua " id="latest-jobs" title="New bookings">582</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="  ">
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=requested" class="menu-requested-jobs">
+                                    <span>Unconfirmed</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-orange " id="requested-jobs">210</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=completed" class="menu-completed-jobs">
+                                    <span>Completed</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=canceled" class="menu-canceled-jobs">
+                                    <span>Cancelled</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings">
+                                    <span>All</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=trash">
+                                    <span>Trash</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/calendar">
+                                    <span>Calendar</span>
+                                </a>
+                            </li>
+
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings?page=recurring" class="menu-recurring-jobs">
+                                        <span>Recurring</span>
+                                    </a>
+                                </li>
+                                                        
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/passengers">
+                                    <span>Passengers</span>
+                                </a>
+                            </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings/create">
+                                    <span>New booking</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                      <a href="https://u3211.eto2.taxi/admin/feedback">
+                        <span>Feedback</span>
+                        <span class="pull-right-container">
+                          <i class="fa fa-angle-left pull-right"></i>
+                          <small class="label pull-right bg-gray  hide " style="padding: .2em .3em .2em .3em;" id="menu-feedback-icon">
+                              <i class="fa fa-exclamation"></i>
+                          </small>
+                        </span>
+                      </a>
+                      <ul class="treeview-menu">
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=comment">
+                            <span>Comments</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-comments">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=lost_found">
+                            <span>Lost &amp; Found</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=complaint">
+                            <span>Complaints</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                                                <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback/create">
+                            <span>Add new</span>
+                          </a>
+                        </li>
+                                              </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/reports">
+                            <span>Reports</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/fleet">
+                                    <span>Fleet Report</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/driver">
+                                    <span>Driver Report</span>
+                                </a>
+                            </li>
+                            
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/payment">
+                                    <span>Payment Report</span>
+                                </a>
+                            </li>
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/driver-activities">
+                                    <span>Driver Activities</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/users">
+                            <span>Users</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+
+                                
+                                                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/customers">
+                                    <span>Customers</span>
+                                </a>
+                            </li>
+                            
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=driver">
+                                    <span>Drivers</span>
+                                    
+                                </a>
+                            </li>
+                            
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/users?role=fleet">
+                                        <span>Fleet Operators</span>
+                                    </a>
+                                </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=admin">
+                                    <span>Admins</span>
+                                </a>
+                            </li>
+                            
+                            
+                            
+
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users/removal">
+                                    <span>Deletion Requests</span>
+                                                                    </a>
+                            </li>
+                            
+                        </ul>
+                    </li>
+                    
+                                                            
+                                        <li class="treeview  active ">
+                        <a href="https://u3211.eto2.taxi/admin/settings/general">
+                            <span>Settings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li class="treeview  active ">
+
+                               <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                   <span>Pricing</span>
+                                   <span class="pull-right-container">
+                                       <i class="fa fa-angle-left pull-right"></i>
+                                   </span>
+                               </a>
+                               <ul class="treeview-menu">
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/deposit-payments">
+                                         <span>Deposit Payments</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/mileage-time">
+                                         <span>Distance &amp; Time</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                      <a href="https://u3211.eto2.taxi/admin/fixed-prices?type=2">
+                                        <span>Distance Modifier</span>
+                                      </a>
+                                    </li>
+                                  
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/driver-income">
+                                         <span>Driver Income</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li  class="active" >
+                                       <a href="https://u3211.eto2.taxi/admin/fixed-prices">
+                                         <span>Fixed Prices</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/holiday-surcharge">
+                                         <span>Holiday / Rush Hours Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/additional-charges">
+                                         <span>Item Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                     <a href="https://u3211.eto2.taxi/admin/settings/charges">
+                                      <span>Location Surcharge</span>
+                                     </a>
+                                   </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/night-surcharge">
+                                         <span>Night Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/other-discounts">
+                                         <span>Other Discounts</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/tax">
+                                         <span>Tax</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/discounts">
+                                         <span>Voucher Discounts</span>
+                                       </a>
+                                     </li>
+                                                                  </ul>
+                            </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/getting-started">
+                                  <span>Getting Started</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/airport-detection">
+                                  <span>Airport Detection</span>
+                                </a>
+                              </li>
+                            
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/booking">
+                                  <span>Booking</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                  <span>General</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/google">
+                                  <span>Google</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/integration">
+                                  <span>Integration</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/invoices">
+                                  <span>Invoices</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/localization">
+                                  <span>Localization</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/categories">
+                                  <span>Location Categories</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/locations">
+                                  <span>Locations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/mail">
+                                  <span>Email</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/meeting-points">
+                                  <span>Meeting Points</span>
+                                </a>
+                              </li>
+                            
+                                                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/mobile-app">
+                                      <span>Mobile Apps</span>
+
+                                                                          </a>
+                                  </li>
+                                                          
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/notifications">
+                                  <span>Notifications</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/bases">
+                                  <span>Operating Areas</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/payments">
+                                  <span>Payment Methods</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/excluded-routes">
+                                  <span>Booking Restrictions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/roles">
+                                  <span>Roles &amp; Permissions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-scheduled-routes">
+                                <a href="https://u3211.eto2.taxi/admin/scheduled-routes">
+                                  <span>Scheduled Routes</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-services">
+                                <a href="https://u3211.eto2.taxi/admin/services">
+                                  <span>Services</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/styles">
+                                  <span>Styles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/translations">
+                                  <span>Translations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/vehicle-types">
+                                  <span>Types of Vehicles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class="">
+                                <a href="https://u3211.eto2.taxi/admin/vehicles">
+                                  <span>Vehicles</span>
+                                  <span class="pull-right-container">
+                                                                      </span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/users">
+                                  <span>Users</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/web-booking-widget">
+                                  <span>Web Booking Widget</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/web-widget">
+                                  <span>Web Widgets</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/zones">
+                                  <span>Zones</span>
+                                </a>
+                              </li>
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        </ul>
+                    </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/kb">
+                          <span>Knowledge Base</span>
+                        </a>
+                      </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/updates">
+                          <span>Updates</span>
+                                                  </a>
+                      </li>
+                    
+                    
+                    
+                    <li >
+                      <a href="https://u3211.eto2.taxi/admin/account">
+                        <span>Account</span>
+                      </a>
+                    </li>
+
+                    <li class="logout-container">
+                      <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                        <span>Log out</span>
+                      </a>
+                    </li>
+                </ul>
+
+                <div class="copyright-box">
+                  &copy; 2026 <a href="https://easytaxioffice.com" target="_blank">EasyTaxiOffice</a>                   
+                </div>
+            </section>
+        </aside>
+
+        <div class="content-wrapper ">
+            
+            <section class="content">
+                    <div class="pageTitle pageTitle--with-breadcrumbs clearfix">
+    <div class="pageTitle-row clearfix">
+        <h3 class="pageTitle-title pull-left hidden-xs">
+                            <span class="pageBreadcrumbs">
+                                                                                                                        <a href="https://u3211.eto2.taxi/admin/settings">Settings</a>
+                                                                                                <span class="pageBreadcrumbs-separator">&gt;</span>
+                                                                                                    <span>Pricing</span>
+                                                                                                <span class="pageBreadcrumbs-separator">&gt;</span>
+                                                                                                    <a href="https://u3211.eto2.taxi/admin/fixed-prices">Fixed Prices</a>
+                                                                <span class="pageBreadcrumbs-separator pageBreadcrumbs-separator--title">&gt;</span>
+                </span>
+                        <span class="pageTitle-titleText">Import</span>
+        </h3>
+
+        
+                    <div class="pageTitle-help pull-right hidden-xs">
+                <a href="https://u3211.eto2.taxi/admin/kb?q=importing"
+                    target="_blank"                    class="pageTitle-help-link"
+                    title="Click here to learn more"                    >
+                    <i class="ion-ios-help-outline"></i>
+                                            <span class="sr-only">Click here to learn more</span>
+                                    </a>
+            </div>
+        
+            </div>
+
+    </div>
+        
+<div id="box-import">
+
+    <form method="post" action="https://u3211.eto2.taxi/admin/fixed-prices/import?action=save" enctype="multipart/form-data" id="box-import-form" autocomplete="off">
+        <input type="hidden" name="_token" value="0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP">
+
+        <div style="margin-bottom:20px;">
+            <a href="https://u3211.eto2.taxi/admin/fixed-prices/import?action=download&amp;tmpl=cross">Download Cross Template</a><br>
+            <a href="https://u3211.eto2.taxi/admin/fixed-prices/import?action=download&amp;tmpl=standard">Download Standard Template</a><br>
+            <a href="https://u3211.eto2.taxi/admin/fixed-prices/import?action=download&amp;tmpl=standard-vehicles">Download Standard Template with Vehicles</a><br><br>
+            <a href="https://u3211.eto2.taxi/admin/fixed-prices/import?action=clear" class="text-danger" onclick="return confirm(&quot;Are you sure you want to delete?&quot;);">Delete all Fixed Price data</a>
+        </div>
+
+        <div class="form-group field-file">
+            <label for="file">Upload file</label>
+            <input type="file" name="file" id="file" class="form-control" required>
+        </div>
+
+        <div class="selection-container">
+
+            <div class="form-group field-import_type">
+                <label for="import_type">Import type</label>
+                <select name="import_type" id="import_type" class="form-control">
+                    <option value="standard" selected>Standard</option>
+                    <option value="cross">Cross</option>
+                </select>
+            </div>
+
+            <div class="form-group field-delimiter">
+                <label for="delimiter">Data separator</label>
+                <select name="delimiter" id="delimiter" class="form-control">
+                    <option value=";" selected>Semicolon</option>
+                    <option value=",">Comma</option>
+                </select>
+            </div>
+
+            <div class="form-group field-status">
+                <label for="status">Status</label>
+                <select name="status" id="status" class="form-control">
+                    <option value="active" selected>Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+
+            <div class="form-group field-direction">
+                <label for="direction">Direction</label>
+                <select name="direction" id="direction" class="form-control">
+                    <option value="0">Both ways</option>
+                    <option value="1">From -&gt; To</option>
+                </select>
+            </div>
+        </div>
+
+                <div class="selection-container">
+            <div class="section-heading">Vehicles</div>
+            <table class="table table-condensed vehicles_table" style="width:auto;">
+                <thead>
+                    <tr>
+                        <td style="min-width:100px;">
+                            Name
+                        </td>
+                        <td>
+                            Price
+                        </td>
+                        <td>
+                            Deposit
+                        </td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+
+                        </td>
+                        <td>
+                            <select name="factor_type" id="factor_type" class="form-control">
+                                <option value="0">Multiply</option>
+                                <option value="1" selected>Add</option>
+                                <option value="2">Override</option>
+                            </select>
+                        </td>
+                        <td>
+
+                        </td>
+                    </tr>
+
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_207_price" style="font-weight:normal;">Lux</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[207][price]" id="vehicle_207_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[207][deposit]" id="vehicle_207_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_206_price" style="font-weight:normal;">MV 8 pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[206][price]" id="vehicle_206_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[206][deposit]" id="vehicle_206_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_208_price" style="font-weight:normal;">Sprinter</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[208][price]" id="vehicle_208_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[208][deposit]" id="vehicle_208_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_210_price" style="font-weight:normal;">SUV</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[210][price]" id="vehicle_210_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[210][deposit]" id="vehicle_210_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_209_price" style="font-weight:normal;">Electric Standard</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[209][price]" id="vehicle_209_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[209][deposit]" id="vehicle_209_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_1_price" style="font-weight:normal;">Saloon</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[1][price]" id="vehicle_1_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[1][deposit]" id="vehicle_1_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_13_price" style="font-weight:normal;">Estate</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[13][price]" id="vehicle_13_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[13][deposit]" id="vehicle_13_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_5_price" style="font-weight:normal;">Executive</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[5][price]" id="vehicle_5_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[5][deposit]" id="vehicle_5_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_2_price" style="font-weight:normal;">MPV</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[2][price]" id="vehicle_2_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[2][deposit]" id="vehicle_2_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_205_price" style="font-weight:normal;">MV 6 pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[205][price]" id="vehicle_205_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[205][deposit]" id="vehicle_205_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_4_price" style="font-weight:normal;">MV 7 pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[4][price]" id="vehicle_4_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[4][deposit]" id="vehicle_4_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_211_price" style="font-weight:normal;">Businessvan 5 pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[211][price]" id="vehicle_211_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[211][deposit]" id="vehicle_211_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_212_price" style="font-weight:normal;">Businessvan 6 pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[212][price]" id="vehicle_212_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[212][deposit]" id="vehicle_212_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_214_price" style="font-weight:normal;">Standard Minibus 13pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[214][price]" id="vehicle_214_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[214][deposit]" id="vehicle_214_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_213_price" style="font-weight:normal;">Standard Minibus 9pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[213][price]" id="vehicle_213_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[213][deposit]" id="vehicle_213_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_215_price" style="font-weight:normal;">Minibus 19 pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[215][price]" id="vehicle_215_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[215][deposit]" id="vehicle_215_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_216_price" style="font-weight:normal;">Coach 30 pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[216][price]" id="vehicle_216_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[216][deposit]" id="vehicle_216_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                    <tr>
+                        <td style="vertical-align:middle;">
+                            <label for="vehicle_217_price" style="font-weight:normal;">Coach 45pax</label>
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[217][price]" id="vehicle_217_price" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                        <td>
+                            <input type="number" name="vehicles[217][deposit]" id="vehicle_217_deposit" value="0" min="0" step="0.01" class="form-control">
+                        </td>
+                    </tr>
+                                </tbody>
+            </table>
+        </div>
+        
+                <div class="selection-container">
+            <div class="section-heading">Services</div>
+                    </div>
+        
+        <div class="selection-container">
+            <div class="section-heading">Limit to specific date and time</div>
+            <div class="form-group field-date_start">
+                <label for="date_start">Start date</label>
+                <input type="text" name="date_start" id="date_start" placeholder="No restriction" class="form-control datepicker">
+            </div>
+            <div class="form-group field-date_end">
+                <label for="date_end">End date</label>
+                <input type="text" name="date_end" id="date_end" placeholder="No restriction" class="form-control datepicker">
+            </div>
+        </div>
+
+        <div class="clearfix selection-container">
+            <button type="submit" class="btn btn-md btn-success button-save">
+                <i class="fa fa-upload"></i> <span>Import</span>
+            </button>
+            <div id="status-message"></div>
+        </div>
+    </form>
+
+</div>
+            </section>
+        </div>
+
+        <form id="logout-form" action="https://u3211.eto2.taxi/logout" method="POST" style="display:none;">
+            <input type="hidden" name="_token" value="0IwNkKezJkUm1S0pVRf3GaDVQYRLlB1T1qZ2J7zP">
+        </form>
+    </div>
+
+    
+            
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-cookie/jquery.cookie.js?_dc=1773668664"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/select2/select2.full.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/js/app.js?_dc=1773668664"></script>
+
+    
+    <script>
+    
+    var isDarkMode = false;
+
+    function toggleDarkMode() {
+        var darkModeLabel = '';
+
+        if (isDarkMode) {
+            darkModeLabel = "Switch to light theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-sun-o').addClass('fa-moon-o');
+            $('body').addClass('dark-mode');
+        } else {
+            darkModeLabel = "Switch to dark theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-moon-o').addClass('fa-sun-o');
+            $('body').removeClass('dark-mode');
+        }
+
+        $('.admin-sidebar-dark-mode-label, .admin-topbar-dark-mode-label').text(darkModeLabel);
+    }
+
+    function updateDataTableScrollBodyHeight(options) {
+        options = options || {};
+
+        var wrapperSelector = options.wrapperSelector || '#dataTableBuilder_wrapper';
+        var scrollBodySelector = options.scrollBodySelector || '.dataTables_scrollBody';
+        // Default: allow overflow expansion on all screen sizes.
+        // Legacy mobile behavior (natural page scroll) can be enabled per table with expandOnMobile: true.
+        var expandOnMobile = options.expandOnMobile === true;
+        var expandWhenOverflow = options.expandWhenOverflow !== false;
+        var mobileBreakpoint = parseInt(options.mobileBreakpoint, 10);
+        var minHeight = parseInt(options.minHeight, 10);
+        var extraOffset = parseInt(options.extraOffset, 10);
+        var wrapper = $(wrapperSelector).first();
+        var scrollBody = $(scrollBodySelector).first();
+
+        if (!wrapper.length || !scrollBody.length) {
+            return;
+        }
+
+        if (!wrapper.is(':visible') || !scrollBody.is(':visible')) {
+            return;
+        }
+
+        if (isNaN(mobileBreakpoint) || mobileBreakpoint < 0) {
+            mobileBreakpoint = 767;
+        }
+
+        var viewportWidth = window.innerWidth || $(window).width() || 0;
+        var shouldExpandOnMobile = expandOnMobile && viewportWidth > 0 && viewportWidth <= mobileBreakpoint;
+
+        if (shouldExpandOnMobile) {
+            // On small screens avoid inner vertical scroll and let the page scroll naturally.
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': '0px',
+                'overflow-y': 'visible'
+            });
+
+            $('body').removeClass('dt-height-fallback');
+            return;
+        }
+
+        if (isNaN(minHeight) || minHeight < 0) {
+            minHeight = 200;
+        }
+
+        if (isNaN(extraOffset)) {
+            extraOffset = 0;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+
+        if (!scrollBodyElement) {
+            return;
+        }
+
+        scrollBody.css({
+            'height': 'auto',
+            'max-height': 'none',
+            'min-height': '0px'
+        });
+
+        var viewportHeight = window.innerHeight || $(window).height() || 0;
+        var viewportBottom = viewportHeight - extraOffset;
+        var bottomContainer = wrapper.find('> .bottomContainer').first();
+        var referenceElement = bottomContainer.length ? bottomContainer.get(0) : wrapper.get(0);
+        var referenceRect = referenceElement && typeof referenceElement.getBoundingClientRect === 'function'
+            ? referenceElement.getBoundingClientRect()
+            : null;
+
+        if (!referenceRect) {
+            return;
+        }
+
+        var clampHeight = function(value) {
+            var height = Math.floor(value);
+            if (height < minHeight) {
+                height = minHeight;
+            }
+            if (height < 0) {
+                height = 0;
+            }
+            return height;
+        };
+
+        var currentBodyHeight = scrollBody.outerHeight() || 0;
+        var delta = viewportBottom - referenceRect.bottom;
+        var targetHeight = clampHeight(currentBodyHeight + delta);
+
+        var naturalBodyHeight = scrollBodyElement.scrollHeight || 0;
+        var applyScrollBodyHeight = function(height) {
+            scrollBody.css({
+                'height': height + 'px',
+                'max-height': height + 'px',
+                'min-height': '0px'
+            });
+        };
+
+        var contentWrapperElement = wrapper.closest('.content-wrapper').get(0);
+        var measureOverflow = function() {
+            var contentWrapperRect = contentWrapperElement && typeof contentWrapperElement.getBoundingClientRect === 'function'
+                ? contentWrapperElement.getBoundingClientRect()
+                : null;
+            var contentOverflow = contentWrapperRect ? Math.ceil(contentWrapperRect.bottom - viewportBottom) : 0;
+            return contentOverflow > 0 ? contentOverflow : 0;
+        };
+
+        for (var i = 0; i < 3; i++) {
+            applyScrollBodyHeight(targetHeight);
+            var overflow = measureOverflow();
+
+            if (overflow <= 0) {
+                break;
+            }
+
+            var nextHeight = clampHeight(targetHeight - overflow);
+            if (nextHeight === targetHeight) {
+                break;
+            }
+
+            targetHeight = nextHeight;
+        }
+        if (expandWhenOverflow && naturalBodyHeight > (targetHeight + 1)) {
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': targetHeight + 'px'
+            });
+        } else {
+            applyScrollBodyHeight(targetHeight);
+        }
+
+        $('body').removeClass('dt-height-fallback');
+    }
+
+    var updateTableHeightRafId = null;
+    var updateTableHeightImmediateTimeoutId = null;
+    var updateTableHeightDelayedTimeoutId = null;
+
+    function scheduleUpdateTableHeight() {
+        var hasDataTableApi = !!($.fn.dataTable && $.fn.dataTable.tables);
+        var hasUpdateTableHeightFn = (typeof window.updateTableHeight === 'function');
+
+        if (!hasDataTableApi && !hasUpdateTableHeightFn) {
+            return;
+        }
+
+        var refreshLayout = function() {
+            if (hasDataTableApi) {
+                var tablesApi = $.fn.dataTable.tables({ visible: true, api: true });
+                if (tablesApi && tablesApi.columns) {
+                    tablesApi.columns.adjust();
+                }
+            }
+
+            if (hasUpdateTableHeightFn) {
+                window.updateTableHeight();
+            }
+        };
+
+        if (updateTableHeightRafId && window.cancelAnimationFrame) {
+            window.cancelAnimationFrame(updateTableHeightRafId);
+        }
+
+        if (updateTableHeightImmediateTimeoutId) {
+            clearTimeout(updateTableHeightImmediateTimeoutId);
+        }
+
+        if (updateTableHeightDelayedTimeoutId) {
+            clearTimeout(updateTableHeightDelayedTimeoutId);
+        }
+
+        if (window.requestAnimationFrame) {
+            updateTableHeightRafId = window.requestAnimationFrame(function() {
+                updateTableHeightRafId = null;
+                refreshLayout();
+            });
+        } else {
+            updateTableHeightImmediateTimeoutId = setTimeout(function() {
+                updateTableHeightImmediateTimeoutId = null;
+                refreshLayout();
+            }, 0);
+        }
+
+        // Secondary pass for animated layout changes (sidebar / tabs / collapse).
+        updateTableHeightDelayedTimeoutId = setTimeout(function() {
+            updateTableHeightDelayedTimeoutId = null;
+            refreshLayout();
+        }, 180);
+    }
+
+    function bindPageFiltersHeightWatchers() {
+        $(document).on('click', '.btnFilters, .pageFilters .btnClose, .pageFilters .btnReset, .pageFilters .btnSearch', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        if (!window.MutationObserver) {
+            return;
+        }
+
+        $('.pageFilters').each(function() {
+            var panel = $(this);
+
+            if (panel.data('dt-height-observer-bound')) {
+                return;
+            }
+
+            var observer = new MutationObserver(function() {
+                scheduleUpdateTableHeight();
+            });
+
+            observer.observe(this, {
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+
+            panel.data('dt-height-observer-bound', true);
+        });
+    }
+
+    function setDataTableDropdownDirection(dropdown) {
+        var scrollBody = dropdown.closest('.dataTables_scrollBody');
+        var menu = dropdown.children('.dropdown-menu').first();
+        var toggle = dropdown.children('[data-toggle="dropdown"]').first();
+
+        dropdown.removeClass('dropup');
+
+        if (!scrollBody.length || !menu.length || !toggle.length) {
+            return;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+        var toggleElement = toggle.get(0);
+
+        if (!scrollBodyElement || !toggleElement || typeof scrollBodyElement.getBoundingClientRect !== 'function' || typeof toggleElement.getBoundingClientRect !== 'function') {
+            return;
+        }
+
+        var scrollRect = scrollBodyElement.getBoundingClientRect();
+        var toggleRect = toggleElement.getBoundingClientRect();
+
+        if (!scrollRect || !toggleRect) {
+            return;
+        }
+
+        var originalStyle = menu.attr('style');
+        menu.css({
+            display: 'block',
+            visibility: 'hidden'
+        });
+
+        var menuHeight = menu.outerHeight() || 0;
+
+        if (typeof originalStyle === 'string') {
+            menu.attr('style', originalStyle);
+        } else {
+            menu.removeAttr('style');
+        }
+
+        var availableAbove = Math.max(0, toggleRect.top - scrollRect.top);
+        var availableBelow = Math.max(0, scrollRect.bottom - toggleRect.bottom);
+        var fitsAbove = menuHeight <= availableAbove;
+        var fitsBelow = menuHeight <= availableBelow;
+        var shouldOpenUp = fitsAbove && (!fitsBelow || availableAbove > availableBelow);
+
+        if (shouldOpenUp) {
+            dropdown.addClass('dropup');
+        }
+    }
+
+    $(document).ready(function() {
+        toggleDarkMode();
+        bindPageFiltersHeightWatchers();
+
+        if (typeof window.updateTableHeight !== 'function') {
+            $('body').removeClass('dt-height-fallback');
+        }
+
+        $(document).on('init.dt draw.dt', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('load', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('resize.etoTableHeight orientationchange.etoTableHeight', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document).on('expanded.pushMenu collapsed.pushMenu shown.bs.tab shown.bs.collapse hidden.bs.collapse', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document)
+            .on('show.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                setDataTableDropdownDirection($(this));
+            })
+            .on('hidden.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                $(this).removeClass('dropup');
+            });
+
+        $('.btnAdminToolboxDarkMode').click(function(e) {
+            isDarkMode = !isDarkMode;
+
+            if (isDarkMode) {
+              $.cookie('app_state_dark_mode', 1, {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            } else {
+              $.removeCookie('app_state_dark_mode', {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            }
+
+            toggleDarkMode();
+            window.location.reload();
+            e.preventDefault();
+        });
+
+        // Select
+        $('.select2').not('#switch_profile').select2({
+            minimumResultsForSearch: 5
+        });
+
+        $('#switch_profile').select2({
+            minimumResultsForSearch: Infinity,
+            dropdownParent: $('.switch-profile-box')
+        });
+
+        // Tooltip
+        $('[title]').tooltip({
+            placement: 'auto',
+            container: 'body',
+            selector: '',
+            html: true,
+            trigger: 'hover',
+            delay: { show: 500, hide: 100 }
+        });
+
+        // Switch profile
+        $('#switch_profile').on('change', function(e) {
+            $.ajax({
+                headers : {
+                    'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+                },
+                url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+                type: 'POST',
+                dataType: 'json',
+                cache: false,
+                async: false,
+                data: {
+                    task: 'profile',
+                    action: 'switch',
+                    id: $(this).val()
+                },
+                success: function(response) {
+                    if ( response.success ) {
+                        window.location.reload();
+                    } else {
+                        alert("Could not switch to this profile.");
+                    }
+                },
+                error: function(response) {
+                    alert("An error occurred while processing your request.");
+                }
+            });
+
+            e.preventDefault();
+        });
+    });
+    </script>
+
+    <script src="https://u3211.eto2.taxi/assets/plugins/moment/moment.min.js"></script>
+<script src="https://u3211.eto2.taxi/assets/plugins/bootstrap-daterangepicker/daterangepicker.js"></script>
+
+
+<script>
+$(document).ready(function() {
+    var isReady = 1;
+    var form = $('#box-import-form');
+
+    form.find('#file').change(function() {
+        if( $(this).val() ) {
+            form.find('.selection-container').show();
+        }
+        else {
+            form.find('.selection-container').hide();
+        }
+    }).change();
+
+    form.find('.datepicker').daterangepicker({
+        drops: 'up',
+        singleDatePicker: true,
+        showDropdowns: true,
+        timePicker: true,
+        timePicker24Hour: true,
+        autoUpdateInput: false,
+        minYear: new Date().getFullYear() - 10,
+        maxYear: new Date().getFullYear() + 5,
+        locale: {
+            format: 'YYYY-MM-DD HH:mm',
+            firstDay: 1
+        },
+        ranges: ETO.getDateRanges(),
+    })
+    .on('apply.daterangepicker', function(ev, picker) {
+        $(this).val(picker.startDate.format('YYYY-MM-DD HH:mm')).change();
+    });
+
+    form.submit(function(e) {
+        e.preventDefault();
+
+        if( !isReady ) {
+            return false;
+        }
+
+        $.ajax({
+            headers : {
+                'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+            },
+            url: 'https://u3211.eto2.taxi/admin/fixed-prices/import?action=save',
+            type: 'POST',
+            dataType: 'json',
+            cache: false,
+            // data: form.serializeJSON(),
+            data: new FormData(this),
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if( response.errors ) {
+                    var errors = '';
+                    $.each(response.errors, function(index, error) {
+                        errors += (errors ? ', ' : '') + error;
+                    });
+                    form.find('#status-message').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ errors +'</span>');
+                }
+                else {
+                    isReady = 1;
+                    form.find('#status-message').html('<span class="text-green"><i class="fa fa-check"></i> '+ response.message +'</span>');
+                    setTimeout(function() {
+                        form.find('#status-message').html('');
+                    }, 5000);
+                }
+            },
+            error: function(response) {
+                form.find('#status-message').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> An error occurred while processing your request.</span>');
+            },
+            beforeSend: function() {
+                isReady = 0;
+                form.find('.button-save').html('<i class="fa fa-spinner fa-spin"></i> Importing...');
+            },
+            complete: function() {
+                isReady = 1;
+                form.find('.button-save').html('<i class="fa fa-upload"></i> Import');
+            }
+        });
+    });
+});
+</script>
+    
+    </body>
+</html>

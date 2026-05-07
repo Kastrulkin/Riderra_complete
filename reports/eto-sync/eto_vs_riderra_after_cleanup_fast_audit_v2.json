@@ -1,0 +1,783 @@
+{
+  "generatedAt": "2026-05-07T09:38:59.548Z",
+  "expectedRoutes": 1243,
+  "etoRecords": 1243,
+  "matched": 1243,
+  "exactMatched": 1195,
+  "looseMatched": 48,
+  "mismatches": 29,
+  "byType": {
+    "price_mismatch": 29
+  },
+  "mismatchSample": [
+    {
+      "type": "price_mismatch",
+      "id": 5093,
+      "from": "Copenhagen Kastrup Airport (CPH)",
+      "to": "Gøteborg / Göteborg / Gothenburg",
+      "expectedFrom": "Copenhagen Kastrup Airport (CPH)",
+      "expectedTo": "Gøteborg / Göteborg / Gothenburg",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1105,
+          "actual": 1.105
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1290,
+          "actual": 1.29
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5132,
+      "from": "Helsinki-Vantaa Airport (HEL)",
+      "to": "Kemi",
+      "expectedFrom": "Helsinki Vantaa airport (HEL)",
+      "expectedTo": "Kemi",
+      "matchedBy": "loose",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1000,
+          "actual": 1
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1050,
+          "actual": 1.05
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5135,
+      "from": "Helsinki-Vantaa Airport (HEL)",
+      "to": "Kittilä",
+      "expectedFrom": "Helsinki Vantaa airport (HEL)",
+      "expectedTo": "Kittilä",
+      "matchedBy": "loose",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1200,
+          "actual": 1.2
+        },
+        {
+          "col": "Executive",
+          "expected": 1400,
+          "actual": 1.4
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1450,
+          "actual": 1.45
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5148,
+      "from": "Helsinki-Vantaa Airport (HEL)",
+      "to": "Rovaniemi",
+      "expectedFrom": "Helsinki Vantaa airport (HEL)",
+      "expectedTo": "Rovaniemi",
+      "matchedBy": "loose",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1100,
+          "actual": 1.1
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1100,
+          "actual": 1.1
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5312,
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Bergen City",
+      "expectedFrom": "Oslo Gardermoen Airport (OSL)",
+      "expectedTo": "Bergen City",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1416,
+          "actual": 1.416
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5320,
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Geiranger",
+      "expectedFrom": "Oslo Gardermoen Airport (OSL)",
+      "expectedTo": "Geiranger",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1180,
+          "actual": 1.18
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5329,
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Kristiansand",
+      "expectedFrom": "Oslo Gardermoen Airport (OSL)",
+      "expectedTo": "Kristiansand",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1050,
+          "actual": 1.05
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5351,
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Stavanger",
+      "expectedFrom": "Oslo Gardermoen Airport (OSL)",
+      "expectedTo": "Stavanger",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1430,
+          "actual": 1.43
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5352,
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Stockholm city center",
+      "expectedFrom": "Oslo Gardermoen Airport (OSL)",
+      "expectedTo": "Stockholm city center",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1516,
+          "actual": 1.516
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5360,
+      "from": "Lahore Allama Iqbal International Airport (LHE)",
+      "to": "Lahore",
+      "expectedFrom": "Lahore Allama Iqbal International Airport (LHE)",
+      "expectedTo": "Lahore",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Lux",
+          "expected": 1035,
+          "actual": 1.035
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5650,
+      "from": "Zurich Airport (ZRH)",
+      "to": "Adelboden",
+      "expectedFrom": "Zurich Airport (ZRH)",
+      "expectedTo": "Adelboden",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1105,
+          "actual": 1.105
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 1268,
+          "actual": 1.268
+        },
+        {
+          "col": "Standard Minibus 13pax",
+          "expected": 1814,
+          "actual": 1.814
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5651,
+      "from": "Zurich Airport (ZRH)",
+      "to": "Andermatt",
+      "expectedFrom": "Zurich Airport (ZRH)",
+      "expectedTo": "Andermatt",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Standard Minibus 13pax",
+          "expected": 1151,
+          "actual": 1.151
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5652,
+      "from": "Zurich Airport (ZRH)",
+      "to": "Arosa",
+      "expectedFrom": "Zurich Airport (ZRH)",
+      "expectedTo": "Arosa",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 1105,
+          "actual": 1.105
+        },
+        {
+          "col": "Standard Minibus 13pax",
+          "expected": 1560,
+          "actual": 1.56
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5653,
+      "from": "Zurich Airport (ZRH)",
+      "to": "Ascona",
+      "expectedFrom": "Zurich Airport (ZRH)",
+      "expectedTo": "Ascona",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1008,
+          "actual": 1.008
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 1170,
+          "actual": 1.17
+        },
+        {
+          "col": "Standard Minibus 13pax",
+          "expected": 1755,
+          "actual": 1.755
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5756,
+      "from": "Koh Samui - Mae Nam Port (Surat Thani )",
+      "to": "Phuket International Airport (HKT)",
+      "expectedFrom": "Koh Samui - Mae Nam Port (Surat Thani )",
+      "expectedTo": "Phuket International Airport (HKT)",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Lux",
+          "expected": 1147,
+          "actual": 1.147
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 5817,
+      "from": "Phuket International Airport (HKT)",
+      "to": "Koh Samui - Mae Nam Port (Surat Thani )",
+      "expectedFrom": "Phuket International Airport (HKT)",
+      "expectedTo": "Koh Samui - Mae Nam Port(Surat Thani )",
+      "matchedBy": "loose",
+      "diffs": [
+        {
+          "col": "Lux",
+          "expected": 1147,
+          "actual": 1.147
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6102,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Bakersfield",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Bakersfield",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 415.7066666666666,
+          "actual": 415.71
+        },
+        {
+          "col": "Saloon",
+          "expected": 348.2733333333333,
+          "actual": 348.27
+        },
+        {
+          "col": "Executive",
+          "expected": 375.2466666666666,
+          "actual": 375.25
+        },
+        {
+          "col": "MPV",
+          "expected": 415.7066666666666,
+          "actual": 415.71
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 556.5233333333333,
+          "actual": 556.52
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6106,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Chula Vista",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Chula Vista",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 281.2133333333333,
+          "actual": 281.21
+        },
+        {
+          "col": "Electric Standard",
+          "expected": 271.285,
+          "actual": 271.29
+        },
+        {
+          "col": "Saloon",
+          "expected": 235.5966666666666,
+          "actual": 235.6
+        },
+        {
+          "col": "Executive",
+          "expected": 253.8433333333333,
+          "actual": 253.84
+        },
+        {
+          "col": "MPV",
+          "expected": 281.2133333333333,
+          "actual": 281.21
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 376.4716666666667,
+          "actual": 376.47
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6107,
+      "from": "Long Beach Airport (LGB)",
+      "to": "El Cajon",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "El Cajon",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 281.2133333333333,
+          "actual": 281.21
+        },
+        {
+          "col": "Electric Standard",
+          "expected": 271.285,
+          "actual": 271.29
+        },
+        {
+          "col": "Saloon",
+          "expected": 235.5966666666666,
+          "actual": 235.6
+        },
+        {
+          "col": "Executive",
+          "expected": 253.8433333333333,
+          "actual": 253.84
+        },
+        {
+          "col": "MPV",
+          "expected": 281.2133333333333,
+          "actual": 281.21
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 376.4716666666667,
+          "actual": 376.47
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6108,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Fresno",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Fresno",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 635.7866666666666,
+          "actual": 635.79
+        },
+        {
+          "col": "Saloon",
+          "expected": 532.6533333333333,
+          "actual": 532.65
+        },
+        {
+          "col": "Executive",
+          "expected": 573.9066666666665,
+          "actual": 573.91
+        },
+        {
+          "col": "MPV",
+          "expected": 635.7866666666666,
+          "actual": 635.79
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 851.1533333333333,
+          "actual": 851.15
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6120,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Ojai+ Oak View",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Ojai+ Oak View",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 207.8533333333333,
+          "actual": 207.85
+        },
+        {
+          "col": "Saloon",
+          "expected": 174.1366666666667,
+          "actual": 174.14
+        },
+        {
+          "col": "Executive",
+          "expected": 187.6233333333333,
+          "actual": 187.62
+        },
+        {
+          "col": "MPV",
+          "expected": 207.8533333333333,
+          "actual": 207.85
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 278.2616666666667,
+          "actual": 278.26
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6123,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Oxnard+Ventura+Camarillo",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Oxnard+Ventura+Camarillo",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 195.6266666666666,
+          "actual": 195.63
+        },
+        {
+          "col": "Saloon",
+          "expected": 163.8933333333333,
+          "actual": 163.89
+        },
+        {
+          "col": "Executive",
+          "expected": 176.5866666666666,
+          "actual": 176.59
+        },
+        {
+          "col": "MPV",
+          "expected": 195.6266666666666,
+          "actual": 195.63
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 261.8933333333333,
+          "actual": 261.89
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6124,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Palm Springs+Coachella",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Palm Springs+Coachella",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 268.9866666666666,
+          "actual": 268.99
+        },
+        {
+          "col": "Saloon",
+          "expected": 225.3533333333333,
+          "actual": 225.35
+        },
+        {
+          "col": "Executive",
+          "expected": 242.8066666666666,
+          "actual": 242.81
+        },
+        {
+          "col": "MPV",
+          "expected": 268.9866666666666,
+          "actual": 268.99
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 360.1033333333334,
+          "actual": 360.1
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6130,
+      "from": "Long Beach Airport (LGB)",
+      "to": "San Diego",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "San Diego",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 268.9866666666666,
+          "actual": 268.99
+        },
+        {
+          "col": "Saloon",
+          "expected": 225.3533333333333,
+          "actual": 225.35
+        },
+        {
+          "col": "Executive",
+          "expected": 242.8066666666666,
+          "actual": 242.81
+        },
+        {
+          "col": "MPV",
+          "expected": 268.9866666666666,
+          "actual": 268.99
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 360.1033333333334,
+          "actual": 360.1
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6132,
+      "from": "Long Beach Airport (LGB)",
+      "to": "San Francisco",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "San Francisco",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 978.1333333333332,
+          "actual": 978.13
+        },
+        {
+          "col": "Saloon",
+          "expected": 819.4666666666665,
+          "actual": 819.47
+        },
+        {
+          "col": "Executive",
+          "expected": 882.9333333333333,
+          "actual": 882.93
+        },
+        {
+          "col": "MPV",
+          "expected": 978.1333333333332,
+          "actual": 978.13
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 1309.466666666667,
+          "actual": 1.30947
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6133,
+      "from": "Long Beach Airport (LGB)",
+      "to": "San Marcos+Rancho Santa Fe+Escondido",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "San Marcos+Rancho Santa Fe+Escondido",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 232.3066666666666,
+          "actual": 232.31
+        },
+        {
+          "col": "Saloon",
+          "expected": 194.6233333333333,
+          "actual": 194.62
+        },
+        {
+          "col": "Executive",
+          "expected": 209.6966666666667,
+          "actual": 209.7
+        },
+        {
+          "col": "MPV",
+          "expected": 232.3066666666666,
+          "actual": 232.31
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 310.9983333333333,
+          "actual": 311
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6135,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Santa Barbara+Carpinteria",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Santa Barbara+Carpinteria",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 281.2133333333333,
+          "actual": 281.21
+        },
+        {
+          "col": "Electric Standard",
+          "expected": 271.285,
+          "actual": 271.29
+        },
+        {
+          "col": "Saloon",
+          "expected": 235.5966666666666,
+          "actual": 235.6
+        },
+        {
+          "col": "Executive",
+          "expected": 253.8433333333333,
+          "actual": 253.84
+        },
+        {
+          "col": "MPV",
+          "expected": 281.2133333333333,
+          "actual": 281.21
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 376.4716666666667,
+          "actual": 376.47
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6139,
+      "from": "Long Beach Airport (LGB)",
+      "to": "Thousand Oaks+Simi Valley",
+      "expectedFrom": "Long Beach Airport (LGB)",
+      "expectedTo": "Thousand Oaks+Simi Valley",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "SUV",
+          "expected": 171.1733333333333,
+          "actual": 171.17
+        },
+        {
+          "col": "Saloon",
+          "expected": 143.4066666666667,
+          "actual": 143.41
+        },
+        {
+          "col": "Executive",
+          "expected": 154.5133333333333,
+          "actual": 154.51
+        },
+        {
+          "col": "MPV",
+          "expected": 171.1733333333333,
+          "actual": 171.17
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 229.1566666666667,
+          "actual": 229.16
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "id": 6168,
+      "from": "Los Angeles",
+      "to": "Las Vegas",
+      "expectedFrom": "Los Angeles",
+      "expectedTo": "Las Vegas",
+      "matchedBy": "exact",
+      "diffs": [
+        {
+          "col": "Lux",
+          "expected": 1650,
+          "actual": 1.65
+        }
+      ]
+    }
+  ]
+}

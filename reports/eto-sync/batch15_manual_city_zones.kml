@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Riderra ETO missing zones batch</name>
+    <Placemark>
+      <name>Sadao Border (to Malaysia), Songkhla</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Malaysia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.390000,6.600000,0 100.450000,6.600000,0 100.450000,6.680000,0 100.390000,6.680000,0 100.390000,6.600000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Songkhla Province</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Songkhla, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.300000,6.850000,0 101.100000,6.850000,0 101.100000,7.650000,0 100.300000,7.650000,0 100.300000,6.850000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Syvasenvaar</name>
+      <description>source=Riderra price book; count=2; countries=Finland; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Finland</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>25.775000,66.535000,0 25.845000,66.535000,0 25.845000,66.575000,0 25.775000,66.575000,0 25.775000,66.535000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Åre / Are</name>
+      <description>source=Riderra price book; count=1; countries=Sweden; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>13.000000,63.365000,0 13.130000,63.365000,0 13.130000,63.440000,0 13.000000,63.440000,0 13.000000,63.365000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Avakas Bay</name>
+      <description>source=Riderra price book; count=1; countries=Cyprus; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.300000,34.910000,0 32.370000,34.910000,0 32.370000,35.000000,0 32.300000,35.000000,0 32.300000,34.910000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Freiburg im Breisgau</name>
+      <description>source=Riderra price book; count=1; countries=France; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=France</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>7.740000,47.940000,0 7.930000,47.940000,0 7.930000,48.070000,0 7.740000,48.070000,0 7.740000,47.940000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Managri</name>
+      <description>source=Riderra price book; count=1; countries=Cyprus; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.850000,34.805000,0 32.910000,34.805000,0 32.910000,34.850000,0 32.850000,34.850000,0 32.850000,34.805000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pano Ardes</name>
+      <description>source=Riderra price book; count=1; countries=Cyprus; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.570000,34.890000,0 32.635000,34.890000,0 32.635000,34.940000,0 32.570000,34.940000,0 32.570000,34.890000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

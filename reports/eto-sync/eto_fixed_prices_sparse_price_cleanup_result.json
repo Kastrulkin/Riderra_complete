@@ -1,0 +1,64 @@
+{
+  "updated": 1235,
+  "errors": [
+    {
+      "From": "Vancouver Airport (YVR)",
+      "To": "Kelowna",
+      "fromZone": "30",
+      "toZone": "51",
+      "error": "missing id/zone"
+    },
+    {
+      "From": "Vancouver Airport (YVR)",
+      "To": "Tofino",
+      "fromZone": "30",
+      "toZone": "52",
+      "error": "missing id/zone"
+    },
+    {
+      "From": "Vancouver Airport (YVR)",
+      "To": "Vancouver",
+      "fromZone": "30",
+      "toZone": "31",
+      "error": "missing id/zone"
+    },
+    {
+      "From": "Vancouver Airport (YVR)",
+      "To": "Victoria",
+      "fromZone": "30",
+      "toZone": "53",
+      "error": "missing id/zone"
+    },
+    {
+      "From": "Vancouver Airport (YVR)",
+      "To": "Whistler",
+      "fromZone": "30",
+      "toZone": "49",
+      "error": "missing id/zone"
+    },
+    {
+      "From": "Riga airport (RIX)",
+      "To": "Riga",
+      "fromZone": "7",
+      "toZone": "8",
+      "error": "missing id/zone"
+    },
+    {
+      "From": "Vilnius airport (VNO)",
+      "To": "Kaunas",
+      "fromZone": "10",
+      "toZone": "700",
+      "error": "missing id/zone"
+    },
+    {
+      "From": "Vilnius airport (VNO)",
+      "To": "Vilnius",
+      "fromZone": "10",
+      "toZone": "9",
+      "error": "missing id/zone"
+    }
+  ],
+  "beforeTotal": 1243,
+  "afterTotal": 1243,
+  "zoneRows": 1243
+}

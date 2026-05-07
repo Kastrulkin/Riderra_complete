@@ -1,0 +1,21 @@
+{
+  "message": [],
+  "success": true,
+  "record": {
+    "id": 192,
+    "site_id": 1,
+    "name": "Stripe",
+    "description": "Credit or Debit Card",
+    "service_ids": [],
+    "payment_page": "Pay by Credit or Debit Card via Stripe\r\nYou will be passed over to secure Stripe payment pages to complete your booking.\r\nClick the button below to proceed with your booking.",
+    "image": "d026b711799b786673fcac669e2ac650.png",
+    "params": "{\"test_mode\":\"0\",\"pk_live\":\"<stripe_publishable_key_redacted>\",\"sk_live\":\"<stripe_restricted_key_redacted>\",\"pk_test\":\"\",\"sk_test\":\"\",\"sca_mode\":\"1\",\"live_enable_webhook\":\"1\",\"live_webhook_id\":\"we_1S8HvXCHEKuZFA2EI6ILaqmc\",\"live_webhook_secret\":\"<stripe_webhook_secret_redacted>\",\"test_enable_webhook\":\"1\",\"test_webhook_id\":\"\",\"test_webhook_secret\":\"\",\"zip_code\":\"true\",\"three_d_secure\":\"false\",\"future_usage_policy\":\"never\",\"capture_method\":\"automatic\",\"currency_code\":\"GBP\",\"language_code\":\"auto\",\"deposit\":\"1\"}",
+    "method": "stripe",
+    "factor_type": 0,
+    "price": 0.12,
+    "default": 0,
+    "ordering": 3,
+    "published": 0,
+    "is_backend": 0
+  }
+}

@@ -1,0 +1,723 @@
+{
+  "batch8_airports_ports_stations_remaining_after_batch7.kml": {
+    "placemarks": 33,
+    "bySource": {
+      "fallback-circle": 33
+    },
+    "byCat": {
+      "airport": 31,
+      "port": 1,
+      "station": 1
+    },
+    "suspiciousCount": 0,
+    "suspicious": [],
+    "sample": [
+      {
+        "name": "Tashkent International Airport (TAS)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Thap Lamu Pier, Phang Nga",
+        "source": "fallback-circle",
+        "cat": "port",
+        "detail": "radiusKm=2"
+      },
+      {
+        "name": "Trang Airport (TST), Khok Lo, Mueang Trang District",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Trang Train Station",
+        "source": "fallback-circle",
+        "cat": "station",
+        "detail": "radiusKm=2"
+      },
+      {
+        "name": "Ufa International Airport (UFA)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Ulyanovsk Baratayevka Airport (ULV)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Vienna Schwechat Airport (VIE)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Visby Airport (VBY)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      }
+    ]
+  },
+  "batch9_cities_top100_after_batch7.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "google-viewport": 100
+    },
+    "byCat": {
+      "city": 100
+    },
+    "suspiciousCount": 21,
+    "suspicious": [
+      {
+        "name": "Petra",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0244,
+        "height": 0.0034,
+        "detail": "geocode=Jordan"
+      },
+      {
+        "name": "Saint Petersburg",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 1.3397,
+        "height": 0.6127,
+        "detail": "geocode=St Petersburg, Russia"
+      },
+      {
+        "name": "Sheikh Hussein Bridge",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=North District, Israel"
+      },
+      {
+        "name": "Avsallar",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Avsallar, 07410 Alanya/Antalya, Türkiye"
+      },
+      {
+        "name": "Basel",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 118.9592,
+        "height": 40.8565,
+        "detail": "geocode=France"
+      },
+      {
+        "name": "Colakli / Çolaklı",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Çolaklı, 07550 Manavgat/Antalya, Türkiye"
+      },
+      {
+        "name": "Evrenseki",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Evrenseki, 07600 Manavgat/Antalya, Türkiye"
+      },
+      {
+        "name": "Hua Thanon, Samui",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=7 Soi 5, Khwaeng Suan Luang, Khet Suan Luang, Krung Thep Maha Nakhon 10250, Thailand"
+      },
+      {
+        "name": "Kadriye",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Kadriye, 07525 Serik/Antalya, Türkiye"
+      },
+      {
+        "name": "Kizilagac / Kızılağaç",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Kızılağaç, 07600 Manavgat/Antalya, Türkiye"
+      },
+      {
+        "name": "Konakli",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Konaklı, 07491 Alanya/Antalya, Türkiye"
+      },
+      {
+        "name": "Malmö / Malmo",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 7.3746,
+        "height": 3.5968,
+        "detail": "geocode=Denmark"
+      },
+      {
+        "name": "Railay, Krabi",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0021,
+        "height": 0.0046,
+        "detail": "geocode=Railay Beach, Ao Nang, Krabi, Thailand"
+      },
+      {
+        "name": "Turkler / Türkler",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Türkler, 07407 Alanya/Antalya, Türkiye"
+      },
+      {
+        "name": "Adrasan",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Adrasan, 07350 Kumluca/Antalya, Türkiye"
+      },
+      {
+        "name": "Camyuva / Çamyuva",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Çamyuva, 07990 Kemer/Antalya, Türkiye"
+      },
+      {
+        "name": "Cirali / Çıralı (Kemer, Antlaya)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Çıralı, Ulupınar, 07982 Kemer/Antalya, Türkiye"
+      },
+      {
+        "name": "Denizyaka",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Denizyaka, 07550 Manavgat/Antalya, Türkiye"
+      },
+      {
+        "name": "Hamburg",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 1.9121,
+        "height": 0.5699,
+        "detail": "geocode=Hamburg, Germany"
+      },
+      {
+        "name": "Kargıcak",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Kargıcak Belediyesi, Kargıcak, 07400 Alanya/Antalya, Türkiye"
+      },
+      {
+        "name": "Kiris / Kiriş",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Kiriş, 07980 Kemer/Antalya, Türkiye"
+      }
+    ],
+    "sample": [
+      {
+        "name": "Osaka",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=135.37291,34.58644,135.59917,34.76876"
+      },
+      {
+        "name": "Petra",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=35.44436,30.32502,35.46875,30.32845"
+      },
+      {
+        "name": "Pionerskiy",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=20.19711,54.94268,20.24800,54.95717"
+      },
+      {
+        "name": "Rawai, Mueang, Phuket",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=98.27171,7.47850,98.48332,7.97558"
+      },
+      {
+        "name": "Saint Petersburg",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=29.42480,59.63409,30.76454,60.24674"
+      },
+      {
+        "name": "Salt city",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=35.68448,31.97228,35.76754,32.09225"
+      },
+      {
+        "name": "Saratov",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=45.82985,51.41099,46.16395,51.65216"
+      },
+      {
+        "name": "Sheikh Hussein Bridge",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=35.57384,32.49562,35.57654,32.49832"
+      }
+    ]
+  },
+  "batch10_cities_next100_after_batch7.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "google-viewport": 100
+    },
+    "byCat": {
+      "city": 100
+    },
+    "suspiciousCount": 19,
+    "suspicious": [
+      {
+        "name": "Okurcalar",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Okurcalar, 07410 Alanya/Antalya, Türkiye"
+      },
+      {
+        "name": "San Diego (0-19 miles)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=0 19th St, San Diego, CA 92102, USA"
+      },
+      {
+        "name": "San Diego (20-39 miles)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=4114-20 39th St, San Diego, CA 92105, USA"
+      },
+      {
+        "name": "San Diego (40-59 miles)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=40 59th St, San Diego, CA 92114, USA"
+      },
+      {
+        "name": "Tai Po",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Taipo, Lukou District, Zhuzhou, Hunan, China, 412112"
+      },
+      {
+        "name": "Tuen Mun",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 61.2762,
+        "height": 35.5614,
+        "detail": "geocode=China"
+      },
+      {
+        "name": "Wong Tai Sin",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 61.2762,
+        "height": 35.5614,
+        "detail": "geocode=China"
+      },
+      {
+        "name": "Yuen Long",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Yuanlang, Heshan, Jiangmen, Guangdong Province, China, 529700"
+      },
+      {
+        "name": "Bozburun (Marmaris)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Bozburun, Yeşilova, 48700 Marmaris/Muğla, Türkiye"
+      },
+      {
+        "name": "Doi Suthep Temple",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Suthep, Mueang Chiang Mai District, Chiang Mai 50200, Thailand"
+      },
+      {
+        "name": "Incekum",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=İncekum, 07470 Alanya/Antalya, Türkiye"
+      },
+      {
+        "name": "Kaitaa / Soukka / Matinkyla / Olari / Latokaski",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Latokaski, 02340 Espoo, Finland"
+      },
+      {
+        "name": "Kizilot",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Kızılot, 07600 Manavgat/Antalya, Türkiye"
+      },
+      {
+        "name": "Lampoon",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.6507,
+        "height": 1.2827,
+        "detail": "geocode=Lamphun, Thailand"
+      },
+      {
+        "name": "Oba",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Oba, 07460 Alanya/Antalya, Türkiye"
+      },
+      {
+        "name": "Rauma",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 1.2207,
+        "height": 0.2825,
+        "detail": "geocode=Rauma, Finland"
+      },
+      {
+        "name": "Rovaniemi City",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 2.5898,
+        "height": 1.0292,
+        "detail": "geocode=Rovaniemi, Finland"
+      },
+      {
+        "name": "Selimiye (Marmaris)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Selimiye, 48700 Marmaris/Muğla, Türkiye"
+      },
+      {
+        "name": "Shahdag (Quba, Qusar)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=66 Yusif Qasımov, Quba 4000, Azerbaijan"
+      }
+    ],
+    "sample": [
+      {
+        "name": "Kirov",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=49.33610,58.48145,49.80805,58.68928"
+      },
+      {
+        "name": "Klong Muang Thailand",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=98.75209,8.01990,98.79561,8.05667"
+      },
+      {
+        "name": "Kokkorevo",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=31.06366,60.04970,31.08913,60.08172"
+      },
+      {
+        "name": "Krabi town",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=98.88255,8.05287,98.92212,8.10946"
+      },
+      {
+        "name": "Las Palmas de Gran Canaria",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=-15.52725,28.02443,-15.39490,28.18159"
+      },
+      {
+        "name": "Lyka World Links Golf, Antalya",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=30.58096,36.82029,30.85525,36.97559"
+      },
+      {
+        "name": "Minsk",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=27.37794,53.79663,27.80880,53.97265"
+      },
+      {
+        "name": "Mueang, Phang Nga",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=98.20504,8.30168,98.42564,8.65295"
+      }
+    ]
+  },
+  "batch11_cities_next100_after_batch7.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "google-viewport": 100
+    },
+    "byCat": {
+      "city": 100
+    },
+    "suspiciousCount": 19,
+    "suspicious": [
+      {
+        "name": "Titreyengol lake",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0042,
+        "height": 0.008,
+        "detail": "geocode=Titreyengöl, Sorgun, 07600 Manavgat/Antalya, Türkiye"
+      },
+      {
+        "name": "Tufandag (Gabala)",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0015,
+        "height": 0.0016,
+        "detail": "geocode=Tufandag, Azerbaijan"
+      },
+      {
+        "name": "Anadolu transfer",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0088,
+        "height": 0.0059,
+        "detail": "geocode=Anadolu, İlkadım/Samsun, Türkiye"
+      },
+      {
+        "name": "Ao Thalane Bay, Krabi",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=4PWX+57V, Soi Sao. Krabi 2025, Tambon Khao Thong, Amphoe Mueang Krabi, Chang Wat Krabi 81000, Thailand"
+      },
+      {
+        "name": "Bang Saen, Chon Buri",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Bang Saen Ville, Huai Kapi, Chon Buri District, Chon Buri 20130, Thailand"
+      },
+      {
+        "name": "Central and Western",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 61.2762,
+        "height": 35.5614,
+        "detail": "geocode=China"
+      },
+      {
+        "name": "Cheow Lan Dam, Surat Thani",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Cheow Lan Lake, Khao Phang, Ban Ta Khun District, Surat Thani 84230, Thailand"
+      },
+      {
+        "name": "El Alamein",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=El-Alamein, Al Alameen City, El Alamein, Marsa Matrouh Governorate 5060335, Egypt"
+      },
+      {
+        "name": "Gåshaga",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Gåshaga, 181 66 Lidingö, Sweden"
+      },
+      {
+        "name": "Grisslehamn",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=764 56 Grisslehamn, Sweden"
+      },
+      {
+        "name": "Heliopolis",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Heliopolis, Al Matar, El Nozha, Cairo Governorate 4470351, Egypt"
+      },
+      {
+        "name": "Hetepuronpolku",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0026,
+        "height": 0.0013,
+        "detail": "geocode=Hetepuronpolku, 96900 Rovaniemi, Finland"
+      },
+      {
+        "name": "Karvonranta",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Karvonranta, 96600 Rovaniemi, Finland"
+      },
+      {
+        "name": "Korkalovaara",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Korkalovaara, 96500 Rovaniemi, Finland"
+      },
+      {
+        "name": "Nabq Bay",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Nabq Bay, Egypt"
+      },
+      {
+        "name": "Nacka, Sweden",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=132 42 Nacka, Sweden"
+      },
+      {
+        "name": "Nathon-Lipa Thailand",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Nathon Town, Ang Thong, Ko Samui District, Surat Thani 84140, Thailand"
+      },
+      {
+        "name": "Nivavaara",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.0027,
+        "height": 0.0027,
+        "detail": "geocode=Nivavaara, 96900 Rovaniemi, Finland"
+      },
+      {
+        "name": "Nusa dua",
+        "cat": "city",
+        "source": "google-viewport",
+        "width": 0.004,
+        "height": 0.006,
+        "detail": "geocode=Nusa Dua Beach, Bali, Indonesia"
+      }
+    ],
+    "sample": [
+      {
+        "name": "Sorgun",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=34.99762,39.51876,35.60659,40.08104"
+      },
+      {
+        "name": "Taichung City",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=120.45656,23.99856,121.45201,24.44149"
+      },
+      {
+        "name": "Titreyengol lake",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=31.45099,36.75204,31.45519,36.75999"
+      },
+      {
+        "name": "Tornio/Haaparanta",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=24.07238,65.81361,24.15134,65.86722"
+      },
+      {
+        "name": "Tosmur",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=32.04281,36.52207,32.06970,36.53645"
+      },
+      {
+        "name": "Toulouse",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=1.35033,43.53269,1.51536,43.66871"
+      },
+      {
+        "name": "Tufandag (Gabala)",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=47.87984,41.00570,47.88134,41.00728"
+      },
+      {
+        "name": "Turunç (Marmaris)",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=28.23959,36.76604,28.25351,36.77967"
+      }
+    ]
+  }
+}

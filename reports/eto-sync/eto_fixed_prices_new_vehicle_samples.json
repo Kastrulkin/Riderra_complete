@@ -1,0 +1,58 @@
+[
+  {
+    "sample": [
+      "EVN",
+      "YEREVAN"
+    ],
+    "id": 3729,
+    "start": "YEREVAN ZVARTNOTS AIRPORT (EVN)",
+    "end": "YEREVAN",
+    "params": {
+      "factor_type": 2,
+      "deposit": 0,
+      "vehicle": []
+    }
+  },
+  {
+    "sample": [
+      "BAKU HEYDAR",
+      "BAKU"
+    ],
+    "id": 3731,
+    "start": "BAKU HEYDAR ALIYEV INTERNATIONAL AIRPORT (GYD)",
+    "end": "BAKU",
+    "params": {
+      "factor_type": 2,
+      "deposit": 0,
+      "vehicle": []
+    }
+  },
+  {
+    "sample": [
+      "HELSINKI VANTAA",
+      "HELSINKI"
+    ],
+    "id": 3878,
+    "start": "HELSINKI VANTAA AIRPORT (HEL)",
+    "end": "HELSINKI",
+    "params": {
+      "factor_type": 2,
+      "deposit": 0,
+      "vehicle": []
+    }
+  },
+  {
+    "sample": [
+      "DALLAS",
+      "Dallas"
+    ],
+    "id": 4843,
+    "start": "DALLAS ADDISON AIRPORT (ADS)",
+    "end": "DALLAS",
+    "params": {
+      "factor_type": 2,
+      "deposit": 0,
+      "vehicle": []
+    }
+  }
+]

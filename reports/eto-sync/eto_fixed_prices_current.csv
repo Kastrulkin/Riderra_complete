@@ -1,0 +1,5 @@
+"fromId","from","toId","to","direction","Sprinter","Lux","MV 8 pax","Saloon","Electric Standard","Estate","Executive","MPV","MV 7 pax","MV 6 pax","SUV"
+"6","Helsinki-Vantaa Airport (HEL)","11","Helsinki","Both ways","0","0","0","38","50","0","55","0","0","60",""
+"1","Los Angeles airport (LAX)","2","Anaheim","Both ways","0","0","0","63","","0","0","0","0","70",""
+"1","Los Angeles airport (LAX)","16","Los Angeles Downtown","Both ways","0","0","0","60","","0","90","0","0","75",""
+"6","Helsinki-Vantaa Airport (HEL)","71","Espoo","Both ways","0","0","0","38","50","0","55","0","0","60",""

@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Riderra ETO missing zones batch</name>
+    <Placemark>
+      <name>Phuket International Airport (HKT)</name>
+      <description>source=Riderra price book; count=222; countries=Thailand; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Phuket International Airport (HKT), 222 หมู่ที่ 6, Tambon Mai Khao, Amphoe Thalang, Chang Wat Phuket 83110, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.332650,8.105340,0 98.332127,8.110633,0 98.330578,8.115723,0 98.328063,8.120413,0 98.324677,8.124525,0 98.320552,8.127899,0 98.315846,8.130406,0 98.310740,8.131950,0 98.305429,8.132471,0 98.300118,8.131950,0 98.295012,8.130406,0 98.290306,8.127899,0 98.286181,8.124525,0 98.282795,8.120413,0 98.280280,8.115723,0 98.278731,8.110633,0 98.278208,8.105340,0 98.278731,8.100047,0 98.280280,8.094958,0 98.282795,8.090267,0 98.286181,8.086156,0 98.290306,8.082781,0 98.295012,8.080274,0 98.300118,8.078730,0 98.305429,8.078209,0 98.310740,8.078730,0 98.315846,8.080274,0 98.320552,8.082781,0 98.324677,8.086156,0 98.328063,8.090267,0 98.330578,8.094958,0 98.332127,8.100047,0 98.332650,8.105340,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dubai international Airport (DXB)</name>
+      <description>source=Riderra price book; count=190; countries=United Arab Emirates; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Dubai International Airport (DXB) - Airport Rd - Al Garhoud - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.398103,25.251540,0 55.397531,25.256833,0 55.395835,25.261923,0 55.393082,25.266613,0 55.389376,25.270725,0 55.384861,25.274099,0 55.379709,25.276606,0 55.374120,25.278150,0 55.368307,25.278671,0 55.362494,25.278150,0 55.356904,25.276606,0 55.351753,25.274099,0 55.347237,25.270725,0 55.343532,25.266613,0 55.340778,25.261923,0 55.339083,25.256833,0 55.338510,25.251540,0 55.339083,25.246247,0 55.340778,25.241157,0 55.343532,25.236467,0 55.347237,25.232355,0 55.351753,25.228981,0 55.356904,25.226474,0 55.362494,25.224930,0 55.368307,25.224409,0 55.374120,25.224930,0 55.379709,25.226474,0 55.384861,25.228981,0 55.389376,25.232355,0 55.393082,25.236467,0 55.395835,25.241157,0 55.397531,25.246247,0 55.398103,25.251540,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Antalya Airport (AYT)</name>
+      <description>source=Riderra price book; count=182; countries=Turkey; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Antalya Airport (AYT), Yeşilköy, Antalya Havaalanı, 07230 Muratpaşa/Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.831889,36.908696,0 30.831242,36.913989,0 30.829324,36.919079,0 30.826209,36.923769,0 30.822018,36.927881,0 30.816910,36.931255,0 30.811083,36.933762,0 30.804761,36.935306,0 30.798185,36.935827,0 30.791610,36.935306,0 30.785288,36.933762,0 30.779461,36.931255,0 30.774353,36.927881,0 30.770162,36.923769,0 30.767047,36.919079,0 30.765129,36.913989,0 30.764482,36.908696,0 30.765129,36.903403,0 30.767047,36.898313,0 30.770162,36.893623,0 30.774353,36.889511,0 30.779461,36.886137,0 30.785288,36.883630,0 30.791610,36.882086,0 30.798185,36.881565,0 30.804761,36.882086,0 30.811083,36.883630,0 30.816910,36.886137,0 30.822018,36.889511,0 30.826209,36.893623,0 30.829324,36.898313,0 30.831242,36.903403,0 30.831889,36.908696,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bangkok Suvarnabhumi Airport (BKK)</name>
+      <description>source=Riderra price book; count=121; countries=Thailand; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=999, Suvarnabhumi Airport (BKK), Tambon Nong Prue, Amphoe Bang Phli, Chang Wat Samut Prakan 10540, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.774606,13.681897,0 100.774073,13.687190,0 100.772494,13.692280,0 100.769931,13.696970,0 100.766482,13.701082,0 100.762279,13.704456,0 100.757484,13.706963,0 100.752281,13.708507,0 100.746869,13.709028,0 100.741458,13.708507,0 100.736255,13.706963,0 100.731460,13.704456,0 100.727257,13.701082,0 100.723807,13.696970,0 100.721244,13.692280,0 100.719666,13.687190,0 100.719133,13.681897,0 100.719666,13.676604,0 100.721244,13.671514,0 100.723807,13.666824,0 100.727257,13.662712,0 100.731460,13.659338,0 100.736255,13.656831,0 100.741458,13.655287,0 100.746869,13.654766,0 100.752281,13.655287,0 100.757484,13.656831,0 100.762279,13.659338,0 100.766482,13.662712,0 100.769931,13.666824,0 100.772494,13.671514,0 100.774073,13.676604,0 100.774606,13.681897,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Seoul Gimpo Airport (GMP)</name>
+      <description>source=Riderra price book; count=104; countries=South Korea; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Gimpo International Airport (GMP), 112 Haneul-gil, Gangseo-gu, Seoul, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.835327,37.565538,0 126.834674,37.570831,0 126.832739,37.575921,0 126.829597,37.580612,0 126.825369,37.584723,0 126.820217,37.588097,0 126.814339,37.590604,0 126.807961,37.592148,0 126.801328,37.592669,0 126.794695,37.592148,0 126.788317,37.590604,0 126.782440,37.588097,0 126.777287,37.584723,0 126.773059,37.580612,0 126.769917,37.575921,0 126.767983,37.570831,0 126.767329,37.565538,0 126.767983,37.560245,0 126.769917,37.555156,0 126.773059,37.550465,0 126.777287,37.546354,0 126.782440,37.542980,0 126.788317,37.540472,0 126.794695,37.538928,0 126.801328,37.538407,0 126.807961,37.538928,0 126.814339,37.540472,0 126.820217,37.542980,0 126.825369,37.546354,0 126.829597,37.550465,0 126.832739,37.555156,0 126.834674,37.560245,0 126.835327,37.565538,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Seoul Incheon Airport (ICN)</name>
+      <description>source=Riderra price book; count=104; countries=South Korea; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Incheon International Airport (ICN), 272 Gonghang-ro, Jung-gu, Incheon, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.475918,37.458666,0 126.475266,37.463959,0 126.473334,37.469049,0 126.470196,37.473739,0 126.465974,37.477851,0 126.460830,37.481225,0 126.454960,37.483732,0 126.448591,37.485276,0 126.441968,37.485797,0 126.435345,37.485276,0 126.428976,37.483732,0 126.423106,37.481225,0 126.417962,37.477851,0 126.413739,37.473739,0 126.410602,37.469049,0 126.408670,37.463959,0 126.408018,37.458666,0 126.408670,37.453373,0 126.410602,37.448283,0 126.413739,37.443593,0 126.417962,37.439481,0 126.423106,37.436107,0 126.428976,37.433600,0 126.435345,37.432056,0 126.441968,37.431535,0 126.448591,37.432056,0 126.454960,37.433600,0 126.460830,37.436107,0 126.465974,37.439481,0 126.470196,37.443593,0 126.473334,37.448283,0 126.475266,37.453373,0 126.475918,37.458666,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Marrakesh Menara Airport (RAK)</name>
+      <description>source=Riderra price book; count=98; countries=Morocco; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Marrakesh Menara Airport (RAK), Marrakech 40000, Morocco</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-7.994070,31.601748,0 -7.994678,31.607041,0 -7.996478,31.612131,0 -7.999402,31.616821,0 -8.003337,31.620933,0 -8.008132,31.624307,0 -8.013603,31.626814,0 -8.019538,31.628358,0 -8.025711,31.628879,0 -8.031884,31.628358,0 -8.037820,31.626814,0 -8.043290,31.624307,0 -8.048085,31.620933,0 -8.052020,31.616821,0 -8.054944,31.612131,0 -8.056745,31.607041,0 -8.057353,31.601748,0 -8.056745,31.596455,0 -8.054944,31.591365,0 -8.052020,31.586675,0 -8.048085,31.582563,0 -8.043290,31.579189,0 -8.037820,31.576682,0 -8.031884,31.575138,0 -8.025711,31.574617,0 -8.019538,31.575138,0 -8.013603,31.576682,0 -8.008132,31.579189,0 -8.003337,31.582563,0 -7.999402,31.586675,0 -7.996478,31.591365,0 -7.994678,31.596455,0 -7.994070,31.601748,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Samui International Airport (USM)</name>
+      <description>source=Riderra price book; count=78; countries=Thailand; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=99, Samui Airport (USM), Tambon Bo Put, Amphoe Ko Samui, Chang Wat Surat Thani 84320, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.090356,9.548437,0 100.089831,9.553730,0 100.088276,9.558819,0 100.085750,9.563510,0 100.082352,9.567621,0 100.078210,9.570995,0 100.073486,9.573503,0 100.068359,9.575046,0 100.063028,9.575568,0 100.057696,9.575046,0 100.052570,9.573503,0 100.047845,9.570995,0 100.043704,9.567621,0 100.040306,9.563510,0 100.037780,9.558819,0 100.036225,9.553730,0 100.035700,9.548437,0 100.036225,9.543144,0 100.037780,9.538054,0 100.040306,9.533363,0 100.043704,9.529252,0 100.047845,9.525878,0 100.052570,9.523371,0 100.057696,9.521827,0 100.063028,9.521305,0 100.068359,9.521827,0 100.073486,9.523371,0 100.078210,9.525878,0 100.082352,9.529252,0 100.085750,9.533363,0 100.088276,9.538054,0 100.089831,9.543144,0 100.090356,9.548437,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Larnaca Airport (LCA)</name>
+      <description>source=Riderra price book; count=69; countries=Cyprus; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Larnaka International Airport (LCA), Larnaka, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>33.640521,34.871492,0 33.639890,34.876785,0 33.638021,34.881875,0 33.634985,34.886566,0 33.630900,34.890677,0 33.625923,34.894051,0 33.620244,34.896558,0 33.614082,34.898102,0 33.607673,34.898623,0 33.601265,34.898102,0 33.595103,34.896558,0 33.589424,34.894051,0 33.584447,34.890677,0 33.580362,34.886566,0 33.577326,34.881875,0 33.575457,34.876785,0 33.574826,34.871492,0 33.575457,34.866199,0 33.577326,34.861110,0 33.580362,34.856419,0 33.584447,34.852308,0 33.589424,34.848934,0 33.595103,34.846426,0 33.601265,34.844882,0 33.607673,34.844361,0 33.614082,34.844882,0 33.620244,34.846426,0 33.625923,34.848934,0 33.630900,34.852308,0 33.634985,34.856419,0 33.638021,34.861110,0 33.639890,34.866199,0 33.640521,34.871492,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Port of Los Angeles</name>
+      <description>source=Riderra price book; count=64; countries=United States of America; category=port; geometrySource=fallback-circle; radiusKm=2; geocode=Port of Los Angeles, Los Angeles, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.238363,33.739546,0 -118.238779,33.743075,0 -118.240008,33.746468,0 -118.242005,33.749595,0 -118.244691,33.752336,0 -118.247965,33.754585,0 -118.251701,33.756257,0 -118.255754,33.757286,0 -118.259969,33.757633,0 -118.264184,33.757286,0 -118.268237,33.756257,0 -118.271972,33.754585,0 -118.275246,33.752336,0 -118.277933,33.749595,0 -118.279929,33.746468,0 -118.281159,33.743075,0 -118.281574,33.739546,0 -118.281159,33.736017,0 -118.279929,33.732624,0 -118.277933,33.729497,0 -118.275246,33.726756,0 -118.271972,33.724507,0 -118.268237,33.722835,0 -118.264184,33.721806,0 -118.259969,33.721458,0 -118.255754,33.721806,0 -118.251701,33.722835,0 -118.247965,33.724507,0 -118.244691,33.726756,0 -118.242005,33.729497,0 -118.240008,33.732624,0 -118.238779,33.736017,0 -118.238363,33.739546,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Oslo Gardermoen Airport (OSL)</name>
+      <description>source=Riderra price book; count=56; countries=Norway; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Oslo lufthavn (OSL), Edvard Munchs veg, 2061 Gardermoen, Norway</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>11.150593,60.197845,0 11.149552,60.203138,0 11.146466,60.208227,0 11.141455,60.212918,0 11.134712,60.217029,0 11.126495,60.220403,0 11.117120,60.222911,0 11.106949,60.224454,0 11.096370,60.224976,0 11.085792,60.224454,0 11.075620,60.222911,0 11.066245,60.220403,0 11.058028,60.217029,0 11.051285,60.212918,0 11.046274,60.208227,0 11.043189,60.203138,0 11.042147,60.197845,0 11.043189,60.192552,0 11.046274,60.187462,0 11.051285,60.182771,0 11.058028,60.178660,0 11.066245,60.175286,0 11.075620,60.172779,0 11.085792,60.171235,0 11.096370,60.170713,0 11.106949,60.171235,0 11.117120,60.172779,0 11.126495,60.175286,0 11.134712,60.178660,0 11.141455,60.182771,0 11.146466,60.187462,0 11.149552,60.192552,0 11.150593,60.197845,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Saint-Petersburg Pulkovo Airport (LED)</name>
+      <description>source=Riderra price book; count=55; countries=Russia; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Pulkovo Airport (LED), лит. ЗА, Pulkovskoe sh., д. 41, Sankt-Peterburg, Russia, 196140</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.321419,59.802913,0 30.320389,59.808206,0 30.317340,59.813295,0 30.312389,59.817986,0 30.305726,59.822097,0 30.297606,59.825471,0 30.288343,59.827979,0 30.278292,59.829523,0 30.267839,59.830044,0 30.257386,59.829523,0 30.247335,59.827979,0 30.238072,59.825471,0 30.229952,59.822097,0 30.223289,59.817986,0 30.218338,59.813295,0 30.215289,59.808206,0 30.214259,59.802913,0 30.215289,59.797620,0 30.218338,59.792530,0 30.223289,59.787839,0 30.229952,59.783728,0 30.238072,59.780354,0 30.247335,59.777847,0 30.257386,59.776303,0 30.267839,59.775782,0 30.278292,59.776303,0 30.288343,59.777847,0 30.297606,59.780354,0 30.305726,59.783728,0 30.312389,59.787839,0 30.317340,59.792530,0 30.320389,59.797620,0 30.321419,59.802913,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sharjah Airport (SHJ)</name>
+      <description>source=Riderra price book; count=54; countries=United Arab Emirates; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Sharjah International Airport - Al Ruqa Al Hamra - Sharjah - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.550354,25.321365,0 55.549781,25.326658,0 55.548084,25.331747,0 55.545329,25.336438,0 55.541622,25.340549,0 55.537104,25.343923,0 55.531949,25.346431,0 55.526356,25.347975,0 55.520540,25.348496,0 55.514724,25.347975,0 55.509131,25.346431,0 55.503976,25.343923,0 55.499459,25.340549,0 55.495751,25.336438,0 55.492996,25.331747,0 55.491299,25.326658,0 55.490726,25.321365,0 55.491299,25.316072,0 55.492996,25.310982,0 55.495751,25.306291,0 55.499459,25.302180,0 55.503976,25.298806,0 55.509131,25.296299,0 55.514724,25.294755,0 55.520540,25.294234,0 55.526356,25.294755,0 55.531949,25.296299,0 55.537104,25.298806,0 55.541622,25.302180,0 55.545329,25.306291,0 55.548084,25.310982,0 55.549781,25.316072,0 55.550354,25.321365,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Amman Queen Alia Airport (AMM)</name>
+      <description>source=Riderra price book; count=53; countries=Jordan; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Queen Alia International Airport (AMM), Desert Highway, Amman, Jordan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>36.028139,31.721698,0 36.027530,31.726991,0 36.025727,31.732081,0 36.022799,31.736771,0 36.018859,31.740883,0 36.014058,31.744257,0 36.008581,31.746764,0 36.002637,31.748308,0 35.996456,31.748829,0 35.990275,31.748308,0 35.984332,31.746764,0 35.978855,31.744257,0 35.974054,31.740883,0 35.970113,31.736771,0 35.967186,31.732081,0 35.965383,31.726991,0 35.964774,31.721698,0 35.965383,31.716405,0 35.967186,31.711316,0 35.970113,31.706625,0 35.974054,31.702514,0 35.978855,31.699139,0 35.984332,31.696632,0 35.990275,31.695088,0 35.996456,31.694567,0 36.002637,31.695088,0 36.008581,31.696632,0 36.014058,31.699139,0 36.018859,31.702514,0 36.022799,31.706625,0 36.025727,31.711316,0 36.027530,31.716405,0 36.028139,31.721698,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Fort Lauderdale-Hollywood International Airport (FLL)</name>
+      <description>source=Riderra price book; count=52; countries=United States of America; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Fort Lauderdale, FL, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.107302,26.122439,0 -80.107879,26.127732,0 -80.109587,26.132821,0 -80.112361,26.137512,0 -80.116093,26.141623,0 -80.120642,26.144997,0 -80.125831,26.147505,0 -80.131462,26.149048,0 -80.137317,26.149570,0 -80.143173,26.149048,0 -80.148804,26.147505,0 -80.153993,26.144997,0 -80.158541,26.141623,0 -80.162274,26.137512,0 -80.165048,26.132821,0 -80.166756,26.127732,0 -80.167333,26.122439,0 -80.166756,26.117146,0 -80.165048,26.112056,0 -80.162274,26.107365,0 -80.158541,26.103254,0 -80.153993,26.099880,0 -80.148804,26.097373,0 -80.143173,26.095829,0 -80.137317,26.095307,0 -80.131462,26.095829,0 -80.125831,26.097373,0 -80.120642,26.099880,0 -80.116093,26.103254,0 -80.112361,26.107365,0 -80.109587,26.112056,0 -80.107879,26.117146,0 -80.107302,26.122439,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Amman Civil Airport (Marka) (ADJ)</name>
+      <description>source=Riderra price book; count=51; countries=Jordan; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Amman City Airport, Al Matar 22, Amman 11134, Jordan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>36.015004,31.975327,0 36.014393,31.980620,0 36.012585,31.985710,0 36.009649,31.990400,0 36.005698,31.994512,0 36.000884,31.997886,0 35.995392,32.000393,0 35.989432,32.001937,0 35.983234,32.002458,0 35.977036,32.001937,0 35.971076,32.000393,0 35.965584,31.997886,0 35.960770,31.994512,0 35.956819,31.990400,0 35.953883,31.985710,0 35.952075,31.980620,0 35.951464,31.975327,0 35.952075,31.970034,0 35.953883,31.964944,0 35.956819,31.960254,0 35.960770,31.956142,0 35.965584,31.952768,0 35.971076,31.950261,0 35.977036,31.948717,0 35.983234,31.948196,0 35.989432,31.948717,0 35.995392,31.950261,0 36.000884,31.952768,0 36.005698,31.956142,0 36.009649,31.960254,0 36.012585,31.964944,0 36.014393,31.970034,0 36.015004,31.975327,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Surat Thani Airport (URT)</name>
+      <description>source=Riderra price book; count=48; countries=Thailand; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=73, Surat Thani International Airport, Tambon Hua Toei, Amphoe Phunphin, Chang Wat Surat Thani 84130, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.170334,9.134205,0 99.169810,9.139498,0 99.168257,9.144588,0 99.165734,9.149278,0 99.162340,9.153390,0 99.158204,9.156764,0 99.153485,9.159271,0 99.148364,9.160815,0 99.143039,9.161336,0 99.137714,9.160815,0 99.132593,9.159271,0 99.127874,9.156764,0 99.123738,9.153390,0 99.120344,9.149278,0 99.117821,9.144588,0 99.116268,9.139498,0 99.115744,9.134205,0 99.116268,9.128912,0 99.117821,9.123822,0 99.120344,9.119132,0 99.123738,9.115020,0 99.127874,9.111646,0 99.132593,9.109139,0 99.137714,9.107595,0 99.143039,9.107074,0 99.148364,9.107595,0 99.153485,9.109139,0 99.158204,9.111646,0 99.162340,9.115020,0 99.165734,9.119132,0 99.168257,9.123822,0 99.169810,9.128912,0 99.170334,9.134205,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Krabi International Airport (KBV)</name>
+      <description>source=Riderra price book; count=47; countries=Thailand; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Krabi International Airport (KBV), 133 Phet Kasem Rd, Tambon Nuea Khlong, Amphoe Nuea Khlong, Chang Wat Krabi 81130, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.010416,8.099280,0 99.009893,8.104573,0 99.008344,8.109663,0 99.005828,8.114353,0 99.002443,8.118465,0 98.998318,8.121839,0 98.993612,8.124346,0 98.988505,8.125890,0 98.983195,8.126411,0 98.977884,8.125890,0 98.972778,8.124346,0 98.968072,8.121839,0 98.963947,8.118465,0 98.960561,8.114353,0 98.958046,8.109663,0 98.956497,8.104573,0 98.955974,8.099280,0 98.956497,8.093987,0 98.958046,8.088898,0 98.960561,8.084207,0 98.963947,8.080096,0 98.968072,8.076721,0 98.972778,8.074214,0 98.977884,8.072670,0 98.983195,8.072149,0 98.988505,8.072670,0 98.993612,8.074214,0 98.998318,8.076721,0 99.002443,8.080096,0 99.005828,8.084207,0 99.008344,8.088898,0 99.009893,8.093987,0 99.010416,8.099280,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Moscow Sheremetyevo International Airport (SVO)</name>
+      <description>source=Riderra price book; count=43; countries=Russia; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Moscow Sheremetyevo Alexander S. Pushkin Int&apos;l Airport (SVO), Khimki, Moskovskaya oblast&apos;, Russia, 141400</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>37.460065,55.972510,0 37.459139,55.977803,0 37.456399,55.982893,0 37.451949,55.987583,0 37.445959,55.991695,0 37.438662,55.995069,0 37.430335,55.997576,0 37.421301,55.999120,0 37.411906,55.999641,0 37.402510,55.999120,0 37.393476,55.997576,0 37.385150,55.995069,0 37.377852,55.991695,0 37.371863,55.987583,0 37.367413,55.982893,0 37.364672,55.977803,0 37.363747,55.972510,0 37.364672,55.967217,0 37.367413,55.962127,0 37.371863,55.957437,0 37.377852,55.953325,0 37.385150,55.949951,0 37.393476,55.947444,0 37.402510,55.945900,0 37.411906,55.945379,0 37.421301,55.945900,0 37.430335,55.947444,0 37.438662,55.949951,0 37.445959,55.953325,0 37.451949,55.957437,0 37.456399,55.962127,0 37.459139,55.967217,0 37.460065,55.972510,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bangkok Don Muang Airport (DMK)</name>
+      <description>source=Riderra price book; count=42; countries=Thailand; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Don Mueang International Airport (DMK), 222 Thanon Vibhavadi Rangsit, Khwaeng Sanambin, Khet Don Mueang, Krung Thep Maha Nakhon 10210, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.633246,13.915014,0 100.632713,13.920307,0 100.631133,13.925396,0 100.628567,13.930087,0 100.625114,13.934198,0 100.620907,13.937572,0 100.616107,13.940079,0 100.610899,13.941623,0 100.605482,13.942145,0 100.600066,13.941623,0 100.594857,13.940079,0 100.590057,13.937572,0 100.585850,13.934198,0 100.582397,13.930087,0 100.579832,13.925396,0 100.578252,13.920307,0 100.577718,13.915014,0 100.578252,13.909720,0 100.579832,13.904631,0 100.582397,13.899940,0 100.585850,13.895829,0 100.590057,13.892455,0 100.594857,13.889948,0 100.600066,13.888404,0 100.605482,13.887882,0 100.610899,13.888404,0 100.616107,13.889948,0 100.620907,13.892455,0 100.625114,13.895829,0 100.628567,13.899940,0 100.631133,13.904631,0 100.632713,13.909720,0 100.633246,13.915014,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Moscow Domodedovo International Airport (DME)</name>
+      <description>source=Riderra price book; count=42; countries=Russia; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Moscow Domodedovo Mikhail Lomonosov Airport (DME), Moskovskaya oblast&apos;, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>37.949923,55.410307,0 37.949011,55.415600,0 37.946309,55.420690,0 37.941922,55.425380,0 37.936019,55.429492,0 37.928825,55.432866,0 37.920618,55.435373,0 37.911713,55.436917,0 37.902451,55.437438,0 37.893190,55.436917,0 37.884285,55.435373,0 37.876078,55.432866,0 37.868884,55.429492,0 37.862980,55.425380,0 37.858593,55.420690,0 37.855892,55.415600,0 37.854980,55.410307,0 37.855892,55.405014,0 37.858593,55.399924,0 37.862980,55.395234,0 37.868884,55.391122,0 37.876078,55.387748,0 37.884285,55.385241,0 37.893190,55.383697,0 37.902451,55.383176,0 37.911713,55.383697,0 37.920618,55.385241,0 37.928825,55.387748,0 37.936019,55.391122,0 37.941922,55.395234,0 37.946309,55.399924,0 37.949011,55.405014,0 37.949923,55.410307,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Moscow Vnukovo International Airport (VKO)</name>
+      <description>source=Riderra price book; count=42; countries=Russia; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Vnukovo International Airport (VKO), Moskva, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>37.318934,55.599648,0 37.318018,55.604941,0 37.315304,55.610031,0 37.310896,55.614721,0 37.304963,55.618833,0 37.297735,55.622207,0 37.289488,55.624714,0 37.280540,55.626258,0 37.271234,55.626779,0 37.261928,55.626258,0 37.252980,55.624714,0 37.244733,55.622207,0 37.237505,55.618833,0 37.231573,55.614721,0 37.227165,55.610031,0 37.224450,55.604941,0 37.223534,55.599648,0 37.224450,55.594355,0 37.227165,55.589265,0 37.231573,55.584575,0 37.237505,55.580463,0 37.244733,55.577089,0 37.252980,55.574582,0 37.261928,55.573038,0 37.271234,55.572517,0 37.280540,55.573038,0 37.289488,55.574582,0 37.297735,55.577089,0 37.304963,55.580463,0 37.310896,55.584575,0 37.315304,55.589265,0 37.318018,55.594355,0 37.318934,55.599648,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Moscow Zhukovsky International Airport (ZIA)</name>
+      <description>source=Riderra price book; count=42; countries=Russia; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Zhukovsky International Airport, Ulitsa Narkomvod, 3, Zhukovskiy, Moskovskaya oblast&apos;, Russia, 140185</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>38.165712,55.561912,0 38.164797,55.567205,0 38.162085,55.572294,0 38.157681,55.576985,0 38.151755,55.581096,0 38.144533,55.584470,0 38.136294,55.586978,0 38.127355,55.588522,0 38.118058,55.589043,0 38.108761,55.588522,0 38.099821,55.586978,0 38.091582,55.584470,0 38.084361,55.581096,0 38.078435,55.576985,0 38.074031,55.572294,0 38.071319,55.567205,0 38.070403,55.561912,0 38.071319,55.556619,0 38.074031,55.551529,0 38.078435,55.546838,0 38.084361,55.542727,0 38.091582,55.539353,0 38.099821,55.536846,0 38.108761,55.535302,0 38.118058,55.534781,0 38.127355,55.535302,0 38.136294,55.536846,0 38.144533,55.539353,0 38.151755,55.542727,0 38.157681,55.546838,0 38.162085,55.551529,0 38.164797,55.556619,0 38.165712,55.561912,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kaliningrad Khrabrovo Airport (KGD)</name>
+      <description>source=Riderra price book; count=41; countries=Russia; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Airport Khrabrovo, Khrabrovo, Kaliningradskaya oblast&apos;, Russia, 238315</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>20.632462,54.882425,0 20.631561,54.887718,0 20.628895,54.892808,0 20.624566,54.897498,0 20.618740,54.901610,0 20.611641,54.904984,0 20.603542,54.907491,0 20.594754,54.909035,0 20.585614,54.909556,0 20.576474,54.909035,0 20.567686,54.907491,0 20.559587,54.904984,0 20.552488,54.901610,0 20.546662,54.897498,0 20.542333,54.892808,0 20.539667,54.887718,0 20.538766,54.882425,0 20.539667,54.877132,0 20.542333,54.872042,0 20.546662,54.867352,0 20.552488,54.863240,0 20.559587,54.859866,0 20.567686,54.857359,0 20.576474,54.855815,0 20.585614,54.855294,0 20.594754,54.855815,0 20.603542,54.857359,0 20.611641,54.859866,0 20.618740,54.863240,0 20.624566,54.867352,0 20.628895,54.872042,0 20.631561,54.877132,0 20.632462,54.882425,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Koh Samui - Mae Nam Port (Surat Thani )</name>
+      <description>source=Riderra price book; count=41; countries=Thailand; category=port; geometrySource=fallback-circle; radiusKm=2; geocode=Mae Nam, Ko Samui District, Surat Thani, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.992673,9.562564,0 99.992323,9.566092,0 99.991286,9.569485,0 99.989602,9.572612,0 99.987337,9.575353,0 99.984576,9.577603,0 99.981426,9.579274,0 99.978008,9.580303,0 99.974453,9.580651,0 99.970899,9.580303,0 99.967481,9.579274,0 99.964331,9.577603,0 99.961570,9.575353,0 99.959305,9.572612,0 99.957621,9.569485,0 99.956584,9.566092,0 99.956234,9.562564,0 99.956584,9.559035,0 99.957621,9.555642,0 99.959305,9.552515,0 99.961570,9.549774,0 99.964331,9.547524,0 99.967481,9.545853,0 99.970899,9.544824,0 99.974453,9.544476,0 99.978008,9.544824,0 99.981426,9.545853,0 99.984576,9.547524,0 99.987337,9.549774,0 99.989602,9.552515,0 99.991286,9.555642,0 99.992323,9.559035,0 99.992673,9.562564,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Miami airport (MIA)</name>
+      <description>source=Riderra price book; count=36; countries=United States of America; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Miami International Airport (MIA), 2100 NW 42nd Ave, Miami, FL 33142, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.252375,25.792350,0 -80.252950,25.797643,0 -80.254653,25.802732,0 -80.257419,25.807423,0 -80.261141,25.811534,0 -80.265677,25.814908,0 -80.270852,25.817416,0 -80.276467,25.818959,0 -80.282306,25.819481,0 -80.288145,25.818959,0 -80.293760,25.817416,0 -80.298935,25.814908,0 -80.303470,25.811534,0 -80.307193,25.807423,0 -80.309959,25.802732,0 -80.311662,25.797643,0 -80.312237,25.792350,0 -80.311662,25.787057,0 -80.309959,25.781967,0 -80.307193,25.777276,0 -80.303470,25.773165,0 -80.298935,25.769791,0 -80.293760,25.767284,0 -80.288145,25.765740,0 -80.282306,25.765218,0 -80.276467,25.765740,0 -80.270852,25.767284,0 -80.265677,25.769791,0 -80.261141,25.773165,0 -80.257419,25.777276,0 -80.254653,25.781967,0 -80.252950,25.787057,0 -80.252375,25.792350,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>West Palm Beach Airport (PBI)</name>
+      <description>source=Riderra price book; count=36; countries=United States of America; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Palm Beach International Airport (PBI), 1000 James L Turnage Blvd, West Palm Beach, FL 33415, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.062654,26.685748,0 -80.063234,26.691041,0 -80.064950,26.696130,0 -80.067738,26.700821,0 -80.071489,26.704932,0 -80.076059,26.708306,0 -80.081274,26.710813,0 -80.086932,26.712357,0 -80.092816,26.712879,0 -80.098701,26.712357,0 -80.104359,26.710813,0 -80.109574,26.708306,0 -80.114144,26.704932,0 -80.117895,26.700821,0 -80.120683,26.696130,0 -80.122399,26.691041,0 -80.122979,26.685748,0 -80.122399,26.680454,0 -80.120683,26.675365,0 -80.117895,26.670674,0 -80.114144,26.666563,0 -80.109574,26.663189,0 -80.104359,26.660682,0 -80.098701,26.659138,0 -80.092816,26.658616,0 -80.086932,26.659138,0 -80.081274,26.660682,0 -80.076059,26.663189,0 -80.071489,26.666563,0 -80.067738,26.670674,0 -80.064950,26.675365,0 -80.063234,26.680454,0 -80.062654,26.685748,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Abu Dhabi International Airport (AUH)</name>
+      <description>source=Riderra price book; count=35; countries=United Arab Emirates; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Zayed International Airport (AUH), Terminal A - Al Matar - Zayed International Airport - Abu Dhabi - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>54.671727,24.451426,0 54.671158,24.456719,0 54.669473,24.461808,0 54.666738,24.466499,0 54.663056,24.470610,0 54.658570,24.473985,0 54.653452,24.476492,0 54.647898,24.478036,0 54.642122,24.478557,0 54.636347,24.478036,0 54.630793,24.476492,0 54.625675,24.473985,0 54.621189,24.470610,0 54.617507,24.466499,0 54.614772,24.461808,0 54.613087,24.456719,0 54.612518,24.451426,0 54.613087,24.446133,0 54.614772,24.441043,0 54.617507,24.436353,0 54.621189,24.432241,0 54.625675,24.428867,0 54.630793,24.426360,0 54.636347,24.424816,0 54.642122,24.424295,0 54.647898,24.424816,0 54.653452,24.426360,0 54.658570,24.428867,0 54.663056,24.432241,0 54.666738,24.436353,0 54.669473,24.441043,0 54.671158,24.446133,0 54.671727,24.451426,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Chiang Mai International Airport (CNX)</name>
+      <description>source=Riderra price book; count=34; countries=Thailand; category=airport; geometrySource=fallback-circle; radiusKm=3; geocode=Chiang Mai International Airport (CNX), 60 ถนน มหิดล Amphoe Mueang Chiang Mai, Chang Wat Chiang Mai 50200, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.996652,18.769243,0 98.996105,18.774536,0 98.994485,18.779625,0 98.991855,18.784316,0 98.988315,18.788427,0 98.984002,18.791802,0 98.979081,18.794309,0 98.973742,18.795853,0 98.968189,18.796374,0 98.962636,18.795853,0 98.957297,18.794309,0 98.952376,18.791802,0 98.948063,18.788427,0 98.944523,18.784316,0 98.941893,18.779625,0 98.940273,18.774536,0 98.939726,18.769243,0 98.940273,18.763950,0 98.941893,18.758860,0 98.944523,18.754170,0 98.948063,18.750058,0 98.952376,18.746684,0 98.957297,18.744177,0 98.962636,18.742633,0 98.968189,18.742112,0 98.973742,18.742633,0 98.979081,18.744177,0 98.984002,18.746684,0 98.988315,18.750058,0 98.991855,18.754170,0 98.994485,18.758860,0 98.996105,18.763950,0 98.996652,18.769243,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Tokyo (within 23 wards)</name>
+      <description>source=Riderra price book; count=32; countries=Japan; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Tokyo, Japan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>139.560000,35.520000,0 139.930000,35.520000,0 139.930000,35.820000,0 139.560000,35.820000,0 139.560000,35.520000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

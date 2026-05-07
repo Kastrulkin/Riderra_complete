@@ -1,0 +1,123 @@
+{
+  "message": [],
+  "success": true,
+  "record": {
+    "id": 6142,
+    "site_id": 1,
+    "is_zone": 0,
+    "service_ids": [],
+    "type": 1,
+    "start_type": 0,
+    "start_postcode": [
+      "LOS ANGELES AIRPORT (LAX)"
+    ],
+    "start_zone": [],
+    "start_date": "",
+    "direction": 0,
+    "end_type": 0,
+    "end_postcode": [
+      "ANAHEIM"
+    ],
+    "end_zone": [],
+    "end_date": "",
+    "value": 83,
+    "params": {
+      "factor_type": 2,
+      "deposit": 0,
+      "vehicle": [
+        {
+          "id": 207,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 206,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 208,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 210,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 209,
+          "value": 178,
+          "deposit": 0
+        },
+        {
+          "id": 1,
+          "value": 83,
+          "deposit": 0
+        },
+        {
+          "id": 13,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 5,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 2,
+          "value": 89,
+          "deposit": 0
+        },
+        {
+          "id": 205,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 4,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 211,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 212,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 214,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 213,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 215,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 216,
+          "value": 0,
+          "deposit": 0
+        },
+        {
+          "id": 217,
+          "value": 0,
+          "deposit": 0
+        }
+      ]
+    },
+    "ordering": 0,
+    "published": 1
+  }
+}

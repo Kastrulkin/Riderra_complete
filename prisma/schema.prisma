@@ -36,6 +36,7 @@ model Tenant {
   opsEvents         OpsEvent[]
   driverBlocks      DriverUnavailability[]
   opsTasks          OpsTask[]
+  orderAdjustments  OrderAdjustment[]
   telegramLinks     TelegramLink[]
   fleetVehicles     FleetVehicle[]
   chatTasks         ChatTask[]
@@ -147,6 +148,7 @@ model Driver {
   routes         DriverRoute[]
   // Связь с заказами
   orders         Order[]
+  orderAdjustments OrderAdjustment[]
   // Связь с отзывами
   reviews        Review[]
   // Связь с предустановленными маршрутами городов
@@ -259,11 +261,46 @@ model Order {
   reviews        Review[]
   sourceHistory  OrderSourceSnapshot[]
   priceConflicts PriceConflict[]
+  adjustments     OrderAdjustment[]
   statusHistory  OrderStatusHistory[]
   chatTasks      ChatTask[]
   tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
+}
+
+model OrderAdjustment {
+  id                String           @id @default(cuid())
+  tenantId          String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  orderId           String?
+  order             Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  driverId          String?
+  driver            Driver?          @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  customerCompanyId String?
+  customerCompany   CustomerCompany? @relation(fields: [customerCompanyId], references: [id], onDelete: SetNull)
+  type              String           @default("penalty") // penalty, bonus, correction
+  amount            Float?
+  currency          String           @default("EUR")
+  reason            String?
+  counterpartyName  String?
+  driverNameRaw     String?
+  source            String           @default("google_sheet")
+  sourceKey         String?          @unique
+  sourceSheetId     String?
+  sourceTabName     String?
+  sourceRow         Int?
+  rawText           String?
+  rawPayload        String?
+  isActive          Boolean          @default(true)
+  tenant            Tenant?          @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, type, isActive, createdAt])
+  @@index([tenantId, driverId, isActive])
+  @@index([tenantId, customerCompanyId, isActive])
+  @@index([tenantId, counterpartyName, isActive])
+  @@index([orderId, isActive])
 }
 
 model VpnProfile {
@@ -556,6 +593,7 @@ model CustomerCompany {
   links               CustomerCompanyContact[]
   segments            CustomerCompanySegment[]
   pricingRules        CounterpartyPriceRule[]
+  orderAdjustments    OrderAdjustment[]
   supplierDrivers     Driver[]                  @relation("SupplierCompanyDriverLink")
   tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 

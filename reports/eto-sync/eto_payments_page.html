@@ -1,0 +1,3884 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="csrf-token" content="BQ173PzylqwJocqSPeCnIebkV98gKce1ah2OKqqu" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Payment Methods - Riderra</title>
+
+    
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/font-awesome/font-awesome.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/ionicons/ionicons.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/AdminLTE.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.min.css">
+
+    
+    
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://u3211.eto2.taxi/assets/plugins/html5shiv/html5shiv.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/respond/respond.min.js"></script>
+    <![endif]-->
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery.min.js"></script>
+        <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery-migrate.min.js"></script>
+    
+    <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.js"></script>
+
+            <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.min.js"></script>
+    
+    <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.contentWindow.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-loading-overlay/loadingoverlay.min.js"></script>
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.js?_dc=1773668664"></script> 
+<script src="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.js"></script>
+
+<script src="https://u3211.eto2.taxi/assets/js/password-utils.js?_dc=1773668664"></script>
+<script src="https://u3211.eto2.taxi/assets/js/eto/eto.js?_dc=1773668664"></script>
+
+<script>
+ETO.setConfig({"config":{"csrfToken":"BQ173PzylqwJocqSPeCnIebkV98gKce1ah2OKqqu","appPath":"https:\/\/u3211.eto2.taxi","timestamp":1773668664,"timezone":"UTC","currency_symbol":"EUR","currency_code":"","date_format":"d.m.Y","time_format":"H:i","unit_format":"metric","phone_number_prefix":"auto","date_start_of_week":1,"site_id":1,"theme":"light"},"current_user":{"id":1,"fleet_id":0,"name":"Aleksandr Demianov","username":"admin","email":"demyanov@riderra.com","avatar":"https:\/\/u3211.eto2.taxi\/storage\/avatars\/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg","lat":null,"lng":null,"role":"admin","roles":["admin.root"],"permissions":["admin.*"]},"lang":{"common":{"daterangepicker":{"today":"Today","tomorrow":"Tomorrow","after_tomorrow":"After Tomorrow","next_week":"Next Week","next_month":"Next Month","custom_range":"Custom Range"},"button":{"view":"View"},"loading":"Loading...","no_data":"No data available.","yes":"Yes","no":"No","booking_status_options":{"accepted":"Job accepted","arrived":"Arrived","assigned":"Assigned","auto_dispatch":"Auto dispatch","canceled":"Cancelled","changed":"Booking update","completed":"Completed","confirmed":"Confirmed","incomplete":"Incomplete","noshow":"No-show","onboard":"On board","onroute":"En route","pending":"Confirmed","quote":"Request quote","rejected":"Job rejected","requested":"Unconfirmed","unfinished":"Driver cancelled"},"unit":{"imperial":{"mile":"mile","mile_plural":"miles","mile_short":"mi","yard":"yard","yard_plural":"yards","yard_short":"yd"},"metric":{"kilometer":"kilometre","kilometer_plural":"kilometres","kilometer_short":"km","meter":"metre","meter_plural":"metres","meter_short":"m"}},"user_profile_type_options":{"company":"Company","private":"Private"},"user_status_options":{"approved":"Approved","awaiting_admin_review":"Pending review","awaiting_email_confirmation":"Waiting for email confirmation","inactive":"Inactive","rejected":"Rejected"},"vehicle_status_options":{"activated":"Activated","inactive":"Inactive"}}}});
+
+$(function() {
+    if ($.inArray(ETO.getBrowserName(), ['Edge', 'IE']) != -1) {
+        $('body').append('<style>'+
+            'aside.main-sidebar section.sidebar {overflow-y:auto !important;}'+
+            'aside.main-sidebar div.slimScrollBar {display:none !important;}'+
+        '</style>');
+    }
+});
+</script>
+    
+    <script>
+    $(function() {
+        $.LoadingOverlaySetup({
+            image: '',
+            fontawesome: 'fa fa-spinner fa-spin',
+            maxSize: '80px',
+            minSize: '20px',
+            resizeInterval: 0,
+            size: '50%',
+            fade: [0,200]
+        });
+    });
+
+    var EasyTaxiOffice = {
+        csrfToken: 'BQ173PzylqwJocqSPeCnIebkV98gKce1ah2OKqqu',
+        appPath: 'https://u3211.eto2.taxi',
+        timestamp: '1773668664',
+        timezone: 'UTC',
+        cookiePath: '/',
+        cookieSecure: true,
+        cookieSameSite: 'none',
+        siteId: 1,
+        unitFormat: 'metric',
+    };
+    </script>
+
+                <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/select2/select2.min.css">
+
+      <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/dataTables.bootstrap.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/css/buttons.dataTables.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/css/buttons.bootstrap.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/select2/select2.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap-touchspin/jquery.bootstrap-touchspin.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation.min.css">
+
+  <style>
+  #payment-methods .input-group .form-control:not(:first-child):not(:last-child),
+  #payment-methods .input-group-addon:not(:first-child):not(:last-child),
+  #payment-methods .input-group-btn:not(:first-child):not(:last-child) {
+    border-left: 0;
+  }
+  </style>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/eto.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/admin.css?_dc=1773668664">
+
+    
+    
+        
+    </head>
+<body class="skin-blue admin-panel fixed hold-transition dt-height-fallback ">
+    <!--
+    Copyright (c) 2026 by EasyTaxiOffice - All Rights Reserved
+    Website: https://easytaxioffice.com
+    Email: support@easytaxioffice.com
+    -->
+
+                <div class="wrapper">
+        <header class="main-header">
+            <nav class="navbar navbar-static-top">
+                <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </a>
+                <span class="main-page-title">Settings > Payment Methods</span>
+                <div class="navbar-custom-menu">
+                    <ul class="nav navbar-nav">
+                        <li class="dropdown user user-menu">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="user-image" alt="">
+                                <span class="hidden-xs">Aleksandr Demianov</span>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li class="user-header">
+                                    <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                                    <p>
+                                        Aleksandr Demianov
+                                        <small>Member since 1 year 4 months</small>
+                                    </p>
+                                </li>
+                                <li class="user-footer">
+                                    <div class="admin-topbar-user-actions">
+                                        <a href="https://u3211.eto2.taxi/admin/account" class="btn btn-default btn-flat">
+                                            <i class="fa fa-user"></i>
+                                            <span>Account</span>
+                                        </a>
+                                                                                <a href="https://u3211.eto2.taxi/admin/kb" class="btn btn-default btn-flat">
+                                            <i class="fa fa-question-circle"></i>
+                                            <span>Knowledge Base</span>
+                                        </a>
+                                                                                <a href="#" class="btn btn-default btn-flat btnAdminToolboxDarkMode">
+                                            <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                            <span class="admin-topbar-dark-mode-label">
+                                                Switch to dark theme
+                                            </span>
+                                        </a>
+                                        <a href="https://u3211.eto2.taxi/logout" class="btn btn-default btn-flat logout-container" onclick="event.preventDefault();document.getElementById('logout-form').submit();">
+                                            <i class="fa fa-sign-out"></i>
+                                            <span>Log out</span>
+                                        </a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </header>
+
+        <aside class="main-sidebar">
+            <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                <span class="icon-toggle"></span>
+            </a>
+            <section class="sidebar">
+                <div class="dropdown admin-sidebar-user-dropdown">
+                    <a href="#" class="admin-sidebar-user-trigger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <div class="admin-sidebar-user-panel">
+                            <div class="admin-sidebar-user-avatar">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                            </div>
+                            <div class="admin-sidebar-user-info">
+                                <p class="admin-sidebar-user-name">
+                                    <span class="admin-sidebar-user-name-text">Aleksandr Demianov</span>
+                                    <i class="fa fa-angle-down" aria-hidden="true"></i>
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu admin-sidebar-user-menu-items">
+                        <li>
+                            <a href="https://u3211.eto2.taxi/admin/account">
+                                <i class="fa fa-user"></i>
+                                <span>Account</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="https://u3211.eto2.taxi/admin/kb">
+                                <i class="fa fa-question-circle"></i>
+                                <span>Knowledge Base</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="#" class="btnAdminToolboxDarkMode">
+                                <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                <span class="admin-sidebar-dark-mode-label">
+                                    Switch to dark theme
+                                </span>
+                            </a>
+                        </li>
+                        <li class="logout-container">
+                            <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="fa fa-sign-out"></i>
+                                <span>Log out</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                                    <div class="switch-profile-box"  style="display:none;" >
+                        <select name="switch_profile" id="switch_profile" title="Switch profile" class="form-control select2" style="width:100%;">
+                                                    <option value="1"  selected="selected" >Riderra</option>
+                                                </select>
+                    </div>
+                
+                
+                <ul class="sidebar-menu">
+                    
+
+                                        <li >
+                        <a href="https://u3211.eto2.taxi/admin/dispatch" class="menu-dispatch-new-jobs">
+                            <span>Dispatch</span>
+                            <span class="pull-right-container" title="New bookings">
+                                <small class="label pull-right bg-aqua " id="latest-jobs">575</small>
+                            </span>
+                        </a>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/bookings">
+                            <span>Bookings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                        <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings/transferz/offers" class="menu-transferz-offers">
+                                        <span>Transferz Offers</span>
+                                        <span class="pull-right-container">
+                                            <small class="label pull-right bg-aqua  hide " id="transferz-offers-unread">New</small>
+                                        </span>
+                                    </a>
+                                </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=next24" class="menu-next24-jobs">
+                                    <span>Next 24h</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua  hide " id="next24-jobs">0</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=latest" class="menu-latest-jobs">
+                                    <span>Latest</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua " id="latest-jobs" title="New bookings">575</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="  ">
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=requested" class="menu-requested-jobs">
+                                    <span>Unconfirmed</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-orange " id="requested-jobs">209</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=completed" class="menu-completed-jobs">
+                                    <span>Completed</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=canceled" class="menu-canceled-jobs">
+                                    <span>Cancelled</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings">
+                                    <span>All</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=trash">
+                                    <span>Trash</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/calendar">
+                                    <span>Calendar</span>
+                                </a>
+                            </li>
+
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings?page=recurring" class="menu-recurring-jobs">
+                                        <span>Recurring</span>
+                                    </a>
+                                </li>
+                                                        
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/passengers">
+                                    <span>Passengers</span>
+                                </a>
+                            </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings/create">
+                                    <span>New booking</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                      <a href="https://u3211.eto2.taxi/admin/feedback">
+                        <span>Feedback</span>
+                        <span class="pull-right-container">
+                          <i class="fa fa-angle-left pull-right"></i>
+                          <small class="label pull-right bg-gray  hide " style="padding: .2em .3em .2em .3em;" id="menu-feedback-icon">
+                              <i class="fa fa-exclamation"></i>
+                          </small>
+                        </span>
+                      </a>
+                      <ul class="treeview-menu">
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=comment">
+                            <span>Comments</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-comments">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=lost_found">
+                            <span>Lost &amp; Found</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=complaint">
+                            <span>Complaints</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                                                <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback/create">
+                            <span>Add new</span>
+                          </a>
+                        </li>
+                                              </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/reports">
+                            <span>Reports</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/fleet">
+                                    <span>Fleet Report</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/driver">
+                                    <span>Driver Report</span>
+                                </a>
+                            </li>
+                            
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/payment">
+                                    <span>Payment Report</span>
+                                </a>
+                            </li>
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/driver-activities">
+                                    <span>Driver Activities</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/users">
+                            <span>Users</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+
+                                
+                                                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/customers">
+                                    <span>Customers</span>
+                                </a>
+                            </li>
+                            
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=driver">
+                                    <span>Drivers</span>
+                                    
+                                </a>
+                            </li>
+                            
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/users?role=fleet">
+                                        <span>Fleet Operators</span>
+                                    </a>
+                                </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=admin">
+                                    <span>Admins</span>
+                                </a>
+                            </li>
+                            
+                            
+                            
+
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users/removal">
+                                    <span>Deletion Requests</span>
+                                                                    </a>
+                            </li>
+                            
+                        </ul>
+                    </li>
+                    
+                                                            
+                                        <li class="treeview  active ">
+                        <a href="https://u3211.eto2.taxi/admin/settings/general">
+                            <span>Settings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li class="treeview ">
+
+                               <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                   <span>Pricing</span>
+                                   <span class="pull-right-container">
+                                       <i class="fa fa-angle-left pull-right"></i>
+                                   </span>
+                               </a>
+                               <ul class="treeview-menu">
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/deposit-payments">
+                                         <span>Deposit Payments</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/mileage-time">
+                                         <span>Distance &amp; Time</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                      <a href="https://u3211.eto2.taxi/admin/fixed-prices?type=2">
+                                        <span>Distance Modifier</span>
+                                      </a>
+                                    </li>
+                                  
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/driver-income">
+                                         <span>Driver Income</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/fixed-prices">
+                                         <span>Fixed Prices</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/holiday-surcharge">
+                                         <span>Holiday / Rush Hours Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/additional-charges">
+                                         <span>Item Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                     <a href="https://u3211.eto2.taxi/admin/settings/charges">
+                                      <span>Location Surcharge</span>
+                                     </a>
+                                   </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/night-surcharge">
+                                         <span>Night Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/other-discounts">
+                                         <span>Other Discounts</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/tax">
+                                         <span>Tax</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/discounts">
+                                         <span>Voucher Discounts</span>
+                                       </a>
+                                     </li>
+                                                                  </ul>
+                            </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/getting-started">
+                                  <span>Getting Started</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/airport-detection">
+                                  <span>Airport Detection</span>
+                                </a>
+                              </li>
+                            
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/booking">
+                                  <span>Booking</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                  <span>General</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/google">
+                                  <span>Google</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/integration">
+                                  <span>Integration</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/invoices">
+                                  <span>Invoices</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/localization">
+                                  <span>Localization</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/categories">
+                                  <span>Location Categories</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/locations">
+                                  <span>Locations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/mail">
+                                  <span>Email</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/meeting-points">
+                                  <span>Meeting Points</span>
+                                </a>
+                              </li>
+                            
+                                                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/mobile-app">
+                                      <span>Mobile Apps</span>
+
+                                                                          </a>
+                                  </li>
+                                                          
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/notifications">
+                                  <span>Notifications</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/bases">
+                                  <span>Operating Areas</span>
+                                </a>
+                              </li>
+                            
+                                                          <li  class="active" >
+                                <a href="https://u3211.eto2.taxi/admin/payments">
+                                  <span>Payment Methods</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/excluded-routes">
+                                  <span>Booking Restrictions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/roles">
+                                  <span>Roles &amp; Permissions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-scheduled-routes">
+                                <a href="https://u3211.eto2.taxi/admin/scheduled-routes">
+                                  <span>Scheduled Routes</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-services">
+                                <a href="https://u3211.eto2.taxi/admin/services">
+                                  <span>Services</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/styles">
+                                  <span>Styles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/translations">
+                                  <span>Translations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/vehicle-types">
+                                  <span>Types of Vehicles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class="">
+                                <a href="https://u3211.eto2.taxi/admin/vehicles">
+                                  <span>Vehicles</span>
+                                  <span class="pull-right-container">
+                                                                      </span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/users">
+                                  <span>Users</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/web-booking-widget">
+                                  <span>Web Booking Widget</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/web-widget">
+                                  <span>Web Widgets</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/zones">
+                                  <span>Zones</span>
+                                </a>
+                              </li>
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        </ul>
+                    </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/kb">
+                          <span>Knowledge Base</span>
+                        </a>
+                      </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/updates">
+                          <span>Updates</span>
+                                                  </a>
+                      </li>
+                    
+                    
+                    
+                    <li >
+                      <a href="https://u3211.eto2.taxi/admin/account">
+                        <span>Account</span>
+                      </a>
+                    </li>
+
+                    <li class="logout-container">
+                      <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                        <span>Log out</span>
+                      </a>
+                    </li>
+                </ul>
+
+                <div class="copyright-box">
+                  &copy; 2026 <a href="https://easytaxioffice.com" target="_blank">EasyTaxiOffice</a>                   
+                </div>
+            </section>
+        </aside>
+
+        <div class="content-wrapper ">
+            
+            <section class="content">
+                  <div class="pageTitle pageTitle--with-breadcrumbs clearfix">
+    <div class="pageTitle-row clearfix">
+        <h3 class="pageTitle-title pull-left hidden-xs">
+                            <span class="pageBreadcrumbs">
+                                                                                                                        <a href="https://u3211.eto2.taxi/admin/settings">Settings</a>
+                                                                <span class="pageBreadcrumbs-separator pageBreadcrumbs-separator--title">&gt;</span>
+                </span>
+                        <span class="pageTitle-titleText">Payment Methods</span>
+        </h3>
+
+        
+                    <div class="pageTitle-help pull-right hidden-xs">
+                <a href="https://u3211.eto2.taxi/admin/kb?q=payment-methods"
+                    target="_blank"                    class="pageTitle-help-link"
+                    title="Click here to learn more"                    >
+                    <i class="ion-ios-help-outline"></i>
+                                            <span class="sr-only">Click here to learn more</span>
+                                    </a>
+            </div>
+        
+            </div>
+
+            <div class="pageIntro text-muted">Need help with configuring payment method? Click <a href="https://u3211.eto2.taxi/admin/kb?q=payment-methods" target="_blank" style="text-decoration: underline;">here</a> for more info.</div>
+    </div>
+
+  <div class="pageContainer" id="payment-methods">
+
+    <div class="pageFilters pageFiltersHide">
+
+      <form method="post" class="form-inline">
+        <a href="#" class="pull-right btnClose" title="Close" onclick="$('.pageFilters').toggle(); return false;">
+          <i class="fa fa-times"></i>
+        </a>
+        <div class="form-group field-keywords">
+          <label for="filter-keywords">Keywords</label>
+          <input type="text" name="filter-keywords" id="filter-keywords" class="form-control" placeholder="Keywords">
+        </div>
+        <div class="form-group field-published">
+          <label for="filter-published">Status</label>
+          <select name="filter-published" id="filter-published" class="form-control select2" data-placeholder="Status" data-allow-clear="true" data-minimum-results-for-search="Infinity">
+            <option></option>
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+        <div class="form-group field-btn-search">
+          <button type="button" class="btn btn-default btnSearch" title=""><i class="fa fa-search"></i> <span>Search</span></button>
+        </div>
+        <div class="form-group field-btn-reset">
+          <button type="button" class="btn btn-link btnReset" title=""><i class="fa fa-times"></i> <span>Reset</span></button>
+        </div>
+      </form>
+
+    </div>
+    <div class="pageContent">
+
+      <div class="dataTablesHeaderActionsSource hidden">
+        <a href="#" class="btn btn-default btn-sm btnFilters buttons-space pull-left" title="Search">
+            <i class="fa fa-search"></i>
+        </a>
+
+                    <a href="#" onclick="updateRecord(); return false;" class="btn btn-success btn-sm btnAdd buttons-space pull-left" title="Add new">
+                <i class="fa fa-plus"></i> <span class="hidden-xs">Add new</span>
+            </a>
+              </div>
+
+      <table class="table table-hover" id="dtable" style="width:100%;"></table>
+
+      <div id="dmodal" class="modal fade" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              <h4 class="modal-title"></h4>
+            </div>
+            <div class="modal-body"></div>
+            <div class="modal-overlay"><i class="fa fa-refresh fa-spin"></i></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+            </section>
+        </div>
+
+        <form id="logout-form" action="https://u3211.eto2.taxi/logout" method="POST" style="display:none;">
+            <input type="hidden" name="_token" value="BQ173PzylqwJocqSPeCnIebkV98gKce1ah2OKqqu">
+        </form>
+    </div>
+
+    
+            
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-cookie/jquery.cookie.js?_dc=1773668664"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/select2/select2.full.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/js/app.js?_dc=1773668664"></script>
+
+    
+    <script>
+    
+    var isDarkMode = false;
+
+    function toggleDarkMode() {
+        var darkModeLabel = '';
+
+        if (isDarkMode) {
+            darkModeLabel = "Switch to light theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-sun-o').addClass('fa-moon-o');
+            $('body').addClass('dark-mode');
+        } else {
+            darkModeLabel = "Switch to dark theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-moon-o').addClass('fa-sun-o');
+            $('body').removeClass('dark-mode');
+        }
+
+        $('.admin-sidebar-dark-mode-label, .admin-topbar-dark-mode-label').text(darkModeLabel);
+    }
+
+    function updateDataTableScrollBodyHeight(options) {
+        options = options || {};
+
+        var wrapperSelector = options.wrapperSelector || '#dataTableBuilder_wrapper';
+        var scrollBodySelector = options.scrollBodySelector || '.dataTables_scrollBody';
+        // Default: allow overflow expansion on all screen sizes.
+        // Legacy mobile behavior (natural page scroll) can be enabled per table with expandOnMobile: true.
+        var expandOnMobile = options.expandOnMobile === true;
+        var expandWhenOverflow = options.expandWhenOverflow !== false;
+        var mobileBreakpoint = parseInt(options.mobileBreakpoint, 10);
+        var minHeight = parseInt(options.minHeight, 10);
+        var extraOffset = parseInt(options.extraOffset, 10);
+        var wrapper = $(wrapperSelector).first();
+        var scrollBody = $(scrollBodySelector).first();
+
+        if (!wrapper.length || !scrollBody.length) {
+            return;
+        }
+
+        if (!wrapper.is(':visible') || !scrollBody.is(':visible')) {
+            return;
+        }
+
+        if (isNaN(mobileBreakpoint) || mobileBreakpoint < 0) {
+            mobileBreakpoint = 767;
+        }
+
+        var viewportWidth = window.innerWidth || $(window).width() || 0;
+        var shouldExpandOnMobile = expandOnMobile && viewportWidth > 0 && viewportWidth <= mobileBreakpoint;
+
+        if (shouldExpandOnMobile) {
+            // On small screens avoid inner vertical scroll and let the page scroll naturally.
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': '0px',
+                'overflow-y': 'visible'
+            });
+
+            $('body').removeClass('dt-height-fallback');
+            return;
+        }
+
+        if (isNaN(minHeight) || minHeight < 0) {
+            minHeight = 200;
+        }
+
+        if (isNaN(extraOffset)) {
+            extraOffset = 0;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+
+        if (!scrollBodyElement) {
+            return;
+        }
+
+        scrollBody.css({
+            'height': 'auto',
+            'max-height': 'none',
+            'min-height': '0px'
+        });
+
+        var viewportHeight = window.innerHeight || $(window).height() || 0;
+        var viewportBottom = viewportHeight - extraOffset;
+        var bottomContainer = wrapper.find('> .bottomContainer').first();
+        var referenceElement = bottomContainer.length ? bottomContainer.get(0) : wrapper.get(0);
+        var referenceRect = referenceElement && typeof referenceElement.getBoundingClientRect === 'function'
+            ? referenceElement.getBoundingClientRect()
+            : null;
+
+        if (!referenceRect) {
+            return;
+        }
+
+        var clampHeight = function(value) {
+            var height = Math.floor(value);
+            if (height < minHeight) {
+                height = minHeight;
+            }
+            if (height < 0) {
+                height = 0;
+            }
+            return height;
+        };
+
+        var currentBodyHeight = scrollBody.outerHeight() || 0;
+        var delta = viewportBottom - referenceRect.bottom;
+        var targetHeight = clampHeight(currentBodyHeight + delta);
+
+        var naturalBodyHeight = scrollBodyElement.scrollHeight || 0;
+        var applyScrollBodyHeight = function(height) {
+            scrollBody.css({
+                'height': height + 'px',
+                'max-height': height + 'px',
+                'min-height': '0px'
+            });
+        };
+
+        var contentWrapperElement = wrapper.closest('.content-wrapper').get(0);
+        var measureOverflow = function() {
+            var contentWrapperRect = contentWrapperElement && typeof contentWrapperElement.getBoundingClientRect === 'function'
+                ? contentWrapperElement.getBoundingClientRect()
+                : null;
+            var contentOverflow = contentWrapperRect ? Math.ceil(contentWrapperRect.bottom - viewportBottom) : 0;
+            return contentOverflow > 0 ? contentOverflow : 0;
+        };
+
+        for (var i = 0; i < 3; i++) {
+            applyScrollBodyHeight(targetHeight);
+            var overflow = measureOverflow();
+
+            if (overflow <= 0) {
+                break;
+            }
+
+            var nextHeight = clampHeight(targetHeight - overflow);
+            if (nextHeight === targetHeight) {
+                break;
+            }
+
+            targetHeight = nextHeight;
+        }
+        if (expandWhenOverflow && naturalBodyHeight > (targetHeight + 1)) {
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': targetHeight + 'px'
+            });
+        } else {
+            applyScrollBodyHeight(targetHeight);
+        }
+
+        $('body').removeClass('dt-height-fallback');
+    }
+
+    var updateTableHeightRafId = null;
+    var updateTableHeightImmediateTimeoutId = null;
+    var updateTableHeightDelayedTimeoutId = null;
+
+    function scheduleUpdateTableHeight() {
+        var hasDataTableApi = !!($.fn.dataTable && $.fn.dataTable.tables);
+        var hasUpdateTableHeightFn = (typeof window.updateTableHeight === 'function');
+
+        if (!hasDataTableApi && !hasUpdateTableHeightFn) {
+            return;
+        }
+
+        var refreshLayout = function() {
+            if (hasDataTableApi) {
+                var tablesApi = $.fn.dataTable.tables({ visible: true, api: true });
+                if (tablesApi && tablesApi.columns) {
+                    tablesApi.columns.adjust();
+                }
+            }
+
+            if (hasUpdateTableHeightFn) {
+                window.updateTableHeight();
+            }
+        };
+
+        if (updateTableHeightRafId && window.cancelAnimationFrame) {
+            window.cancelAnimationFrame(updateTableHeightRafId);
+        }
+
+        if (updateTableHeightImmediateTimeoutId) {
+            clearTimeout(updateTableHeightImmediateTimeoutId);
+        }
+
+        if (updateTableHeightDelayedTimeoutId) {
+            clearTimeout(updateTableHeightDelayedTimeoutId);
+        }
+
+        if (window.requestAnimationFrame) {
+            updateTableHeightRafId = window.requestAnimationFrame(function() {
+                updateTableHeightRafId = null;
+                refreshLayout();
+            });
+        } else {
+            updateTableHeightImmediateTimeoutId = setTimeout(function() {
+                updateTableHeightImmediateTimeoutId = null;
+                refreshLayout();
+            }, 0);
+        }
+
+        // Secondary pass for animated layout changes (sidebar / tabs / collapse).
+        updateTableHeightDelayedTimeoutId = setTimeout(function() {
+            updateTableHeightDelayedTimeoutId = null;
+            refreshLayout();
+        }, 180);
+    }
+
+    function bindPageFiltersHeightWatchers() {
+        $(document).on('click', '.btnFilters, .pageFilters .btnClose, .pageFilters .btnReset, .pageFilters .btnSearch', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        if (!window.MutationObserver) {
+            return;
+        }
+
+        $('.pageFilters').each(function() {
+            var panel = $(this);
+
+            if (panel.data('dt-height-observer-bound')) {
+                return;
+            }
+
+            var observer = new MutationObserver(function() {
+                scheduleUpdateTableHeight();
+            });
+
+            observer.observe(this, {
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+
+            panel.data('dt-height-observer-bound', true);
+        });
+    }
+
+    function setDataTableDropdownDirection(dropdown) {
+        var scrollBody = dropdown.closest('.dataTables_scrollBody');
+        var menu = dropdown.children('.dropdown-menu').first();
+        var toggle = dropdown.children('[data-toggle="dropdown"]').first();
+
+        dropdown.removeClass('dropup');
+
+        if (!scrollBody.length || !menu.length || !toggle.length) {
+            return;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+        var toggleElement = toggle.get(0);
+
+        if (!scrollBodyElement || !toggleElement || typeof scrollBodyElement.getBoundingClientRect !== 'function' || typeof toggleElement.getBoundingClientRect !== 'function') {
+            return;
+        }
+
+        var scrollRect = scrollBodyElement.getBoundingClientRect();
+        var toggleRect = toggleElement.getBoundingClientRect();
+
+        if (!scrollRect || !toggleRect) {
+            return;
+        }
+
+        var originalStyle = menu.attr('style');
+        menu.css({
+            display: 'block',
+            visibility: 'hidden'
+        });
+
+        var menuHeight = menu.outerHeight() || 0;
+
+        if (typeof originalStyle === 'string') {
+            menu.attr('style', originalStyle);
+        } else {
+            menu.removeAttr('style');
+        }
+
+        var availableAbove = Math.max(0, toggleRect.top - scrollRect.top);
+        var availableBelow = Math.max(0, scrollRect.bottom - toggleRect.bottom);
+        var fitsAbove = menuHeight <= availableAbove;
+        var fitsBelow = menuHeight <= availableBelow;
+        var shouldOpenUp = fitsAbove && (!fitsBelow || availableAbove > availableBelow);
+
+        if (shouldOpenUp) {
+            dropdown.addClass('dropup');
+        }
+    }
+
+    $(document).ready(function() {
+        toggleDarkMode();
+        bindPageFiltersHeightWatchers();
+
+        if (typeof window.updateTableHeight !== 'function') {
+            $('body').removeClass('dt-height-fallback');
+        }
+
+        $(document).on('init.dt draw.dt', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('load', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('resize.etoTableHeight orientationchange.etoTableHeight', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document).on('expanded.pushMenu collapsed.pushMenu shown.bs.tab shown.bs.collapse hidden.bs.collapse', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document)
+            .on('show.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                setDataTableDropdownDirection($(this));
+            })
+            .on('hidden.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                $(this).removeClass('dropup');
+            });
+
+        $('.btnAdminToolboxDarkMode').click(function(e) {
+            isDarkMode = !isDarkMode;
+
+            if (isDarkMode) {
+              $.cookie('app_state_dark_mode', 1, {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            } else {
+              $.removeCookie('app_state_dark_mode', {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            }
+
+            toggleDarkMode();
+            window.location.reload();
+            e.preventDefault();
+        });
+
+        // Select
+        $('.select2').not('#switch_profile').select2({
+            minimumResultsForSearch: 5
+        });
+
+        $('#switch_profile').select2({
+            minimumResultsForSearch: Infinity,
+            dropdownParent: $('.switch-profile-box')
+        });
+
+        // Tooltip
+        $('[title]').tooltip({
+            placement: 'auto',
+            container: 'body',
+            selector: '',
+            html: true,
+            trigger: 'hover',
+            delay: { show: 500, hide: 100 }
+        });
+
+        // Switch profile
+        $('#switch_profile').on('change', function(e) {
+            $.ajax({
+                headers : {
+                    'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+                },
+                url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+                type: 'POST',
+                dataType: 'json',
+                cache: false,
+                async: false,
+                data: {
+                    task: 'profile',
+                    action: 'switch',
+                    id: $(this).val()
+                },
+                success: function(response) {
+                    if ( response.success ) {
+                        window.location.reload();
+                    } else {
+                        alert("Could not switch to this profile.");
+                    }
+                },
+                error: function(response) {
+                    alert("An error occurred while processing your request.");
+                }
+            });
+
+            e.preventDefault();
+        });
+    });
+    </script>
+
+      <script src="https://u3211.eto2.taxi/assets/plugins/moment/moment.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/jquery.dataTables.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/dataTables.bootstrap.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/dataTables.buttons.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/buttons.bootstrap.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/buttons.colVis.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/extensions/Buttons/js/buttons.server-side.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/select2/select2.full.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap-touchspin/jquery.bootstrap-touchspin.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation-bootstrap.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/jquery-form/jquery.form.min.js"></script>
+
+  <script>
+  window.i18n = window.i18n || {};
+  window.i18n.payments = {
+    buttons: {
+      search: "Search",
+      add_new: "Add new",
+      close: "Close",
+      reset: "Reset",
+      delete: "Delete",
+      delete_confirm: "Yes, delete",
+      cancel: "Cancel",
+      save: "Save",
+      add: "Add",
+      edit: "Edit",
+      verify: "Verify",
+      set: "Set",
+      show_hide: "Show \/ Hide"    },
+    filters: {
+      keywords: "Keywords",
+      status: "Status"    },
+    modal: {
+      delete_title: "Are you sure? (:method)",
+      edit_title: "Edit - :method",
+      add_title: "Add new"    },
+    messages: {
+      delete_failed: "The data could not be deleted.",
+      request_error: "An error occurred while processing your request.",
+      loading: "Loading...",
+      load_failed: "The data could not be loaded.",
+      update_failed: "The data could not be updated.",
+      saved: "Saved.",
+      added: "Added.",
+      in_progress: "In progress"    },
+    help: {"kb_text":"Need help with configuring payment method? Click :link for more info.","kb_link":"here","environment_live_test":"\u003Cb\u003ELive\u003C\/b\u003E - When you ready to go live.\u003Cbr\u003E\u003Cb\u003ETest\u003C\/b\u003E - When you want to do some testing.","environment_production_sandbox":"\u003Cb\u003EProduction\u003C\/b\u003E - When you ready to go live.\u003Cbr\u003E\u003Cb\u003ESandbox\u003C\/b\u003E - When you want to do some testing.","force_language":"Force language in payment provider page","deposit":"If you disable this option then no deposit will be taken for this payment method.","pre_shared_key":"\u003Cb\u003EWhere do I find my pre shared key?\u003C\/b\u003E\u003Cbr\u003EYour pre shared key is available from \u003Cb\u003EAccount Admin\u003C\/b\u003E \u003E \u003Cb\u003EAccount Settings\u003C\/b\u003E. You can also reset the Pre shared key using this screen.","merchant_id":"\u003Cb\u003EWhere do I find my Merchant ID?\u003C\/b\u003E\u003Cbr\u003ELog into the MMS, under \u003Cb\u003EAccount Admin\u003C\/b\u003E \u003E \u003Cb\u003EGateway Account Admin\u003C\/b\u003E. The Merchant ID\u0027s\u003Cbr\u003Eare available in the \u003Cb\u003EGateway Account\u003C\/b\u003E: dropdown - in the format PAYZON-1234567.","merchant_password":"\u003Cb\u003EWhere do I find my merchant password\u003C\/b\u003E\u003Cbr\u003EYou can reset your Merchant Password by logging into the MMS, and going to \u003Cb\u003EAccount Admin\u003C\/b\u003E \u003E \u003Cb\u003EGateway Account Admin\u003C\/b\u003E. Select the relevant account in the \u003Cb\u003EGateway Account\u003C\/b\u003E: dropdown and ensure you tick \u0027\u003Cb\u003EImmediately Expire Old Password\u003C\/b\u003E\u0027. Click change password and your password will be updated. \u003Cbr\u003E\u003Cbr\u003EPlease note: Each gateway account has a separate password and will need to be reset individually.","payment_response_protocol":"\u003Cb\u003EAuto\u003C\/b\u003E - currently used.\u003Cbr\u003E\u003Cb\u003EHTTP\u003C\/b\u003E - insecure connection.\u003Cbr\u003E\u003Cb\u003EHTTPS\u003C\/b\u003E - secure connection.","template_id":"Here you can enter ID of custom form template that has been created in payment provider control panel. If you not sure what it is leave this field blank.","three_d_secure":"3D Secure provides a layer of protection against fraudulent payments that is supported by most card issuers. Unlike regular card payments, 3D Secure requires cardholders to complete an additional verification step with the issuer. Please contact your payment provider to activate 3D Secure option in your account before enabling this option here.","sandbox_legacy_mode":"Select NO if you are using new type of access token.\u003Cbr\u003ESelect YES if you are using legacy type of token.","gpwebpay_private_key":"Upload your Private key file to storage folder \u003Cb\u003Egpwebpay-pvk.key\u003C\/b\u003E and leave this field empty to use the default location path.","gpwebpay_public_key":"Upload your Public key file to storage folder \u003Cb\u003Egpe.signing_prod.pem\u003C\/b\u003E and leave this field empty to use the default location path.","paytabs_region":"What is my region (endpoint URL)? :link","sumup_merchant_code":"Get your Merchant Code from your SumUp account.","sumup_client_id":"Get your Client ID from your SumUp account.","sumup_client_secret":"Get your Client Secret from your SumUp account.","sumup_show_zip_code":"Request ZIP code from your customers on the card payment form. This is mandatory for all merchants from the USA.","sumup_currency":"Set the currency from your SumUp account.","additional_info":"This info will appear in thank you page. You can enter here IBAN, ACCOUNT NUMBER, SWIFT \/ BIC etc."},
+    fields: {"name":"Name","description":"Description","payment_page":"Payment page HTML","image_gallery":"Gallery","image_upload":"Upload","choose_image":"Choose image","upload_image":"Upload image","image_help":"In order to have the image display properly, please upload an image in :formats format and :size size.","params":"Params","method":"Method","charge_type":"Payment charge type","charge_value":"Payment charge value","ordering":"Ordering","assign_services":"Assign to selected services (all if no options are selected)","default":"Default","active":"Active","display":"Display","environment":"Environment","currency":"Currency","currency_code":"Currency code","country_code":"Country code","language_code":"Language code","language":"Language","deposit":"Deposit","paypal_business_email":"PayPal Business Email","pspid":"PSPID","pass_phrase":"Pass phrase","param_var":"Param var","operation_mode":"Operation mode","pre_shared_key":"Pre shared key","merchant_id":"Merchant ID","password":"Password","terminal_id":"Terminal ID","encryption_key":"Encryption key","signature_version":"Signature version","installation_id":"Installation ID","md5_secret":"MD5 secret","signature_fields":"Signature fields","payment_response_protocol":"Payment response protocol","live_publishable_key":"Live publishable key","live_secret_key":"Live secret key","test_publishable_key":"Test publishable key","test_secret_key":"Test secret key","strong_customer_authentication":"Strong Customer Authentication (SCA)","webhook":"Webhook","webhook_url":"Webhook URL","live_webhook":"Live webhook","live_webhook_id":"Live webhook id","live_webhook_key":"Live webhook key","test_webhook":"Test webhook","test_webhook_id":"Test webhook id","test_webhook_key":"Test webhook key","zip_code_check":"Zip code check","three_d_secure":"3D Secure","future_payment_usage":"Future payment usage","payment_capture_method":"Payment capture method","live_service_key":"Live service key","live_client_key":"Live client key","live_card_template_code":"Live card template code","test_service_key":"Test service key","test_client_key":"Test client key","test_card_template_code":"Test card template code","personal_access_token":"Personal Access Token","location_id":"Location ID","sandbox_access_token":"Sandbox Access Token","sandbox_location_id":"Sandbox Location ID","sandbox_legacy_mode":"Sandbox Legacy mode","merchant_number":"Merchant Number","private_key_path":"Private key path","private_key_password":"Private key password","public_key_path":"Public key path","technical_user_id":"Technical user id (Seller ID)","secret_key":"Secret key","secret_key_version":"Secret key version number","profile_id":"Profile ID","server_key":"Server key","region":"Region","merchant_name":"Merchant name","merchant_username":"Merchant username","merchant_password":"Merchant password","merchant_code":"Merchant code","client_id":"Client ID","client_secret":"Client secret","test_merchant_code":"Test merchant code","test_client_id":"Test client ID","test_client_secret":"Test client secret","show_zip_code":"Show ZIP code","additional_info":"Additional info","software_url":"Software URL","payment_notification_url":"Payment notification URL"},
+    options: {"live":"Live","test":"Test","enabled":"Enabled","disabled":"Disabled","sale":"Sale","authorisation":"Authorisation","authorization":"Authorization","auto":"Auto","http":"HTTP","https":"HTTPS","flat":"Flat (+)","percent":"Percent (%)","frontend_backend":"Frontend \u0026 Backend","backend":"Backend","production":"Production","sandbox":"Sandbox","always":"Always","registered_users_only":"Registered users only","never":"Never","automatic":"Automatic (Recommended)","manual":"Manual","yes":"Yes","no":"No","auto_detection":"Auto detection"},
+    table: {"id":"ID","image":"Image","name":"Name","description":"Description","method":"Payment Method","charge":"Payment Charge","services":"Services","default":"Default","ordering":"Ordering","active":"Active","display":"Display"},
+    webhook: {"panel_title":"Webhook","status_updates":"Stripe sends booking\/payment status updates to this URL so statuses update automatically and notifications are sent.","auto_setup":"Auto-setup uses the current mode (Test\/Live) and its secret key.","url_label":"Webhook URL","copy_url":"Copy webhook URL","manual_setup":"Use this URL in your Stripe dashboard for manual setup.\u003Cbr\u003E1) Add a new endpoint with this URL.\u003Cbr\u003E2) Subscribe to event: \u003Cstrong\u003E:event\u003C\/strong\u003E.","configured":"Webhook configured for :mode mode (ID: :id).","not_configured":"Webhook not configured for :mode mode. Notifications from Stripe will not be received.","copied":"Webhook URL copied.","copy_failed":"Copy failed, copy it manually.","missing_secret_verify":"Add the :mode secret key to verify webhook.","sync_only_stripe":"Webhook sync is available only for Stripe payment method.","verify_only_stripe":"Webhook verification is available only for Stripe payment method.","method_not_found":"Payment method not found or not Stripe.","verify_failed":"Unable to verify webhook.","verifying":"Verifying webhook...","verification_complete":"Webhook verification complete.","verify_error":"An error occurred while verifying webhook.","configure_prompt":"Webhook not configured for :mode mode. Without it, payment statuses and notifications will not be updated. Configure webhook now?","not_configured_simple":"Webhook not configured for :mode mode.","configure_prompt_simple":"Webhook not configured for :mode mode. Configure it now?","delete_missing_secret":"Secret key missing for :mode mode. Delete webhook locally only? It will remain in Stripe.","delete_missing_details":"Cannot delete webhook: missing secret key or webhook ID.","delete_confirm":"Delete webhook for :mode mode?","deleting":"Deleting webhook...","deleted":"Webhook deleted.","deleted_local_notice":"Webhook deleted locally; please verify in Stripe.","delete_failed":"Unable to delete webhook.","delete_failed_verify":"Unable to delete webhook. Please verify webhook ID and key.","delete_error":"An error occurred while deleting webhook.","missing_secret_configure":"Add the :mode secret key to configure webhook.","missing_secret_key":"Missing Stripe secret key for the selected mode.","configuring":"Configuring webhook...","configured_simple":"Webhook configured.","configured_mode":"Webhook configured for :mode mode.","configured_correctly":"Webhook configured correctly for :mode mode.","configure_failed":"Unable to configure webhook.","configure_failed_verify":"Unable to update Stripe webhook. Please verify keys and try again.","configure_error":"An error occurred while configuring webhook.","not_found_in_stripe":"Webhook not found in Stripe for :mode mode. It may have been deleted.","not_found_in_stripe_prompt":"Webhook not found in Stripe for :mode mode. Create it now?","mismatch":"Webhook configured in Stripe for :mode mode, but :issues settings do not match expected.","mismatch_prompt":"Webhook settings in Stripe do not match expected for :mode mode. Update them now?","issue_url":"URL","issue_event":"event","fix_prompt":"Update webhook settings now?","required":"Webhook is needed for the system to receive payment status notification."},
+    stripe: {"sca_notice":"Strong Customer Authentication (SCA), a new rule coming into effect on September 14, 2019, as part of PSD2 regulation in Europe, will require changes to how your European customers authenticate online payments. Card payments will require a different user experience, namely 3D Secure, in order to meet SCA requirements. Transactions that don\u0027t follow the new authentication guidelines may be declined by your customers\u0027 banks. :link\u003Cbr\u003E\u003Cbr\u003EYou can activate SCA anytime using the option below.","sca_help":"Here you can learn more about SCA :link","zip_code_check_help":"For each card payment where we have an address supplied, Stripe checks to make sure that the ZIP\/postal code matches the address for the customer on file with their bank.","three_d_secure_help":"\u003Cb\u003EWhen to use 3D Secure\u003C\/b\u003E\u003Cbr\u003E3D Secure provides a layer of protection against fraudulent payments that is supported by most card issuers. Unlike regular card payments, 3D Secure requires cardholders to complete an additional verification step with the issuer. Users are covered by a liability shift against fraudulent payments that have been authenticated with 3D Secure as the card issuer assumes full responsibility.\u003Cbr\u003E\u003Cbr\u003EWhile 3D Secure protects you from fraud, it requires your customers to complete additional steps during the payment process that could impact their checkout experience. For instance, if a customer does not know their 3D Secure information, they might not be able to complete the payment.\u003Cbr\u003E\u003Cbr\u003EWhen considering the use of 3D Secure, you might find the right balance is to use it only in situations where there is an increased risk of fraud, or if the customer\u0027s card would be declined without it.","future_payment_usage_help":"\u003Cb\u003EFuture payment usage\u003C\/b\u003E\u003Cbr\u003E\u003Cbr\u003EThe future payment usage setting controls whether and when Stripe saves customers\u0027 payment methods for potential future charges. Please note that any future payments using saved methods must be manually initiated from your Stripe dashboard.\u003Cbr\u003E\u003Cbr\u003EYou can choose from the following options:\u003Cbr\u003E\u003Cbr\u003E\u003Cstrong\u003EAlways\u003C\/strong\u003E\u003Cbr\u003EStripe will always save the customer\u0027s payment method for future use, whether they are a registered user or a guest.\u003Cbr\u003E\u003Cbr\u003E\u003Cstrong\u003ERegistered users only\u003C\/strong\u003E\u003Cbr\u003EStripe will save payment methods for future use only for users who are registered in your system. Guest users\u0027 payment details will not be saved.\u003Cbr\u003E\u003Cbr\u003E\u003Cstrong\u003ENever\u003C\/strong\u003E\u003Cbr\u003EStripe will not save any payment methods for future use. All payments will be treated as one-time transactions, requiring full payment details each time.\u003Cbr\u003E\u003Cbr\u003E\u003Cbr\u003ECustomer Association and Saved Payment Methods:\u003Cbr\u003E\u003Cbr\u003E- When a \u003Cstrong\u003Eregistered user\u003C\/strong\u003E makes a booking, their Stripe Customer ID is saved to their user profile. This allows consistent use of their saved payment methods for future off-session charges.\u003Cbr\u003E\u003Cbr\u003E- When a \u003Cstrong\u003Eguest\u003C\/strong\u003E makes a booking, Stripe creates a new customer and stores the Stripe Customer ID within the booking itself. These customer records are unique per booking and are \u003Cstrong\u003Enot\u003C\/strong\u003E linked to a user profile.\u003Cbr\u003E\u003Cbr\u003E\u003Cbr\u003ECustomer Linkage Behavior:\u003Cbr\u003E\u003Cbr\u003E- If a \u003Cstrong\u003Ecustomer is assigned\u003C\/strong\u003E to the booking, the transaction is associated with the customer\u0027s Stripe profile.\u003Cbr\u003E- If \u003Cstrong\u003Eno customer is assigned\u003C\/strong\u003E, a new Stripe customer is created and tied to that specific booking.\u003Cbr\u003E\u003Cbr\u003E\u003Cbr\u003EUI Note:\u003Cbr\u003E\u003Cbr\u003EIn the \u003Cstrong\u003EBooking \u003E Transaction History\u003C\/strong\u003E popup, if a Stripe customer exists (either from the user account or stored in the booking), an \u003Cstrong\u003EOpen in Stripe\u003C\/strong\u003E link will appear below the transaction list. This lets you quickly access the related Stripe customer in your Stripe dashboard.","payment_capture_method_help":"\u003Cb\u003EPayment capture method\u003C\/b\u003E\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EAutomatic (Recommended):\u003C\/b\u003E When a customer pays (e.g., when pre-booking a ride or at the end of a trip via an app), Stripe will automatically attempt to capture the payment immediately after it\u0027s authorized. This ensures a smoother and more immediate transaction for most taxi services.\u003Cbr\u003E\u003Cbr\u003E\u003Cb\u003EManual:\u003C\/b\u003E The payment method will be authorized, and the funds will be held, but they will not be automatically captured. You would need to manually confirm and capture the payment later. This option might be useful in specific scenarios such as:\u003Cbr\u003E\u003Cul\u003E\u003Cli\u003E\u003Cb\u003EAdjusting Fares:\u003C\/b\u003E If the final fare might change due to route adjustments, tolls, or waiting times, you could authorize an estimated amount and then manually capture the final amount.\u003C\/li\u003E\u003Cli\u003E\u003Cb\u003EDelayed Charges:\u003C\/b\u003E In some cases, you might want to delay the actual charge (though this is less common for typical taxi rides).\u003C\/li\u003E\u003C\/ul\u003E\u003Cb\u003EImportant:\u003C\/b\u003E For most taxi operations, especially for on-demand services, \u003Cb\u003EAutomatic\u003C\/b\u003E capture provides the best experience. Manual capture adds complexity and requires a system to track and manually capture authorized payments."},
+    links: {"read_more":"Read more"},
+    redsys_language_options: {"auto":"Auto","001":"Spanish","002":"English","003":"Catalan","004":"French","005":"German","006":"Dutch","007":"Italian","008":"Swedish","009":"Portuguese","011":"Polish","012":"Galician","013":"Basque"}  };
+  var i18nData = window.i18n.payments;
+  i18nData.help.kb_html = "Need help with configuring payment method? Click \u003Ca href=\u0022https:\/\/u3211.eto2.taxi\/admin\/kb?q=payment-methods\u0022 target=\u0022_blank\u0022 style=\u0022text-decoration: underline;\u0022\u003Ehere\u003C\/a\u003E for more info.";
+  i18nData.fields.image_help = "In order to have the image display properly, please upload an image in jpg, jpeg, gif, png format and 512x512px size.";
+  i18nData.table.actions = "Actions";
+  var paymentMethodFormIgnoreAttrs = 'autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" autocapitalize="off" autocorrect="off" spellcheck="false"';
+  var paymentMethodPasswordIgnoreAttrs = 'autocomplete="new-password" data-form-type="other" data-lpignore="true" data-1p-ignore="true" autocapitalize="off" autocorrect="off" spellcheck="false"';
+
+  // Filter
+  function filterTable(isDelete, isPageReset) {
+      var values = $('.pageFilters form').serialize();
+      var isDelete = isDelete ? true : false;
+      var isPageReset = isPageReset ? true : false;
+      var dTable = $('#dtable').DataTable();
+      var dInfo = dTable.page.info();
+      var dRows = dTable.rows({page:'current'}).nodes();
+      // console.log(dRows.any(), dRows.length, isDelete, dInfo);
+
+      values = ETO.cleanQueryString(values);
+
+      dTable.search(values);
+      if (dInfo.page > 0 && dRows.length - 1 <= 0 && isDelete === true) {
+          dTable.page('previous');
+      }
+      dTable.draw(isPageReset);
+
+      updateFilters(values);
+  }
+
+  function updateFilters(search) {
+    var searchValue = search || '';
+
+    if (typeof search == 'undefined') {
+      var state = $('#dtable').DataTable().state.loaded();
+
+      if (state) {
+        searchValue = state.search.search;
+      }
+    }
+
+    try {
+      searchValue = decodeURIComponent(searchValue);
+    } catch (error) {
+      console.error('Error decoding search value:', error);
+    }
+
+    $('.btnFilters > .badge').remove();
+
+    if (searchValue) {
+      var filterData = ETO.parseQueryString(searchValue);
+
+      if (filterData) {
+        var filterCount = 0;
+
+        $.each(filterData, function(i, item) {
+          var $field = $('#' + i);
+          $field.val(item).trigger('change');
+          filterCount++;
+        });
+
+        if (filterCount) {
+          $('.btnFilters').append('<span class="badge bg-yellow">'+ filterCount +'</span>');
+        }
+      }
+    }
+  }
+
+  function updateTableHeight() {
+    updateDataTableScrollBodyHeight({
+      wrapperSelector: '#dtable_wrapper',
+      scrollBodySelector: '#payment-methods .dataTables_scrollBody'
+    });
+  }
+
+  // Delete
+  function deleteRecord(id, method) {
+    var html = '';
+    var title = '';
+
+    title = i18nData.modal.delete_title.replace(':method', '<span style="text-transform:capitalize;">'+ method +'</span>');
+    html = '<button type="button" class="btn btn-danger btnConfirm" title="'+ i18nData.buttons.delete +'"><i class="fa fa-trash"></i> '+ i18nData.buttons.delete_confirm +'</button>\
+            <button type="button" class="btn btn-default btnCancel" title="'+ i18nData.buttons.cancel +'">'+ i18nData.buttons.cancel +'</button>\
+            <span id="statusMsg"></span>';
+
+    $('#dmodal .modal-title').html(title);
+    $('#dmodal .modal-body').html(html);
+    $('#dmodal').modal({
+      show: true
+    });
+
+    $('#dmodal .btnConfirm').off('click').on('click', function() {
+      $.ajax({
+        headers : {
+          'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+        },
+        url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+        type: 'POST',
+        dataType: 'json',
+        cache: false,
+        data: {
+          task: 'payment',
+          action: 'destroy',
+          id: id
+        },
+        success: function(response) {
+          if(response.success) {
+            $('#dmodal #statusMsg').html('');
+            $('#dmodal').modal('hide');
+            filterTable(true);
+          }
+          else {
+            $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.delete_failed +'</span>');
+          }
+        },
+        error: function(response) {
+          $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+        },
+        beforeSend: function() {
+          $('#dmodal #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.messages.loading);
+          $('#dmodal .modal-overlay').show();
+        },
+        complete: function() {
+          $('#dmodal .modal-overlay').hide();
+        }
+      });
+    });
+
+    $('#dmodal .btnCancel').off('click').on('click', function() {
+      $('#dmodal').modal('hide');
+    });
+  }
+
+    // Load params
+    function loadParams(method, params) {
+        $('.payment-method-top-info').prepend('<div style="margin:10px 0 25px 0; color:#f69f1e;">'+ i18nData.help.kb_html +'</div>');
+
+        var fields = {};
+        if( !method ) { method = ''; }
+        if( !params ) { params = {}; }
+        var scaLink = '<a href=\'https://stripe.com/docs/strong-customer-authentication\' target=\'_blank\'>' + i18nData.links.read_more + '</a>';
+        var scaNotice = i18nData.stripe.sca_notice.replace(':link', scaLink);
+        var scaHelp = i18nData.stripe.sca_help.replace(':link', scaLink);
+        var paytabsRegionLink = '<a href=\'https://support.paytabs.com/en/support/solutions/articles/60000718070-what-is-my-region-endpoint-url-\' target=\'_blank\'>' + i18nData.links.read_more + '</a>';
+        var paytabsRegionHelp = i18nData.help.paytabs_region.replace(':link', paytabsRegionLink);
+        var stripeManualSetup = i18nData.webhook.manual_setup.replace(':event', 'checkout.session.completed');
+
+        switch (method) {
+            case 'paypal':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.paypal_email = {
+                    name: i18nData.fields.paypal_business_email,
+                    value: ''
+                };
+                fields.currency_code = {
+                    type: 'select',
+                    name: i18nData.fields.currency,
+                    options: {"AUD":"Australian Dollar (AUD)","BRL":"Brazilian Real (BRL)","CAD":"Canadian Dollar (CAD)","CZK":"Czech Koruna (CZK)","DKK":"Danish Krone (DKK)","EUR":"Euro (EUR)","HKD":"Hong Kong Dollar (HKD)","HUF":"Hungarian Forint (HUF)","JPY":"Japanese Yen (JPY)","MYR":"Malaysian Ringgit (MYR)","MXN":"Mexican Peso (MXN)","ILS":"New Israeli Scheqel (ILS)","PLN":"New Polish Zloty (PLN)","TWD":"New Taiwan Dollar (TWD)","NZD":"New Zealand Dollar (NZD)","NOK":"Norwegian Krone (NOK)","PHP":"Philippine Peso (PHP)","GBP":"Pound Sterling (GBP)","RUB":"Russian Ruble (RUB)","SGD":"Singapore Dollar (SGD)","SEK":"Swedish Krone (SEK)","CHF":"Swiss Franc (CHF)","THB":"Thai Baht (THB)","USD":"US Dollars (USD)","CNY":"Yuan Renminbi (CNY)"},
+                    minimumResultsForSearch: 5,
+                    value: 'GBP'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: 'auto'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'epdq':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.pspid = {
+                    name: i18nData.fields.pspid,
+                    value: ''
+                };
+                fields.pass_phrase = {
+                    type: 'password',
+                    name: i18nData.fields.pass_phrase,
+                    value: ''
+                };
+                fields.paramvar = {
+                    name: i18nData.fields.param_var,
+                    value: ''
+                };
+                fields.operation_mode = {
+                    type: 'select',
+                    name: i18nData.fields.operation_mode,
+                    options: {
+                        'SAL': i18nData.options.sale,
+                        'RES': i18nData.options.authorisation
+                    },
+                    value: 'SAL'
+                };
+                fields.currency_code = {
+                    name: i18nData.fields.currency_code,
+                    value: 'GBP'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: 'auto'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'payzone':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.pre_shared_key = {
+                    type: 'password',
+                    name: i18nData.fields.pre_shared_key,
+                    value: '',
+                    help: i18nData.help.pre_shared_key
+                };
+                fields.merchant_id = {
+                    name: i18nData.fields.merchant_id,
+                    value: '',
+                    help: i18nData.help.merchant_id
+                };
+                fields.password = {
+                    type: 'password',
+                    name: i18nData.fields.password,
+                    value: '',
+                    help: i18nData.help.merchant_password
+                };
+                fields.operation_mode = {
+                    type: 'select',
+                    name: i18nData.fields.operation_mode,
+                    options: {
+                        'SALE': i18nData.options.sale,
+                        'PREAUTH': i18nData.options.authorization
+                    },
+                    value: 'SALE'
+                };
+                fields.country_code = {
+                    name: i18nData.fields.country_code,
+                    value: '826'
+                };
+                fields.currency_code = {
+                    name: i18nData.fields.currency_code,
+                    value: '826'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: 'auto'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'cardsave':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.pre_shared_key = {
+                    type: 'password',
+                    name: i18nData.fields.pre_shared_key,
+                    value: ''
+                };
+                fields.merchant_id = {
+                    name: i18nData.fields.merchant_id,
+                    value: ''
+                };
+                fields.password = {
+                    type: 'password',
+                    name: i18nData.fields.password,
+                    value: ''
+                };
+                fields.operation_mode = {
+                    type: 'select',
+                    name: i18nData.fields.operation_mode,
+                    options: {
+                        'SALE': i18nData.options.sale
+                    },
+                    value: 'SALE'
+                };
+                fields.country_code = {
+                    name: i18nData.fields.country_code,
+                    value: '826'
+                };
+                fields.currency_code = {
+                    name: i18nData.fields.currency_code,
+                    value: '826'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: 'auto'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'redsys':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.merchant_id = {
+                    name: i18nData.fields.merchant_id,
+                    value: ''
+                };
+                fields.terminal_id = {
+                    name: i18nData.fields.terminal_id,
+                    value: '001'
+                };
+                fields.encryption_key = {
+                    type: 'password',
+                    name: i18nData.fields.encryption_key,
+                    value: ''
+                };
+                fields.signature_version = {
+                    name: i18nData.fields.signature_version,
+                    value: 'HMAC_SHA256_V1'
+                };
+                fields.operation_mode = {
+                    type: 'select',
+                    name: i18nData.fields.operation_mode,
+                    options: {
+                        '0': i18nData.options.sale
+                    },
+                    value: '0'
+                };
+                fields.currency_code = {
+                    type: 'select',
+                    name: i18nData.fields.currency,
+                    options: {
+                        '978': 'EUR',
+                        '840': 'USD',
+                        '826': 'GBP',
+                        '392': 'JPY',
+                        '32': 'ARA',
+                        '124': 'CAD',
+                        '152': 'CLP',
+                        '170': 'COP',
+                        '356': 'INR',
+                        '484': 'MXN',
+                        '604': 'PEN',
+                        '756': 'CHF',
+                        '986': 'BRL',
+                        '937': 'VEF',
+                        '949': 'TRL',
+                    },
+                    value: '978',
+                    minimumResultsForSearch: 5
+                };
+                fields.language_code = {
+                    type: 'select',
+                    name: i18nData.fields.language,
+                    help: i18nData.help.force_language,
+                    options: i18nData.redsys_language_options,
+                    value: 'auto',
+                    minimumResultsForSearch: 5
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'worldpay':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.inst_id = {
+                    name: i18nData.fields.installation_id,
+                    value: ''
+                };
+                fields.md5_secret = {
+                    type: 'password',
+                    name: i18nData.fields.md5_secret,
+                    value: ''
+                };
+                fields.signature_fields = {
+                    name: i18nData.fields.signature_fields,
+                    value: 'instId:amount:currency:cartId'
+                };
+                fields.callback_protocol = {
+                    type: 'select',
+                    name: i18nData.fields.payment_response_protocol,
+                    help: i18nData.help.payment_response_protocol,
+                    options: {
+                        '0': i18nData.options.auto,
+                        '1': i18nData.options.http,
+                        '2': i18nData.options.https
+                    },
+                    value: 0
+                };
+                fields.currency_code = {
+                    name: i18nData.fields.currency_code,
+                    value: 'GBP'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: 'auto'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'stripe_ideal':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.pk_live = {
+                    type: 'password',
+                    name: i18nData.fields.live_publishable_key,
+                    value: '',
+                    pclass: 'field-is-live-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.sk_live = {
+                    type: 'password',
+                    name: i18nData.fields.live_secret_key,
+                    value: '',
+                    pclass: 'field-is-live-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.pk_test = {
+                    type: 'password',
+                    name: i18nData.fields.test_publishable_key,
+                    value: '',
+                    pclass: 'field-is-test-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.sk_test = {
+                    type: 'password',
+                    name: i18nData.fields.test_secret_key,
+                    value: '',
+                    pclass: 'field-is-test-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'stripe':
+
+                $('.payment-method-top-info').append('<div class="field-is-not-sca-mode" style="margin-bottom:25px; color:#da4646;">'+ scaNotice +'</div>');
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.pk_live = {
+                    type: 'password',
+                    name: i18nData.fields.live_publishable_key,
+                    value: '',
+                    pclass: 'field-is-live-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.sk_live = {
+                    type: 'password',
+                    name: i18nData.fields.live_secret_key,
+                    value: '',
+                    pclass: 'field-is-live-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.pk_test = {
+                    type: 'password',
+                    name: i18nData.fields.test_publishable_key,
+                    value: '',
+                    pclass: 'field-is-test-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.sk_test = {
+                    type: 'password',
+                    name: i18nData.fields.test_secret_key,
+                    value: '',
+                    pclass: 'field-is-test-mode',
+                    attr: 'autocomplete="off"'
+                };
+                // var scaNotice = i18nData.help.sca_notice.replace(':link', '<a href="https://stripe.com/docs/strong-customer-authentication" target="_blank">'+ i18nData.links.read_more +'</a>');
+                // fields.sca_sub_info = {
+                //     type: 'html',
+                //     name: '<div class="field-is-not-sca-mode" style="margin-bottom:25px; color:#da4646;">'+ scaNotice +'</div>',
+                // };
+                fields.sca_mode = {
+                    type: 'select',
+                    name: i18nData.fields.strong_customer_authentication,
+                    help: scaHelp,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 0
+                };
+
+                fields.webhook_helper = {
+                    type: 'html',
+                    name: '<div>\
+                        <div class="panel panel-default" style="margin-bottom:25px;">\
+                            <div class="panel-heading"><strong>'+ i18nData.webhook.panel_title +'</strong></div>\
+                            <div class="panel-body">\
+                                <div class="help-block" style="margin-bottom:5px;">'+ i18nData.webhook.status_updates +'</div>\
+                                <div class="help-block" style="margin-bottom:15px;">'+ i18nData.webhook.auto_setup +'</div>\
+                                <div class="form-group field-param_webhook_helper" style="max-width: 600px;">\
+                                    <label>'+ i18nData.webhook.url_label +'</label>\
+                                    <div class="input-group">\
+                                    <input type="text" id="stripe-webhook-url" class="form-control" value="https://u3211.eto2.taxi/etov2?apiType=frontend&amp;task=notify&amp;webhook=stripe" readonly autocomplete="off">\
+                                        <div class="input-group-addon btnCopyStripeWebhook" style="cursor:pointer;" title="'+ i18nData.webhook.copy_url +'"><i class="fa fa-clone"></i></div>\
+                                        <div class="input-group-addon" data-toggle="popover" data-title="" data-content="'+ stripeManualSetup +'"><i class="fa fa-info-circle"></i></div>\
+                                    </div>\
+                                    <div class="text-muted stripe-webhook-copy-status" style="margin-top:5px; margin-bottom:5px;"></div>\
+                                </div>\
+                                <div class="text-muted stripe-webhook-status" style="margin-top:5px; margin-bottom:10px;"></div>\
+                                <button type="button" class="btn btn-primary btnSetStripeWebhook"><i class="fa fa-link"></i> '+ i18nData.buttons.set +'</button>\
+                                <button type="button" class="btn btn-default btnVerifyStripeWebhook"><i class="fa fa-check-circle"></i> '+ i18nData.buttons.verify +'</button>\
+                                <button type="button" class="btn btn-default btnDeleteStripeWebhook"><i class="fa fa-trash"></i> '+ i18nData.buttons.delete +'</button>\
+                            </div>\
+                        </div>\
+                    </div>'
+                };
+                fields.container_sca_mode_start = {
+                    type: 'container_start',
+                    pclass: 'field-is-sca-mode'
+                };
+                fields.container_enable_webhook_start = {
+                    type: 'container_start',
+                    pclass: 'hidden'
+                };
+                fields.live_enable_webhook = {
+                    type: 'select',
+                    name: i18nData.fields.live_webhook,
+                    help: i18nData.webhook.required,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1,
+                    pclass: 'field-is-live-mode'
+                };
+                fields.container_live_enable_webhook_start = {
+                    type: 'container_start',
+                    pclass: 'field-is-live_enable_webhook'
+                };
+                fields.live_webhook_id = {
+                    type: 'text',
+                    name: i18nData.fields.live_webhook_id,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.live_webhook_secret = {
+                    type: 'password',
+                    name: i18nData.fields.live_webhook_key,
+                    value: '',
+                    pclass: 'field-is-live-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.container_live_enable_webhook_end = {
+                    type: 'container_end',
+                };
+                fields.test_enable_webhook = {
+                    type: 'select',
+                    name: i18nData.fields.test_webhook,
+                    help: i18nData.webhook.required,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1,
+                    pclass: 'field-is-test-mode'
+                };
+                fields.container_test_enable_webhook_start = {
+                    type: 'container_start',
+                    pclass: 'field-is-test_enable_webhook'
+                };
+                fields.test_webhook_id = {
+                    type: 'text',
+                    name: i18nData.fields.test_webhook_id,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.test_webhook_secret = {
+                    type: 'password',
+                    name: i18nData.fields.test_webhook_key,
+                    value: '',
+                    pclass: 'field-is-test-mode',
+                    attr: 'autocomplete="off"'
+                };
+                fields.container_test_enable_webhook_end = {
+                    type: 'container_end',
+                };
+                fields.container_enable_webhook_end = {
+                    type: 'container_end',
+                };
+                fields.container_sca_mode_end = {
+                    type: 'container_end',
+                };
+
+                // https://support.stripe.com/questions/what-is-avs
+                fields.zip_code = {
+                    type: 'select',
+                    name: i18nData.fields.zip_code_check,
+                    help: i18nData.stripe.zip_code_check_help,
+                    options: {
+                        'false': i18nData.options.disabled,
+                        'true': i18nData.options.enabled
+                    },
+                    value: 'true',
+                    pclass: 'field-is-not-sca-mode'
+                };
+                fields.three_d_secure = {
+                    type: 'select',
+                    name: i18nData.fields.three_d_secure,
+                    help: i18nData.stripe.three_d_secure_help,
+                    options: {
+                        'false': i18nData.options.disabled,
+                        'true': i18nData.options.enabled
+                    },
+                    value: 'false',
+                    pclass: 'field-is-not-sca-mode'
+                };
+                fields.future_usage_policy = {
+                    type: 'select',
+                    name: i18nData.fields.future_payment_usage,
+                    help: i18nData.stripe.future_payment_usage_help,
+                    options: {
+                        'always': i18nData.options.always,
+                        'account_only': i18nData.options.registered_users_only,
+                        'never': i18nData.options.never
+                    },
+                    value: 'never'
+                };
+                fields.capture_method = {
+                    type: 'select',
+                    name: i18nData.fields.payment_capture_method,
+                    help: i18nData.stripe.payment_capture_method_help,
+                    options: {
+                        'automatic': i18nData.options.automatic,
+                        'manual': i18nData.options.manual
+                    },
+                    value: 'automatic'
+                };
+                fields.currency_code = {
+                    type: 'select',
+                    name: i18nData.fields.currency,
+                    options: {"AFN":"Afghan Afghani (AFN)","ALL":"Albanian Lek (ALL)","AMD":"Armenian Dram (AMD)","DZD":"Algerian Dinar (DZD)","AOA":"Angolan Kwanza (AOA)","ANG":"Antillian Guilder (ANG)","AWG":"Aruban Guilder (AWG)","AUD":"Australian Dollar (AUD)","AZN":"Azerbaijanian Manat (AZN)","BSD":"Bahamian Dollar (BSD)","BHD":"Bahraini Dinar (BHD)","BDT":"Bangladesh Taka (BDT)","BBD":"Barbados Dollar (BBD)","BYN":"Belarussian Ruble (BYN)","BZD":"Belize Dollar (BZD)","BMD":"Bermudian Dollar (BMD)","BOB":"Bolivian Boliviano (BOB)","BAM":"Bosnia and Herzegovina Convertible Marks (BAM)","BWP":"Botswana Pula (BWP)","BRL":"Brazilian Real (BRL)","BND":"Brunei Dollar (BND)","BIF":"Burundi Franc (BIF)","KHR":"Cambodian Riel (KHR)","CAD":"Canadian Dollar (CAD)","CVE":"Cape Verde Escudo (CVE)","KYD":"Cayman Islands Dollar (KYD)","XOF":"CFA Franc BCEAO (XOF)","XAF":"CFA Franc BEAC (XAF)","XPF":"CFP Franc (XPF)","CLP":"Chilean Peso (CLP)","COP":"Colombian Peso (COP)","KMF":"Comoro Franc (KMF)","CDF":"Congolese Franc (CDF)","CRC":"Costa Rican Colon (CRC)","HRK":"Croatia Kuna (HRK)","CZK":"Czech Koruna (CZK)","DKK":"Danish Krone (DKK)","DJF":"Djibouti Franc (DJF)","STD":"Dobra (STD)","DOP":"Dominican Peso (DOP)","XCD":"East Caribbean Dollar (XCD)","EEK":"Estonian Kroon (EEK)","EGP":"Egyptian Pound (EGP)","SVC":"El Salvador Colon (SVC)","ETB":"Ethiopian Birr (ETB)","EUR":"Euro (EUR)","FKP":"Falkland Islands Pound (FKP)","FJD":"Fiji Dollar (FJD)","GMD":"Gambian Dalasi (GMD)","GEL":"Georgia Lari (GEL)","GHS":"Ghana Cedi (GHS)","GIP":"Gibraltar Pound (GIP)","GTQ":"Guatemalan Quetzal (GTQ)","GNF":"Guinea Franc (GNF)","GYD":"Guyana Dollar (GYD)","HTG":"Haiti Gourde (HTG)","HNL":"Honduran Lempira (HNL)","HKD":"Hong Kong Dollar (HKD)","HUF":"Hungarian Forint (HUF)","ISK":"Iceland Krona (ISK)","INR":"Indian Rupee (INR)","IDR":"Indonesian Rupiah (IDR)","JMD":"Jamaican Dollar (JMD)","JPY":"Japanese Yen (JPY)","JOD":"Jordanian Dinar (JOD)","KZT":"Kazakhstan Tenge (KZT)","KES":"Kenyan Shilling (KES)","KGS":"Kyrgyzstani Som (KGS)","KWD":"Kuwaiti Dinar (KWD)","LAK":"Laos Kip (LAK)","LBP":"Lebanese Pound (LBP)","LSL":"Lesotho Loti (Maloti) (LSL)","LRD":"Liberian Dollar (LRD)","LTL":"Lithunianian Litas (LTL)","LVL":"Latvian Lats (LVL)","MOP":"Macau Pataca (MOP)","MKD":"Macedonian (FYR) Denar (MKD)","MGA":"Malagasy Ariary (MGA)","MWK":"Malawi Kwacha (MWK)","MYR":"Malaysian Ringgit (MYR)","MVR":"Maldives Rufiyaa (MVR)","MRO":"Mauritania Ouguiya (MRO)","MUR":"Mauritius Rupee (MUR)","MXN":"Mexican Peso (MXN)","MDL":"Moldovan Leu (MDL)","MNT":"Mongolian Tugrik (MNT)","MAD":"Moroccan Dirham (MAD)","MZN":"Mozambique Metical (MZN)","MMK":"Myanmar Kyat (MMK)","NAD":"Namibian Dollar (NAD)","NPR":"Nepalese Rupee (NPR)","BGN":"New Bulgarian Lev (BGN)","ILS":"New Israeli Scheqel (ILS)","PLN":"New Polish Zloty (PLN)","RON":"New Romanian Lei (RON)","RSD":"New Serbian Dinar (RSD)","TWD":"New Taiwan Dollar (TWD)","TRY":"New Turkish Lira (TRY)","NZD":"New Zealand Dollar (NZD)","NIO":"Nicaraguan Cordoba Oro (NIO)","NGN":"Nigerian Naira (NGN)","NOK":"Norwegian Krone (NOK)","ARS":"Nuevo Argentine Peso (ARS)","PKR":"Pakistan Rupee (PKR)","PAB":"Panamanian Balboa (PAB)","PGK":"Papua New Guinea Kina (PGK)","PYG":"Paraguayan Guarani (PYG)","PEN":"Peruvian Nuevo Sol (PEN)","UYU":"Peso Uruguayo (UYU)","PHP":"Philippine Peso (PHP)","GBP":"Pound Sterling (GBP)","QAR":"Qatari Rial (QAR)","OMR":"Rial Omani (OMR)","RUB":"Russian Ruble (RUB)","RWF":"Rwanda Franc (RWF)","WST":"Samaoan Tala (WST)","SAR":"Saudi Riyal (SAR)","SCR":"Seychelles Rupee (SCR)","SLL":"Sierra Leone Leone (SLL)","SGD":"Singapore Dollar (SGD)","SBD":"Solomon Islands Dollar (SBD)","SOS":"Somalia Shilling (SOS)","ZAR":"South African Rand (ZAR)","KRW":"South-Korean Won (KRW)","LKR":"Sri Lanka Rupee (LKR)","SHP":"St Helena Pound (SHP)","SRD":"Suriname Dollar (SRD)","SZL":"Swaziland Lilangeni (SZL)","SEK":"Swedish Krone (SEK)","CHF":"Swiss Franc (CHF)","TJS":"Tajikistan Somoni (TJS)","TZS":"Tanzanian Shilling (TZS)","THB":"Thai Baht (THB)","TOP":"Tonga Pa'anga (TOP)","TTD":"Trinidad and Tobago Dollar (TTD)","TND":"Tunisian Dinar (TND)","AED":"UAE Dirham (AED)","UGX":"Uganda Shilling (UGX)","UAH":"Ukraine Hryvnia (UAH)","USD":"US Dollars (USD)","UZS":"Uzbekistan Sum (UZS)","VUV":"Vanuatu Vatu (VUV)","VEF":"Venezuela Bolivar Fuerte (VEF)","VND":"Vietnamese New Dong (VND)","YER":"Yemeni Rial (YER)","CNY":"Yuan Renminbi (CNY)","ZMW":"Zambian Kwacha (ZMW)","USDC":"USD Coin (USDC)"},
+                    minimumResultsForSearch: 5,
+                    value: 'GBP'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: 'auto'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'wpop':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.sk_live = {
+                    type: 'password',
+                    name: i18nData.fields.live_service_key,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.pk_live = {
+                    type: 'password',
+                    name: i18nData.fields.live_client_key,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.template_code_live = {
+                    name: i18nData.fields.live_card_template_code,
+                    help: i18nData.help.template_id,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.sk_test = {
+                    type: 'password',
+                    name: i18nData.fields.test_service_key,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.pk_test = {
+                    type: 'password',
+                    name: i18nData.fields.test_client_key,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.template_code_test = {
+                    name: i18nData.fields.test_card_template_code,
+                    help: i18nData.help.template_id,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.three_d_secure = {
+                    type: 'select',
+                    name: i18nData.fields.three_d_secure,
+                    help: i18nData.help.three_d_secure,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 0
+                };
+                fields.currency_code = {
+                    type: 'select',
+                    name: i18nData.fields.currency,
+                    options: {"AFN":"Afghan Afghani (AFN)","DZD":"Algerian Dinar (DZD)","AOA":"Angolan Kwanza (AOA)","ANG":"Antillian Guilder (ANG)","AWG":"Aruban Guilder (AWG)","AUD":"Australian Dollar (AUD)","AZN":"Azerbaijanian Manat (AZN)","BSD":"Bahamian Dollar (BSD)","BHD":"Bahraini Dinar (BHD)","BDT":"Bangladesh Taka (BDT)","BBD":"Barbados Dollar (BBD)","BYN":"Belarussian Ruble (BYN)","BZD":"Belize Dollar (BZD)","BMD":"Bermudian Dollar (BMD)","BTN":"Bhutan Ngultrum (BTN)","BOB":"Bolivian Boliviano (BOB)","BAM":"Bosnia and Herzegovina Convertible Marks (BAM)","BWP":"Botswana Pula (BWP)","BRL":"Brazilian Real (BRL)","BND":"Brunei Dollar (BND)","BIF":"Burundi Franc (BIF)","KHR":"Cambodian Riel (KHR)","CAD":"Canadian Dollar (CAD)","CVE":"Cape Verde Escudo (CVE)","KYD":"Cayman Islands Dollar (KYD)","XOF":"CFA Franc BCEAO (XOF)","XAF":"CFA Franc BEAC (XAF)","XPF":"CFP Franc (XPF)","CLP":"Chilean Peso (CLP)","COP":"Colombian Peso (COP)","KMF":"Comoro Franc (KMF)","CDF":"Congolese Franc (CDF)","CRC":"Costa Rican Colon (CRC)","HRK":"Croatia Kuna (HRK)","CZK":"Czech Koruna (CZK)","DKK":"Danish Krone (DKK)","DJF":"Djibouti Franc (DJF)","STD":"Dobra (STD)","DOP":"Dominican Peso (DOP)","XCD":"East Caribbean Dollar (XCD)","ECS":"Ecuador Sucre (ECS)","EGP":"Egyptian Pound (EGP)","SVC":"El Salvador Colon (SVC)","ERN":"Eritrean Nafka (ERN)","ETB":"Ethiopian Birr (ETB)","EUR":"Euro (EUR)","FKP":"Falkland Islands Pound (FKP)","FJD":"Fiji Dollar (FJD)","GMD":"Gambian Dalasi (GMD)","GEL":"Georgia Lari (GEL)","GHS":"Ghana Cedi (GHS)","GIP":"Gibraltar Pound (GIP)","GTQ":"Guatemalan Quetzal (GTQ)","GNF":"Guinea Franc (GNF)","GYD":"Guyana Dollar (GYD)","HTG":"Haiti Gourde (HTG)","HNL":"Honduran Lempira (HNL)","HKD":"Hong Kong Dollar (HKD)","HUF":"Hungarian Forint (HUF)","ISK":"Iceland Krona (ISK)","INR":"Indian Rupee (INR)","IDR":"Indonesian Rupiah (IDR)","IRR":"Iranian Rial (IRR)","IQD":"Iraqi Dinar (IQD)","IEP":"Irish Pound (IEP)","ITL":"Italian Lira (ITL)","JMD":"Jamaican Dollar (JMD)","JPY":"Japanese Yen (JPY)","JOD":"Jordanian Dinar (JOD)","KZT":"Kazakhstan Tenge (KZT)","KES":"Kenyan Shilling (KES)","KWD":"Kuwaiti Dinar (KWD)","LAK":"Laos Kip (LAK)","LBP":"Lebanese Pound (LBP)","LSL":"Lesotho Loti (Maloti) (LSL)","LRD":"Liberian Dollar (LRD)","LYD":"Libyan Dinar (LYD)","LTL":"Lithunianian Litas (LTL)","MOP":"Macau Pataca (MOP)","MKD":"Macedonian (FYR) Denar (MKD)","MGA":"Malagasy Ariary (MGA)","MWK":"Malawi Kwacha (MWK)","MYR":"Malaysian Ringgit (MYR)","MVR":"Maldives Rufiyaa (MVR)","MRO":"Mauritania Ouguiya (MRO)","MUR":"Mauritius Rupee (MUR)","MXN":"Mexican Peso (MXN)","MDL":"Moldovan Leu (MDL)","MNT":"Mongolian Tugrik (MNT)","MAD":"Moroccan Dirham (MAD)","MZN":"Mozambique Metical (MZN)","MMK":"Myanmar Kyat (MMK)","NAD":"Namibian Dollar (NAD)","NPR":"Nepalese Rupee (NPR)","BGN":"New Bulgarian Lev (BGN)","ILS":"New Israeli Scheqel (ILS)","PLN":"New Polish Zloty (PLN)","RON":"New Romanian Lei (RON)","RSD":"New Serbian Dinar (RSD)","TWD":"New Taiwan Dollar (TWD)","TRY":"New Turkish Lira (TRY)","NZD":"New Zealand Dollar (NZD)","NIO":"Nicaraguan Cordoba Oro (NIO)","NGN":"Nigerian Naira (NGN)","KPW":"North Korean Won (KPW)","NOK":"Norwegian Krone (NOK)","ARS":"Nuevo Argentine Peso (ARS)","PKR":"Pakistan Rupee (PKR)","PAB":"Panamanian Balboa (PAB)","PGK":"Papua New Guinea Kina (PGK)","PYG":"Paraguayan Guarani (PYG)","PEN":"Peruvian Nuevo Sol (PEN)","UYU":"Peso Uruguayo (UYU)","PHP":"Philippine Peso (PHP)","GBP":"Pound Sterling (GBP)","QAR":"Qatari Rial (QAR)","OMR":"Rial Omani (OMR)","RUB":"Russian Ruble (RUB)","RWF":"Rwanda Franc (RWF)","WST":"Samaoan Tala (WST)","SAR":"Saudi Riyal (SAR)","SCR":"Seychelles Rupee (SCR)","SLL":"Sierra Leone Leone (SLL)","SGD":"Singapore Dollar (SGD)","SBD":"Solomon Islands Dollar (SBD)","SOS":"Somalia Shilling (SOS)","ZAR":"South African Rand (ZAR)","KRW":"South-Korean Won (KRW)","LKR":"Sri Lanka Rupee (LKR)","SHP":"St Helena Pound (SHP)","SDP":"Sudanese Pound (SDP)","SRD":"Suriname Dollar (SRD)","SZL":"Swaziland Lilangeni (SZL)","SEK":"Swedish Krone (SEK)","CHF":"Swiss Franc (CHF)","SYP":"Syrian Pound (SYP)","TJS":"Tajikistan Somoni (TJS)","TZS":"Tanzanian Shilling (TZS)","THB":"Thai Baht (THB)","TOP":"Tonga Pa'anga (TOP)","TTD":"Trinidad and Tobago Dollar (TTD)","TND":"Tunisian Dinar (TND)","TMT":"Turkmenistan Manat (TMT)","AED":"UAE Dirham (AED)","UGX":"Uganda Shilling (UGX)","UAH":"Ukraine Hryvnia (UAH)","USD":"US Dollars (USD)","UZS":"Uzbekistan Sum (UZS)","VUV":"Vanuatu Vatu (VUV)","VEB":"Venezuela Bolivar (VEB)","VEF":"Venezuela Bolivar Fuerte (VEF)","VND":"Vietnamese New Dong (VND)","YER":"Yemeni Rial (YER)","CNY":"Yuan Renminbi (CNY)","YUM":"Yugoslavian New Dinar (YUM)","ZMW":"Zambian Kwacha (ZMW)","ZWD":"Zimbabwe Dollar (ZWD)"},
+                    minimumResultsForSearch: 5,
+                    value: 'GBP'
+                };
+                // fields.language_code = {
+                //     name: i18nData.fields.language_code,
+                //     help: i18nData.help.force_language,
+                //     value: 'auto'
+                // };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'square':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_production_sandbox,
+                    options: {
+                        '0': i18nData.options.production,
+                        '1': i18nData.options.sandbox
+                    },
+                    value: 0
+                };
+                fields.live_access_token = {
+                    type: 'password',
+                    name: i18nData.fields.personal_access_token,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.live_location_id = {
+                    type: 'password',
+                    name: i18nData.fields.location_id,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.test_access_token = {
+                    type: 'password',
+                    name: i18nData.fields.sandbox_access_token,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.test_location_id = {
+                    type: 'password',
+                    name: i18nData.fields.sandbox_location_id,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.legacy_mode = {
+                    type: 'select',
+                    name: i18nData.fields.sandbox_legacy_mode,
+                    help: i18nData.help.sandbox_legacy_mode,
+                    options: {
+                        '0': i18nData.options.no,
+                        '1': i18nData.options.yes
+                    },
+                    value: 0,
+                    pclass: 'field-is-test-mode'
+                };
+                fields.currency_code = {
+                    name: i18nData.fields.currency_code,
+                    value: 'GBP'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'gpwebpay':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.merchant_number = {
+                    name: i18nData.fields.merchant_number,
+                    value: '',
+                };
+                fields.private_key = {
+                    name: i18nData.fields.private_key_path,
+                    value: '',
+                    help: i18nData.help.gpwebpay_private_key,
+                };
+                fields.private_key_password = {
+                    type: 'password',
+                    name: i18nData.fields.private_key_password,
+                    value: ''
+                };
+                fields.public_key = {
+                    name: i18nData.fields.public_key_path,
+                    value: '',
+                    help: i18nData.help.gpwebpay_public_key,
+                };
+                fields.currency_code = {
+                    name: i18nData.fields.currency_code,
+                    value: '203'
+                };
+                fields.operation_mode = {
+                    type: 'select',
+                    name: i18nData.fields.operation_mode,
+                    options: {
+                        '1': i18nData.options.sale,
+                        '0': i18nData.options.authorization,
+                    },
+                    value: '1'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: ''
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'svea':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.seller_id_live = {
+                    name: i18nData.fields.technical_user_id,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.secret_key_live = {
+                    type: 'password',
+                    name: i18nData.fields.secret_key,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.secret_key_generation_live = {
+                    name: i18nData.fields.secret_key_version,
+                    value: '1',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.seller_id_test = {
+                    name: i18nData.fields.technical_user_id,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.secret_key_test = {
+                    type: 'password',
+                    name: i18nData.fields.secret_key,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.secret_key_generation_test = {
+                    name: i18nData.fields.secret_key_version,
+                    value: '1',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: ''
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'paytabs':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.profile_id = {
+                    name: i18nData.fields.profile_id,
+                    value: '',
+                };
+                fields.server_key_live = {
+                    type: 'password',
+                    name: i18nData.fields.server_key,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.server_key_test = {
+                    type: 'password',
+                    name: i18nData.fields.server_key,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.operation_mode = {
+                    type: 'select',
+                    name: i18nData.fields.operation_mode,
+                    options: {
+                        'sale': i18nData.options.sale,
+                        'auth': i18nData.options.authorization,
+                    },
+                    value: 'sale'
+                };
+                fields.region = {
+                    type: 'select',
+                    name: i18nData.fields.region,
+                    options: {
+                        'uae': 'UAE',
+                        'ksa': 'KSA',
+                        'egypt': 'Egypt',
+                        'oman': 'Oman',
+                        'jordan': 'Jordan',
+                        'global': 'Global',
+                    },
+                    value: 'uae',
+                    help: paytabsRegionHelp
+                };
+                fields.currency_code = {
+                    type: 'select',
+                    name: i18nData.fields.currency,
+                    options: {"BHD":"Bahraini Dinar (BHD)","EGP":"Egyptian Pound (EGP)","EUR":"Euro (EUR)","HKD":"Hong Kong Dollar (HKD)","INR":"Indian Rupee (INR)","IDR":"Indonesian Rupiah (IDR)","IQD":"Iraqi Dinar (IQD)","JPY":"Japanese Yen (JPY)","JOD":"Jordanian Dinar (JOD)","KWD":"Kuwaiti Dinar (KWD)","MAD":"Moroccan Dirham (MAD)","PKR":"Pakistan Rupee (PKR)","GBP":"Pound Sterling (GBP)","QAR":"Qatari Rial (QAR)","OMR":"Rial Omani (OMR)","SAR":"Saudi Riyal (SAR)","AED":"UAE Dirham (AED)","USD":"US Dollars (USD)"},
+                    minimumResultsForSearch: 5,
+                    value: 'AED'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: ''
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'chipcard':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.merchant_name_live = {
+                    type: 'text',
+                    name: i18nData.fields.merchant_name,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.merchant_name_test = {
+                    type: 'text',
+                    name: i18nData.fields.merchant_name,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.merchant_username_live = {
+                    type: 'text',
+                    name: i18nData.fields.merchant_username,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.merchant_username_test = {
+                    type: 'text',
+                    name: i18nData.fields.merchant_username,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.merchant_password_live = {
+                    type: 'password',
+                    name: i18nData.fields.merchant_password,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.merchant_password_test = {
+                    type: 'password',
+                    name: i18nData.fields.merchant_password,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.secret_key_live = {
+                    type: 'password',
+                    name: i18nData.fields.secret_key,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.secret_key_test = {
+                    type: 'password',
+                    name: i18nData.fields.secret_key,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.currency_code = {
+                    name: i18nData.fields.currency_code,
+                    value: 'RSD'
+                };
+                fields.language_code = {
+                    name: i18nData.fields.language_code,
+                    help: i18nData.help.force_language,
+                    value: ''
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: 1
+                };
+
+            break;
+            case 'sumup':
+
+                fields.test_mode = {
+                    type: 'select',
+                    name: i18nData.fields.environment,
+                    help: i18nData.help.environment_live_test,
+                    options: {
+                        '0': i18nData.options.live,
+                        '1': i18nData.options.test
+                    },
+                    value: 0
+                };
+                fields.live_merchant_code = {
+                    type: 'password',
+                    name: i18nData.fields.merchant_code,
+                    help: i18nData.help.sumup_merchant_code,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.live_client_id = {
+                    type: 'password',
+                    name: i18nData.fields.client_id,
+                    help: i18nData.help.sumup_client_id,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.live_client_secret = {
+                    type: 'password',
+                    name: i18nData.fields.client_secret,
+                    help: i18nData.help.sumup_client_secret,
+                    value: '',
+                    pclass: 'field-is-live-mode'
+                };
+                fields.test_merchant_code = {
+                    type: 'password',
+                    name: i18nData.fields.test_merchant_code,
+                    help: i18nData.help.sumup_merchant_code,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.test_client_id = {
+                    type: 'password',
+                    name: i18nData.fields.test_client_id,
+                    help: i18nData.help.sumup_client_id,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.test_client_secret = {
+                    type: 'password',
+                    name: i18nData.fields.test_client_secret,
+                    help: i18nData.help.sumup_client_secret,
+                    value: '',
+                    pclass: 'field-is-test-mode'
+                };
+                fields.zip_code = {
+                    type: 'select',
+                    name: i18nData.fields.show_zip_code,
+                    help: i18nData.help.sumup_show_zip_code,
+                    options: {
+                        '0': i18nData.options.no,
+                        '1': i18nData.options.yes
+                    },
+                    value: '0'
+                };
+                fields.currency_code = {
+                    type: 'select',
+                    name: i18nData.fields.currency,
+                    help: i18nData.help.sumup_currency,
+                    options: {"BRL":"Brazilian Real (BRL)","CZK":"Czech Koruna (CZK)","DKK":"Danish Krone (DKK)","EUR":"Euro (EUR)","HUF":"Hungarian Forint (HUF)","BGN":"New Bulgarian Lev (BGN)","PLN":"New Polish Zloty (PLN)","NOK":"Norwegian Krone (NOK)","GBP":"Pound Sterling (GBP)","SEK":"Swedish Krone (SEK)","CHF":"Swiss Franc (CHF)","USD":"US Dollars (USD)"},
+                    minimumResultsForSearch: 5,
+                    value: 'GBP'
+                };
+                fields.language_code = {
+                    type: 'select',
+                    name: i18nData.fields.language,
+                    help: i18nData.help.force_language,
+                    options: {
+                        'auto': i18nData.options.auto_detection,
+                        'bg-BG': 'bg-BG',
+                        'cs-CZ': 'cs-CZ',
+                        'da-DK': 'da-DK',
+                        'de-AT': 'de-AT',
+                        'de-CH': 'de-CH',
+                        'de-DE': 'de-DE',
+                        'de-LU': 'de-LU',
+                        'el-CY': 'el-CY',
+                        'el-GR': 'el-GR',
+                        'en-GB': 'en-GB',
+                        'en-IE': 'en-IE',
+                        'en-MT': 'en-MT',
+                        'en-US': 'en-US',
+                        'es-CL': 'es-CL',
+                        'es-ES': 'es-ES',
+                        'et-EE': 'et-EE',
+                        'fi-FI': 'fi-FI',
+                        'fr-BE': 'fr-BE',
+                        'fr-CH': 'fr-CH',
+                        'fr-FR': 'fr-FR',
+                        'fr-LU': 'fr-LU',
+                        'hu-HU': 'hu-HU',
+                        'it-CH': 'it-CH',
+                        'it-IT': 'it-IT',
+                        'lt-LT': 'lt-LT',
+                        'lv-LV': 'lv-LV',
+                        'nb-NO': 'nb-NO',
+                        'nl-BE': 'nl-BE',
+                        'nl-NL': 'nl-NL',
+                        'pt-BR': 'pt-BR',
+                        'pt-PT': 'pt-PT',
+                        'pl-PL': 'pl-PL',
+                        'sk-SK': 'sk-SK',
+                        'sl-SI': 'sl-SI',
+                        'sv-SE': 'sv-SE',
+                    },
+                    value: 'auto'
+                };
+                fields.deposit = {
+                    type: 'select',
+                    name: i18nData.fields.deposit,
+                    help: i18nData.help.deposit,
+                    options: {
+                        '0': i18nData.options.disabled,
+                        '1': i18nData.options.enabled
+                    },
+                    value: '1'
+                };
+
+            break;
+            case 'cash':
+                // None
+            break;
+            case 'account':
+                // None
+            break;
+            case 'bacs':
+                fields.additional_details = {
+                    type: 'textarea',
+                    name: i18nData.fields.additional_info,
+                    help: i18nData.help.additional_info,
+                    value: '',
+                    attr: 'style="min-width:180px; min-height:80px;"'
+                };
+            break;
+            case 'offline':
+                fields.additional_details = {
+                    type: 'textarea',
+                    name: i18nData.fields.additional_info,
+                    help: i18nData.help.additional_info,
+                    value: '',
+                    attr: 'style="min-width:180px; min-height:80px;"'
+                };
+            break;
+        }
+
+        var parmsHtml = '';
+
+        $.each(fields, function(key, value) {
+            var html = '';
+            var f_type = 'text';
+            var f_name = '';
+            var f_options = {};
+            var f_pclass = '';
+            var f_class = '';
+            var f_attr = '';
+            var f_help = '';
+            var f_value = '';
+
+            if( value.type ) {
+                f_type = value.type;
+            }
+            if( value.name ) {
+                f_name = value.name;
+            }
+            if( value.options ) {
+                f_options = value.options;
+            }
+            if( value.pclass ) {
+                f_pclass = value.pclass;
+            }
+            if( value.class ) {
+                f_class = value.class;
+            }
+            if( value.attr ) {
+                f_attr = value.attr;
+            }
+            if( value.help ) {
+                f_help = value.help;
+            }
+            if( value.value ) {
+                f_value = value.value;
+            }
+
+            var f_attr_no_autocomplete = (f_attr || '').replace(/\s*autocomplete\s*=\s*"[^"]*"/gi, '').trim();
+
+            if( f_type == 'html' ) {
+                html += f_name;
+            }
+            else if( f_type == 'container_start' ) {
+                html += '<div class="field-container_'+ key +' '+ f_pclass +'">';
+            }
+            else if( f_type == 'container_end' ) {
+                html += '</div>';
+            }
+            else if( f_type == 'text' ) {
+                html += '<div class="form-group field-param_'+ key +' '+ f_pclass +'">';
+                    html += '<label for="param_'+ key +'">'+ f_name +'</label>';
+                    if( f_help ) {
+                        html += '<div class="input-group">';
+                    }
+
+                    html += '<input type="text" name="param_fields['+ key +']" id="param_'+ key +'" placeholder="'+ f_name +'" class="form-control '+ f_class +'" '+ f_attr_no_autocomplete +' '+ paymentMethodFormIgnoreAttrs +'>';
+
+                    if( f_help ) {
+                            html += '<div class="input-group-addon" data-toggle="popover" data-title="" data-content="'+ f_help +'">';
+                                html += '<i class="fa fa-info-circle"></i>';
+                            html += '</div>';
+                        html += '</div>';
+                    }
+                html += '</div>';
+            }
+            else if( f_type == 'textarea' ) {
+                html += '<div class="form-group field-param_'+ key +' '+ f_pclass +'">';
+                    html += '<label for="param_'+ key +'">'+ f_name +'</label>';
+                    if( f_help ) {
+                        html += '<div class="input-group">';
+                    }
+
+                    html += '<textarea name="param_fields['+ key +']" id="param_'+ key +'" placeholder="'+ f_name +'" class="form-control '+ f_class +'" '+ f_attr_no_autocomplete +' '+ paymentMethodFormIgnoreAttrs +'>'+ f_value +'</textarea>';
+
+                    if( f_help ) {
+                            html += '<div class="input-group-addon" data-toggle="popover" data-title="" data-content="'+ f_help +'">';
+                                html += '<i class="fa fa-info-circle"></i>';
+                            html += '</div>';
+                        html += '</div>';
+                    }
+                html += '</div>';
+            }
+            else if( f_type == 'password' ) {
+                html += '<div class="form-group field-param_'+ key +' '+ f_pclass +'">';
+                    html += '<label for="param_'+ key +'">'+ f_name +'</label>';
+                    html += '<div class="input-group">';
+                        html += '<input type="password" name="param_fields['+ key +']" id="param_'+ key +'" placeholder="'+ f_name +'" class="form-control '+ f_class +'" '+ f_attr_no_autocomplete +' '+ paymentMethodPasswordIgnoreAttrs +'>';
+
+                        html += '<div class="input-group-addon" title="'+ i18nData.buttons.show_hide +'" style="cursor:pointer;" onclick="var type = $(this).parents(\'.form-group\').find(\'input\').attr(\'type\'); if( type == \'password\') { type = \'text\' } else { type = \'password\' } $(this).parents(\'.form-group\').find(\'input\').attr(\'type\', type); $(this).parents(\'.form-group\').find(\'.password-switch-icon\').removeClass(\'fa-eye fa-eye-slash\').addClass(type==\'password\' ? \'fa-eye-slash\' : \'fa-eye\')">';
+                            html += '<i class="fa fa-eye-slash password-switch-icon"></i>';
+                        html += '</div>';
+
+                        if( f_help ) {
+                            html += '<div class="input-group-addon" data-toggle="popover" data-title="" data-content="'+ f_help +'">';
+                                html += '<i class="fa fa-info-circle"></i>';
+                            html += '</div>';
+                        }
+                    html += '</div>';
+                html += '</div>';
+            }
+            else if( f_type == 'select' ) {
+                html += '<div class="form-group field-param_'+ key +' '+ f_pclass +'">';
+                    html += '<label for="param_'+ key +'">'+ f_name +'</label>';
+                    if( f_help ) {
+                        html += '<div class="input-group">';
+                    }
+
+                    var minimumResultsForSearch = typeof value.minimumResultsForSearch != 'undefined' ? value.minimumResultsForSearch : 'Infinity';
+
+                    html += '<select name="param_fields['+ key +']" id="param_'+ key +'" placeholder="'+ f_name +'" class="form-control select2 '+ f_class +'" data-minimum-results-for-search="'+ minimumResultsForSearch +'" '+ f_attr +'>';
+                    if ($.isArray(f_options)) {
+                        $.each(f_options, function(key2, value2) {
+                            html += '<option value="'+ value2 +'">'+ value2 +'</option>';
+                        });
+                    } else {
+                        $.each(f_options, function(key2, value2) {
+                            html += '<option value="'+ key2 +'">'+ value2 +'</option>';
+                        });
+                    }
+                    html += '</select>';
+
+                    if( f_help ) {
+                            html += '<div class="input-group-addon" data-toggle="popover" data-title="" data-content="'+ f_help +'">';
+                                html += '<i class="fa fa-info-circle"></i>';
+                            html += '</div>';
+                        html += '</div>';
+                    }
+                html += '</div>';
+            }
+
+            if( html ) {
+                parmsHtml += html;
+            }
+        });
+
+        if( parmsHtml ) {
+            $('#params-options').append(parmsHtml);
+        }
+
+        // Update values
+        $.each(fields, function(key, value) {
+            var f_value = '';
+
+            if( value.value != 'undefined' ) {
+                f_value = value.value;
+            }
+
+            if( $('#param_'+ key) ) {
+                if( params ) {
+                    $.each(JSON.parse(params), function(key2, value2) {
+                        if( key == key2 ) {
+                            f_value = value2;
+                        }
+                    });
+                }
+                $('#param_'+ key).val(f_value);
+            }
+        });
+
+        // Display labels
+        $('#params-options').find('input, select').on('change', function(e) {
+          if( $(this).val() ) {
+            $(this).parents('.form-group').find('label').show();
+          }
+          else {
+            $(this).parents('.form-group').find('label').hide();
+          }
+          e.preventDefault();
+        });
+
+        // Hide Test amount
+        $('#param_test_mode').change(function(){
+            if( parseInt($(this).val()) == 1 ) {
+                $('.field-is-live-mode').addClass('hidden');
+                $('.field-is-test-mode').removeClass('hidden');
+            }
+            else {
+                $('.field-is-live-mode').removeClass('hidden');
+                $('.field-is-test-mode').addClass('hidden');
+            }
+        }).change();
+
+        // Hide Stripe settings
+        $('#param_sca_mode').change(function(){
+            if( parseInt($(this).val()) == 1 ) {
+                $('.field-is-sca-mode').removeClass('hidden');
+                $('.field-is-not-sca-mode').addClass('hidden');
+            }
+            else {
+                $('.field-is-sca-mode').addClass('hidden');
+                $('.field-is-not-sca-mode').removeClass('hidden');
+            }
+        }).change();
+
+        $('#param_live_enable_webhook').change(function(){
+            if( parseInt($(this).val()) == 1 ) {
+                $('.field-is-live_enable_webhook').removeClass('hidden');
+            }
+            else {
+                $('.field-is-live_enable_webhook').addClass('hidden');
+            }
+        }).change();
+
+        $('#param_test_enable_webhook').change(function(){
+            if( parseInt($(this).val()) == 1 ) {
+                $('.field-is-test_enable_webhook').removeClass('hidden');
+            }
+            else {
+                $('.field-is-test_enable_webhook').addClass('hidden');
+            }
+        }).change();
+
+        // Select
+        $('#params-options .select2').select2();
+
+        // Spinner
+        $('#params-options input[type="text"].touchspin').TouchSpin({
+          max: null,
+          booster: true,
+          boostat: 5,
+          mousewheel: true,
+          verticalbuttons: true,
+          verticalupclass: 'fa fa-plus',
+          verticaldownclass: 'fa fa-minus'
+        });
+
+        // Tooltip
+        $('#params-options [title]').tooltip({
+          placement: 'auto',
+          container: 'body',
+          selector: '',
+          html: true,
+          trigger: 'hover',
+          delay: {
+            'show': 500,
+            'hide': 100
+          }
+        });
+
+        $('[data-toggle="popover"]').popover({
+            placement: 'auto right',
+            container: 'body',
+            trigger: 'click focus hover',
+            html: true
+        });
+
+        if (method === 'stripe') {
+            stripeWebhookInit();
+        }
+    }
+
+  function getWebhookModeLabel(mode) {
+      return i18nData.options[mode] || mode;
+  }
+
+  function stripeWebhookInit() {
+      var statusBlock = $('.stripe-webhook-status');
+      var copyStatusBlock = $('.stripe-webhook-copy-status');
+      var webhookUrlInput = $('#stripe-webhook-url');
+      var verifyWebhookButton = $('.btnVerifyStripeWebhook');
+      var setWebhookButton = $('.btnSetStripeWebhook');
+      var deleteWebhookButton = $('.btnDeleteStripeWebhook');
+
+      webhookUrlInput.off('click.selectWebhook focus.selectWebhook').on('click.selectWebhook focus.selectWebhook', function() {
+          $(this).select();
+      });
+
+      function stripeWebhookRefreshStatus() {
+          var mode = parseInt($('#param_test_mode').val()) === 1 ? 'test' : 'live';
+          var modeLabel = getWebhookModeLabel(mode);
+          var webhookId = $('#param_'+ mode +'_webhook_id').val();
+          var secretField = mode === 'test' ? $('#param_sk_test') : $('#param_sk_live');
+          var hasSecret = !!secretField.val();
+          if (webhookId) {
+              statusBlock.html(i18nData.webhook.configured.replace(':mode', modeLabel).replace(':id', '<strong>'+ webhookId +'</strong>'));
+              deleteWebhookButton.toggle(true);
+          } else {
+              statusBlock.html('<span class="text-warning">'+ i18nData.webhook.not_configured.replace(':mode', modeLabel) +'</span>');
+              deleteWebhookButton.toggle(false);
+          }
+
+          setWebhookButton.prop('disabled', !hasSecret);
+          verifyWebhookButton.prop('disabled', !hasSecret);
+          deleteWebhookButton.prop('disabled', !webhookId);
+      }
+
+      $('.btnCopyStripeWebhook').tooltip({
+          placement: 'top',
+          container: 'body',
+          title: i18nData.webhook.copy_url,
+          trigger: 'hover'
+      });
+
+      $('.btnCopyStripeWebhook').off('click').on('click', function(e) {
+          e.preventDefault();
+
+          var webhookUrl = webhookUrlInput.val();
+          var copyMsg = '<span class="text-success" style="display:block; margin-bottom:5px;">'+ i18nData.webhook.copied +'</span>';
+          var clearCopyMsg = function() { copyStatusBlock.html(''); };
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(webhookUrl).then(function() {
+                  copyStatusBlock.html(copyMsg);
+                  setTimeout(clearCopyMsg, 10000);
+              }).catch(function() {
+                  stripeWebhookFallbackCopy();
+              });
+          } else {
+              stripeWebhookFallbackCopy();
+          }
+
+          function stripeWebhookFallbackCopy() {
+              try {
+                  webhookUrlInput.prop('readonly', false).focus().select();
+                  document.execCommand('copy');
+                  copyStatusBlock.html(copyMsg);
+                  setTimeout(clearCopyMsg, 10000);
+              } catch (err) {
+                  copyStatusBlock.html('<span class="text-danger">'+ i18nData.webhook.copy_failed +'</span>');
+              } finally {
+                  webhookUrlInput.prop('readonly', true);
+              }
+          }
+      });
+
+      $('.btnSetStripeWebhook').off('click').on('click', function(e) {
+          e.preventDefault();
+
+          var mode = parseInt($('#param_test_mode').val()) === 1 ? 'test' : 'live';
+          stripeWebhookSetup(mode, {
+              onSuccess: function() {
+                  stripeWebhookRefreshStatus();
+              }
+          });
+      });
+
+      verifyWebhookButton.off('click').on('click', function(e) {
+          e.preventDefault();
+
+          var mode = parseInt($('#param_test_mode').val()) === 1 ? 'test' : 'live';
+          var secretField = mode === 'test' ? $('#param_sk_test') : $('#param_sk_live');
+
+          if (!secretField.val()) {
+              statusBlock.html('<span class="text-danger">'+ i18nData.webhook.missing_secret_verify.replace(':mode', getWebhookModeLabel(mode)) +'</span>');
+              return;
+          }
+
+          var paramFields = {};
+          $('#params-options [name^="param_fields"]').each(function() {
+              var fieldName = $(this).attr('name').replace('param_fields[', '').replace(']', '');
+              paramFields[fieldName] = $(this).val();
+          });
+
+          statusBlock.html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.webhook.verifying);
+
+          $.ajax({
+              headers : {
+                'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+              },
+              url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+              type: 'POST',
+              dataType: 'json',
+              cache: false,
+              data: {
+                task: 'payment',
+                action: 'stripe_webhook_verify',
+                id: $('#dmodal #id').val(),
+                method: $('#dmodal #method').val(),
+                param_fields: paramFields
+              },
+              success: function(response) {
+                if (response.success) {
+                  var message = response.message || i18nData.webhook.verification_complete;
+
+                  if (response.status === 'ok') {
+                      statusBlock.html('<span class="text-success">'+ message +'</span>');
+                  } else if (response.status === 'missing' || response.status === 'mismatch') {
+                      statusBlock.html('<span class="text-warning">'+ message +'</span>');
+                      if (response.can_fix) {
+                          var promptMessage = response.fix_prompt || i18nData.webhook.fix_prompt;
+                          if (confirm(promptMessage)) {
+                              stripeWebhookSetup(mode, {
+                                  onSuccess: function() {
+                                      stripeWebhookRefreshStatus();
+                                  }
+                              });
+                          }
+                      }
+                  } else {
+                      statusBlock.html('<span class="text-muted">'+ message +'</span>');
+                  }
+                }
+                else {
+                  statusBlock.html('<span class="text-danger">'+ (response.message || i18nData.webhook.verify_failed) +'</span>');
+                }
+              },
+              error: function() {
+                statusBlock.html('<span class="text-danger">'+ i18nData.webhook.verify_error +'</span>');
+              }
+          });
+      });
+
+      $('.btnDeleteStripeWebhook').off('click').on('click', function(e) {
+          e.preventDefault();
+
+          var mode = parseInt($('#param_test_mode').val()) === 1 ? 'test' : 'live';
+          var secretField = mode === 'test' ? $('#param_sk_test') : $('#param_sk_live');
+          var webhookIdField = mode === 'test' ? $('#param_test_webhook_id') : $('#param_live_webhook_id');
+
+          if (!webhookIdField.val()) {
+              statusBlock.html('<span class="text-muted">'+ i18nData.webhook.not_configured_simple.replace(':mode', getWebhookModeLabel(mode)) +'</span>');
+              deleteWebhookButton.toggle(false);
+              return;
+          }
+
+          if (!secretField.val()) {
+              if (!confirm(i18nData.webhook.delete_missing_secret.replace(':mode', getWebhookModeLabel(mode)))) {
+                  return;
+              }
+          } else {
+              if (!confirm(i18nData.webhook.delete_confirm.replace(':mode', getWebhookModeLabel(mode)))) {
+                  return;
+              }
+          }
+
+      var paramFields = {};
+          $('#params-options [name^="param_fields"]').each(function() {
+              var fieldName = $(this).attr('name').replace('param_fields[', '').replace(']', '');
+              paramFields[fieldName] = $(this).val();
+          });
+
+          paramFields[mode + '_enable_webhook'] = '0';
+
+          statusBlock.html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.webhook.deleting);
+
+          $.ajax({
+              headers : {
+                'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+              },
+              url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+              type: 'POST',
+              dataType: 'json',
+              cache: false,
+              data: {
+                task: 'payment',
+                action: 'stripe_webhook',
+                id: $('#dmodal #id').val(),
+                method: $('#dmodal #method').val(),
+                param_fields: paramFields,
+                force_delete: 1,
+                delete: 1
+              },
+              success: function(response) {
+                if (response.success) {
+                  var envPrefix = response.mode === 'test' ? 'test' : 'live';
+
+                  $('#param_'+ envPrefix +'_webhook_id').val('');
+                  $('#param_'+ envPrefix +'_webhook_secret').val('');
+                  $('#param_'+ envPrefix +'_enable_webhook').val('0').trigger('change');
+
+                  statusBlock.html('<span class="text-success">'+ (response.message || i18nData.webhook.deleted) +'</span>');
+                  deleteWebhookButton.toggle(false);
+                }
+                else {
+                  statusBlock.html('<span class="text-danger">'+ (response.message || i18nData.webhook.delete_failed) +'</span>');
+                }
+              },
+              error: function() {
+                statusBlock.html('<span class="text-danger">'+ i18nData.webhook.delete_error +'</span>');
+              }
+            });
+      });
+
+      $('#param_test_mode').off('change.refreshWebhookStatus').on('change.refreshWebhookStatus', function() {
+          stripeWebhookRefreshStatus();
+      });
+
+      $('#param_live_webhook_id, #param_test_webhook_id, #param_sk_test, #param_sk_live').off('change.refreshWebhookStatus').on('change.refreshWebhookStatus', function() {
+          stripeWebhookRefreshStatus();
+      });
+
+      stripeWebhookRefreshStatus();
+  }
+
+  function stripeWebhookSetup(mode, options) {
+      var opts = options || {};
+      var statusBlock = $('.stripe-webhook-status');
+      var secretField = mode === 'test' ? $('#param_sk_test') : $('#param_sk_live');
+
+          if (!secretField.val()) {
+              statusBlock.html('<span class="text-danger">'+ i18nData.webhook.missing_secret_configure.replace(':mode', getWebhookModeLabel(mode)) +'</span>');
+              if (opts.onError) { opts.onError(); }
+              return;
+          }
+
+      var paramFields = {};
+      $('#params-options [name^="param_fields"]').each(function() {
+          var fieldName = $(this).attr('name').replace('param_fields[', '').replace(']', '');
+          paramFields[fieldName] = $(this).val();
+      });
+
+      paramFields[mode + '_enable_webhook'] = '1';
+
+          statusBlock.html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.webhook.configuring);
+
+      $.ajax({
+          headers : {
+            'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+          },
+          url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+          type: 'POST',
+          dataType: 'json',
+          cache: false,
+          data: {
+            task: 'payment',
+            action: 'stripe_webhook',
+            id: $('#dmodal #id').val(),
+            method: $('#dmodal #method').val(),
+            param_fields: paramFields
+          },
+          success: function(response) {
+            if (response.success) {
+              var envPrefix = response.mode === 'test' ? 'test' : 'live';
+
+              $('#param_'+ envPrefix +'_enable_webhook').val('1').trigger('change');
+
+              if (response.webhook_id) {
+                  $('#param_'+ envPrefix +'_webhook_id').val(response.webhook_id);
+              }
+              if (response.webhook_secret) {
+                  $('#param_'+ envPrefix +'_webhook_secret').val(response.webhook_secret);
+              }
+
+              statusBlock.html('<span class="text-success">'+ (response.message || i18nData.webhook.configured_simple) +'</span>');
+              if (opts.onSuccess) { opts.onSuccess(response); }
+            }
+            else {
+              statusBlock.html('<span class="text-danger">'+ (response.message || i18nData.webhook.configure_failed) +'</span>');
+              if (opts.onError) { opts.onError(response); }
+            }
+          },
+          error: function() {
+          statusBlock.html('<span class="text-danger">'+ i18nData.webhook.configure_error +'</span>');
+          if (opts.onError) { opts.onError(); }
+        }
+      });
+  }
+
+  // Update
+  function updateRecord(id, method) {
+    var html = '';
+    var title = '';
+    var btnIcon = '';
+    var btnTitle = '';
+    var msgSuccess = '';
+    var modalCls = '';
+
+    if( id && id >= 0 ) {
+      title = i18nData.modal.edit_title.replace(':method', '<span style="text-transform:capitalize;">'+ method +'</span>');
+      btnIcon = 'fa fa-pencil-square-o';
+      btnTitle = i18nData.buttons.save;
+      msgSuccess = i18nData.messages.saved;
+      modalCls = 'modal-edit';
+    }
+    else {
+      title = i18nData.modal.add_title;
+      btnIcon = 'fa fa-plus';
+      btnTitle = i18nData.buttons.add;
+      msgSuccess = i18nData.messages.added;
+      modalCls = 'modal-add';
+    }
+
+    html = '<form method="post" enctype="multipart/form-data" '+ paymentMethodFormIgnoreAttrs +'>\
+            <input type="hidden" name="id" id="id" value="0">\
+            <input type="hidden" name="site_id" id="site_id" value="0">\
+            <div class="payment-method-top-info"></div>\
+            <div class="form-group field-name">\
+              <label for="name">'+ i18nData.fields.name +'</label>\
+              <input type="text" name="name" id="name" placeholder="'+ i18nData.fields.name +'" required class="form-control" '+ paymentMethodFormIgnoreAttrs +'>\
+            </div>\
+            <div class="form-group field-description">\
+              <label for="description">'+ i18nData.fields.description +'</label>\
+              <textarea name="description" id="description" placeholder="'+ i18nData.fields.description +'" class="form-control" '+ paymentMethodFormIgnoreAttrs +'></textarea>\
+            </div>\
+            <div class="form-group field-payment_page">\
+              <label for="payment_page">'+ i18nData.fields.payment_page +'</label>\
+              <textarea name="payment_page" id="payment_page" placeholder="'+ i18nData.fields.payment_page +'" class="form-control" '+ paymentMethodFormIgnoreAttrs +'></textarea>\
+            </div>\
+            <div id="image_preview"></div>\
+            <input type="hidden" name="image" id="image" value="">\
+            <div class="form-group field-image_type">\
+                <label for="image_type_gallery" class="checkbox-inline" style="padding-left:0px;">\
+                    <input type="radio" name="image_type" id="image_type_gallery" value="0" checked> '+ i18nData.fields.image_gallery +'\
+                </label>\
+                <label for="image_type_upload" class="checkbox-inline">\
+                    <input type="radio" name="image_type" id="image_type_upload" value="1"> '+ i18nData.fields.image_upload +'\
+                </label>\
+            </div>\
+            <div class="form-group field-image_gallery" style="margin-bottom:30px;">\
+                <label for="image_gallery">'+ i18nData.fields.choose_image +'</label>\
+                <select name="image_gallery" id="image_gallery" data-placeholder="'+ i18nData.fields.choose_image +'" data-allow-clear="true" class="form-control select2"></select>\
+            </div>\
+            <div class="form-group field-image_upload" style="margin-bottom:30px; display:none;">\
+                <label for="image_upload" style="display:inline-block;">'+ i18nData.fields.upload_image +'</label>\
+                <input type="file" name="image_upload" id="image_upload" class="form-control" />\
+                <div class="admin-warning-msg">\
+                    '+ i18nData.fields.image_help +'\
+                </div>\
+            </div>\
+            <div id="params-options"></div>\
+            <div class="form-group field-params" style="display:none;">\
+              <label for="params">'+ i18nData.fields.params +'</label>\
+              <textarea name="params" id="params" placeholder="'+ i18nData.fields.params +'" required class="form-control">{}</textarea>\
+            </div>\
+            <div class="form-group field-method">\
+              <label for="method">'+ i18nData.fields.method +'</label>\
+              <input type="text" name="method" id="method" placeholder="'+ i18nData.fields.method +'" required class="form-control" autocomplete="off" readonly>\
+            </div>\
+            <div class="form-group field-factor_type">\
+              <label for="factor_type">'+ i18nData.fields.charge_type +'</label>\
+              <select name="factor_type" id="factor_type" data-placeholder="'+ i18nData.fields.charge_type +'" data-minimum-results-for-search="Infinity" required class="form-control select2">\
+                <option value="0">'+ i18nData.options.flat +'</option>\
+                <option value="1">'+ i18nData.options.percent +'</option>\
+              </select>\
+            </div>\
+            <div class="form-group field-price">\
+              <label for="price">'+ i18nData.fields.charge_value +'</label>\
+              <input type="text" name="price" id="price" placeholder="'+ i18nData.fields.charge_value +'" value="0" required class="form-control touchspin" data-bts-step="0.01" data-bts-decimals="2" data-bts-min="0">\
+            </div>\
+            <div class="form-group field-ordering">\
+              <label for="ordering">'+ i18nData.fields.ordering +'</label>\
+              <input type="text" name="ordering" id="ordering" placeholder="'+ i18nData.fields.ordering +'" value="0" required class="form-control touchspin" data-bts-step="1" data-bts-min="0">\
+            </div>\
+            <div class="form-group field-service_ids" style="margin-top:20px; margin-bottom:20px; max-width:100%;">\
+              <div style="margin-bottom:10px;">'+ i18nData.fields.assign_services +'</div>\
+              <div id="service_ids"></div>\
+            </div>\
+            <div class="form-group field-default">\
+              <label for="default" class="checkbox-inline">\
+                <input type="checkbox" name="default" id="default" value="1">'+ i18nData.fields.default +'\
+              </label>\
+            </div>\
+            <div class="form-group field-published">\
+              <label for="published" class="checkbox-inline">\
+                <input type="checkbox" name="published" id="published" value="1" checked>'+ i18nData.fields.active +'\
+              </label>\
+            </div>\
+            <div class="form-group field-is_backend">\
+              <label for="is_backend">'+ i18nData.fields.display +'</label>\
+              <select name="is_backend" id="is_backend" data-placeholder="'+ i18nData.fields.display +'" data-minimum-results-for-search="Infinity" required class="form-control select2">\
+                <option value="0">'+ i18nData.options.frontend_backend +'</option>\
+                <option value="1">'+ i18nData.options.backend +'</option>\
+              </select>\
+            </div>\
+            <div class="form-buttons">\
+              <button type="submit" class="btn btn-success btnSave" title="'+ btnTitle +'"><i class="'+ btnIcon +'"></i> <span>'+ btnTitle +'</span></button>\
+              <button type="button" class="btn btn-default btnCancel" title="'+ i18nData.buttons.cancel +'"> <span>'+ i18nData.buttons.cancel +'</span></button>\
+              <span id="statusMsg"></span>\
+            </div>\
+          </form>';
+
+    $('#dmodal').removeClass('modal-edit modal-add').addClass(modalCls);
+    $('#dmodal .modal-title').html(title);
+    $('#dmodal .modal-body').html(html);
+    $('#dmodal').modal({
+      show: true
+    });
+
+    // Load filters
+    $.ajax({
+      headers : {
+        'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+      },
+      url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+      type: 'POST',
+      dataType: 'json',
+      cache: false,
+      async: false,
+      data: {
+        task: 'payment',
+        action: 'init'
+      },
+      success: function(response) {
+        // Images
+        html = '';
+        if (response.imagesList) {
+          html += '<option value=""></option>';
+          $.each(response.imagesList, function(index, item) {
+            html += '<option value="'+ item.value +'">'+ item.text +'</option>';
+          });
+        }
+        $('#dmodal #image_gallery').html(html);
+
+        // Services
+        html = '';
+        if (response.servicesList) {
+          $.each(response.servicesList, function(index, item) {
+            html += '<div><label for="service_ids'+ item.id +'" class="checkbox-inline">';
+              html += '<input type="checkbox" name="service_ids[]" id="service_ids'+ item.id +'" value="'+ item.id +'"> '+ item.name +'';
+            html += '</label></div>';
+          });
+        }
+        $('#dmodal #service_ids').html(html);
+
+        if( html ) {
+            $('#dmodal .field-service_ids').show();
+        }
+        else {
+            $('#dmodal .field-service_ids').hide();
+        }
+      },
+      error: function(response) {
+        $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+      }
+    });
+
+    // Load data
+    if( id && id >= 0 ) {
+      $.ajax({
+        headers : {
+          'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+        },
+        url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+        type: 'POST',
+        dataType: 'json',
+        cache: false,
+        data: {
+          task: 'payment',
+          action: 'read',
+          id: id
+        },
+        success: function(response) {
+          if( response.success ) {
+            $('#dmodal #statusMsg').html('');
+
+            if( response.record ) {
+              $.each(response.record, function(key, value) {
+                // console.log(key, value);
+
+                var field = $('#dmodal form #'+ key);
+
+                // if( key == 'method' ) {
+                //     $('#payment-methods .field-name').before('<div style="margin-bottom:20px;">Method: <span style="text-transform:capitalize;">'+ value +'</span></div>');
+                // }
+
+                if( key == 'method' && value == 'stripe_ideal' ) {
+                    $('#payment-methods .field-ordering').before('<div style="margin-bottom:20px;"><div style="margin-bottom:5px; color:#888;">'+ i18nData.fields.webhook_url +':</div><code style="padding:5px 10px;">https://u3211.eto2.taxi/etov2?apiType=frontend&task=notify&webhook=stripe</code></div>');
+                }
+                else if( key == 'method' && value == 'epdq' ) {
+                    $('#payment-methods .field-ordering').before('<div style="margin-bottom:20px;"><div style="margin-bottom:5px; color:#888;">'+ i18nData.fields.software_url +':</div><code style="padding:5px 10px;">https://u3211.eto2.taxi</code></div>');
+                    $('#payment-methods .field-ordering').before('<div style="margin-bottom:20px;"><div style="margin-bottom:5px; color:#888;">'+ i18nData.fields.payment_notification_url +':</div><code style="padding:5px 10px;">https://u3211.eto2.taxi/etov2?apiType=frontend&task=notify&pMethod=epdq</code></div>');
+                }
+
+                if( key == 'params' ) {
+                    field.val(value);
+                    loadParams(response.record.method, value);
+                }
+                else if( field.hasClass('select2') ) {
+                  field.val(value).trigger('change');
+                }
+                else if( field.is(':checkbox') ) {
+                  if( parseInt(value) ) {
+                    field.attr('checked', true);
+                  }
+                  else {
+                    field.attr('checked', false);
+                  }
+                }
+                else if( key == 'service_ids' ) {
+                    $.each(value, function(key2, value2) {
+                        if( $('#dmodal form #service_ids'+ value2).length > 0 ) {
+                            $('#dmodal form #service_ids'+ value2).attr('checked', true);
+                        }
+                    });
+                }
+                else if( key == 'image' ) {
+                    var filename = value;
+                    var filepath = 'https://u3211.eto2.taxi/storage/payments';
+                    if( filename ) {
+                        var image_preview = '<img src="'+ filepath +'/'+ filename +'" style="max-width:150px; max-height:150px; margin-bottom:10px;" />';
+                        $('#dmodal form #image_preview').html(image_preview);
+                    }
+                }
+                else {
+                  field.val(value);
+                }
+              });
+
+              // Placeholder
+              $('#dmodal form').find('input:not([type="submit"]), textarea, select').each(function() {
+                  updateFormPlaceholder(this);
+              })
+              .bind('change keyup', function(e) {
+                  updateFormPlaceholder(this);
+              });
+            }
+          }
+          else {
+            $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.load_failed +'</span>');
+          }
+        },
+        error: function(response) {
+          $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+        },
+        beforeSend: function() {
+          $('#dmodal #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.messages.in_progress);
+          $('#dmodal .modal-overlay').show();
+        },
+        complete: function() {
+          $('#dmodal .modal-overlay').hide();
+        }
+      });
+    }
+
+    // Image preview
+    $('#dmodal form #image_gallery').change(function(){
+        if( $(this).val() ) {
+            var filename = $(this).val();
+            var filepath = 'https://u3211.eto2.taxi/assets/images/payments';
+        }
+        else {
+            var filename = $('#dmodal form #image').val();
+            var filepath = 'https://u3211.eto2.taxi/storage/payments';
+        }
+        // console.log(filename, filepath);
+        if( filename ) {
+            var image_preview = '<img src="'+ filepath +'/'+ filename +'" style="max-width:150px; max-height:150px; margin-bottom:10px;" />';
+            $('#dmodal form #image_preview').html(image_preview);
+        }
+    }).change();
+
+    // Image type
+    $('#dmodal form input[name="image_type"]').change(function(){
+        if( $(this).val() == 1 ) {
+            $('#dmodal .field-image_gallery').hide();
+            $('#dmodal .field-image_upload').show();
+        }
+        else {
+            $('#dmodal .field-image_gallery').show();
+            $('#dmodal .field-image_upload').hide();
+        }
+    });
+
+    // Select
+    $('#dmodal form .select2').select2();
+
+    // Spinner
+    $('#dmodal form input[type="text"].touchspin').TouchSpin({
+      max: null,
+      booster: true,
+      boostat: 5,
+      mousewheel: true,
+      verticalbuttons: true,
+      verticalupclass: 'fa fa-plus',
+      verticaldownclass: 'fa fa-minus'
+    });
+
+    // Placeholder
+    function updateFormPlaceholder(that) {
+        var $container = $(that).closest('.form-group:not(.placeholder-disabled)');
+
+        if( $(that).val() != '' || $container.hasClass('placeholder-visible') ) {
+            $container.find('label').show();
+        }
+        else {
+            $container.find('label').hide();
+        }
+    }
+
+    $('#dmodal form').find('input:not([type="submit"]), textarea, select').each(function() {
+        updateFormPlaceholder(this);
+    })
+    .bind('change keyup', function(e) {
+        updateFormPlaceholder(this);
+    });
+
+    // Form validation and submission
+    var isReady = 1;
+    function submitForm() {
+      if( isReady ) {
+        // https://jquery-form.github.io/form/options/#code-samples
+        $('#dmodal form').ajaxSubmit({
+            url: EasyTaxiOffice.appPath +'/etov2?apiType=backend&task=payment&action=update',
+            type: 'POST',
+            dataType: 'json',
+            success: function(response) {
+                if(response.success) {
+                    $('#dmodal #statusMsg').html('<span class="text-green"><i class="fa fa-check-circle"></i> '+ msgSuccess +'</span>');
+                    if( parseInt($('#dmodal form #id').val()) <= 0 ) {
+                        $('#dmodal form').trigger('reset');
+                        $('#dmodal').modal('hide');
+                        filterTable();
+                    }
+                    else {
+                        if( response.id ) {
+                            updateRecord(response.id, response.method);
+                            filterTable();
+                        }
+                    }
+                }
+                else {
+                    var msg = i18nData.messages.update_failed;
+                    if( response.errors ) {
+                        msg = '';
+                        $.each(response.errors, function(index, error) {
+                            if( msg ) { msg += ', '; }
+                            msg += error;
+                        });
+                    }
+                    $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ msg +'</span>');
+                }
+                isReady = 1;
+            },
+            error: function(response) {
+                $('#dmodal #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nData.messages.request_error +'</span>');
+                isReady = 1;
+            },
+            beforeSubmit: function() {
+                $('#dmodal #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nData.messages.in_progress);
+                isReady = 0;
+            }
+        });
+      }
+    }
+
+    $('#dmodal form').formValidation({
+      framework: 'bootstrap',
+      icon: {
+        valid: 'glyphicon glyphicon-ok',
+        invalid: 'glyphicon glyphicon-remove',
+        validating: 'glyphicon glyphicon-refresh'
+      },
+      excluded: ':disabled'
+    })
+    .on('err.field.fv', function(e, data) {
+      e.preventDefault();
+      if( data.fv.getSubmitButton() ) {
+        data.fv.disableSubmitButtons(false);
+      }
+    })
+    .on('success.field.fv', function(e, data) {
+      e.preventDefault();
+      if( data.fv.getSubmitButton() ) {
+        data.fv.disableSubmitButtons(false);
+      }
+    })
+    .on('success.form.fv', function(e) {
+      e.preventDefault();
+      if( !isReady ) { return; }
+
+      var method = $('#dmodal form #method').val();
+      if (method === 'stripe') {
+        var mode = parseInt($('#param_test_mode').val()) === 1 ? 'test' : 'live';
+        var modeLabel = i18nData.options[mode] || mode;
+        var webhookId = $('#param_'+ mode +'_webhook_id').val();
+        var secretField = mode === 'test' ? $('#param_sk_test') : $('#param_sk_live');
+
+        if (!webhookId && secretField.val()) {
+          var confirmMsg = i18nData.webhook.configure_prompt.replace(':mode', modeLabel);
+          if (confirm(confirmMsg)) {
+            stripeWebhookSetup(mode, {
+              onSuccess: function() {
+                submitForm();
+              },
+              onError: function() {
+                isReady = 1;
+              }
+            });
+            return;
+          }
+        }
+      }
+
+      submitForm();
+    });
+
+    // Cancel button
+    $('#dmodal .btnCancel').on('click', function() {
+      $('#dmodal').modal('hide');
+    });
+  }
+
+  // Page loaded
+  $(document).ready(function(){
+      if (ETO.model === false) {
+          ETO.init({ config: [], lang: [] }, 'settings');
+      }
+    // Select
+    $('.pageFilters .select2').select2();
+
+    // Toggle filters
+    $('.btnFilters').on('click', function() {
+      $('.pageFilters').toggle();
+    });
+
+    // Reset form
+    $('.btnReset').on('click', function(e) {
+      // $('.pageFilters form').trigger('reset');
+      $('.pageFilters form input[type="text"]').val('').trigger('change');
+
+      $('.pageFilters form select.select2').each(function( index ) {
+        $(this).val([]).trigger('change');
+        // $(this).val(null).trigger('change');
+        // $(this).select2('val', 0);
+      });
+
+      // $('#dtable').DataTable().search('').draw();
+      $('#dtable').DataTable().search('');
+      filterTable(false, true);
+      e.preventDefault();
+    });
+
+    // Filter table
+    $('.pageFilters .btnSearch').on('click', function(e) {
+      filterTable(false, true);
+      e.preventDefault();
+    });
+
+    $('.pageFilters form').submit(function(e) {
+      filterTable();
+      e.preventDefault();
+    });
+
+    // Display labels
+    $('.pageFilters form').find('input, select').on('change', function(e) {
+      // console.log($(this).val());
+      if( $(this).val() ) {
+        $(this).parent('.form-group').find('label').show();
+      }
+      else {
+        $(this).parent('.form-group').find('label').hide();
+      }
+      // filterTable();
+      e.preventDefault();
+    });
+
+    var tableOptions = {
+        processing: true,
+        serverSide: true,
+        ajax: {
+            headers : {
+                'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+            },
+            url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+            method: 'POST',
+            dataType: 'json',
+            cache: false,
+            data: {
+                task: 'payment',
+                action: 'list'
+            },
+            dataSrc: 'list'
+        },
+        columns: [
+                  {
+            title: '<span class="sr-only">' + i18nData.table.actions + '</span>',
+            data: null,
+            defaultContent: '',
+            orderable: false,
+            className: 'actionColumn'
+        },
+                {
+            title: i18nData.table.id,
+            data: 'id',
+            width: '50px',
+            visible: false
+        }, {
+            title: i18nData.table.image,
+            data: 'image',
+            width: '150px'
+        }, {
+            title: i18nData.table.name,
+            data: 'name',
+            width: '150px'
+        }, {
+            title: i18nData.table.description,
+            data: 'description',
+            width: '250px'
+        }, {
+            title: i18nData.table.method,
+            data: 'method',
+            width: '150px'
+        }, {
+            title: i18nData.table.charge,
+            data: 'price',
+            width: '80px'
+        }, {
+            title: i18nData.table.services,
+            data: 'service_ids',
+            width: '200px',
+            class: 'column-service_ids'
+        }, {
+            title: i18nData.table.default,
+            data: 'default',
+            width: '80px'
+        }, {
+            title: i18nData.table.ordering,
+            data: 'ordering',
+            width: '90px'
+        }, {
+            title: i18nData.table.active,
+            data: 'published',
+            width: '80px'
+        }, {
+            title: i18nData.table.display,
+            data: 'is_backend',
+            width: '80px'
+        }],
+        columnDefs: [{
+            targets: 0,
+            data: null,
+            render: function(data, type, row) {
+                var h = '';
+                h += '<div class="btn-group" role="group" aria-label="..." style="width:70px;">';
+                if(ETO.hasPermission('admin.payments.edit')) {
+                    h += '<button type="button" onclick="updateRecord(' + row.id + ', \'' + row.method + '\'); return false;" class="btn btn-default btn-sm btnEdit" title="'+ i18nData.buttons.edit +'"><i class="fa fa-pencil-square-o"></i></button>';
+                }
+                if(ETO.hasPermission('admin.payments.destroy')) {
+                    h += '<button type="button" onclick="deleteRecord(' + row.id + ', \'' + row.method + '\'); return false;" class="btn btn-default btn-sm btnDelete" title="'+ i18nData.buttons.delete +'"><i class="fa fa-trash"></i></button>';
+                }
+                h += '</div>';
+                return h;
+            }
+        }],
+        paging: true,
+        pagingType: 'full_numbers',
+        dom: '<"row topContainer"<"col-xs-12 col-sm-12 col-md-12 dataTablesHeaderLeft"B>><"dataTablesBody"rt><"row bottomContainer"<"col-xs-12 col-sm-6 col-md-7 pull-right dataTablesFooterRight"p><"col-xs-12 col-sm-6 col-md-5 dataTablesFooterLeft"li>>',
+        scrollX: true,
+        searching: true,
+        ordering: true,
+        lengthChange: true,
+        info: true,
+        autoWidth: false,
+        stateSave: true,
+        stateDuration: 0,
+        order: [
+            [7, 'asc']
+        ],
+        pageLength: 10,
+        lengthMenu: [5, 10, 15, 20, 25, 50],
+        language: {
+            lengthMenu: '_MENU_',
+            paginate: {
+                first: '<i class="fa fa-angle-double-left"></i>',
+                previous: '<i class="fa fa-angle-left"></i>',
+                next: '<i class="fa fa-angle-right"></i>',
+                last: '<i class="fa fa-angle-double-right"></i>'
+            },
+            buttons: {
+                colvisRestore: "Restore visibility"            }
+        },
+        buttons: [{
+            extend: 'colvis',
+            collectionLayout: 'fixed',
+            text: '<i class="fa fa-eye"></i>',
+            titleAttr: "Column visibility",
+            postfixButtons: ['colvisRestore'],
+            className: 'btn-datatable btn-sm'
+        }, {
+            text: '<div onclick="$(\'#dtable\').DataTable().state.clear(); window.location.reload();"><i class="fa fa-undo"></i></div>',
+            titleAttr: "Reset",
+            className: 'btn-datatable btn-sm'
+        }, {
+            extend: 'reload',
+            text: '<i class="fa fa-refresh"></i>',
+            titleAttr: "Refresh",
+            className: 'btn-datatable btn-sm'
+        }],
+        drawCallback: function(settings) {
+            var pagination = $(this).closest('.dataTables_wrapper').find('.dataTables_paginate');
+            pagination.toggle(this.api().page.info().pages > 1);
+        },
+        infoCallback: function( settings, start, end, max, total, pre ) {
+            return '<i class="ion-ios-information-outline" title="'+ pre +'"></i>';
+        }
+    };
+
+    if (!ETO.hasPermission(['admin.payments.edit', 'admin.payments.destroy'], true)) {
+        delete tableOptions.columnDefs;
+    }
+
+    // Table
+    $('#dtable').DataTable(tableOptions).on('draw.dt', function() {
+      // $('.dataTables_length select').select2();
+
+      // Edit button
+      $('#dtable').find('button.btnEdit').hover(
+        function() {
+          $(this).removeClass('btn-default').addClass('btn-success');
+        },
+        function() {
+          $(this).removeClass('btn-success').addClass('btn-default');
+        }
+      );
+
+      // Delete button
+      $('#dtable').find('button.btnDelete').hover(
+        function() {
+          $(this).removeClass('btn-default').addClass('btn-danger');
+        },
+        function() {
+          $(this).removeClass('btn-danger').addClass('btn-default');
+        }
+      );
+    });
+
+    var $headerActions = $('#payment-methods .dataTablesHeaderActionsSource');
+    var $headerTarget = $('#payment-methods .dataTablesHeaderLeft');
+    if ($headerActions.length && $headerTarget.length) {
+      $headerActions.find('.pull-left').removeClass('pull-left');
+      $headerActions.removeClass('hidden').addClass('dataTablesHeaderActions');
+
+      $headerTarget.append($headerActions);
+    }
+
+    updateFilters();
+    updateTableHeight();
+  });
+  </script>
+    
+    </body>
+</html>

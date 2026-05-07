@@ -1,0 +1,40 @@
+{
+  "batch5_airports_ports_stations_next100_after_batch4.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "fallback-circle": 100
+    },
+    "byCat": {
+      "port": 19,
+      "airport": 79,
+      "station": 2
+    },
+    "suspiciousCount": 0,
+    "suspicious": []
+  },
+  "batch6_cities_top100_after_batch4.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "named-boundary": 13,
+      "google-viewport": 87
+    },
+    "byCat": {
+      "city": 100
+    },
+    "suspiciousCount": 0,
+    "suspicious": []
+  },
+  "batch7_districts_islands_all_after_batch4.kml": {
+    "placemarks": 57,
+    "bySource": {
+      "named-boundary": 8,
+      "google-viewport": 49
+    },
+    "byCat": {
+      "island": 9,
+      "district_area": 48
+    },
+    "suspiciousCount": 0,
+    "suspicious": []
+  }
+}

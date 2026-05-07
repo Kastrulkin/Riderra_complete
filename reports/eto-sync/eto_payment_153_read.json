@@ -1,0 +1,21 @@
+{
+  "message": [],
+  "success": true,
+  "record": {
+    "id": 153,
+    "site_id": 1,
+    "name": "PayPal",
+    "description": "PayPal",
+    "service_ids": [],
+    "payment_page": "Pay with PayPal\r\nYou will be passed over to secure PayPal payment pages to complete your booking.\r\nClick the button below to proceed with your booking.",
+    "image": "paypal.png",
+    "params": "{\"paypal_email\":\"demyanov@riderra.com\",\"currency_code\":\"GBP\",\"language_code\":\"auto\",\"test_mode\":\"0\",\"test_amount\":\"0.00\",\"deposit\":\"1\"}",
+    "method": "paypal",
+    "factor_type": 1,
+    "price": 0,
+    "default": 0,
+    "ordering": 2,
+    "published": 1,
+    "is_backend": 0
+  }
+}

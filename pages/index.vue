@@ -10,7 +10,7 @@
           </div>
         </div>
         <div class="widget" id="booking-widget">
-          <iframe src="https://u3211.eto2.taxi/booking?site_key=7e3f3d3085b900d598bc40543d611575" id="eto-iframe-booking" allow="geolocation" width="100%" height="250" scrolling="no" frameborder="0" style="width:1px; min-width:100%; min-height:520px; border:0;"></iframe>
+          <iframe :src="bookingWidgetSrc" id="eto-iframe-booking" allow="geolocation" width="100%" height="1240" scrolling="no" frameborder="0" style="width:1px; min-width:100%; min-height:1240px; border:0;"></iframe>
         </div>
       </div>
     </section>
@@ -49,6 +49,11 @@ export default {
     },
     siteData(){
       return this.data[this.lang];
+    },
+    bookingWidgetSrc() {
+      const supportedLanguages = ['ru', 'en', 'es', 'de', 'fr', 'el', 'th', 'ar']
+      const widgetLang = supportedLanguages.includes(this.lang) ? this.lang : 'en'
+      return `https://u3211.eto2.taxi/booking?site_key=7e3f3d3085b900d598bc40543d611575&lang=${widgetLang}`
     }
   },
   data(){
@@ -57,6 +62,20 @@ export default {
     }
   },
   methods:{
+    bookingMinHeight() {
+      if (typeof window === 'undefined') return 1240
+      if (window.matchMedia('(max-width: 767px)').matches) return 1680
+      if (window.matchMedia('(max-width: 1024px)').matches) return 1480
+      return 1240
+    },
+    enforceBookingIframeHeight(height) {
+      const iframe = document.getElementById('eto-iframe-booking')
+      if (!iframe) return
+      const minHeight = this.bookingMinHeight()
+      const safeHeight = Math.max(Number(height) || 0, minHeight) + 160
+      iframe.style.height = `${safeHeight}px`
+      iframe.style.minHeight = `${safeHeight}px`
+    },
     fetchData(){
 
     }
@@ -69,7 +88,17 @@ export default {
       return
     }
     if (typeof window !== 'undefined' && window.iFrameResize) {
-      window.iFrameResize({ log: false, targetOrigin: '*', checkOrigin: false }, 'iframe#eto-iframe-booking');
+      window.iFrameResize({
+        log: false,
+        targetOrigin: '*',
+        checkOrigin: false,
+        minHeight: this.bookingMinHeight(),
+        heightCalculationMethod: 'lowestElement',
+        resizedCallback: (data) => {
+          this.enforceBookingIframeHeight(data && data.height)
+        }
+      }, 'iframe#eto-iframe-booking');
+      this.enforceBookingIframeHeight(this.bookingMinHeight())
     }
   }
 }
@@ -119,7 +148,7 @@ export default {
   #eto-iframe-booking{
     display: block;
     width: 100%;
-    min-height: 520px;
+    min-height: 1400px;
   }
 
   @media (max-width: 1024px){
@@ -127,14 +156,14 @@ export default {
       font-size: 24px;
       margin-bottom: 25px;
     }
-    #eto-iframe-booking{ min-height: 720px; }
+    #eto-iframe-booking{ min-height: 1640px; }
   }
   @media (max-width: 767px){
     .widget-title {
       font-size: 20px;
       margin-bottom: 20px;
     }
-    #eto-iframe-booking{ min-height: 880px; }
+    #eto-iframe-booking{ min-height: 1840px; }
   }
   @media (max-width: 767px){
 

@@ -1,0 +1,13 @@
+{
+  "tenant": {
+    "id": "cmm3kvdnr000011wfd6avqt9g",
+    "code": "riderra",
+    "name": "Riderra"
+  },
+  "priceRows": 4206,
+  "uniquePlaces": 1159,
+  "outputs": [
+    "reports/eto-sync/riderra_city_pricing_active_fixed.csv",
+    "reports/eto-sync/riderra_price_places_required.csv"
+  ]
+}

@@ -1,0 +1,227 @@
+{
+  "expectedRoutes": 1243,
+  "etoRecords": 1243,
+  "listRows": 1243,
+  "mismatches": 65,
+  "mismatchSample": [
+    {
+      "type": "unexpected_route",
+      "from": "Vancouver International Airport (YVR)",
+      "to": "Kelowna"
+    },
+    {
+      "type": "unexpected_route",
+      "from": "Vancouver International Airport (YVR)",
+      "to": "Tofino"
+    },
+    {
+      "type": "unexpected_route",
+      "from": "Vancouver International Airport (YVR)",
+      "to": "Vancouver"
+    },
+    {
+      "type": "unexpected_route",
+      "from": "Vancouver International Airport (YVR)",
+      "to": "Victoria"
+    },
+    {
+      "type": "unexpected_route",
+      "from": "Vancouver International Airport (YVR)",
+      "to": "Whistler"
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Copenhagen Kastrup Airport (CPH)",
+      "to": "Gøteborg / Göteborg / Gothenburg",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1105,
+          "actual": 1.105
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1290,
+          "actual": 1.29
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Helsinki Vantaa airport (HEL)",
+      "to": "Kemi",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1000,
+          "actual": 1
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1050,
+          "actual": 1.05
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Helsinki Vantaa airport (HEL)",
+      "to": "Kittilä",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1200,
+          "actual": 1.2
+        },
+        {
+          "col": "Executive",
+          "expected": 1400,
+          "actual": 1.4
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1450,
+          "actual": 1.45
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Helsinki Vantaa airport (HEL)",
+      "to": "Rovaniemi",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1100,
+          "actual": 1.1
+        },
+        {
+          "col": "MV 6 pax",
+          "expected": 1100,
+          "actual": 1.1
+        }
+      ]
+    },
+    {
+      "type": "unexpected_route",
+      "from": "Riga International Airport (RIX)",
+      "to": "Riga"
+    },
+    {
+      "type": "unexpected_route",
+      "from": "Vilnius International Airport (VNO)",
+      "to": "Kaunas"
+    },
+    {
+      "type": "unexpected_route",
+      "from": "Vilnius International Airport (VNO)",
+      "to": "Vilnius"
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Bergen City",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1416,
+          "actual": 1.416
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Geiranger",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1180,
+          "actual": 1.18
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Kristiansand",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1050,
+          "actual": 1.05
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Stavanger",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1430,
+          "actual": 1.43
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Oslo Gardermoen Airport (OSL)",
+      "to": "Stockholm city center",
+      "diffs": [
+        {
+          "col": "Saloon",
+          "expected": 1516,
+          "actual": 1.516
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Lahore Allama Iqbal International Airport (LHE)",
+      "to": "Lahore",
+      "diffs": [
+        {
+          "col": "Lux",
+          "expected": 1035,
+          "actual": 1.035
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Zurich Airport (ZRH)",
+      "to": "Adelboden",
+      "diffs": [
+        {
+          "col": "Executive",
+          "expected": 1105,
+          "actual": 1.105
+        },
+        {
+          "col": "Businessvan 6 pax",
+          "expected": 1268,
+          "actual": 1.268
+        },
+        {
+          "col": "Standard Minibus 13pax",
+          "expected": 1814,
+          "actual": 1.814
+        }
+      ]
+    },
+    {
+      "type": "price_mismatch",
+      "from": "Zurich Airport (ZRH)",
+      "to": "Andermatt",
+      "diffs": [
+        {
+          "col": "Standard Minibus 13pax",
+          "expected": 1151,
+          "actual": 1.151
+        }
+      ]
+    }
+  ]
+}

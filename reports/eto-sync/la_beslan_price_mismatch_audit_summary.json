@@ -1,0 +1,11 @@
+{
+  "checkedRows": 27,
+  "beslanSourcedRows": 27,
+  "nonBeslanRows": 0,
+  "counts": {
+    "price_set_mismatch": 21,
+    "only_in_db": 6
+  },
+  "source": "manual:circassian-sky-beslan-la-sales-from-net-2026-05-06",
+  "formula": "ceil(netUsd*0.8512*1.30)"
+}

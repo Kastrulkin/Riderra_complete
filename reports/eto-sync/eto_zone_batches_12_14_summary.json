@@ -1,0 +1,119 @@
+{
+  "batch12_cities_top100_after_batch11_safe.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "named-boundary": 17,
+      "fallback-circle": 46,
+      "google-viewport": 37
+    },
+    "byCat": {
+      "city": 100
+    },
+    "suspiciousCount": 3,
+    "suspicious": [
+      {
+        "name": "Sadao Border (to Malaysia), Songkhla",
+        "source": "google-viewport",
+        "width": 20.4646,
+        "height": 6.6652,
+        "detail": "geocode=Malaysia"
+      },
+      {
+        "name": "Songkhla Province",
+        "source": "google-viewport",
+        "width": 1.0506,
+        "height": 1.6488,
+        "detail": "geocode=Songkhla, Thailand"
+      },
+      {
+        "name": "Syvasenvaar",
+        "source": "google-viewport",
+        "width": 11.4213,
+        "height": 10.6164,
+        "detail": "geocode=Finland"
+      }
+    ]
+  },
+  "batch13_cities_next100_after_batch11_safe.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "google-viewport": 88,
+      "fallback-circle": 12
+    },
+    "byCat": {
+      "city": 100
+    },
+    "suspiciousCount": 4,
+    "suspicious": [
+      {
+        "name": "Åre / Are",
+        "source": "google-viewport",
+        "width": 13.5979,
+        "height": 14.054,
+        "detail": "geocode=Sweden"
+      },
+      {
+        "name": "Avakas Bay",
+        "source": "google-viewport",
+        "width": 2.3586,
+        "height": 1.0768,
+        "detail": "geocode=Cyprus"
+      },
+      {
+        "name": "Freiburg im Breisgau",
+        "source": "google-viewport",
+        "width": 118.9592,
+        "height": 40.8565,
+        "detail": "geocode=France"
+      },
+      {
+        "name": "FUN&SUN FAMILY Albatros Palace",
+        "source": "google-viewport",
+        "width": 12.3601,
+        "height": 9.8122,
+        "detail": "geocode=Egypt"
+      }
+    ]
+  },
+  "batch14_cities_remaining_after_batch11_safe.kml": {
+    "placemarks": 86,
+    "bySource": {
+      "google-viewport": 77,
+      "fallback-circle": 9
+    },
+    "byCat": {
+      "city": 86
+    },
+    "suspiciousCount": 4,
+    "suspicious": [
+      {
+        "name": "Managri",
+        "source": "google-viewport",
+        "width": 2.3586,
+        "height": 1.0768,
+        "detail": "geocode=Cyprus"
+      },
+      {
+        "name": "Orchid",
+        "source": "google-viewport",
+        "width": 2.3586,
+        "height": 1.0768,
+        "detail": "geocode=Cyprus"
+      },
+      {
+        "name": "Pano Ardes",
+        "source": "google-viewport",
+        "width": 2.3586,
+        "height": 1.0768,
+        "detail": "geocode=Cyprus"
+      },
+      {
+        "name": "Seychelles",
+        "source": "google-viewport",
+        "width": 10.4095,
+        "height": 6.7624,
+        "detail": "geocode=Seychelles"
+      }
+    ]
+  }
+}

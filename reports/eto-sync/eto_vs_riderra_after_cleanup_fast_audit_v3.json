@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-05-07T09:39:41.121Z",
+  "expectedRoutes": 1243,
+  "etoRecords": 1243,
+  "matched": 1243,
+  "exactMatched": 1195,
+  "looseMatched": 48,
+  "mismatches": 0,
+  "byType": {},
+  "mismatchSample": []
+}

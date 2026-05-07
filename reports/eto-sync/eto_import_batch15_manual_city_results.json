@@ -1,0 +1,25 @@
+[
+  {
+    "id": 15,
+    "status": "finalized",
+    "status_label": "Finalized",
+    "source_filename": "batch15_manual_city_zones.kml",
+    "total_placemarks": 8,
+    "total_shapes": 8,
+    "valid_shapes": 8,
+    "invalid_shapes": 0,
+    "processed_shapes": 8,
+    "created_zones": 8,
+    "failed_shapes": 0,
+    "progress_percent": 100,
+    "last_error": "",
+    "can_run": false,
+    "can_preview": true,
+    "can_finalize": false,
+    "can_rollback": true,
+    "can_delete": true,
+    "created_at": "06.05.2026 16:24",
+    "updated_at": "06.05.2026 16:25",
+    "errors_preview": []
+  }
+]

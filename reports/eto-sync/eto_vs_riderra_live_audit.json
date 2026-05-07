@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-05-07T09:41:47.366Z",
+  "source": "live ETO backend fixedprices list vs reports/eto-sync/eto_fixed_prices_draft_confident_mapping.csv",
+  "expectedRoutes": 1243,
+  "etoRecords": 1243,
+  "matched": 1243,
+  "exactMatched": 1195,
+  "looseMatched": 48,
+  "positiveVehiclePriceCells": 3723,
+  "mismatches": 0,
+  "byType": {},
+  "mismatchSample": []
+}

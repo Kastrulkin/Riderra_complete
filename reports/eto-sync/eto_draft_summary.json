@@ -1,0 +1,20 @@
+{
+  "tenant": {
+    "id": "cmm3kvdnr000011wfd6avqt9g",
+    "code": "riderra",
+    "name": "Riderra"
+  },
+  "sourceRows": 4206,
+  "requiredPlaces": 1157,
+  "etoZonesLoaded": 1185,
+  "missingZones": 0,
+  "excludedPlaces": 18,
+  "draftImportRoutes": 1243,
+  "etoCandidateRows": 3825,
+  "etoExcludedRows": 381,
+  "confidentMappedRows": 3825,
+  "unmappedRows": 0,
+  "unmappedCounts": {},
+  "conflicts": 54,
+  "inputEtoZonesCsv": "reports/eto-sync/eto_zones_current_after_batch15.csv"
+}

@@ -1,0 +1,1106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Riderra ETO missing zones batch</name>
+    <Placemark>
+      <name>Sorgun</name>
+      <description>source=Riderra price book; count=3; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=34.99762,39.51876,35.60659,40.08104; geocode=Sorgun/Yozgat, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>34.997616,39.518756,0 35.606592,39.518756,0 35.606592,40.081043,0 34.997616,40.081043,0 34.997616,39.518756,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Taichung City</name>
+      <description>source=Riderra price book; count=3; countries=Taiwan; category=city; geometrySource=google-viewport; googleViewport=120.45656,23.99856,121.45201,24.44149; geocode=Taichung City, Taiwan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>120.456560,23.998556,0 121.452012,23.998556,0 121.452012,24.441488,0 120.456560,24.441488,0 120.456560,23.998556,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Titreyengol lake</name>
+      <description>source=Riderra price book; count=3; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=31.45099,36.75204,31.45519,36.75999; geocode=Titreyengöl, Sorgun, 07600 Manavgat/Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>31.450990,36.752043,0 31.455194,36.752043,0 31.455194,36.759990,0 31.450990,36.759990,0 31.450990,36.752043,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Tornio/Haaparanta</name>
+      <description>source=Riderra price book; count=3; countries=Finland; category=city; geometrySource=google-viewport; googleViewport=24.07238,65.81361,24.15134,65.86722; geocode=Haparanda, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>24.072375,65.813610,0 24.151339,65.813610,0 24.151339,65.867216,0 24.072375,65.867216,0 24.072375,65.813610,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Tosmur</name>
+      <description>source=Riderra price book; count=3; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=32.04281,36.52207,32.06970,36.53645; geocode=Tosmur, Alanya/Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.042806,36.522066,0 32.069696,36.522066,0 32.069696,36.536447,0 32.042806,36.536447,0 32.042806,36.522066,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Toulouse</name>
+      <description>source=Riderra price book; count=3; countries=France; category=city; geometrySource=google-viewport; googleViewport=1.35033,43.53269,1.51536,43.66871; geocode=Toulouse, France</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>1.350329,43.532693,0 1.515356,43.532693,0 1.515356,43.668714,0 1.350329,43.668714,0 1.350329,43.532693,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Tufandag (Gabala)</name>
+      <description>source=Riderra price book; count=3; countries=Azerbaijan; category=city; geometrySource=google-viewport; googleViewport=47.87984,41.00570,47.88134,41.00728; geocode=Tufandag, Azerbaijan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>47.879843,41.005699,0 47.881339,41.005699,0 47.881339,41.007278,0 47.879843,41.007278,0 47.879843,41.005699,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Turunç (Marmaris)</name>
+      <description>source=Riderra price book; count=3; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=28.23959,36.76604,28.25351,36.77967; geocode=Turunç, Marmaris/Muğla, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>28.239588,36.766036,0 28.253507,36.766036,0 28.253507,36.779672,0 28.239588,36.779672,0 28.239588,36.766036,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Umeå</name>
+      <description>source=Riderra price book; count=3; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=20.11819,63.77788,20.36574,63.87597; geocode=Umeå, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>20.118188,63.777877,0 20.365735,63.777877,0 20.365735,63.875971,0 20.118188,63.875971,0 20.118188,63.777877,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Xinyuan Township</name>
+      <description>source=Riderra price book; count=3; countries=Taiwan; category=city; geometrySource=google-viewport; googleViewport=120.43404,22.47119,120.47781,22.55749; geocode=Xinyuan, Xinyuan Township, Pingtung County, Taiwan 932</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>120.434036,22.471191,0 120.477814,22.471191,0 120.477814,22.557492,0 120.434036,22.557492,0 120.434036,22.471191,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Yekaterinburg</name>
+      <description>source=Riderra price book; count=3; countries=Russia; category=city; geometrySource=google-viewport; googleViewport=60.37917,56.65788,60.85559,56.96588; geocode=Yekaterinburg, Sverdlovsk Oblast, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>60.379173,56.657884,0 60.855588,56.657884,0 60.855588,56.965880,0 60.379173,56.965880,0 60.379173,56.657884,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Yokohama City</name>
+      <description>source=Riderra price book; count=3; countries=Japan; category=city; geometrySource=google-viewport; googleViewport=139.46476,35.31261,139.72536,35.59284; geocode=Yokohama, Kanagawa, Japan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>139.464765,35.312611,0 139.725358,35.312611,0 139.725358,35.592838,0 139.464765,35.592838,0 139.464765,35.312611,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>6 of October</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=30.79412,29.87875,31.09117,30.05031; geocode=6th of October City, Giza Governorate, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.794117,29.878746,0 31.091168,29.878746,0 31.091168,30.050308,0 30.794117,30.050308,0 30.794117,29.878746,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Aarhus</name>
+      <description>source=Riderra price book; count=2; countries=Denmark; category=city; geometrySource=google-viewport; googleViewport=10.04602,56.07894,10.33920,56.24413; geocode=Aarhus, Denmark</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>10.046021,56.078942,0 10.339197,56.078942,0 10.339197,56.244133,0 10.046021,56.244133,0 10.046021,56.078942,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Åkersberga locality</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.25463,59.44991,18.36660,59.51075; geocode=Åkersberga, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.254625,59.449913,0 18.366597,59.449913,0 18.366597,59.510749,0 18.254625,59.510749,0 18.254625,59.449913,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Anadolu transfer</name>
+      <description>source=Riderra price book; count=2; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=36.30749,41.28304,36.31631,41.28891; geocode=Anadolu, İlkadım/Samsun, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>36.307494,41.283039,0 36.316306,41.283039,0 36.316306,41.288908,0 36.307494,41.288908,0 36.307494,41.283039,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Anapa</name>
+      <description>source=Riderra price book; count=2; countries=Russia; category=city; geometrySource=google-viewport; googleViewport=37.23968,44.86952,37.36921,44.99406; geocode=Anapa, Krasnodar Krai, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>37.239677,44.869518,0 37.369206,44.869518,0 37.369206,44.994055,0 37.239677,44.994055,0 37.239677,44.869518,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ängelholm / Angelholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=12.82557,56.22030,12.90739,56.28445; geocode=Ängelholm, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>12.825574,56.220303,0 12.907386,56.220303,0 12.907386,56.284446,0 12.825574,56.284446,0 12.825574,56.220303,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ao Nam Mao, Krabi</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.85204,7.98887,98.88080,8.06362; geocode=Ao Nammao, Krabi, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.852042,7.988874,0 98.880801,7.988874,0 98.880801,8.063617,0 98.852042,8.063617,0 98.852042,7.988874,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ao Thalane Bay, Krabi</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.74681,8.14412,98.74951,8.14682; geocode=4PWX+57V, Soi Sao. Krabi 2025, Tambon Khao Thong, Amphoe Mueang Krabi, Chang Wat Krabi 81000, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.746814,8.144120,0 98.749512,8.144120,0 98.749512,8.146818,0 98.746814,8.146818,0 98.746814,8.144120,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Arkhangelsk</name>
+      <description>source=Riderra price book; count=2; countries=Russia; category=city; geometrySource=google-viewport; googleViewport=40.31276,64.41062,40.79923,64.71177; geocode=Arkhangelsk, Arkhangelsk Oblast, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>40.312757,64.410616,0 40.799233,64.410616,0 40.799233,64.711771,0 40.312757,64.711771,0 40.312757,64.410616,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Arrecife</name>
+      <description>source=Riderra price book; count=2; countries=Spain; category=city; geometrySource=google-viewport; googleViewport=-13.57658,28.95638,-13.53795,28.98610; geocode=Arrecife, Las Palmas, Spain</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-13.576579,28.956384,0 -13.537948,28.956384,0 -13.537948,28.986096,0 -13.576579,28.986096,0 -13.576579,28.956384,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ashgabat</name>
+      <description>source=Riderra price book; count=2; countries=Turkmenistan; category=city; geometrySource=google-viewport; googleViewport=58.00610,37.81833,58.49447,38.10809; geocode=Ashgabat, Turkmenistan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>58.006096,37.818328,0 58.494472,37.818328,0 58.494472,38.108088,0 58.006096,38.108088,0 58.006096,37.818328,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Astrakhan&apos;</name>
+      <description>source=Riderra price book; count=2; countries=Russia; category=city; geometrySource=google-viewport; googleViewport=47.90684,46.26011,48.15673,46.47075; geocode=Astrakhan, Astrakhan Oblast, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>47.906840,46.260115,0 48.156734,46.260115,0 48.156734,46.470747,0 47.906840,46.470747,0 47.906840,46.260115,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ayia Napa</name>
+      <description>source=Riderra price book; count=2; countries=Cyprus; category=city; geometrySource=google-viewport; googleViewport=33.93166,34.95603,34.08763,35.01483; geocode=Ayia Napa 5330, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>33.931659,34.956033,0 34.087633,34.956033,0 34.087633,35.014827,0 33.931659,35.014827,0 33.931659,34.956033,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bang Saen, Chon Buri</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=100.94848,13.27597,100.95118,13.27867; geocode=Bang Saen Ville, Huai Kapi, Chon Buri District, Chon Buri 20130, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.948484,13.275971,0 100.951182,13.275971,0 100.951182,13.278669,0 100.948484,13.278669,0 100.948484,13.275971,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bishkek</name>
+      <description>source=Riderra price book; count=2; countries=Kirgizstan; category=city; geometrySource=google-viewport; googleViewport=74.46496,42.80315,74.71882,42.95060; geocode=Bishkek, Kyrgyzstan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>74.464962,42.803147,0 74.718819,42.803147,0 74.718819,42.950603,0 74.464962,42.950603,0 74.464962,42.803147,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bursa</name>
+      <description>source=Riderra price book; count=2; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=28.86222,40.16702,29.20236,40.27634; geocode=Bursa, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>28.862216,40.167020,0 29.202363,40.167020,0 29.202363,40.276336,0 28.862216,40.276336,0 28.862216,40.167020,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bursa daily trip</name>
+      <description>source=Riderra price book; count=2; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=28.86222,40.16702,29.20236,40.27634; geocode=Bursa, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>28.862216,40.167020,0 29.202363,40.167020,0 29.202363,40.276336,0 28.862216,40.276336,0 28.862216,40.167020,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Catania</name>
+      <description>source=Riderra price book; count=2; countries=Italy; category=city; geometrySource=google-viewport; googleViewport=15.02910,37.42055,15.12594,37.56088; geocode=Catania, Metropolitan city of Catania, Italy</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>15.029096,37.420546,0 15.125940,37.420546,0 15.125940,37.560876,0 15.029096,37.560876,0 15.029096,37.420546,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Central and Western</name>
+      <description>source=Riderra price book; count=2; countries=China; category=city; geometrySource=google-viewport; googleViewport=73.49927,17.99960,134.77546,53.56097; geocode=China</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>73.499267,17.999600,0 134.775456,17.999600,0 134.775456,53.560974,0 73.499267,53.560974,0 73.499267,17.999600,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Cerkezkoy daily trip</name>
+      <description>source=Riderra price book; count=2; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=27.96950,41.27161,28.02581,41.30444; geocode=Çerkezköy, Tekirdağ, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>27.969500,41.271613,0 28.025810,41.271613,0 28.025810,41.304441,0 27.969500,41.304441,0 27.969500,41.271613,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Cheow Lan Dam, Surat Thani</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.80310,8.97532,98.80579,8.97802; geocode=Cheow Lan Lake, Khao Phang, Ban Ta Khun District, Surat Thani 84230, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.803095,8.975318,0 98.805793,8.975318,0 98.805793,8.978016,0 98.803095,8.978016,0 98.803095,8.975318,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Chumphon town</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=103.07107,17.99953,103.24708,18.13196; geocode=Chumphon, Phon Phisai District, Nong Khai 43120, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>103.071068,17.999525,0 103.247078,17.999525,0 103.247078,18.131958,0 103.071068,18.131958,0 103.071068,17.999525,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Colombo</name>
+      <description>source=Riderra price book; count=2; countries=Sri-Lanka; category=city; geometrySource=google-viewport; googleViewport=79.82233,6.86239,79.89009,6.98129; geocode=Colombo, Sri Lanka</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>79.822326,6.862391,0 79.890085,6.862391,0 79.890085,6.981287,0 79.822326,6.981287,0 79.822326,6.862391,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dahab</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=34.48025,28.47110,34.52061,28.52011; geocode=Dahab, South Sinai Governorate, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>34.480247,28.471098,0 34.520605,28.471098,0 34.520605,28.520107,0 34.480247,28.520107,0 34.480247,28.471098,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Danderyd municipality</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=17.99194,59.36951,18.12329,59.44064; geocode=Danderyd Municipality, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.991935,59.369505,0 18.123290,59.369505,0 18.123290,59.440636,0 17.991935,59.440636,0 17.991935,59.369505,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Doi Tung</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.24044,19.10134,98.30465,19.16074; geocode=Huai Hom, Ban Chan, Kalayaniwattana District, Chiang Mai 58130, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.240438,19.101343,0 98.304646,19.101343,0 98.304646,19.160743,0 98.240438,19.160743,0 98.240438,19.101343,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dushanbe</name>
+      <description>source=Riderra price book; count=2; countries=Tajikistan; category=city; geometrySource=google-viewport; googleViewport=68.68489,38.46515,68.87827,38.65750; geocode=Dushanbe, Tajikistan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>68.684893,38.465149,0 68.878269,38.465149,0 68.878269,38.657499,0 68.684893,38.657499,0 68.684893,38.465149,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ekerö municipality</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=17.41173,59.26018,17.95662,59.45165; geocode=Ekerö Municipality, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.411729,59.260175,0 17.956621,59.260175,0 17.956621,59.451654,0 17.411729,59.451654,0 17.411729,59.260175,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>El Alamein</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=28.95296,30.82112,28.95566,30.82382; geocode=El-Alamein, Al Alameen City, El Alamein, Marsa Matrouh Governorate 5060335, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>28.952960,30.821121,0 28.955658,30.821121,0 28.955658,30.823819,0 28.952960,30.823819,0 28.952960,30.821121,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>El Gouna</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=33.61276,27.34620,33.68915,27.44519; geocode=El Gouna, Hurghada, Red Sea Governorate, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>33.612757,27.346205,0 33.689146,27.346205,0 33.689146,27.445195,0 33.612757,27.445195,0 33.612757,27.346205,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Enköping town</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=17.04360,59.61886,17.12745,59.65729; geocode=Enköping, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.043598,59.618865,0 17.127453,59.618865,0 17.127453,59.657292,0 17.043598,59.657292,0 17.043598,59.618865,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Entebbe</name>
+      <description>source=Riderra price book; count=2; countries=Uganda; category=city; geometrySource=google-viewport; googleViewport=32.41136,0.01976,32.48891,0.09680; geocode=Entebbe, Uganda</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.411358,0.019762,0 32.488906,0.019762,0 32.488906,0.096799,0 32.411358,0.096799,0 32.411358,0.019762,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>European Side Central (Levent, Besiktas, Sisli, Maslak, Taksim, Ortakoy)</name>
+      <description>source=Riderra price book; count=2; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=28.96169,41.03913,29.01607,41.08477; geocode=Şişli/İstanbul, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>28.961693,41.039129,0 29.016067,41.039129,0 29.016067,41.084770,0 28.961693,41.084770,0 28.961693,41.039129,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gåshaga</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.22828,59.35575,18.23098,59.35845; geocode=Gåshaga, 181 66 Lidingö, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.228283,59.355753,0 18.230981,59.355753,0 18.230981,59.358451,0 18.228283,59.358451,0 18.228283,59.355753,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gävle town</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=17.07499,60.63452,17.30432,60.74116; geocode=Gävle, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.074989,60.634524,0 17.304316,60.634524,0 17.304316,60.741160,0 17.074989,60.741160,0 17.074989,60.634524,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gdansk</name>
+      <description>source=Riderra price book; count=2; countries=Russia; category=city; geometrySource=google-viewport; googleViewport=18.42950,54.27497,19.07096,54.58288; geocode=Gdańsk, Poland</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.429497,54.274974,0 19.070955,54.274974,0 19.070955,54.582881,0 18.429497,54.582881,0 18.429497,54.274974,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gijang-gun</name>
+      <description>source=Riderra price book; count=2; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=129.10857,35.18162,129.30561,35.38904; geocode=Gijang-gun, Busan, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>129.108572,35.181624,0 129.305605,35.181624,0 129.305605,35.389040,0 129.108572,35.389040,0 129.108572,35.181624,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Giza</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=31.14724,29.96217,31.23205,30.07141; geocode=Giza, El Omraniya, Giza Governorate, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>31.147241,29.962170,0 31.232046,29.962170,0 31.232046,30.071406,0 31.147241,30.071406,0 31.147241,29.962170,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Grisslehamn</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.80440,60.09473,18.80710,60.09743; geocode=764 56 Grisslehamn, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.804403,60.094732,0 18.807101,60.094732,0 18.807101,60.097430,0 18.804403,60.097430,0 18.804403,60.094732,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gustavsberg town</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.32238,59.29834,18.46323,59.36519; geocode=Gustavsberg, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.322380,59.298339,0 18.463228,59.298339,0 18.463228,59.365193,0 18.322380,59.365193,0 18.322380,59.298339,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Haninge municipality</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=17.91495,58.61844,18.94119,59.21971; geocode=Haninge Municipality, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.914952,58.618437,0 18.941188,58.618437,0 18.941188,59.219712,0 17.914952,59.219712,0 17.914952,58.618437,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hat Yai, Songkhla</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=100.45052,6.98175,100.50693,7.03711; geocode=Hat Yai, Hat Yai District, Songkhla 90110, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.450519,6.981751,0 100.506932,6.981751,0 100.506932,7.037111,0 100.450519,7.037111,0 100.450519,6.981751,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Heliopolis</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=31.34250,30.11097,31.34520,30.11366; geocode=Heliopolis, Al Matar, El Nozha, Cairo Governorate 4470351, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>31.342502,30.110966,0 31.345200,30.110966,0 31.345200,30.113664,0 31.342502,30.113664,0 31.342502,30.110966,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hetepuronpolku</name>
+      <description>source=Riderra price book; count=2; countries=Finland; category=city; geometrySource=google-viewport; googleViewport=25.85244,66.52268,25.85506,66.52395; geocode=Hetepuronpolku, 96900 Rovaniemi, Finland</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>25.852438,66.522678,0 25.855055,66.522678,0 25.855055,66.523950,0 25.852438,66.523950,0 25.852438,66.522678,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hikkaduwa</name>
+      <description>source=Riderra price book; count=2; countries=Sri-Lanka; category=city; geometrySource=google-viewport; googleViewport=80.09881,6.10403,80.13926,6.15135; geocode=Hikkaduwa, Sri Lanka</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>80.098808,6.104029,0 80.139256,6.104029,0 80.139256,6.151350,0 80.098808,6.151350,0 80.098808,6.104029,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Jakobsberg</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=17.74561,59.39819,17.87948,59.45462; geocode=Jakobsberg, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.745607,59.398194,0 17.879481,59.398194,0 17.879481,59.454617,0 17.745607,59.454617,0 17.745607,59.398194,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Jimbaran</name>
+      <description>source=Riderra price book; count=2; countries=Indonesia; category=city; geometrySource=google-viewport; googleViewport=115.12236,-8.81104,115.19760,-8.76730; geocode=Jimbaran, South Kuta, Badung Regency, Bali, Indonesia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>115.122361,-8.811039,0 115.197595,-8.811039,0 115.197595,-8.767297,0 115.122361,-8.767297,0 115.122361,-8.811039,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Jokkmokk</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=19.79515,66.58875,19.90450,66.61284; geocode=Jokkmokk, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>19.795153,66.588751,0 19.904502,66.588751,0 19.904502,66.612843,0 19.795153,66.612843,0 19.795153,66.588751,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kalai, Phang Nga</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.35084,8.25451,98.47099,8.38682; geocode=Kalai, Takua Thung District, Phang Nga, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.350845,8.254506,0 98.470994,8.254506,0 98.470994,8.386818,0 98.350845,8.386818,0 98.350845,8.254506,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kandy</name>
+      <description>source=Riderra price book; count=2; countries=Sri-Lanka; category=city; geometrySource=google-viewport; googleViewport=80.59189,7.25850,80.65967,7.33059; geocode=Kandy, Sri Lanka</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>80.591894,7.258504,0 80.659668,7.258504,0 80.659668,7.330587,0 80.591894,7.330587,0 80.591894,7.258504,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kapong, Phang Nga</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.39492,8.60109,98.52910,8.69585; geocode=Kapong, Kapong District, Phang Nga, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.394921,8.601089,0 98.529098,8.601089,0 98.529098,8.695849,0 98.394921,8.695849,0 98.394921,8.601089,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Karvonranta</name>
+      <description>source=Riderra price book; count=2; countries=Finland; category=city; geometrySource=google-viewport; googleViewport=25.78904,66.50841,25.79173,66.51111; geocode=Karvonranta, 96600 Rovaniemi, Finland</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>25.789037,66.508407,0 25.791734,66.508407,0 25.791734,66.511105,0 25.789037,66.511105,0 25.789037,66.508407,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kathu, Phuket</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.31046,7.87109,98.36716,7.95000; geocode=Kathu, Kathu District, Phuket, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.310458,7.871095,0 98.367159,7.871095,0 98.367159,7.949995,0 98.310458,7.949995,0 98.310458,7.871095,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kha Nom, Nakhon Si Thammarat</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=99.71988,9.08177,99.90958,9.32612; geocode=Khanom District, Nakhon Si Thammarat, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.719881,9.081772,0 99.909575,9.081772,0 99.909575,9.326117,0 99.719881,9.326117,0 99.719881,9.081772,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kiruna</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=20.14406,67.82328,20.36880,67.88412; geocode=Kiruna, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>20.144057,67.823280,0 20.368803,67.823280,0 20.368803,67.884124,0 20.144057,67.884124,0 20.144057,67.823280,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Köping locality</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=15.95045,59.49050,16.05014,59.53452; geocode=Köping, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>15.950452,59.490504,0 16.050144,59.490504,0 16.050144,59.534521,0 15.950452,59.534521,0 15.950452,59.490504,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Korkalovaara</name>
+      <description>source=Riderra price book; count=2; countries=Finland; category=city; geometrySource=google-viewport; googleViewport=25.66604,66.51058,25.66873,66.51328; geocode=Korkalovaara, 96500 Rovaniemi, Finland</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>25.666037,66.510583,0 25.668734,66.510583,0 25.668734,66.513281,0 25.666037,66.513281,0 25.666037,66.510583,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Koskenkyla</name>
+      <description>source=Riderra price book; count=2; countries=Finland; category=city; geometrySource=google-viewport; googleViewport=25.90911,60.49349,25.95358,60.50772; geocode=07700 Forsbyå, Finland</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>25.909113,60.493486,0 25.953585,60.493486,0 25.953585,60.507723,0 25.909113,60.507723,0 25.909113,60.493486,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kuta, Seminyak</name>
+      <description>source=Riderra price book; count=2; countries=Indonesia; category=city; geometrySource=google-viewport; googleViewport=115.15078,-8.69766,115.18003,-8.68217; geocode=Seminyak, Kuta, Badung Regency, Bali, Indonesia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>115.150784,-8.697656,0 115.180034,-8.697656,0 115.180034,-8.682167,0 115.150784,-8.682167,0 115.150784,-8.697656,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Larnaca</name>
+      <description>source=Riderra price book; count=2; countries=Cyprus; category=city; geometrySource=google-viewport; googleViewport=33.58360,34.84550,33.65459,34.95707; geocode=Larnaca, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>33.583601,34.845495,0 33.654587,34.845495,0 33.654587,34.957070,0 33.583601,34.957070,0 33.583601,34.845495,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Lidingö</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.09011,59.33627,18.29513,59.39282; geocode=Lidingö, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.090111,59.336275,0 18.295126,59.336275,0 18.295126,59.392821,0 18.090111,59.392821,0 18.090111,59.336275,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Limassol</name>
+      <description>source=Riderra price book; count=2; countries=Cyprus; category=city; geometrySource=google-viewport; googleViewport=32.98612,34.64217,33.07075,34.74013; geocode=Limassol, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.986123,34.642167,0 33.070753,34.642167,0 33.070753,34.740134,0 32.986123,34.740134,0 32.986123,34.642167,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Lipetsk</name>
+      <description>source=Riderra price book; count=2; countries=Russia; category=city; geometrySource=google-viewport; googleViewport=39.40605,52.48931,39.84527,52.71507; geocode=Lipetsk, Lipetsk Oblast, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>39.406049,52.489314,0 39.845270,52.489314,0 39.845270,52.715072,0 39.406049,52.715072,0 39.406049,52.489314,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Luleå</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=22.05759,65.54357,22.30717,65.62976; geocode=Luleå, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>22.057593,65.543566,0 22.307168,65.543566,0 22.307168,65.629758,0 22.057593,65.629758,0 22.057593,65.543566,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Makadi Bay</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=33.84016,26.95890,33.92409,27.00461; geocode=Makadi Bay, Hurghada 1, Red Sea Governorate, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>33.840161,26.958901,0 33.924091,26.958901,0 33.924091,27.004607,0 33.840161,27.004607,0 33.840161,26.958901,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Marsa Matrouh</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=27.15623,31.29710,27.35443,31.37618; geocode=Marsa Matruh, Mersa Matruh, Marsa Matrouh Governorate, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>27.156232,31.297096,0 27.354433,31.297096,0 27.354433,31.376177,0 27.156232,31.376177,0 27.156232,31.297096,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Märsta suburban area, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=17.76834,59.57707,17.88786,59.64474; geocode=Märsta, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>17.768341,59.577072,0 17.887858,59.577072,0 17.887858,59.644737,0 17.768341,59.644737,0 17.768341,59.577072,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Munich</name>
+      <description>source=Riderra price book; count=2; countries=Germany; category=city; geometrySource=google-viewport; googleViewport=11.36070,48.06160,11.72287,48.24822; geocode=Munich, Germany</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>11.360700,48.061602,0 11.722867,48.061602,0 11.722867,48.248220,0 11.360700,48.248220,0 11.360700,48.061602,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nabq Bay</name>
+      <description>source=Riderra price book; count=2; countries=Egypt; category=city; geometrySource=google-viewport; googleViewport=34.44431,28.03800,34.44700,28.04069; geocode=Nabq Bay, Egypt</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>34.444305,28.037996,0 34.447003,28.037996,0 34.447003,28.040694,0 34.444305,28.040694,0 34.444305,28.037996,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nacka suburban area, Stockholm</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.10255,59.28961,18.19196,59.32401; geocode=Nacka, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.102555,59.289607,0 18.191965,59.289607,0 18.191965,59.324012,0 18.102555,59.324012,0 18.102555,59.289607,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nacka, Sweden</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.24615,59.30397,18.24885,59.30667; geocode=132 42 Nacka, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.246151,59.303971,0 18.248849,59.303971,0 18.248849,59.306669,0 18.246151,59.306669,0 18.246151,59.303971,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nakhon Si Thammarat city</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=99.87806,8.37836,99.98476,8.46996; geocode=Nakhon Si Thammarat, Mueang Nakhon Si Thammarat District, Nakhon Si Thammarat, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.878063,8.378363,0 99.984760,8.378363,0 99.984760,8.469957,0 99.878063,8.469957,0 99.878063,8.378363,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nathon-Lipa Thailand</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=99.93449,9.53272,99.93719,9.53541; geocode=Nathon Town, Ang Thong, Ko Samui District, Surat Thani 84140, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.934488,9.532716,0 99.937186,9.532716,0 99.937186,9.535414,0 99.934488,9.535414,0 99.934488,9.532716,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nicosia</name>
+      <description>source=Riderra price book; count=2; countries=Cyprus; category=city; geometrySource=google-viewport; googleViewport=33.33584,35.15215,33.47523,35.21224; geocode=Nicosia, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>33.335835,35.152153,0 33.475231,35.152153,0 33.475231,35.212235,0 33.335835,35.212235,0 33.335835,35.152153,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Night tour European Side to Asian Side restaurant round trip</name>
+      <description>source=Riderra price book; count=2; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=29.00636,40.81140,29.42880,41.17342; geocode=Anatolian Side, İstanbul, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>29.006362,40.811404,0 29.428805,40.811404,0 29.428805,41.173419,0 29.006362,41.173419,0 29.006362,40.811404,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Night tour within European Side restaurant round trip</name>
+      <description>source=Riderra price book; count=2; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=28.59555,40.95451,29.07749,41.19924; geocode=European Side, İstanbul, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>28.595554,40.954508,0 29.077487,40.954508,0 29.077487,41.199239,0 28.595554,41.199239,0 28.595554,40.954508,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nivavaara</name>
+      <description>source=Riderra price book; count=2; countries=Finland; category=city; geometrySource=google-viewport; googleViewport=25.82295,66.52747,25.82565,66.53017; geocode=Nivavaara, 96900 Rovaniemi, Finland</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>25.822954,66.527473,0 25.825652,66.527473,0 25.825652,66.530171,0 25.822954,66.530171,0 25.822954,66.527473,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Norrtälje town</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.66716,59.73913,18.74735,59.77867; geocode=Norrtälje, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.667165,59.739130,0 18.747353,59.739130,0 18.747353,59.778673,0 18.667165,59.778673,0 18.667165,59.739130,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nusa dua</name>
+      <description>source=Riderra price book; count=2; countries=Indonesia; category=city; geometrySource=google-viewport; googleViewport=115.23177,-8.79884,115.23580,-8.79286; geocode=Nusa Dua Beach, Bali, Indonesia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>115.231771,-8.798839,0 115.235803,-8.798839,0 115.235803,-8.792865,0 115.231771,-8.792865,0 115.231771,-8.798839,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Nyköping town</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=16.96304,58.73898,17.08009,58.78287; geocode=Nyköping, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>16.963039,58.738980,0 17.080087,58.738980,0 17.080087,58.782872,0 16.963039,58.782872,0 16.963039,58.738980,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Örnsköldsvik / Ornskoldsvik</name>
+      <description>source=Riderra price book; count=2; countries=Sweden; category=city; geometrySource=google-viewport; googleViewport=18.57084,63.24120,18.79939,63.32696; geocode=Örnsköldsvik, Sweden</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.570837,63.241198,0 18.799395,63.241198,0 18.799395,63.326957,0 18.570837,63.326957,0 18.570837,63.241198,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Padang Besar (Malaysia border), Songkhla</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=100.21786,6.60264,100.32751,6.71139; geocode=Padang Besar, Perlis, Malaysia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.217864,6.602638,0 100.327511,6.602638,0 100.327511,6.711390,0 100.217864,6.711390,0 100.217864,6.602638,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pak Bara, Satun</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=99.72048,6.85881,99.77066,6.87512; geocode=Pak Bara, Pak Nam, 91110, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.720480,6.858812,0 99.770657,6.858812,0 99.770657,6.875117,0 99.720480,6.875117,0 99.720480,6.858812,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pak Chong, NakhonRatchasima</name>
+      <description>source=Riderra price book; count=2; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=101.26000,14.64811,101.45033,14.80571; geocode=Pak Chong, Pak Chong District, Nakhon Ratchasima, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>101.259999,14.648112,0 101.450327,14.648112,0 101.450327,14.805706,0 101.259999,14.805706,0 101.259999,14.648112,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Palanga</name>
+      <description>source=Riderra price book; count=2; countries=Lithuania; category=city; geometrySource=google-viewport; googleViewport=21.04827,55.85518,21.13893,56.07719; geocode=Palanga, Palanga City Municipality, Lithuania</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>21.048271,55.855177,0 21.138926,55.855177,0 21.138926,56.077188,0 21.048271,56.077188,0 21.048271,55.855177,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Paphos</name>
+      <description>source=Riderra price book; count=2; countries=Cyprus; category=city; geometrySource=google-viewport; googleViewport=32.39972,34.74247,32.46584,34.80175; geocode=Paphos, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.399722,34.742465,0 32.465840,34.742465,0 32.465840,34.801749,0 32.399722,34.801749,0 32.399722,34.742465,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Paralimni</name>
+      <description>source=Riderra price book; count=2; countries=Cyprus; category=city; geometrySource=google-viewport; googleViewport=33.95416,34.98366,34.07872,35.06961; geocode=Paralimni, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>33.954160,34.983661,0 34.078722,34.983661,0 34.078722,35.069610,0 33.954160,35.069610,0 33.954160,34.983661,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pegeia</name>
+      <description>source=Riderra price book; count=2; countries=Cyprus; category=city; geometrySource=google-viewport; googleViewport=32.31031,34.84405,32.41296,34.94476; geocode=Pegeia, Cyprus</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>32.310311,34.844048,0 32.412962,34.844048,0 32.412962,34.944760,0 32.310311,34.944760,0 32.310311,34.844048,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

@@ -1,0 +1,3464 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="csrf-token" content="eXi9bGliUVlJp4E9Dx9VZwTPgXuKoYxQqTd1D2Mh" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Distance & Time - Riderra</title>
+
+    
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/font-awesome/font-awesome.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/ionicons/ionicons.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/AdminLTE.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.min.css">
+
+    
+    
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://u3211.eto2.taxi/assets/plugins/html5shiv/html5shiv.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/respond/respond.min.js"></script>
+    <![endif]-->
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery.min.js"></script>
+        <script src="https://u3211.eto2.taxi/assets/plugins/jquery/jquery-migrate.min.js"></script>
+    
+    <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap/bootstrap.min.js"></script>
+
+            <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.min.js"></script>
+    
+    <script data-cfasync="false" src="https://u3211.eto2.taxi/assets/plugins/iframe-resizer/iframeResizer.contentWindow.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-loading-overlay/loadingoverlay.min.js"></script>
+
+            <script src="https://u3211.eto2.taxi/assets/plugins/jquery-webui-popover/jquery.webui-popover.js?_dc=1773668664"></script> 
+<script src="https://u3211.eto2.taxi/assets/plugins/sweetalert2/sweetalert2.min.js"></script>
+
+<script src="https://u3211.eto2.taxi/assets/js/password-utils.js?_dc=1773668664"></script>
+<script src="https://u3211.eto2.taxi/assets/js/eto/eto.js?_dc=1773668664"></script>
+
+<script>
+ETO.setConfig({"config":{"csrfToken":"eXi9bGliUVlJp4E9Dx9VZwTPgXuKoYxQqTd1D2Mh","appPath":"https:\/\/u3211.eto2.taxi","timestamp":1773668664,"timezone":"UTC","currency_symbol":"EUR","currency_code":"","date_format":"d.m.Y","time_format":"H:i","unit_format":"metric","phone_number_prefix":"auto","date_start_of_week":1,"site_id":1,"theme":"light"},"current_user":{"id":1,"fleet_id":0,"name":"Aleksandr Demianov","username":"admin","email":"demyanov@riderra.com","avatar":"https:\/\/u3211.eto2.taxi\/storage\/avatars\/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg","lat":null,"lng":null,"role":"admin","roles":["admin.root"],"permissions":["admin.*"]},"lang":{"common":{"daterangepicker":{"today":"Today","tomorrow":"Tomorrow","after_tomorrow":"After Tomorrow","next_week":"Next Week","next_month":"Next Month","custom_range":"Custom Range"},"button":{"view":"View"},"loading":"Loading...","no_data":"No data available.","yes":"Yes","no":"No","booking_status_options":{"accepted":"Job accepted","arrived":"Arrived","assigned":"Assigned","auto_dispatch":"Auto dispatch","canceled":"Cancelled","changed":"Booking update","completed":"Completed","confirmed":"Confirmed","incomplete":"Incomplete","noshow":"No-show","onboard":"On board","onroute":"En route","pending":"Confirmed","quote":"Request quote","rejected":"Job rejected","requested":"Unconfirmed","unfinished":"Driver cancelled"},"unit":{"imperial":{"mile":"mile","mile_plural":"miles","mile_short":"mi","yard":"yard","yard_plural":"yards","yard_short":"yd"},"metric":{"kilometer":"kilometre","kilometer_plural":"kilometres","kilometer_short":"km","meter":"metre","meter_plural":"metres","meter_short":"m"}},"user_profile_type_options":{"company":"Company","private":"Private"},"user_status_options":{"approved":"Approved","awaiting_admin_review":"Pending review","awaiting_email_confirmation":"Waiting for email confirmation","inactive":"Inactive","rejected":"Rejected"},"vehicle_status_options":{"activated":"Activated","inactive":"Inactive"}}}});
+
+$(function() {
+    if ($.inArray(ETO.getBrowserName(), ['Edge', 'IE']) != -1) {
+        $('body').append('<style>'+
+            'aside.main-sidebar section.sidebar {overflow-y:auto !important;}'+
+            'aside.main-sidebar div.slimScrollBar {display:none !important;}'+
+        '</style>');
+    }
+});
+</script>
+    
+    <script>
+    $(function() {
+        $.LoadingOverlaySetup({
+            image: '',
+            fontawesome: 'fa fa-spinner fa-spin',
+            maxSize: '80px',
+            minSize: '20px',
+            resizeInterval: 0,
+            size: '50%',
+            fade: [0,200]
+        });
+    });
+
+    var EasyTaxiOffice = {
+        csrfToken: 'eXi9bGliUVlJp4E9Dx9VZwTPgXuKoYxQqTd1D2Mh',
+        appPath: 'https://u3211.eto2.taxi',
+        timestamp: '1773668664',
+        timezone: 'UTC',
+        cookiePath: '/',
+        cookieSecure: true,
+        cookieSameSite: 'none',
+        siteId: 1,
+        unitFormat: 'metric',
+    };
+    </script>
+
+                <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/select2/select2.min.css">
+
+      <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/data-tables/dataTables.bootstrap.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/select2/select2.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap-touchspin/jquery.bootstrap-touchspin.min.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/bootstrap-daterangepicker/daterangepicker.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/jquery-minicolors/jquery.minicolors.css">
+  <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation.min.css">
+
+  <style>
+  .hide_advanced {
+    display: none !important;
+    background: #ffc3c3;
+  }
+  .eto-config-form-group {
+    margin-bottom: 5px;
+  }
+  .eto-config-section-header {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  #config .pageTitle {
+    margin-bottom: 20px;
+  }
+  #config .panel {
+    border-radius: 0;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+  }
+  #config .panel-group .panel+.panel {
+    margin-top: 1px;
+  }
+  #config .panel-default {
+    border-color: #eaeaea;
+    border: 0;
+  }
+  #config .panel-heading {
+    border: 1px #eaeaea solid;
+    background-color: #fbfbfb;
+  }
+  #config .panel-body {
+    padding: 14px 5px !important;
+    border: 0;
+  }
+  /* #config .panel-title > a[aria-expanded="true"] {
+    font-weight: bold !important;
+    color: #000 !important;
+  } */
+  .field-booking_member_benefits {
+    margin-bottom: 15px;
+  }
+  .field-booking_member_benefits textarea {
+    min-height: 100px;
+  }
+  </style>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/eto.css?_dc=1773668664">
+
+    <link rel="stylesheet" href="https://u3211.eto2.taxi/assets/css/admin.css?_dc=1773668664">
+
+    
+    
+        
+    </head>
+<body class="skin-blue admin-panel fixed hold-transition dt-height-fallback ">
+    <!--
+    Copyright (c) 2026 by EasyTaxiOffice - All Rights Reserved
+    Website: https://easytaxioffice.com
+    Email: support@easytaxioffice.com
+    -->
+
+                <div class="wrapper">
+        <header class="main-header">
+            <nav class="navbar navbar-static-top">
+                <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </a>
+                <span class="main-page-title">Settings > Pricing > Distance & Time</span>
+                <div class="navbar-custom-menu">
+                    <ul class="nav navbar-nav">
+                        <li class="dropdown user user-menu">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="user-image" alt="">
+                                <span class="hidden-xs">Aleksandr Demianov</span>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li class="user-header">
+                                    <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                                    <p>
+                                        Aleksandr Demianov
+                                        <small>Member since 1 year 4 months</small>
+                                    </p>
+                                </li>
+                                <li class="user-footer">
+                                    <div class="admin-topbar-user-actions">
+                                        <a href="https://u3211.eto2.taxi/admin/account" class="btn btn-default btn-flat">
+                                            <i class="fa fa-user"></i>
+                                            <span>Account</span>
+                                        </a>
+                                                                                <a href="https://u3211.eto2.taxi/admin/kb" class="btn btn-default btn-flat">
+                                            <i class="fa fa-question-circle"></i>
+                                            <span>Knowledge Base</span>
+                                        </a>
+                                                                                <a href="#" class="btn btn-default btn-flat btnAdminToolboxDarkMode">
+                                            <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                            <span class="admin-topbar-dark-mode-label">
+                                                Switch to dark theme
+                                            </span>
+                                        </a>
+                                        <a href="https://u3211.eto2.taxi/logout" class="btn btn-default btn-flat logout-container" onclick="event.preventDefault();document.getElementById('logout-form').submit();">
+                                            <i class="fa fa-sign-out"></i>
+                                            <span>Log out</span>
+                                        </a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </header>
+
+        <aside class="main-sidebar">
+            <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+                <span class="icon-toggle"></span>
+            </a>
+            <section class="sidebar">
+                <div class="dropdown admin-sidebar-user-dropdown">
+                    <a href="#" class="admin-sidebar-user-trigger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <div class="admin-sidebar-user-panel">
+                            <div class="admin-sidebar-user-avatar">
+                                <img src="https://u3211.eto2.taxi/storage/avatars/avatar_fbccff3f2989eabccce2992b1d696ee7.jpg" class="img-circle" alt="">
+                            </div>
+                            <div class="admin-sidebar-user-info">
+                                <p class="admin-sidebar-user-name">
+                                    <span class="admin-sidebar-user-name-text">Aleksandr Demianov</span>
+                                    <i class="fa fa-angle-down" aria-hidden="true"></i>
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu admin-sidebar-user-menu-items">
+                        <li>
+                            <a href="https://u3211.eto2.taxi/admin/account">
+                                <i class="fa fa-user"></i>
+                                <span>Account</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="https://u3211.eto2.taxi/admin/kb">
+                                <i class="fa fa-question-circle"></i>
+                                <span>Knowledge Base</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a href="#" class="btnAdminToolboxDarkMode">
+                                <i class="fa  fa-sun-o " aria-hidden="true"></i>
+                                <span class="admin-sidebar-dark-mode-label">
+                                    Switch to dark theme
+                                </span>
+                            </a>
+                        </li>
+                        <li class="logout-container">
+                            <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="fa fa-sign-out"></i>
+                                <span>Log out</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                                    <div class="switch-profile-box"  style="display:none;" >
+                        <select name="switch_profile" id="switch_profile" title="Switch profile" class="form-control select2" style="width:100%;">
+                                                    <option value="1"  selected="selected" >Riderra</option>
+                                                </select>
+                    </div>
+                
+                
+                <ul class="sidebar-menu">
+                    
+
+                                        <li >
+                        <a href="https://u3211.eto2.taxi/admin/dispatch" class="menu-dispatch-new-jobs">
+                            <span>Dispatch</span>
+                            <span class="pull-right-container" title="New bookings">
+                                <small class="label pull-right bg-aqua " id="latest-jobs">581</small>
+                            </span>
+                        </a>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/bookings">
+                            <span>Bookings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                        <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings/transferz/offers" class="menu-transferz-offers">
+                                        <span>Transferz Offers</span>
+                                        <span class="pull-right-container">
+                                            <small class="label pull-right bg-aqua  hide " id="transferz-offers-unread">New</small>
+                                        </span>
+                                    </a>
+                                </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=next24" class="menu-next24-jobs">
+                                    <span>Next 24h</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua  hide " id="next24-jobs">0</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=latest" class="menu-latest-jobs">
+                                    <span>Latest</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-aqua " id="latest-jobs" title="New bookings">581</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="  ">
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=requested" class="menu-requested-jobs">
+                                    <span>Unconfirmed</span>
+                                    <span class="pull-right-container">
+                                        <small class="label pull-right bg-orange " id="requested-jobs">202</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=completed" class="menu-completed-jobs">
+                                    <span>Completed</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=canceled" class="menu-canceled-jobs">
+                                    <span>Cancelled</span>
+                                    
+                                </a>
+                            </li>
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings">
+                                    <span>All</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings?page=trash">
+                                    <span>Trash</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/calendar">
+                                    <span>Calendar</span>
+                                </a>
+                            </li>
+
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/bookings?page=recurring" class="menu-recurring-jobs">
+                                        <span>Recurring</span>
+                                    </a>
+                                </li>
+                                                        
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/passengers">
+                                    <span>Passengers</span>
+                                </a>
+                            </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/bookings/create">
+                                    <span>New booking</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                      <a href="https://u3211.eto2.taxi/admin/feedback">
+                        <span>Feedback</span>
+                        <span class="pull-right-container">
+                          <i class="fa fa-angle-left pull-right"></i>
+                          <small class="label pull-right bg-gray  hide " style="padding: .2em .3em .2em .3em;" id="menu-feedback-icon">
+                              <i class="fa fa-exclamation"></i>
+                          </small>
+                        </span>
+                      </a>
+                      <ul class="treeview-menu">
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=comment">
+                            <span>Comments</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-comments">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=lost_found">
+                            <span>Lost &amp; Found</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                        <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback?type=complaint">
+                            <span>Complaints</span>
+                            <span class="pull-right-container">
+                              <small class="label pull-right bg-orange  hide " id="menu-feedback-counter-lost-found">0</small>
+                            </span>
+                          </a>
+                        </li>
+                                                <li >
+                          <a href="https://u3211.eto2.taxi/admin/feedback/create">
+                            <span>Add new</span>
+                          </a>
+                        </li>
+                                              </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/reports">
+                            <span>Reports</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/fleet">
+                                    <span>Fleet Report</span>
+                                </a>
+                            </li>
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/driver">
+                                    <span>Driver Report</span>
+                                </a>
+                            </li>
+                            
+                            <li >
+                                <a href="https://u3211.eto2.taxi/admin/reports/payment">
+                                    <span>Payment Report</span>
+                                </a>
+                            </li>
+                                                                                    <li >
+                                <a href="https://u3211.eto2.taxi/admin/driver-activities">
+                                    <span>Driver Activities</span>
+                                </a>
+                            </li>
+                                                    </ul>
+                    </li>
+                    
+                                        <li class="treeview ">
+                        <a href="https://u3211.eto2.taxi/admin/users">
+                            <span>Users</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+
+                                
+                                                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/customers">
+                                    <span>Customers</span>
+                                </a>
+                            </li>
+                            
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=driver">
+                                    <span>Drivers</span>
+                                    
+                                </a>
+                            </li>
+                            
+                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/users?role=fleet">
+                                        <span>Fleet Operators</span>
+                                    </a>
+                                </li>
+                            
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users?role=admin">
+                                    <span>Admins</span>
+                                </a>
+                            </li>
+                            
+                            
+                            
+
+                                                        <li >
+                                <a href="https://u3211.eto2.taxi/admin/users/removal">
+                                    <span>Deletion Requests</span>
+                                                                    </a>
+                            </li>
+                            
+                        </ul>
+                    </li>
+                    
+                                                            
+                                        <li class="treeview  active ">
+                        <a href="https://u3211.eto2.taxi/admin/settings/general">
+                            <span>Settings</span>
+                            <span class="pull-right-container">
+                                <i class="fa fa-angle-left pull-right"></i>
+                            </span>
+                        </a>
+                        <ul class="treeview-menu">
+                                                        <li class="treeview  active ">
+
+                               <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                   <span>Pricing</span>
+                                   <span class="pull-right-container">
+                                       <i class="fa fa-angle-left pull-right"></i>
+                                   </span>
+                               </a>
+                               <ul class="treeview-menu">
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/deposit-payments">
+                                         <span>Deposit Payments</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li  class="active" >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/mileage-time">
+                                         <span>Distance &amp; Time</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                      <a href="https://u3211.eto2.taxi/admin/fixed-prices?type=2">
+                                        <span>Distance Modifier</span>
+                                      </a>
+                                    </li>
+                                  
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/driver-income">
+                                         <span>Driver Income</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/fixed-prices">
+                                         <span>Fixed Prices</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/holiday-surcharge">
+                                         <span>Holiday / Rush Hours Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/additional-charges">
+                                         <span>Item Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                      <li >
+                                     <a href="https://u3211.eto2.taxi/admin/settings/charges">
+                                      <span>Location Surcharge</span>
+                                     </a>
+                                   </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/night-surcharge">
+                                         <span>Night Surcharge</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/other-discounts">
+                                         <span>Other Discounts</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/settings/tax">
+                                         <span>Tax</span>
+                                       </a>
+                                     </li>
+                                   
+                                                                        <li >
+                                       <a href="https://u3211.eto2.taxi/admin/discounts">
+                                         <span>Voucher Discounts</span>
+                                       </a>
+                                     </li>
+                                                                  </ul>
+                            </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/getting-started">
+                                  <span>Getting Started</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/airport-detection">
+                                  <span>Airport Detection</span>
+                                </a>
+                              </li>
+                            
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/booking">
+                                  <span>Booking</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/general">
+                                  <span>General</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/google">
+                                  <span>Google</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/integration">
+                                  <span>Integration</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/invoices">
+                                  <span>Invoices</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/localization">
+                                  <span>Localization</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/categories">
+                                  <span>Location Categories</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/locations">
+                                  <span>Locations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/mail">
+                                  <span>Email</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/meeting-points">
+                                  <span>Meeting Points</span>
+                                </a>
+                              </li>
+                            
+                                                                                            <li >
+                                    <a href="https://u3211.eto2.taxi/admin/mobile-app">
+                                      <span>Mobile Apps</span>
+
+                                                                          </a>
+                                  </li>
+                                                          
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/notifications">
+                                  <span>Notifications</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/bases">
+                                  <span>Operating Areas</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/payments">
+                                  <span>Payment Methods</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/excluded-routes">
+                                  <span>Booking Restrictions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/roles">
+                                  <span>Roles &amp; Permissions</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-scheduled-routes">
+                                <a href="https://u3211.eto2.taxi/admin/scheduled-routes">
+                                  <span>Scheduled Routes</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class=" main-menu-services">
+                                <a href="https://u3211.eto2.taxi/admin/services">
+                                  <span>Services</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/styles">
+                                  <span>Styles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/translations">
+                                  <span>Translations</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/vehicle-types">
+                                  <span>Types of Vehicles</span>
+                                </a>
+                              </li>
+                            
+                                                          <li class="">
+                                <a href="https://u3211.eto2.taxi/admin/vehicles">
+                                  <span>Vehicles</span>
+                                  <span class="pull-right-container">
+                                                                      </span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/users">
+                                  <span>Users</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/settings/web-booking-widget">
+                                  <span>Web Booking Widget</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/web-widget">
+                                  <span>Web Widgets</span>
+                                </a>
+                              </li>
+                            
+                                                          <li >
+                                <a href="https://u3211.eto2.taxi/admin/zones">
+                                  <span>Zones</span>
+                                </a>
+                              </li>
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        </ul>
+                    </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/kb">
+                          <span>Knowledge Base</span>
+                        </a>
+                      </li>
+                    
+                                          <li >
+                        <a href="https://u3211.eto2.taxi/admin/updates">
+                          <span>Updates</span>
+                                                  </a>
+                      </li>
+                    
+                    
+                    
+                    <li >
+                      <a href="https://u3211.eto2.taxi/admin/account">
+                        <span>Account</span>
+                      </a>
+                    </li>
+
+                    <li class="logout-container">
+                      <a href="https://u3211.eto2.taxi/logout" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                        <span>Log out</span>
+                      </a>
+                    </li>
+                </ul>
+
+                <div class="copyright-box">
+                  &copy; 2026 <a href="https://easytaxioffice.com" target="_blank">EasyTaxiOffice</a>                   
+                </div>
+            </section>
+        </aside>
+
+        <div class="content-wrapper ">
+            
+            <section class="content">
+                <div class="pageContainer" id="config">
+    <div class="pageContent">
+        <form method="post" autocomplete="false">
+            
+            <!-- This option will disable autocomplete option in Google Chrome -->
+            <input type="text" name="randomusernameremembered" id="randomusernameremembered" value="" style="width:0;height:0;visibility:hidden;position:absolute;left:0;top:0;margin:0;padding:0;border:0;background:none;">
+            <input type="password" name="randompasswordremembered" id="randompasswordremembered" value="" style="width:0;height:0;visibility:hidden;position:absolute;left:0;top:0;margin:0;padding:0;border:0;background:none;">
+            <!-- End -->
+
+            <input type="hidden" name="site_id" id="site_id" value="0">
+
+                <div data-eto-section="admin.settings.mileage_time">
+        <div class="pageTitle pageTitle--with-breadcrumbs clearfix">
+    <div class="pageTitle-row clearfix">
+        <h3 class="pageTitle-title pull-left hidden-xs">
+                            <span class="pageBreadcrumbs">
+                                                                                                                        <a href="https://u3211.eto2.taxi/admin/settings">Settings</a>
+                                                                                                <span class="pageBreadcrumbs-separator">&gt;</span>
+                                                                                                    <span>Pricing</span>
+                                                                <span class="pageBreadcrumbs-separator pageBreadcrumbs-separator--title">&gt;</span>
+                </span>
+                        <span class="pageTitle-titleText">Distance &amp; Time</span>
+        </h3>
+
+        
+                    <div class="pageTitle-help pull-right hidden-xs">
+                <a href="https://u3211.eto2.taxi/admin/kb?q=price-for-the-distance"
+                    target="_blank"                    class="pageTitle-help-link"
+                    title="Click here to learn more"                    >
+                    <i class="ion-ios-help-outline"></i>
+                                            <span class="sr-only">Click here to learn more</span>
+                                    </a>
+            </div>
+        
+            </div>
+
+    </div>
+
+        <input type="hidden" name="settings_group" id="settings_group" value="mileage_time">
+
+                    
+<div style="margin-bottom:50px;">
+  <div class="eto-config-section-header clearfix" style="margin-bottom:10px;">
+    <span style="float:left; display:inline-block;">Distance</span>
+    <i class="ion-ios-information-outline" style="display:inline-block; margin-left:8px; font-size:18px; line-height:22px;" data-toggle="popover" data-title="" data-content="This section allows you to set up distance thresholds, e.g. 1-10 and 10-30, and the price per km/mile. The price is calculated by multiplying distance by the price per km/mile.<br><br><em>Example:<br>Distance 1-10, price &pound;3<br>Distance 10-30, price &pound;2.5<br><br>For a journey of 8 miles, the price is calculated from the 1-10 threshold and is<br>( 8 miles * &pound;3 ) = &pound;24<br>For a journey of 12 miles, the price is calculated from the 10-30 threshold and is<br>( 12 miles * &pound;2.5 ) = &pound;30</em><br><br>For pricing calculated by adding distance thresholds, use the setting &quot;Price threshold modification&quot; below." data-html="true"></i>
+  </div>
+  <div id="distanceRangesList" style="margin-bottom:40px;"></div>
+  <div class="form-group field-booking_range_advanced_display eto-config-form-group field-size-fw clearfix hide_advanced" style="margin-top:40px;">
+    <label for="booking_range_advanced_display" class="checkbox-inline" style="float:left;">
+      <input type="checkbox" name="booking_range_advanced_display" id="booking_range_advanced_display" value="1" >
+      <span>Show additional price modification option</span>
+    </label>
+  </div>
+  <div class="form-group field-booking_range_advanced eto-config-form-group field-size-fw clearfix hidden">
+    <label for="booking_range_advanced" class="checkbox-inline" style="float:left;">
+      <input type="checkbox" name="booking_range_advanced" id="booking_range_advanced" value="1" >
+      <span>Additional price modification</span>
+    </label>
+    <i class="ion-ios-information-outline" style="float:left; margin-left:5px; margin-top:-2px; font-size:18px;" data-toggle="popover" data-title="" data-content="When enabled, it allows additional price modification by using the base price and base price modifiers." data-html="true"></i>
+  </div>
+  <div class="form-group field-booking_range_add_thresholds eto-config-form-group field-size-fw clearfix hidden" style="margin-top:5px;">
+    <label for="booking_range_add_thresholds" class="checkbox-inline" style="float:left;">
+      <input type="checkbox" name="booking_range_add_thresholds" id="booking_range_add_thresholds" value="1" >
+      <span>Price threshold modification</span>
+    </label>
+    <i class="ion-ios-information-outline" style="float:left; margin-left:5px; margin-top:-2px; font-size:18px;" data-toggle="popover" data-title="" data-content="When enabled, the price is calculated by adding distance thresholds.<br><br>Example:<br>For distance settings of 0-1 mile at &pound;4, 1-20 miles at &pound;3, and 20-50 miles at &pound;2, a journey of 40 miles would calculate: ( 1 mile * &pound;4 ) + ( 19 miles * &pound;3 ) + ( 20 miles * &pound;2 ) = &pound;4 + &pound;57 + &pound;40 = &pound;101" data-html="true"></i>
+  </div>
+
+  <div class="clearfix distance_calculator_box">
+    <div class="clearfix" style="margin-bottom:10px;">
+      <span style="float:left; display:inline-block;">Distance price calculator</span>
+      <i class="ion-ios-information-outline" style="display:inline-block; margin-left:8px; font-size:18px; line-height:22px;" data-toggle="popover" data-title="" data-content="<b>Distance price calculator</b> allows you to test distance pricing based on the table above. The calculated price is based solely on the distance section settings; no other factors (e.g. time, surcharges) are taken into account." data-html="true"></i>
+    </div>
+
+    <div class="clearfix">
+      <div class="form-group field-vehicle_min_price_value has-feedback" style="margin-bottom:5px; max-width:150px; float:left; margin-right:10px;">
+        <div class="input-group">
+          <input type="number" placeholder="0" value="0" required class="form-control distance_calculator_input" style="width:100%; padding-right:5px;" step="0.1" min="0" >
+          <div class="input-group-addon admin-bg-muted" style="text-align:left;">km</div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-default distance_calculator_btn" >Calculate</button>
+    </div>
+
+    <div class="distance_calculator_results"></div>
+  </div>
+</div>
+
+<script>
+var ra_vehicles = [];
+var ra_ranges = [];
+
+function ra_roundVal(val) {
+    return parseFloat(val.toFixed(2));
+}
+
+function ra_calculate(id) {
+    var results = '';
+    var ra_vehicle_added = [];
+    var ra_vehicle_id = 0;
+    var ra_vehicle_name = "Unknown";
+    var ra_total = 0;
+    var ra_max_dist = $('.distance_calculator_input').val() ? parseFloat($('.distance_calculator_input').val()) : 0;
+    var ra_balance_dist = ra_max_dist;
+    var ra_prev_dist = 0;
+    var ra_thresholds = [];
+    var booking_range_advanced = $('#config #booking_range_advanced').is(':checked') == true;
+    var booking_range_add_thresholds = $('#config #booking_range_add_thresholds').is(':checked') == true;
+
+    $.each(ra_vehicles, function(kRaV, vRaV) {
+        if (vRaV.id == parseInt(id)) {
+            ra_vehicle_id = vRaV.id;
+            ra_vehicle_name = vRaV.name;
+        }
+    });
+
+    $.each(ra_ranges, function(kRa, vRa) {
+        var ra_distance = parseFloat(vRa.distance);
+        var ra_value = parseFloat(vRa.value);
+        var ra_factor = parseInt(vRa.factor_type);
+        var ra_vehicle = 0;
+        var ra_used_dist = 0;
+        var ra_price = 0;
+        var ra_prev_dist_current = ra_prev_dist;
+
+        if (!booking_range_advanced && booking_range_add_thresholds) {
+            ra_range_dist = ra_distance - ra_prev_dist;
+
+            if (ra_balance_dist - ra_range_dist >= 0) {
+                ra_used_dist = ra_range_dist;
+            } else {
+                ra_used_dist = ra_balance_dist;
+            }
+
+            if (ra_used_dist < 0) {
+                ra_used_dist = 0;
+            }
+
+            ra_balance_dist -= ra_used_dist;
+        } else {
+            ra_used_dist = ra_max_dist;
+        }
+
+        ra_prev_dist = ra_distance;
+
+        if (vRa['vehicle'+ ra_vehicle_id]) {
+            ra_vehicle = parseFloat(vRa['vehicle'+ ra_vehicle_id]);
+        }
+
+        if (!booking_range_advanced) {
+            ra_price = ra_roundVal(ra_used_dist * ra_vehicle);
+        } else {
+            if (ra_vehicle && ra_factor == 0) {
+                ra_value = ra_vehicle; // Override
+            }
+
+            ra_price = ra_roundVal(ra_used_dist * ra_value);
+
+            if (ra_vehicle) {
+                if (ra_factor == 2) {
+                    ra_price *= parseFloat(ra_vehicle); // Multiply
+                }
+                else if (ra_factor == 1 && !ra_vehicle_added[ra_distance +'_'+ ra_vehicle_id]) {
+                    ra_price += parseFloat(ra_vehicle); // Add
+                    ra_vehicle_added[ra_distance +'_'+ ra_vehicle_id] = 1;
+                }
+            }
+        }
+
+        if (!booking_range_advanced && booking_range_add_thresholds) {
+            ra_total += ra_price;
+        } else {
+            ra_total = ra_price;
+        }
+
+        ra_thresholds.push({
+            distance: ra_distance,
+            price: ra_price,
+            prev: ra_prev_dist_current,
+        });
+
+        if (ra_max_dist <= ra_distance) {
+            return false;
+        }
+    });
+
+    results = '<div class="distance_calculator_vehicle"><div class="distance_calculator_header">'+ ra_vehicle_name +'</div>';
+    if ((booking_range_advanced || !booking_range_add_thresholds) && ra_thresholds.length) {
+        ra_thresholds = [ra_thresholds.slice(-1)[0]];
+    }
+    $.each(ra_thresholds, function(kRaT, vRaT) {
+        results += '<div class="distance_calculator_row"><span class="distance_calculator_name">'+ vRaT.prev +'-'+ vRaT.distance +':</span><span class="distance_calculator_val">'+ ETO.formatPrice(vRaT.price) +'</span></div>';
+    });
+    if (!booking_range_advanced && booking_range_add_thresholds) {
+        results += '<div class="distance_calculator_row"><span class="distance_calculator_name">'+ "Total:" +'</span><span class="distance_calculator_val">'+ ETO.formatPrice(ra_total) +'</span></div>';
+    }
+    results += '</div>';
+
+    return results;
+}
+
+$(document).ready(function(){
+    $('.distance_calculator_btn').click(function() {
+        var values = $('#config form').serializeObject();
+        ra_ranges = values.distanceRanges ? values.distanceRanges : [];
+
+        var results = '';
+        $.each(ra_vehicles, function(kRaV, vRaV) {
+            results += ra_calculate(vRaV.id);
+        });
+        $('.distance_calculator_results').html(results);
+    });
+});
+</script>
+
+<div style="margin-bottom:50px;">
+  <div class="eto-config-section-header clearfix" style="margin-bottom:15px;">
+    <span style="float:left; display:inline-block;">Time</span>
+  </div>
+  <div class="form-group field-booking_duration_rate field-size-fw" style="max-width:150px;">
+    <label for="booking_duration_rate">Price per minute</label>
+    <input type="text" name="booking_duration_rate" id="booking_duration_rate" placeholder="Price per minute" value="0" required class="form-control touchspin" data-bts-step="0.01" data-bts-decimals="2" data-bts-min="0"  >
+  </div>
+</div>
+
+<div style="margin-bottom:30px;">
+  <div class="eto-config-section-header clearfix" style="margin-bottom:10px;">
+    <span style="float:left; display:inline-block;">Minimum fare</span>
+    <i class="ion-ios-information-outline" style="display:inline-block; margin-left:8px; font-size:18px; line-height:22px;" data-toggle="popover" data-title="" data-content="<b>Minimum fare</b> is a minimum charge customers will be asked to pay for a single fare.<br><br>Setting a price for an individual vehicle type (e.g. Saloon) will apply it as the minimum fare price for that vehicle type." data-html="true"></i>
+  </div>
+  <div class="form-group field-vehicle_min_price_value" style="margin-bottom:5px; max-width: 296px;">
+    <div class="input-group">
+      <div class="input-group-addon admin-bg-muted" style="min-width:180px; text-align:left;">Any vehicle</div>
+      <input type="number" name="distance_min" id="distance_min" placeholder="0" value="0" required class="form-control" style="padding-right:10px;" step="0.01" min="0" >
+    </div>
+  </div>
+  <div id="vehicleMinPriceList" style="display:inline-block; margin-bottom:0px; width:100%;"></div>
+  <div class="form-group field-booking_min_price_type eto-config-form-group field-size-fw">
+    <label for="booking_min_price_type" class="checkbox-inline">
+      <input type="checkbox" name="booking_min_price_type" id="booking_min_price_type" value="1" >Add Minimum fare price to Distance &amp; Time fare price
+    </label>
+  </div>
+</div>
+
+        
+                                </div>
+
+            
+                          <div class="form-buttons" style="margin-top:20px;">
+                  <button type="submit" class="btn btn-success btnSave" title="Save"><i class="fa fa-pencil-square-o"></i> <span>Save</span></button>
+                  <span id="statusMsg"></span>
+              </div>
+            
+            <div class="modal-overlay"><i class="fa fa-refresh fa-spin"></i></div>
+        </form>
+
+    </div>
+</div>
+            </section>
+        </div>
+
+        <form id="logout-form" action="https://u3211.eto2.taxi/logout" method="POST" style="display:none;">
+            <input type="hidden" name="_token" value="eXi9bGliUVlJp4E9Dx9VZwTPgXuKoYxQqTd1D2Mh">
+        </form>
+    </div>
+
+    
+            
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-cookie/jquery.cookie.js?_dc=1773668664"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
+    <script src="https://u3211.eto2.taxi/assets/plugins/select2/select2.full.min.js"></script>
+
+    <script src="https://u3211.eto2.taxi/assets/js/app.js?_dc=1773668664"></script>
+
+    
+    <script>
+    
+    var isDarkMode = false;
+
+    function toggleDarkMode() {
+        var darkModeLabel = '';
+
+        if (isDarkMode) {
+            darkModeLabel = "Switch to light theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-sun-o').addClass('fa-moon-o');
+            $('body').addClass('dark-mode');
+        } else {
+            darkModeLabel = "Switch to dark theme";
+            $('.btnAdminToolboxDarkMode').find('i').removeClass('fa-moon-o').addClass('fa-sun-o');
+            $('body').removeClass('dark-mode');
+        }
+
+        $('.admin-sidebar-dark-mode-label, .admin-topbar-dark-mode-label').text(darkModeLabel);
+    }
+
+    function updateDataTableScrollBodyHeight(options) {
+        options = options || {};
+
+        var wrapperSelector = options.wrapperSelector || '#dataTableBuilder_wrapper';
+        var scrollBodySelector = options.scrollBodySelector || '.dataTables_scrollBody';
+        // Default: allow overflow expansion on all screen sizes.
+        // Legacy mobile behavior (natural page scroll) can be enabled per table with expandOnMobile: true.
+        var expandOnMobile = options.expandOnMobile === true;
+        var expandWhenOverflow = options.expandWhenOverflow !== false;
+        var mobileBreakpoint = parseInt(options.mobileBreakpoint, 10);
+        var minHeight = parseInt(options.minHeight, 10);
+        var extraOffset = parseInt(options.extraOffset, 10);
+        var wrapper = $(wrapperSelector).first();
+        var scrollBody = $(scrollBodySelector).first();
+
+        if (!wrapper.length || !scrollBody.length) {
+            return;
+        }
+
+        if (!wrapper.is(':visible') || !scrollBody.is(':visible')) {
+            return;
+        }
+
+        if (isNaN(mobileBreakpoint) || mobileBreakpoint < 0) {
+            mobileBreakpoint = 767;
+        }
+
+        var viewportWidth = window.innerWidth || $(window).width() || 0;
+        var shouldExpandOnMobile = expandOnMobile && viewportWidth > 0 && viewportWidth <= mobileBreakpoint;
+
+        if (shouldExpandOnMobile) {
+            // On small screens avoid inner vertical scroll and let the page scroll naturally.
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': '0px',
+                'overflow-y': 'visible'
+            });
+
+            $('body').removeClass('dt-height-fallback');
+            return;
+        }
+
+        if (isNaN(minHeight) || minHeight < 0) {
+            minHeight = 200;
+        }
+
+        if (isNaN(extraOffset)) {
+            extraOffset = 0;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+
+        if (!scrollBodyElement) {
+            return;
+        }
+
+        scrollBody.css({
+            'height': 'auto',
+            'max-height': 'none',
+            'min-height': '0px'
+        });
+
+        var viewportHeight = window.innerHeight || $(window).height() || 0;
+        var viewportBottom = viewportHeight - extraOffset;
+        var bottomContainer = wrapper.find('> .bottomContainer').first();
+        var referenceElement = bottomContainer.length ? bottomContainer.get(0) : wrapper.get(0);
+        var referenceRect = referenceElement && typeof referenceElement.getBoundingClientRect === 'function'
+            ? referenceElement.getBoundingClientRect()
+            : null;
+
+        if (!referenceRect) {
+            return;
+        }
+
+        var clampHeight = function(value) {
+            var height = Math.floor(value);
+            if (height < minHeight) {
+                height = minHeight;
+            }
+            if (height < 0) {
+                height = 0;
+            }
+            return height;
+        };
+
+        var currentBodyHeight = scrollBody.outerHeight() || 0;
+        var delta = viewportBottom - referenceRect.bottom;
+        var targetHeight = clampHeight(currentBodyHeight + delta);
+
+        var naturalBodyHeight = scrollBodyElement.scrollHeight || 0;
+        var applyScrollBodyHeight = function(height) {
+            scrollBody.css({
+                'height': height + 'px',
+                'max-height': height + 'px',
+                'min-height': '0px'
+            });
+        };
+
+        var contentWrapperElement = wrapper.closest('.content-wrapper').get(0);
+        var measureOverflow = function() {
+            var contentWrapperRect = contentWrapperElement && typeof contentWrapperElement.getBoundingClientRect === 'function'
+                ? contentWrapperElement.getBoundingClientRect()
+                : null;
+            var contentOverflow = contentWrapperRect ? Math.ceil(contentWrapperRect.bottom - viewportBottom) : 0;
+            return contentOverflow > 0 ? contentOverflow : 0;
+        };
+
+        for (var i = 0; i < 3; i++) {
+            applyScrollBodyHeight(targetHeight);
+            var overflow = measureOverflow();
+
+            if (overflow <= 0) {
+                break;
+            }
+
+            var nextHeight = clampHeight(targetHeight - overflow);
+            if (nextHeight === targetHeight) {
+                break;
+            }
+
+            targetHeight = nextHeight;
+        }
+        if (expandWhenOverflow && naturalBodyHeight > (targetHeight + 1)) {
+            scrollBody.css({
+                'height': 'auto',
+                'max-height': 'none',
+                'min-height': targetHeight + 'px'
+            });
+        } else {
+            applyScrollBodyHeight(targetHeight);
+        }
+
+        $('body').removeClass('dt-height-fallback');
+    }
+
+    var updateTableHeightRafId = null;
+    var updateTableHeightImmediateTimeoutId = null;
+    var updateTableHeightDelayedTimeoutId = null;
+
+    function scheduleUpdateTableHeight() {
+        var hasDataTableApi = !!($.fn.dataTable && $.fn.dataTable.tables);
+        var hasUpdateTableHeightFn = (typeof window.updateTableHeight === 'function');
+
+        if (!hasDataTableApi && !hasUpdateTableHeightFn) {
+            return;
+        }
+
+        var refreshLayout = function() {
+            if (hasDataTableApi) {
+                var tablesApi = $.fn.dataTable.tables({ visible: true, api: true });
+                if (tablesApi && tablesApi.columns) {
+                    tablesApi.columns.adjust();
+                }
+            }
+
+            if (hasUpdateTableHeightFn) {
+                window.updateTableHeight();
+            }
+        };
+
+        if (updateTableHeightRafId && window.cancelAnimationFrame) {
+            window.cancelAnimationFrame(updateTableHeightRafId);
+        }
+
+        if (updateTableHeightImmediateTimeoutId) {
+            clearTimeout(updateTableHeightImmediateTimeoutId);
+        }
+
+        if (updateTableHeightDelayedTimeoutId) {
+            clearTimeout(updateTableHeightDelayedTimeoutId);
+        }
+
+        if (window.requestAnimationFrame) {
+            updateTableHeightRafId = window.requestAnimationFrame(function() {
+                updateTableHeightRafId = null;
+                refreshLayout();
+            });
+        } else {
+            updateTableHeightImmediateTimeoutId = setTimeout(function() {
+                updateTableHeightImmediateTimeoutId = null;
+                refreshLayout();
+            }, 0);
+        }
+
+        // Secondary pass for animated layout changes (sidebar / tabs / collapse).
+        updateTableHeightDelayedTimeoutId = setTimeout(function() {
+            updateTableHeightDelayedTimeoutId = null;
+            refreshLayout();
+        }, 180);
+    }
+
+    function bindPageFiltersHeightWatchers() {
+        $(document).on('click', '.btnFilters, .pageFilters .btnClose, .pageFilters .btnReset, .pageFilters .btnSearch', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        if (!window.MutationObserver) {
+            return;
+        }
+
+        $('.pageFilters').each(function() {
+            var panel = $(this);
+
+            if (panel.data('dt-height-observer-bound')) {
+                return;
+            }
+
+            var observer = new MutationObserver(function() {
+                scheduleUpdateTableHeight();
+            });
+
+            observer.observe(this, {
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+
+            panel.data('dt-height-observer-bound', true);
+        });
+    }
+
+    function setDataTableDropdownDirection(dropdown) {
+        var scrollBody = dropdown.closest('.dataTables_scrollBody');
+        var menu = dropdown.children('.dropdown-menu').first();
+        var toggle = dropdown.children('[data-toggle="dropdown"]').first();
+
+        dropdown.removeClass('dropup');
+
+        if (!scrollBody.length || !menu.length || !toggle.length) {
+            return;
+        }
+
+        var scrollBodyElement = scrollBody.get(0);
+        var toggleElement = toggle.get(0);
+
+        if (!scrollBodyElement || !toggleElement || typeof scrollBodyElement.getBoundingClientRect !== 'function' || typeof toggleElement.getBoundingClientRect !== 'function') {
+            return;
+        }
+
+        var scrollRect = scrollBodyElement.getBoundingClientRect();
+        var toggleRect = toggleElement.getBoundingClientRect();
+
+        if (!scrollRect || !toggleRect) {
+            return;
+        }
+
+        var originalStyle = menu.attr('style');
+        menu.css({
+            display: 'block',
+            visibility: 'hidden'
+        });
+
+        var menuHeight = menu.outerHeight() || 0;
+
+        if (typeof originalStyle === 'string') {
+            menu.attr('style', originalStyle);
+        } else {
+            menu.removeAttr('style');
+        }
+
+        var availableAbove = Math.max(0, toggleRect.top - scrollRect.top);
+        var availableBelow = Math.max(0, scrollRect.bottom - toggleRect.bottom);
+        var fitsAbove = menuHeight <= availableAbove;
+        var fitsBelow = menuHeight <= availableBelow;
+        var shouldOpenUp = fitsAbove && (!fitsBelow || availableAbove > availableBelow);
+
+        if (shouldOpenUp) {
+            dropdown.addClass('dropup');
+        }
+    }
+
+    $(document).ready(function() {
+        toggleDarkMode();
+        bindPageFiltersHeightWatchers();
+
+        if (typeof window.updateTableHeight !== 'function') {
+            $('body').removeClass('dt-height-fallback');
+        }
+
+        $(document).on('init.dt draw.dt', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('load', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(window).on('resize.etoTableHeight orientationchange.etoTableHeight', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document).on('expanded.pushMenu collapsed.pushMenu shown.bs.tab shown.bs.collapse hidden.bs.collapse', function() {
+            scheduleUpdateTableHeight();
+        });
+
+        $(document)
+            .on('show.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                setDataTableDropdownDirection($(this));
+            })
+            .on('hidden.bs.dropdown', '.dataTables_scrollBody .dropdown, .dataTables_scrollBody .btn-group', function() {
+                $(this).removeClass('dropup');
+            });
+
+        $('.btnAdminToolboxDarkMode').click(function(e) {
+            isDarkMode = !isDarkMode;
+
+            if (isDarkMode) {
+              $.cookie('app_state_dark_mode', 1, {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            } else {
+              $.removeCookie('app_state_dark_mode', {path: EasyTaxiOffice.cookiePath, secure: EasyTaxiOffice.cookieSecure, same_site: EasyTaxiOffice.cookieSameSite});
+            }
+
+            toggleDarkMode();
+            window.location.reload();
+            e.preventDefault();
+        });
+
+        // Select
+        $('.select2').not('#switch_profile').select2({
+            minimumResultsForSearch: 5
+        });
+
+        $('#switch_profile').select2({
+            minimumResultsForSearch: Infinity,
+            dropdownParent: $('.switch-profile-box')
+        });
+
+        // Tooltip
+        $('[title]').tooltip({
+            placement: 'auto',
+            container: 'body',
+            selector: '',
+            html: true,
+            trigger: 'hover',
+            delay: { show: 500, hide: 100 }
+        });
+
+        // Switch profile
+        $('#switch_profile').on('change', function(e) {
+            $.ajax({
+                headers : {
+                    'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+                },
+                url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+                type: 'POST',
+                dataType: 'json',
+                cache: false,
+                async: false,
+                data: {
+                    task: 'profile',
+                    action: 'switch',
+                    id: $(this).val()
+                },
+                success: function(response) {
+                    if ( response.success ) {
+                        window.location.reload();
+                    } else {
+                        alert("Could not switch to this profile.");
+                    }
+                },
+                error: function(response) {
+                    alert("An error occurred while processing your request.");
+                }
+            });
+
+            e.preventDefault();
+        });
+    });
+    </script>
+
+      
+  <script src="https://u3211.eto2.taxi/assets/plugins/moment/moment.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/jquery.dataTables.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/data-tables/dataTables.bootstrap.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/select2/select2.full.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap-touchspin/jquery.bootstrap-touchspin.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/bootstrap-daterangepicker/daterangepicker.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/jquery-minicolors/jquery.minicolors.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/jquery-serialize-object/jquery.serialize-object.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/form-validation/formValidation-bootstrap.min.js"></script>
+  <script src="https://u3211.eto2.taxi/assets/plugins/md5/md5.min.js"></script>
+
+  <script>
+  function checkRefNumber() {
+      var tags = [
+          '{pickupDateTime}',
+          '{pickupDate}',
+          '{pickupTime}',
+          '{pickupDateTimeFormatted}',
+          '{pickupDateFormatted}',
+          '{pickupTimeFormatted}',
+          '{createDateTime}',
+          '{createDate}',
+          '{createTime}',
+          '{createDateTimeFormatted}',
+          '{createDateFormatted}',
+          '{createTimeFormatted}',
+          '{year}',
+          '{month}',
+          '{day}',
+          '{hour}',
+          '{minute}',
+          '{second}',
+          '{randomNumber5}',
+          '{randomNumber6}',
+          '{randomNumber7}',
+          '{randomNumber8}',
+          '{randomNumber9}',
+          '{rand}',
+          '{rand2}',
+          '{rand3}',
+          '{rand4}',
+          '{rand5}',
+          '{rand6}',
+          '{rand7}',
+          '{rand8}',
+          '{rand9}',
+          '{rand10}',
+          '{id}'
+      ];
+      var refFormat = $('form #ref_format').val();
+      var exists = false;
+
+      for (var i = 0; i < tags.length; i++) {
+          if (refFormat.indexOf(tags[i]) > -1) {
+              exists = true;
+          }
+      }
+      return exists;
+  }
+
+  function checkPermission(container) {
+      container.each(function() {
+          var section = $(this).data('etoSection');
+
+          if (typeof section != "undefined" && !ETO.hasPermission(section + '.edit')) {
+              $(this).find(".select2").select2({disabled:'readonly'});
+              $(this).find("select:not(.select2), input").attr('readonly', true);
+          }
+      });
+  }
+
+  function validURL(str) {
+      var pattern = /^(http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
+      return pattern.test(str);
+  }
+
+  window.i18n = window.i18n || {};
+  window.i18n.settings = {"button":{"add":"Add","new":"New","delete":"Delete","confirm":"Confirm","cancel":"Cancel"},"status":{"active":"Active","inactive":"Inactive"},"label":{"address":"Address","radius":"Radius (km)","status":"Status","price":"Price","options":"Options","value":"Value","vehicle":"Vehicle","time":"Time","surcharge":"Surcharge","message":"Message","action":"Action","factor":"Factor","factor_value":"Factor value","from":"From","to":"To","all":"All","default":"Default","unknown":"Unknown","distance":"Distance (km)","base_price":"Base price (km)","base_price_modifier":"Base price modifier"},"additional_charges":{"label":{"name":"Name","type":"Type"}},"deposit_payments":{"label":{"name":"Name","type":"Type"}},"placeholder":{"select":"-- Select --","address":"Address...","name":"Name","type":"Type","value":"Value","option_examples":"e.g. Option 1, Option 2 etc.","holiday_message":"e.g. Christmas... (optional)"},"option":{"amount":"Quantity","custom":"List","input":"Text","address":"Address","percent":"Percent (%)","flat":"Flat (+)","override":"Override","add":"Add","multiply":"Multiply"},"tooltip":{"max_available_amount":"Max available quantity"},"empty":{"deposit_list":"No deposit has been added yet!","night_surcharge":"There are no night surcharges yet."},"days_short":["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],"days":{"mon_sun":"Mon-Sun"},"alerts":{"min_password_length":"The minimum password length cannot exceed the maximum password length!","night_surcharge_pending":"You must confirm or cancel adding new night surcharge to save the settings!","invalid_url":"Please enter valid :url!","booking_ref_invalid":"Settings-\u003EBooking-\u003EBooking Reference Number option has to contain at least one auto generated tag. All available tags are displayed in help section next to the field.","admin_phone_invalid":"Please enter a valid admin phone number.","deposit_exists":"This deposit already exists!","night_surcharge_exists":"This night surcharge already exists!","night_surcharge_time_same":"The start and end time cannot be the same!","value_required":"Enter a value!","chat_link_missing":"Please enter link details!","chat_link_invalid":"Please enter valid URL!"},"url_names":{"home":"Home URL","booking":"Booking URL","customer":"My account URL","contact":"Contact URL","feedback":"Feedback URL","terms":"Terms \u0026 Conditions URL"},"status_msg":{"load_failed":"The data could not be loaded","request_error":"An error occurred while processing your request","in_progress":"In progress","saved":"Saved","update_failed":"The data could not be updated"},"mileage":{"distance_help":"\u003Cdiv class=\u0022text-left\u0022\u003E\u003Cb\u003EDistance (km)\u003C\/b\u003E\u003Cbr\u003EDistance allows setting up a number of pricing thresholds between X to X km.\u003Cbr\u003E\u003Cbr\u003EIf first distance is set 10, the system will automatically recognise that this threshold is 0 to 10 km.\u003Cbr\u003EIf second distance is set 20, the system will automatically recognise that last threshold was 10 and it will set that this threshold is from 10 to 20 km.\u003Cbr\u003EIf second distance is set 50, the system will automatically recognise that last threshold was 20 and it will set that this threshold is from 20 to 50 km.\u003Cbr\u003EAnd so on.\u003Cbr\u003E\u003Cbr\u003EWe recommend to set the last as a higher number e.g. 9999. Otherwise prices will be displayed as 0 above the last threshold.\u003C\/div\u003E","base_price_help":"\u003Cdiv class=\u0022text-left\u0022\u003E\u003Cb\u003EBase Price (km)\u003C\/b\u003E\u003Cbr\u003EDefines how much is charged per single km.\u003C\/div\u003E","base_price_modifier_help":"\u003Cdiv class=\u0022text-left\u0022\u003E\u003Cb\u003EBase Price Modifier\u003C\/b\u003E and \u003Cb\u003EVehicle Type\u003C\/b\u003E (Saloon, Estate, Executive, etc) allow to additionally influence the price.\u003Cbr\u003E\u003Cbr\u003E\u003Cul\u003E\u003Cli\u003EWhen Base price modifier is set to Override, it will completely override the Base price.\u003Cbr\u003EIf you set the Saloon value to \u0026quot;2.5\u0026quot;, it will calculate that a journey with Saloon will cost \u0026pound;2.5 per km.\u003Cbr\u003EIf you set the Estate value to \u0026quot;2.7\u0026quot;, it will calculate that a journey with Estate will cost \u0026pound;2.7 per km.\u003Cbr\u003E\u003Cbr\u003E\u003C\/li\u003E\u003Cli\u003EWhen Base price modifier is set to Add, it will add additional value to Base price.\u003Cbr\u003EIf you set the Saloon value to \u0026quot;0\u0026quot;, it will add \u0026pound;0 to a journey with Saloon, calculating \u0026pound;2.5 + \u0026pound;0 = \u0026pound;2.5 per km (no increase).\u003Cbr\u003EIf you set the Estate value to \u0026quot;0.2\u0026quot;, it will add \u0026pound;0.2 to a journey with Estate, calculating \u0026pound;2.5 + \u0026pound;0.2 = \u0026pound;2.7 per km (20p increase).\u003Cbr\u003E\u003Cbr\u003E\u003C\/li\u003E\u003Cli\u003EWhen Base price modifier is set to Multiply, it will multiply Base price by a certain percentage.\u003Cbr\u003EIf you set the Saloon value to \u0026quot;1\u0026quot;, it will calculate that a journey with Saloon will cost \u0026pound;2.5 * 1 = \u0026pound;2.5 per km (no increase).\u003Cbr\u003EIf you set the Estate value to \u0026quot;1.1\u0026quot;, it will calculate that a journey with Estate will cost \u0026pound;2.5 * 1.1 = \u0026pound;2.75 per km (10% increase in comparison to Saloon).\u003C\/li\u003E\u003C\/ul\u003E\u003C\/div\u003E"}};
+  var i18nSettingsData = window.i18n.settings;
+
+  function escapeAttrQuotes(value) {
+    if (value === null || typeof value === 'undefined') {
+      return '';
+    }
+
+    return String(value)
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  $(document).ready(function(){
+    if (ETO.model === false) {
+        ETO.init({ config: [], lang: [] }, 'settings');
+    }
+
+    $('body').on('click', '.eto-pass-generate', function(e) {
+        $(this).closest('.input-group').find('input').val(md5(generatePassword(20))).change();
+    })
+    .on('click', '.eto-pass-view', function(e) {
+        $(this).closest('.input-group').find('input').attr('type', 'text');
+        $(this).removeClass('eto-pass-view').addClass('eto-pass-hide');
+        $(this).find('i').removeClass('fa-eye').addClass('fa-eye-slash');
+    })
+    .on('click', '.eto-pass-hide', function(e) {
+        $(this).closest('.input-group').find('input').attr('type', 'password');
+        $(this).removeClass('eto-pass-hide').addClass('eto-pass-view');
+        $(this).find('i').removeClass('fa-eye-slash').addClass('fa-eye');
+    })
+    .on('click', '.panel a', function(e) {
+        var container = $(this).closest('.panel');
+        checkPermission(container);
+    })
+    .on('click', '.btnSave', function(e) {
+        // Users tab
+        if ($('#settings_group').length > 0 && $('#settings_group').val() == 'users') {
+            var min = parseInt($('#password_length_min').val());
+            var max = parseInt($('#password_length_max').val());
+
+            if (min > max) {
+                alert(i18nSettingsData.alerts.min_password_length);
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+
+        // Night surcharge check
+        if ($('#settings_group').length > 0 && $('#settings_group').val() == 'night_surcharge') {
+            if (!$('.btnCreateNightSurchargeBox').hasClass('hidden')) {
+                alert(i18nSettingsData.alerts.night_surcharge_pending);
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+
+        // General URL check
+        if ($('#settings_group').length > 0 && $('#settings_group').val() == 'general') {
+            var urlName = '';
+
+            if (!validURL($('#url_home').val())) {
+                urlName = i18nSettingsData.url_names.home;
+            }
+            if (!validURL($('#url_booking').val())) {
+                urlName = i18nSettingsData.url_names.booking;
+            }
+            if (!validURL($('#url_customer').val())) {
+                urlName = i18nSettingsData.url_names.customer;
+            }
+            if (!validURL($('#url_contact').val())) {
+                urlName = i18nSettingsData.url_names.contact;
+            }
+            if (!validURL($('#url_feedback').val())) {
+                urlName = i18nSettingsData.url_names.feedback;
+            }
+            if (!validURL($('#url_terms').val())) {
+                urlName = i18nSettingsData.url_names.terms;
+            }
+
+            if (urlName) {
+                alert(i18nSettingsData.alerts.invalid_url.replace(':url', urlName));
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+
+        // Booking reference number check
+        if ($('form #ref_format').length > 0 && !checkRefNumber()) {
+            alert(i18nSettingsData.alerts.booking_ref_invalid);
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Admin phone check
+        if ($('form #notification_admin_phone').length > 0) {
+            var phone = $('form #notification_admin_phone');
+            var service_type = $('form #sms_service_type').val();
+
+            if (service_type && phone.intlTelInput('getNumber') && !phone.intlTelInput('isValidNumber')) {
+                alert(i18nSettingsData.alerts.admin_phone_invalid);
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            else {
+                phone.val(phone.intlTelInput('getNumber'));
+            }
+        }
+    });
+
+    // Select
+    $('#config form .select2').each(function() {
+        var p = {
+            minimumResultsForSearch: 'Infinity',
+        };
+        if (typeof $(this).attr('data-minimumResultsForSearch') != 'undefined') {
+            p.minimumResultsForSearch = $(this).attr('data-minimumResultsForSearch');
+        }
+        if (typeof $(this).attr('data-allowClear') != 'undefined') {
+            p.allowClear = $(this).attr('data-allowClear');
+        }
+        $(this).select2(p);
+    });
+
+    // Spinner
+    $('#config form input[type="text"].touchspin').each(function() {
+        var p = {
+            max: null,
+            booster: true,
+            boostat: 5,
+            mousewheel: true,
+            verticalbuttons: true,
+            verticalupclass: 'fa fa-plus',
+            verticaldownclass: 'fa fa-minus'
+        };
+        if (typeof $(this).attr('data-bts-max') != 'undefined') {
+            p.max = $(this).attr('data-bts-max');
+        }
+        $(this).TouchSpin(p);
+    });
+
+    // Placeholder
+    function updateFormPlaceholder(that) {
+        var $container = $(that).closest('.form-group:not(.placeholder-disabled)');
+
+        if( $(that).val() != '' || $container.hasClass('placeholder-visible') ) {
+            $container.find('label').show();
+        }
+        else {
+            $container.find('label').hide();
+        }
+    }
+
+    $('#config form').find('input:not([type="submit"]), textarea, select').each(function() {
+        updateFormPlaceholder(this);
+    })
+    .bind('change keyup', function(e) {
+        updateFormPlaceholder(this);
+    });
+
+    // Load data
+    $.ajax({
+      headers : {
+        'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+      },
+      url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+      type: 'POST',
+      dataType: 'json',
+      cache: false,
+      data: {
+        task: 'config',
+        action: 'read',
+        settings_group: $('#settings_group').length > 0 && $('#settings_group').val() ? $('#settings_group').val() : '',
+      },
+      success: function(response) {
+        if( response.success ) {
+          $('#config #statusMsg').html('');
+
+          var html = '';
+
+          // Price calculator
+          if (typeof ra_vehicles != 'undefined') {
+              ra_vehicles = response.vehicleTypesList;
+          }
+
+          // Booking.com vehicle types
+          if ($('#config #bookingcom_vehicle_types').length > 0) {
+              
+              var bookingcomVehicleTypes = [{"id":"STANDARD","name":"Standard"},{"id":"LUXURY","name":"Luxury"},{"id":"EXECUTIVE","name":"Executive"},{"id":"PEOPLE_CARRIER","name":"People carrier"},{"id":"LARGE_PEOPLE_CARRIER","name":"Large people carrier"},{"id":"EXECUTIVE_PEOPLE_CARRIER","name":"Executive people carrier"},{"id":"MINIBUS","name":"Minibus"},{"id":"ELECTRIC_STANDARD","name":"Electric standard"},{"id":"ELECTRIC_LUXURY","name":"Electric luxury"}];
+              var bH = '';
+              var options = '<option value="0"></option>'; // Unassigned
+              $.each(response.vehicleTypesList, function(key2, value2) {
+                  options += '<option value="'+ value2.id +'">'+ value2.name +'</option>';
+              });
+
+              $.each(bookingcomVehicleTypes, function(key2, value2) {
+                  bH += '<div class="clearfix" style="margin-bottom:5px;">\
+                    <div style="margin:5px 5px 0 0; float:left; min-width:180px;">'+ value2.name +':</div>\
+                    <select name="bookingcom_vehicle_types['+ value2.id +']" class="form-control" style="max-width:220px; float:left;">\
+                      '+ options +'\
+                    </select>\
+                  </div>';
+              });
+              $('#config #bookingcom_vehicle_types').html(bH);
+          }
+          // Booking.com vehicle types - End
+
+          // Transferz vehicle types
+          if ($('#config #transferz_vehicle_types').length > 0) {
+              
+              var transferzVehicleTypes = [{"id":"SEDAN","name":"Sedan"},{"id":"STATIONWAGON","name":"Station wagon"},{"id":"SUV","name":"SUV"},{"id":"MINIVAN","name":"Minivan"},{"id":"BUSINESS_LIMOUSINE","name":"Business limousine"},{"id":"BUSINESS_SEDAN","name":"Business sedan"},{"id":"STRETCH_LIMOUSINE","name":"Stretch limousine"},{"id":"MINIBUS","name":"Minibus"},{"id":"TOURING_CAR","name":"Touring car"},{"id":"STANDARD_ELECTRIC_CAR","name":"Standard electric car"},{"id":"EXCLUSIVE_MINIVAN","name":"Exclusive minivan"},{"id":"LUXURY_SEDAN","name":"Luxury sedan"},{"id":"HIGH_END_ELECTRIC_CAR","name":"High-end electric car"},{"id":"ECONOMY_SEDAN","name":"Economy sedan"},{"id":"HELICOPTER","name":"Helicopter"},{"id":"VAN","name":"Van"},{"id":"BUS","name":"Bus"},{"id":"MPV","name":"MPV"},{"id":"COACH","name":"Coach"},{"id":"SHUTTLE","name":"Shuttle"},{"id":"SPEEDY_SHUTTLE","name":"Speedy shuttle"},{"id":"EVENT_SHUTTLE","name":"Event shuttle"},{"id":"DIRECT_SHUTTLE","name":"Direct shuttle"}];
+              var bH = '';
+              var options = '<option value="0"></option>'; // Unassigned
+              $.each(response.vehicleTypesList, function(key2, value2) {
+                  options += '<option value="'+ value2.id +'">'+ value2.name +'</option>';
+              });
+
+              $.each(transferzVehicleTypes, function(key2, value2) {
+                  bH += '<div class="clearfix" style="margin-bottom:5px;">\
+                    <div style="margin:5px 5px 0 0; float:left; min-width:180px;">'+ value2.name +':</div>\
+                    <select name="transferz_vehicle_types['+ value2.id +']" class="form-control" style="max-width:220px; float:left;">\
+                      '+ options +'\
+                    </select>\
+                  </div>';
+              });
+              $('#config #transferz_vehicle_types').html(bH);
+          }
+          // Transferz vehicle types - End
+
+          // Vehicle min price
+          var options = '';
+          $.each(response.vehicleTypesList, function(key2, value2) {
+              options += '<option value="'+ value2.id +'">'+ value2.name +'</option>';
+          });
+
+          if( !options ) {
+              options += '<option value="0">'+ i18nSettingsData.placeholder.select +'</option>';
+          }
+
+          html = '<div class="table-responsive">\
+                    <table class="table table-condensed table-hover1" cellspacing="0" width="100%" style="width:auto; margin-bottom:10px; border:0;">\
+                    <tfoot>\
+                      <tr>\
+                        <td style="padding:0px 0 0 0; border:0;">\
+                            <div class="form-group field-vehicle_min_price_options" style="margin:0; width:100%; max-width:100%;" id="vehicle_min_price_panel">\
+                                <div class="input-group">\
+                                    <select id="vehicle_min_price_options" class="form-control">\
+                                        '+ options +'\
+                                    </select>\
+                                    <div class="input-group-addon btnNewVehicleMinPriceList" title="'+ i18nSettingsData.button.add +'" style="cursor:pointer;">\
+                                        <i class="fa fa-plus"></i>\
+                                    </div>\
+                                </div>\
+                            </div>\
+                        </td>\
+                      </tr>\
+                    </tfoot>\
+                    <tbody></tbody>\
+                    </table>\
+                  </div>';
+
+          $('#vehicleMinPriceList').html(html);
+
+          $('#vehicleMinPriceList .btnNewVehicleMinPriceList').hover(
+              function() {
+                  $(this).removeClass('btn-default').addClass('btn-success');
+              },
+              function() {
+                  $(this).removeClass('btn-success').addClass('btn-default');
+              }
+          );
+
+          var lastIndexVMP = 0;
+
+          function updateVehicleMinPriceOptions() {
+              var hidden = 0;
+
+              $('#vehicle_min_price_options option').show();
+              $('#vehicleMinPriceList #vehicle_min_price_id').each(function() {
+                  $('#vehicle_min_price_options option[value="'+ $(this).val() +'"]').hide();
+                  hidden++;
+              });
+
+              if ($('#vehicle_min_price_options option').length <= hidden) {
+                  $('#vehicle_min_price_panel').hide();
+              }
+              else {
+                  $('#vehicle_min_price_panel').show();
+              }
+
+              if ($('#vehicleMinPriceList #vehicle_min_price_id').length > 0) {
+                  $('#vehicleMinPriceList table tbody').show();
+              }
+              else {
+                  $('#vehicleMinPriceList table tbody').hide();
+              }
+
+              $('#vehicle_min_price_options option').each(function() {
+                  if ($(this).css('display') != 'none') {
+                      // $(this).prop("selected", true);
+                      $('#vehicle_min_price_options').val($(this).val());
+                      return false;
+                  }
+              });
+          }
+
+          updateVehicleMinPriceOptions();
+
+          function newVehicleMinPriceList(id) {
+            var html = '';
+            var vId = 0;
+            var vName = '';
+
+            var selected = $('#vehicle_min_price_options option[value="'+ id +'"]');
+            if (parseInt(selected.val()) > 0) {
+                vId = parseInt(selected.val());
+                vName = selected.text();
+            }
+
+            html = '<tr class="vehicleMinPriceListRow'+ lastIndexVMP +'">\
+                      <!--<td style="vertical-align:middle; padding:2px 10px 6px 0; border:0; min-width:84px;">\
+                        <span id="vehicle_min_price_name">'+ vName +'</span>\
+                      </td>-->\
+                      <td style="padding:2px 0px 6px 0; border:0;">\
+                        <input type="hidden" name="vehicleMinPriceList['+ lastIndexVMP +'][id]" id="vehicle_min_price_id" value="'+ vId +'" required class="form-control">\
+                        <div class="form-group field-vehicle_min_price_value" style="margin:0; max-width:100%;">\
+                          <div class="input-group">\
+                              <div class="input-group-addon admin-bg-muted" style="min-width:180px; width:100%; text-align:left;">\
+                                  '+ vName +'\
+                              </div>\
+                              <input type="number" name="vehicleMinPriceList['+ lastIndexVMP +'][value]" id="vehicle_min_price_value" value="0" required class="form-control" min="0" step="0.01" style="width:80px; float:right;">\
+                              <div class="input-group-addon btnDelete" title="'+ i18nSettingsData.button.delete +'" style="cursor:pointer;">\
+                                  <i class="fa fa-minus"></i>\
+                              </div>\
+                          </div>\
+                        </div>\
+                      </td>\
+                    </tr>';
+
+            $('#vehicleMinPriceList table tbody').append(html);
+
+            $('#vehicleMinPriceList .vehicleMinPriceListRow'+ lastIndexVMP).find('.btnDelete')
+            .hover(
+                function() {
+                    $(this).removeClass('btn-default').addClass('btn-danger');
+                },
+                function() {
+                    $(this).removeClass('btn-danger').addClass('btn-default');
+                }
+            )
+            .on('click', function() {
+                $('[data-toggle="popover"]').popover('hide');
+                $('#config [title]').tooltip('hide');
+                $(this).closest('tr').remove();
+                updateVehicleMinPriceOptions();
+                return false;
+            });
+
+            var index = lastIndexVMP;
+            lastIndexVMP++;
+            return index;
+          }
+
+          $('#vehicleMinPriceList .btnNewVehicleMinPriceList').on('click', function(e) {
+              var vId = 0;
+              var selected = $('#vehicle_min_price_options option:selected');
+              if (parseInt(selected.val()) > 0) {
+                  vId = parseInt(selected.val());
+              }
+              if (vId <= 0) { return false; }
+              newVehicleMinPriceList(vId);
+              updateVehicleMinPriceOptions();
+              e.preventDefault();
+          });
+
+          // Bases
+          html = '<div class="table-responsive">\
+                    <table class="table table-condensed" cellspacing="0" width="100%" style="width:auto;margin-bottom:10px;">\
+                    <thead>\
+                      <tr>\
+                        <td>'+ i18nSettingsData.label.address +'</td>\
+                        <td>'+ i18nSettingsData.label.radius +'</td>\
+                        <td>'+ i18nSettingsData.label.status +'</td>\
+                        <td></td>\
+                      </tr>\
+                    </thead>\
+                    </table>\
+                  </div>';
+
+            if(ETO.hasPermission('admin.settings.bases.edit')) {
+                html += '<button type="button" class="btn btn-default btn-sm btnNewBasesList" title="'+ i18nSettingsData.button.new +'"><i class="fa fa-plus"></i> <span>'+ i18nSettingsData.button.new +'</span></button>';
+            }
+
+          $('#basesList').html(html);
+          var lastIndex = 0;
+
+          function newBasesList() {
+            var html = '',
+                readonly = !ETO.hasPermission('admin.settings.bases.edit') ? 'readonly' : '',
+                delBtnBases = ETO.hasPermission('admin.settings.bases.edit') ? '<button type="button" onclick="$(this).closest(\'tr\').remove(); return false;" class="btn btn-default btn-md btnDelete" title="'+ i18nSettingsData.button.delete +'"><i class="fa fa-minus"></i></button>' : '';
+
+            html += '<tr class="basesListRow'+ lastIndex +'">\
+                      <td>\
+                        <input type="hidden" name="basesList['+ lastIndex +'][id]" id="bases_id" placeholder="" value="0" required class="form-control" '+readonly+'>\
+                        <input type="text" name="basesList['+ lastIndex +'][address]" id="bases_address" placeholder="'+ i18nSettingsData.placeholder.address +'" value="" required class="form-control" style="width:250px;">\
+                      </td>\
+                      <td>\
+                        <input type="number" name="basesList['+ lastIndex +'][radius]" id="bases_radius" value="1" required class="form-control" min="1" step="1" style="width:100px;" '+readonly+'>\
+                      </td>\
+                      <td>\
+                          <select name="basesList['+ lastIndex +'][status]" id="bases_status" class="form-control" required>\
+                              <option value="activated">'+ i18nSettingsData.status.active +'</option>\
+                              <option value="inactive">'+ i18nSettingsData.status.inactive +'</option>\
+                          </select>\
+                      </td>\
+                      <td>\
+                        '+delBtnBases+'\
+                      </td>\
+                    </tr>';
+
+            $('#basesList table').append(html);
+
+            // Spinner
+            $('#basesList input[type="text"].touchspin').TouchSpin({
+              max: null,
+              booster: true,
+              boostat: 5,
+              mousewheel: true,
+              verticalbuttons: true,
+              verticalupclass: 'fa fa-plus',
+              verticaldownclass: 'fa fa-minus'
+            });
+
+            // Delete button
+            $('#basesList').find('button.btnDelete').hover(
+              function() {
+                $(this).removeClass('btn-default').addClass('btn-danger');
+              },
+              function() {
+                $(this).removeClass('btn-danger').addClass('btn-default');
+              }
+            );
+
+            var index = lastIndex;
+            lastIndex++;
+            return index;
+          }
+
+          $('#basesList .btnNewBasesList').on('click', function(e) {
+            newBasesList();
+            e.preventDefault();
+          });
+
+            // Items
+            html = '<div class="table-responsive">\
+                      <table class="table table-condensed table-hover" cellspacing="0" width="100%" style="width:auto;margin-bottom:10px;">\
+                      <thead>\
+                        <tr>\
+                          <td>'+ i18nSettingsData.additional_charges.label.name +'</td>\
+                          <td>'+ i18nSettingsData.label.price +'</td>\
+                          <td>'+ i18nSettingsData.additional_charges.label.type +'</td>\
+                          <td>'+ i18nSettingsData.label.options +'</td>\
+                          <td></td>\
+                        </tr>\
+                      </thead>\
+                      </table>\
+                    </div>';
+
+            if(ETO.hasPermission('admin.settings.additional_charges.edit')) {
+                html += '<button type="button" class="btn btn-success btn-xs btnNewItemsList" title="'+ i18nSettingsData.button.new +'"><i class="fa fa-plus"></i> <span>'+ i18nSettingsData.button.new +'</span></button>';
+            }
+            $('#itemsList').html(html);
+
+            var lastIndex = 0;
+
+            function newItemsList() {
+              var html = '';
+
+              html = '<tr class="itemsListRow'+ lastIndex +'">\
+                        <td>\
+                          <input type="text" name="itemsList['+ lastIndex +'][name]" id="item_name" placeholder="" value="" required class="form-control" style="width:200px;">\
+                        </td>\
+                        <td>\
+                          <input type="number" name="itemsList['+ lastIndex +'][value]" id="item_value" placeholder="" value="0" required class="form-control" style="width:80px;" step="0.01" min="0">\
+                        </td>\
+                        <td>\
+                          <select name="itemsList['+ lastIndex +'][type]" id="item_type" class="form-control" required style="width:100px;">\
+                              <option value="amount">'+ i18nSettingsData.option.amount +'</option>\
+                              <option value="custom">'+ i18nSettingsData.option.custom +'</option>\
+                              <option value="input">'+ i18nSettingsData.option.input +'</option>\
+                              <option value="address" class="additional-item-address">'+ i18nSettingsData.option.address +'</option>\
+                          </select>\
+                        </td>\
+                        <td>\
+                          <input type="number" name="itemsList['+ lastIndex +'][amount]" id="item_amount" placeholder="" value="1" required class="form-control" step="1" min="1" title="'+ i18nSettingsData.tooltip.max_available_amount +'" style="width:70px; display:none;">\
+                          <input type="text" name="itemsList['+ lastIndex +'][custom]" id="item_custom" placeholder="'+ i18nSettingsData.placeholder.option_examples +'" value="" required class="form-control" style="width:200px; display:none;">\
+                        </td>\
+                        <td>\
+                          <button type="button" onclick="$(this).closest(\'tr\').remove(); return false;" class="btn btn-default btn-sm btnDelete" title="'+ i18nSettingsData.button.delete +'">\
+                            <i class="fa fa-trash"></i>\
+                          </button>\
+                        </td>\
+                      </tr>';
+
+              $('#itemsList table').append(html);
+
+              // Type
+              $('#itemsList #item_type').change(function() {
+                  $(this).closest('tr').find('#item_amount').hide();
+                  $(this).closest('tr').find('#item_custom').hide();
+
+                  if( $(this).val() == 'amount' ) {
+                      $(this).closest('tr').find('#item_amount').show();
+                  }
+                  else if( $(this).val() == 'custom' ) {
+                      $(this).closest('tr').find('#item_custom').show();
+                  }
+              }).change();
+
+              // Delete button
+              $('#itemsList').find('button.btnDelete').hover(
+                function() {
+                  $(this).removeClass('btn-default').addClass('btn-danger');
+                },
+                function() {
+                  $(this).removeClass('btn-danger').addClass('btn-default');
+                }
+              );
+
+              var index = lastIndex;
+              lastIndex++;
+              return index;
+            }
+
+            $('#itemsList .btnNewItemsList').on('click', function(e) {
+              newItemsList();
+              e.preventDefault();
+            });
+
+            // Deposit
+            var options = '';
+            $.each(response.vehicleTypesList, function(key2, value2) {
+                options += '<option value="'+ value2.id +'">'+ value2.name +'</option>';
+            });
+
+            html = '<div class="table-responsive">\
+                      <table class="table table-condensed table-hover table-depositList" cellspacing="0" width="100%" style="width:auto;margin-bottom:10px;">\
+                      <thead>\
+                        <tr>\
+                          <td>'+ i18nSettingsData.deposit_payments.label.name +'</td>\
+                          <td>'+ i18nSettingsData.deposit_payments.label.type +'</td>\
+                          <td>'+ i18nSettingsData.label.value +'</td>\
+                          <td></td>\
+                        </tr>\
+                      </thead>\
+                      <tbody>\
+                        <tr class="depositListEmpty"><td colspan="4" style="color:#888; padding:10px 5px;">'+ i18nSettingsData.empty.deposit_list +'</td></tr>\
+                      </tbody>\
+                      <tfoot>\
+                      </tfoot>\
+                      </table>\
+                    </div>';
+
+            $('#depositList').html(html);
+
+            if(ETO.hasPermission('admin.settings.deposit_payments.edit')) {
+                $('.table-depositList tfoot').append('<tr>\
+                    <td style="width:180px;">\
+                    <select id="deposit_id" placeholder="'+ i18nSettingsData.placeholder.name +'" class="form-control select2" data-minimum-results-for-search="Infinity">\
+                    <option value="0">'+ i18nSettingsData.label.default +'</option>\
+                    ' + options + '\
+                    </select>\
+                    </td>\
+                    <td style="width:130px;">\
+                    <select id="deposit_type" placeholder="'+ i18nSettingsData.placeholder.type +'" class="form-control select2" data-minimum-results-for-search="Infinity">\
+                    <option value="multiplication">'+ i18nSettingsData.option.percent +'</option>\
+                    <option value="addition">'+ i18nSettingsData.option.flat +'</option>\
+                    </select>\
+                    </td>\
+                    <td>\
+                    <input type="text" id="deposit_value" placeholder="'+ i18nSettingsData.placeholder.value +'" value="0" required class="form-control touchspin" style="width:80px;" data-bts-step="0.01" data-bts-decimals="2" data-bts-min="0">\
+                    </td>\
+                    <td>\
+                    <button type="button" class="btn btn-success btn-sm btnNewDepositList" title="'+ i18nSettingsData.button.new +'">\
+                    <i class="fa fa-plus"></i>\
+                    </button>\
+                    </td>\
+                    </tr>');
+            }
+            // Spinner
+            $('#depositList input[type="text"].touchspin').TouchSpin({
+              max: null,
+              booster: true,
+              boostat: 5,
+              mousewheel: true,
+              verticalbuttons: true,
+              verticalupclass: 'fa fa-plus',
+              verticaldownclass: 'fa fa-minus'
+            });
+
+            // Select
+            $('#depositList .select2').select2({
+                minimumResultsForSearch: 'Infinity'
+            });
+
+            var depositListIndex = 0;
+
+            function createDepositRow(data) {
+                var html = '';
+
+                html += '<tr id="deposit_row_'+ data.id +'">';
+                    html += '<td>';
+                        html += '<input type="hidden" name="depositList['+ depositListIndex +'][id]" value="'+ data.id +'">';
+                        var name = i18nSettingsData.label.default;
+                        if( data.id ) {
+                            $.each(response.vehicleTypesList, function(key2, value2) {
+                                if( data.id == value2.id ) {
+                                    name = value2.name;
+                                }
+                            });
+                        }
+                        html += '<span style="margin-top:5px; display:inline-block;">'+ name +'</span>';
+                    html += '</td>';
+                    html += '<td>';
+                        html += '<input type="hidden" name="depositList['+ depositListIndex +'][type]" value="'+ data.type +'">';
+                        var name = i18nSettingsData.label.unknown;
+                        if( data.type == 'multiplication' ) {
+                            name = i18nSettingsData.option.percent;
+                        }
+                        else if( data.type == 'addition' ) {
+                            name = i18nSettingsData.option.flat;
+                        }
+                        html += '<span style="margin-top:5px; display:inline-block;">'+ name +'</span>';
+                    html += '</td>';
+                    html += '<td>';
+                        html += '<input type="hidden" name="depositList['+ depositListIndex +'][value]" value="'+ data.value +'">';
+                        html += '<span style="margin-top:5px; display:inline-block;">'+ data.value +'</span>';
+                    html += '</td>';
+                    html += '<td>';
+                    if(ETO.hasPermission('admin.settings.deposit_payments.edit')) {
+                        html += '<button type="button" onclick="$(this).closest(\'tr\').remove(); if($(\'#depositList table tbody tr:not(.depositListEmpty)\').length > 0) { $(\'.depositListEmpty\').addClass(\'hidden\'); } else { $(\'.depositListEmpty\').removeClass(\'hidden\'); } return false;" class="btn btn-default btn-sm btnDelete" title="'+ i18nSettingsData.button.delete +'">';
+                        html += '<i class="fa fa-trash"></i>';
+                        html += '</button>';
+                    }
+                    html += '</td>';
+
+                html += '</tr>';
+
+                $('#depositList table').append(html);
+
+                // Delete button
+                $('#depositList').find('button.btnDelete').hover(
+                  function() {
+                    $(this).removeClass('btn-default').addClass('btn-danger');
+                  },
+                  function() {
+                    $(this).removeClass('btn-danger').addClass('btn-default');
+                  }
+                );
+
+                if ($('#depositList table tbody tr:not(.depositListEmpty)').length > 0) {
+                    $('.depositListEmpty').addClass('hidden');
+                } else {
+                    $('.depositListEmpty').removeClass('hidden');
+                }
+
+                var index = depositListIndex;
+                depositListIndex++;
+                return index;
+            }
+
+            $('#depositList .btnNewDepositList').on('click', function(e) {
+                if( $('#deposit_row_'+ $('#deposit_id').val()).length <= 0 ) {
+                    rData = {}
+                    rData.id = $('#deposit_id').val();
+                    rData.type = $('#deposit_type').val();
+                    rData.value = $('#deposit_value').val();
+                    createDepositRow(rData);
+                }
+                else {
+                    alert(i18nSettingsData.alerts.deposit_exists);
+                }
+                e.preventDefault();
+            });
+
+            // Night surcharge
+            var oV = '';
+            $.each(response.vehicleTypesList, function(kV, vV) {
+              oV += '<option value="'+ vV.id +'">'+ vV.name +'</option>';
+            });
+
+            var oT = '';
+            for (var iT = 0; iT <= 23; iT++) {
+              for (var jT = 0; jT < 60; jT+=5) {
+                var vT = (iT < 10 ? '0'+ iT : iT) +':'+ (jT < 10 ? '0'+ jT : jT);
+                oT += '<option value="'+ vT +'">'+ vT +'</option>';
+              }
+            }
+
+            html = '<div class="table-responsive">\
+              <table class="table table-condensed table-hover" cellspacing="0" width="100%" style="width:auto; margin-bottom:10px; border:0;">\
+              <thead>\
+                <tr>\
+                  <td>'+ i18nSettingsData.label.vehicle +'</td>\
+                  <td>'+ i18nSettingsData.label.time +'</td>\
+                  <td>'+ i18nSettingsData.label.surcharge +'</td>\
+                  <td></td>\
+                </tr>\
+              </thead>\
+              <tbody>\
+                <tr class="btnEmptyNightSurchargeBox"><td colspan="4">'+ i18nSettingsData.empty.night_surcharge +'</tr>\
+              </tbody>\
+              <tfoot>\
+                <tr>\
+                  <td colspan="4" style="min-width:500px;">\
+                    <div class="btnCreateNightSurchargeBox hidden">\
+                      <div class="clearfix" style="margin-bottom:10px;">\
+                        <select id="night_surcharge_vehicle_id" placeholder="'+ i18nSettingsData.label.vehicle +'" class="form-control" style="width:160px; float:left; padding:4px; margin-right:5px; height:30px;">\
+                          <option value="0">'+ i18nSettingsData.label.all +'</option>\
+                          '+ oV +'\
+                        </select>\
+                        <select id="night_surcharge_time_start" placeholder="'+ i18nSettingsData.label.from +'" class="form-control" style="width:70px; float:left; padding:4px; margin-right:5px; height:30px;">\
+                          '+ oT +'\
+                        </select>\
+                        <span style="display:block; float:left; margin:5px 5px 5px 5px;">-</span>\
+                        <select id="night_surcharge_time_end" placeholder="'+ i18nSettingsData.label.to +'" class="form-control" style="width:70px; float:left; padding:4px; margin-right:5px; height:30px;">\
+                          '+ oT +'\
+                        </select>\
+                        <select id="night_surcharge_factor_type" placeholder="'+ i18nSettingsData.label.factor +'" class="form-control" style="width:40px; float:left; margin-right:5px; padding:4px; height:30px;">\
+                          <option value="multiplication">*</option>\
+                          <option value="addition">+</option>\
+                        </select>\
+                        <input type="number" id="night_surcharge_factor_value" placeholder="'+ i18nSettingsData.label.value +'" value="0" required class="form-control" style="width:70px; float:left; margin-right:5px; padding:4px; height:30px;" step="0.01" min="0">\
+                      </div>\
+                      <div class="clearfix">\
+                        <label class="checkbox-inline"><input type="checkbox" value="1" class="ns_repeat_days_add">'+ i18nSettingsData.days_short[1] +'</label>\
+                        <label class="checkbox-inline"><input type="checkbox" value="2" class="ns_repeat_days_add">'+ i18nSettingsData.days_short[2] +'</label>\
+                        <label class="checkbox-inline"><input type="checkbox" value="3" class="ns_repeat_days_add">'+ i18nSettingsData.days_short[3] +'</label>\
+                        <label class="checkbox-inline"><input type="checkbox" value="4" class="ns_repeat_days_add">'+ i18nSettingsData.days_short[4] +'</label>\
+                        <label class="checkbox-inline"><input type="checkbox" value="5" class="ns_repeat_days_add">'+ i18nSettingsData.days_short[5] +'</label>\
+                        <label class="checkbox-inline"><input type="checkbox" value="6" class="ns_repeat_days_add">'+ i18nSettingsData.days_short[6] +'</label>\
+                        <label class="checkbox-inline"><input type="checkbox" value="0" class="ns_repeat_days_add">'+ i18nSettingsData.days_short[0] +'</label>\
+                      </div>\
+                      <div class="clearfix" style="margin-top:8px;">\
+                        <button type="button" class="btn btn-success btn-sm btnNewNightSurchargeList">\
+                          '+ i18nSettingsData.button.confirm +'\
+                        </button>\
+                        <button type="button" class="btn btn-link btn-sm btnCancleNightSurchargeList">\
+                          '+ i18nSettingsData.button.cancel +'\
+                        </button>\
+                      </div>\
+                    </div>\
+                    <button type="button" class="btn btn-success btn-xs btnCreateNightSurchargeList" title="'+ i18nSettingsData.button.new +'">\
+                      <i class="fa fa-plus"></i> '+ i18nSettingsData.button.new +'\
+                    </button>\
+                  </td>\
+                </tr>\
+              </tfoot>\
+              </table>\
+            </div>';
+
+            $('#nightSurchargeList').html(html);
+
+            var lastNightSurchargeIndex = 0;
+
+            function createNightSurchargeRow(data) {
+              var html = '';
+
+              html += '<tr id="night_surcharge_row_'+ lastNightSurchargeIndex +'">';
+                  html += '<td>';
+                    html += '<input type="hidden" name="nightSurchargeList['+ lastNightSurchargeIndex +'][vehicle_id]" class="ns_vehicle_id" value="'+ data.vehicle_id +'">';
+                    var name = i18nSettingsData.label.all;
+                    if( data.vehicle_id ) {
+                      $.each(response.vehicleTypesList, function(kV, vV) {
+                        if( data.vehicle_id == vV.id ) {
+                          name = vV.name;
+                        }
+                      });
+                    }
+                    html += '<span style="margin-top:5px; display:inline-block;">'+ name +'</span>';
+                  html += '</td>';
+                  html += '<td>';
+                    var repeat_days_ids = '';
+                    var repeat_days_names = '';
+                    var days = i18nSettingsData.days_short;
+                    if (data.repeat_days && data.repeat_days.length > 0) {
+                      $.each(data.repeat_days, function(rDk, rDv) {
+                        repeat_days_ids += (repeat_days_ids ? ',' : '') + rDv;
+                        repeat_days_names += (repeat_days_names ? ', ' : '') + days[rDv];
+                      });
+                    }
+                    else {
+                      repeat_days_names = i18nSettingsData.days.mon_sun;
+                    }
+
+                    html += '<input type="hidden" name="nightSurchargeList['+ lastNightSurchargeIndex +'][repeat_days]" class="ns_repeat_days" value="'+ repeat_days_ids +'">';
+                    html += '<input type="hidden" name="nightSurchargeList['+ lastNightSurchargeIndex +'][time_start]" class="ns_time_start" value="'+ data.time_start +'">';
+                    html += '<input type="hidden" name="nightSurchargeList['+ lastNightSurchargeIndex +'][time_end]" class="ns_time_end" value="'+ data.time_end +'">';
+                    html += '<span style="margin-top:5px; display:inline-block;">'+ repeat_days_names +', '+ data.time_start +' - '+ data.time_end +'</span>';
+                  html += '</td>';
+                  html += '<td>';
+                    html += '<input type="hidden" name="nightSurchargeList['+ lastNightSurchargeIndex +'][factor_type]" class="ns_factor_type" value="'+ data.factor_type +'">';
+                    html += '<input type="hidden" name="nightSurchargeList['+ lastNightSurchargeIndex +'][factor_value]" class="ns_factor_value" value="'+ data.factor_value +'">';
+                    html += '<span style="margin-top:5px; display:inline-block;">'+ (data.factor_value > 0 ? (data.factor_type == 'multiplication' ? '*' : '+') + data.factor_value : '') +'</span>';
+                  html += '</td>';
+                  html += '<td>';
+                  if(ETO.hasPermission('admin.settings.night_surcharge.edit')) {
+                      html += '<button type="button" onclick="return false;" class="btn btn-default btn-sm btnDelete" title="'+ i18nSettingsData.button.delete +'">';
+                      html += '<i class="fa fa-minus"></i>';
+                      html += '</button>';
+                  }
+                  html += '</td>';
+              html += '</tr>';
+
+              $('#nightSurchargeList table tbody').append(html);
+
+              // Hide message
+              if ($('#nightSurchargeList table tbody tr:not(.btnEmptyNightSurchargeBox)').length > 0) {
+                  $('.btnEmptyNightSurchargeBox').addClass('hidden');
+              } else {
+                  $('.btnEmptyNightSurchargeBox').removeClass('hidden');
+              }
+
+              // Delete button
+              $('#nightSurchargeList').find('button.btnDelete').hover(
+                function() {
+                  $(this).removeClass('btn-default').addClass('btn-danger');
+                },
+                function() {
+                  $(this).removeClass('btn-danger').addClass('btn-default');
+                }
+              );
+
+              var index = lastNightSurchargeIndex;
+              lastNightSurchargeIndex++;
+              return index;
+            }
+
+            $('body').on('click', '#nightSurchargeList button.btnDelete', function(e) {
+                e.preventDefault();
+                if (!$('.btnCreateNightSurchargeBox').hasClass('hidden')) {
+                    alert(i18nSettingsData.alerts.night_surcharge_pending);
+                } else {
+                    $(this).tooltip('hide');
+                    $(this).closest('tr').remove();
+                    $('body .btnSave').click();
+
+                    // Hide message
+                    if ($('#nightSurchargeList table tbody tr:not(.btnEmptyNightSurchargeBox)').length > 0) {
+                        $('.btnEmptyNightSurchargeBox').addClass('hidden');
+                    } else {
+                        $('.btnEmptyNightSurchargeBox').removeClass('hidden');
+                    }
+                }
+            });
+
+            $('#nightSurchargeList .btnCreateNightSurchargeList').on('click', function(e) {
+                $('.btnCreateNightSurchargeList').addClass('hidden');
+                $('.btnCreateNightSurchargeBox').removeClass('hidden');
+            });
+
+            $('#nightSurchargeList .btnCancleNightSurchargeList').on('click', function(e) {
+                $('.btnCreateNightSurchargeList').removeClass('hidden');
+                $('.btnCreateNightSurchargeBox').addClass('hidden');
+            });
+
+            $('#nightSurchargeList .btnNewNightSurchargeList').on('click', function(e) {
+              var exists = 0;
+
+              var repeat_days = [];
+              $('#nightSurchargeList table tfoot .ns_repeat_days_add:checked').each(function() {
+                repeat_days.push($(this).val());
+              });
+
+              var ns = {
+                vehicle_id: $('#night_surcharge_vehicle_id').val(),
+                repeat_days: repeat_days,
+                time_start: $('#night_surcharge_time_start').val(),
+                time_end: $('#night_surcharge_time_end').val(),
+                factor_type: $('#night_surcharge_factor_type').val(),
+                factor_value: $('#night_surcharge_factor_value').val()
+              };
+
+              $('#nightSurchargeList .ns_vehicle_id').each(function() {
+                var row = $(this).closest('tr');
+
+                if (row.find('.ns_repeat_days').val() != '') {
+                    var ns_repeat_days = row.find('.ns_repeat_days').val().split(',');
+                } else {
+                    var ns_repeat_days = [];
+                }
+
+                if( row.find('.ns_vehicle_id').val() == ns.vehicle_id &&
+                    JSON.stringify(ns_repeat_days) == JSON.stringify(ns.repeat_days) &&
+                    row.find('.ns_time_start').val() == ns.time_start &&
+                    row.find('.ns_time_end').val() == ns.time_end &&
+                    row.find('.ns_factor_type').val() == ns.factor_type &&
+                    row.find('.ns_factor_value').val() == ns.factor_value ) {
+                  exists = 1;
+                }
+              });
+
+              if (exists) {
+                alert(i18nSettingsData.alerts.night_surcharge_exists);
+              }
+              else if (ns.time_start == ns.time_end) {
+                alert(i18nSettingsData.alerts.night_surcharge_time_same);
+              }
+              else if (ns.factor_value <= 0) {
+                alert(i18nSettingsData.alerts.value_required);
+              }
+              else {
+                createNightSurchargeRow(ns);
+                $('.btnCreateNightSurchargeList').removeClass('hidden');
+                $('.btnCreateNightSurchargeBox').addClass('hidden');
+                $('body .btnSave').click();
+              }
+
+              e.preventDefault();
+            });
+
+          // Mileage table
+          if( response.vehicleTypesList ) {
+            var th = '';
+
+            $.each(response.vehicleTypesList, function(key, value) {
+              th += '<td><span>'+ value.name +'</span></td>';
+            });
+
+            html = '<div class="table-responsive">\
+                      <table class="table table-condensed table-hover table-bordered table-blank-inputs" cellspacing="0" width="100%" style="margin-bottom:10px; width:auto;">\
+                          <thead>\
+                            <tr>\
+                              <td><span style="float:left; margin-right:5px;">'+ i18nSettingsData.label.distance +'</span> <i class="ion-ios-information-outline" data-toggle="popover" data-title="" data-content="'+ escapeAttrQuotes(i18nSettingsData.mileage.distance_help) +'"></i></td>\
+                              <td class="eto-range-advanced"><span style="float:left; margin-right:5px;">'+ i18nSettingsData.label.base_price +'</span> <i class="ion-ios-information-outline" data-toggle="popover" data-title="" data-content="'+ escapeAttrQuotes(i18nSettingsData.mileage.base_price_help) +'"></i></td>\
+                              <td class="eto-range-advanced"><span style="float:left; margin-right:5px;">'+ i18nSettingsData.label.base_price_modifier +'</span> <i class="ion-ios-information-outline" data-toggle="popover" data-title="" data-content="'+ escapeAttrQuotes(i18nSettingsData.mileage.base_price_modifier_help) +'"></i></td>\
+                              '+ th +'\
+                              <td></td>\
+                            </tr>\
+                          </thead>\
+                          <tbody></tbody>\
+                      </table>\
+                    </div>';
+                            html += '<button type="button" class="btn btn-success btn-xs btnNewDistanceRange" title="'+ i18nSettingsData.button.new +'">\
+                      <i class="fa fa-plus"></i> <span>'+ i18nSettingsData.button.new +'</span>\
+                    </button>';
+                          $('#distanceRangesList').html(html);
+
+            var lastIndex1 = 0;
+
+            function newDistanceRange(type) {
+              var html = '';
+              var td = '';
+
+              $.each(response.vehicleTypesList, function(key, value) {
+                td += '<td>\
+                        <input type="number" name="distanceRanges['+ lastIndex1 +'][vehicle'+ value.id +']" id="range_vehicle_'+ value.id +'" placeholder="" value="0" required class="form-control touchspin range_vehicle" step="0.01" data-bts-decimals="2" min="0">\
+                      </td>';
+              });
+
+              html = '<tr class="distanceRangesRow'+ lastIndex1 +'">\
+                        <td>\
+                            <div class="range_distance_prev_continer">\
+                                <span id="range_distance_prev">0</span>\
+                                <input type="number" name="distanceRanges['+ lastIndex1 +'][distance]" id="range_distance" placeholder="" value="0" required class="form-control touchspin range_distance" step="0.1" data-bts-decimals="1" min="0" max="100000">\
+                            </div>\
+                        </td>\
+                        <td class="eto-range-advanced">\
+                          <input type="number" name="distanceRanges['+ lastIndex1 +'][value]" id="range_value" placeholder="" value="0" required class="form-control touchspin range_value" step="0.01" data-bts-decimals="2" min="0">\
+                        </td>\
+                        <td class="eto-range-advanced">\
+                          <select name="distanceRanges['+ lastIndex1 +'][factor_type]" id="range_factor_type" data-placeholder="" required class="form-control range_factor_type">\
+                            <option value="0">'+ i18nSettingsData.option.override +'</option>\
+                            <option value="1">'+ i18nSettingsData.option.add +'</option>\
+                            <option value="2" selected>'+ i18nSettingsData.option.multiply +'</option>\
+                          </select>\
+                        </td>\
+                        '+ td +'\
+                        <td>';
+              if(ETO.hasPermission('admin.settings.mileage_time.edit')) {
+                  html += '<button type="button" onclick="$(this).closest(\'tr\').remove(); var prev = 0; $(\'#distanceRangesList #range_distance\').each(function(key, value) { $(this).closest(\'tr\').find(\'#range_distance_prev\').html(prev); prev = $(this).val(); }); return false;" class="btn btn-default btn-sm btnDelete" title="'+ i18nSettingsData.button.delete +'">\
+                            <i class="fa fa-trash"></i>\
+                          </button>'
+              }
+                html += '</td>\
+                      </tr>';
+
+                if( type == 'new' ) {
+                    $('#distanceRangesList table tbody').prepend(html);
+                }
+                else {
+                    $('#distanceRangesList table tbody').append(html);
+                }
+
+              $('#distanceRangesList tbody .distanceRangesRow'+ lastIndex1 +' #range_distance').on('change', function(){
+                  var val = $(this).val();
+                  var cls = '';
+
+                  $('#distanceRangesList #range_distance').each(function(key, value) {
+                      if( parseFloat($(this).val()) < parseFloat(val) ) {
+                          cls = $(this).closest('tr').attr('class');
+                      }
+                  });
+
+                  if( cls ) {
+                      $(this).closest('tr').insertAfter('#distanceRangesList tbody tr.'+ cls);
+                  }
+                  else {
+                      $(this).closest('tr').insertBefore('#distanceRangesList tbody tr:first-child');
+                  }
+
+                  var prev = 0;
+                  $('#distanceRangesList #range_distance').each(function(key, value) {
+                      $(this).closest('tr').find('#range_distance_prev').html(prev);
+                      prev = $(this).val();
+                  });
+              });
+
+              // Select
+            //   $('#distanceRangesList .select2').select2();
+
+              // Spinner
+            //   $('#distanceRangesList input[type="text"].touchspin').TouchSpin({
+              // max: null,
+            //     booster: true,
+            //     boostat: 5,
+            //     mousewheel: true,
+            //     verticalbuttons: true,
+            //     verticalupclass: 'fa fa-plus',
+            //     verticaldownclass: 'fa fa-minus'
+            //   });
+
+              // Delete button
+              $('#distanceRangesList').find('button.btnDelete').hover(
+                function() {
+                  $(this).removeClass('btn-default').addClass('btn-danger');
+                },
+                function() {
+                  $(this).removeClass('btn-danger').addClass('btn-default');
+                }
+              );
+
+              // Hide options
+              $('#config #booking_range_advanced').change();
+
+              var index = lastIndex1;
+              lastIndex1++;
+              return index;
+            }
+
+            $('#distanceRangesList .btnNewDistanceRange').on('click', function(e) {
+              newDistanceRange('new');
+              e.preventDefault();
+            });
+          }
+
+          // Holiday table
+          html = '<div class="table-responsive">\
+                    <table class="table table-condensed table-hover" cellspacing="0" width="100%">\
+                    <thead>\
+                      <tr>\
+                        <th>'+ i18nSettingsData.label.message +'</th>\
+                        <th>'+ i18nSettingsData.label.action +'</th>\
+                        <th>'+ i18nSettingsData.label.factor_value +'</th>\
+                        <th>'+ i18nSettingsData.label.from +'</th>\
+                        <th>'+ i18nSettingsData.label.to +'</th>\
+                        <th></th>\
+                      </tr>\
+                    </thead>\
+                    </table>\
+                  </div>';
+
+          if(ETO.hasPermission('admin.settings.holiday_surcharge.edit')) {
+              html += '<button type="button" class="btn btn-success btn-xs btnNewCharge" title="'+ i18nSettingsData.button.new +'"> <i class="fa fa-plus"></i> <span>'+ i18nSettingsData.button.new +'</span></button>';
+          }
+
+          $('#chargesList').html(html);
+
+          var lastIndex2 = 0;
+
+          function newCharge() {
+            var html = '';
+
+            html = '<tr class="chargesRow'+ lastIndex2 +'">\
+                      <td>\
+                        <input type="hidden" name="charges['+ lastIndex2 +'][id]" id="charges_id" value="0" required class="form-control">\
+                        <textarea name="charges['+ lastIndex2 +'][note]" id="charges_note" placeholder="'+ i18nSettingsData.placeholder.holiday_message +'" class="form-control" style="height:34px;"></textarea>\
+                      </td>\
+                      <td>\
+                        <select name="charges['+ lastIndex2 +'][factor_type]" id="charges_factor_type" required class="form-control" style="width:100px;">\
+                            <option value="0" selected>'+ i18nSettingsData.option.multiply +'</option>\
+                            <option value="1">'+ i18nSettingsData.option.add +'</option>\
+                        </select>\
+                      </td>\
+                      <td>\
+                        <input type="number" name="charges['+ lastIndex2 +'][value]" id="charges_value" placeholder="" value="0" required class="form-control" step="0.01" data-bts-decimals="2" min="0" style="width:80px;">\
+                      </td>\
+                      <td>\
+                        <input type="text" name="charges['+ lastIndex2 +'][start_date]" id="charges_start_date" placeholder="'+ i18nSettingsData.label.from +'" required value="" class="form-control datepicker">\
+                      </td>\
+                      <td>\
+                        <input type="text" name="charges['+ lastIndex2 +'][end_date]" id="charges_end_date" placeholder="'+ i18nSettingsData.label.to +'" required value="" class="form-control datepicker">\
+                      </td>\
+                      <td>\
+                      </td>\
+                    </tr>';
+
+              $('#chargesList table').append(html);
+              if(ETO.hasPermission('admin.settings.holiday_surcharge.edit')) {
+                  $('#chargesList table td:last').append('<button type="button" onclick="$(this).closest(\'tr\').remove(); return false;" class="btn btn-default btn-sm btnDelete" title="'+ i18nSettingsData.button.delete +'">\
+                          <i class="fa fa-trash"></i>\
+                        </button>');
+              }
+
+            // Spinner
+            // $('#chargesList input[type="text"].touchspin').TouchSpin({
+              // max: null,
+            //   booster: true,
+            //   boostat: 5,
+            //   mousewheel: true,
+            //   verticalbuttons: true,
+            //   verticalupclass: 'fa fa-plus',
+            //   verticaldownclass: 'fa fa-minus'
+            // });
+
+            // Date picker (date and time)
+            $('#chargesList input[type="text"].datepicker').focus(function(){
+                $(this).daterangepicker({
+                  singleDatePicker: true,
+                  showDropdowns: true,
+                  timePicker: true,
+                  timePicker24Hour: true,
+                  autoUpdateInput: false,
+                  minYear: new Date().getFullYear() - 10,
+                  maxYear: new Date().getFullYear() + 5,
+                  locale: {
+                    format: 'YYYY-MM-DD HH:mm',
+                    firstDay: 1
+                  },
+                  ranges: ETO.getDateRanges(),
+                })
+                .on('apply.daterangepicker', function(ev, picker) {
+                  $(this).val(picker.startDate.format('YYYY-MM-DD HH:mm')).change();
+                });
+            });
+
+            // Delete button
+            $('#chargesList').find('button.btnDelete').hover(
+              function() {
+                $(this).removeClass('btn-default').addClass('btn-danger');
+              },
+              function() {
+                $(this).removeClass('btn-danger').addClass('btn-default');
+              }
+            );
+
+            var index = lastIndex2;
+            lastIndex2++;
+            return index;
+          }
+
+          $('#chargesList .btnNewCharge').on('click', function(e) {
+            newCharge();
+            e.preventDefault();
+          });
+
+          // Other settings
+          if( response.settingsDefaults ) {
+            // Web Booking Widget functions
+            if ($('#settings_group').length > 0 && $('#settings_group').val() == 'web_booking_widget') {
+                var indexChatLink = 0;
+
+                function validChatLink(str) {
+                    var pattern = /(mailto:|tel:|http:\/\/|https:\/\/)(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
+                    return pattern.test(str);
+                }
+
+                function removeChatLink(el) {
+                    $(el).closest('.eto-config-chat-item').remove();
+
+                    if ($('.eto-config-chat-items').html()) {
+                        $('.eto-config-chat-items').removeClass('hidden');
+                        $('.eto-config-chat-msg').addClass('hidden');
+                    } else {
+                        $('.eto-config-chat-items').addClass('hidden');
+                        $('.eto-config-chat-msg').removeClass('hidden');
+                    }
+                }
+
+                function addChatLink(d) {
+                    var h = '<div class="eto-config-chat-item">';
+                      h += '<input type="hidden" name="booking_btn_chat_links['+ indexChatLink +'][name]" value="'+ d.name +'" class="chat_field_name" />';
+                      h += '<input type="hidden" name="booking_btn_chat_links['+ indexChatLink +'][url]" value="'+ d.url +'" class="chat_field_url" />';
+                      h += '<div class="eto-config-chat-item-inner">';
+                        h += '<div class="eto-config-chat-item-name">';
+                          h += '<span>'+ d.name + '</span>';
+                          h += '<div style="display:inline-block; float:right;">';
+                            h += '<button type="button" class="eto-config-chat-delete btn btn-link btn-xs"><i class="fa fa-trash" /></button>';
+                            h += '<button type="button" class="eto-config-chat-move btn btn-link btn-xs"><i class="fa fa-arrows" /></button>';
+                          h += '</div>';
+                        h += '</div>';
+                      h += '<div class="eto-config-chat-item-url">'+ d.url +'</div>';
+                      h += '</div>';
+                    h += '</div>';
+
+                    $('.eto-config-chat-items').append(h);
+                    $('.eto-config-chat-field-name, .eto-config-chat-field-url').val('');
+                    indexChatLink++;
+
+                    if ($('.eto-config-chat-items').html()) {
+                        $('.eto-config-chat-items').removeClass('hidden');
+                        $('.eto-config-chat-msg').addClass('hidden');
+                    } else {
+                        $('.eto-config-chat-items').addClass('hidden');
+                        $('.eto-config-chat-msg').removeClass('hidden');
+                    }
+
+                    $('.eto-config-chat-items').sortable({
+                        containerSelector: '.eto-config-chat-items',
+                        itemSelector: '.eto-config-chat-item',
+                        handle: '.eto-config-chat-move',
+                        placeholder: '<div class="eto-config-chat-item-inner placeholder"></div>',
+                        vertical: true,
+                        onDragStart: function ($item, container, _super) {
+                          if (!container.options.drop) {
+                              $item.clone().insertAfter($item);
+                          }
+                          _super($item, container);
+                        },
+                        onDrop: function ($item, container, _super, event) {
+                          indexChatLink = 0;
+                          $('.eto-config-chat-items .eto-config-chat-item').each(function () {
+                              $(this).find('.chat_field_name').attr('name', 'booking_btn_chat_links['+ indexChatLink +'][name]');
+                              $(this).find('.chat_field_url').attr('name', 'booking_btn_chat_links['+ indexChatLink +'][url]');
+                              indexChatLink++;
+                          });
+                          _super($item, container);
+                        }
+                    });
+                }
+
+                $('body').on('click', '.eto-config-chat-delete', function() {
+                    removeChatLink($(this));
+                });
+
+                $('body').on('click', '.eto-config-chat-add', function() {
+                    if (!$('.eto-config-chat-field-name').val() || !$('.eto-config-chat-field-url').val()) {
+                        alert(i18nSettingsData.alerts.chat_link_missing);
+                    }
+                    else if (!validChatLink($('.eto-config-chat-field-url').val())) {
+                        alert(i18nSettingsData.alerts.chat_link_invalid);
+                    } else {
+                        addChatLink({
+                            name: $('.eto-config-chat-field-name').val(),
+                            url: $('.eto-config-chat-field-url').val()
+                        });
+                    }
+                });
+            }
+
+            $.each(response.settingsDefaults, function(key, value) {
+              var field = $('#config form #'+ key);
+
+              if( field.hasClass('select2') ) {
+                  field.val(value).trigger('change');
+              }
+              else if( field.is(':checkbox') ) {
+                  if( parseInt(value) ) {
+                      field.attr('checked', true);
+                  } else {
+                      field.attr('checked', false);
+                  }
+              }
+              else if ($.inArray(key, [
+                  'booking_show_preferred_type',
+                  'booking_price_status',
+                  'booking_price_status_off',
+                  'booking_range_advanced_display',
+                  'booking_range_advanced',
+                  'booking_range_add_thresholds',
+                  'booking_discount_child_seats',
+                  'booking_discount_additional_items',
+                  'booking_discount_parking_charges',
+                  'booking_discount_meet_and_greet',
+                  'booking_discount_payment_charges',
+                  'booking_request_enable',
+                  'booking_pricing_mode',
+                  'driver_income_child_seats',
+                  'driver_income_additional_items',
+                  'driver_income_parking_charges',
+                  'driver_income_payment_charges',
+                  'driver_income_meet_and_greet',
+                  'driver_income_discounts',
+                  'driver_allow_cancel',
+                  'customer_show_only_lead_passenger',
+                  'check_availability_status',
+                  'enable_autodispatch',
+                  'only_auto_dispatch_status',
+                  'mail_encryption',
+                  'feedback_type',
+                  'cron_update_auto',
+                  'terms_type'
+              ]) >= 0) {
+                  $("input[name='"+ key +"'][value='"+ value +"']").attr('checked', true);
+              }
+              else if( key == 'quote_distance_range' ) {
+                if( value ) {
+                    var prev = 0;
+
+                  $.each(value, function(key2, value2) {
+                    var index = newDistanceRange();
+                    var row = $('#distanceRangesList tr.distanceRangesRow'+ index);
+
+                    $.each(value2.vehicle, function(key3, value3) {
+                      if( value3 ) {
+                        row.find('#range_vehicle_'+ value3.id).val(value3.value);
+                      }
+                    });
+
+                    row.find('#range_distance_prev').html(prev);
+                    prev = value2.distance;
+
+                    row.find('#range_distance').val(value2.distance);
+                    row.find('#range_value').val(value2.value);
+                    row.find('#range_factor_type').val(value2.factor_type).trigger('change');
+                  });
+                }
+              }
+              else if( key == 'bases' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                    var index = newBasesList();
+                    var row = $('#basesList tr.basesListRow'+ index);
+                    row.find('#bases_id').val(value2.id);
+                    row.find('#bases_address').val(value2.address);
+                    row.find('#bases_radius').val(value2.radius);
+                    row.find('#bases_status').val(value2.status);
+                  });
+                }
+              }
+              else if( key == 'booking_base_action' ) {
+                if( value ) {
+                    field.val(value).change();
+                }
+              }
+              else if( key == 'bookingcom_vehicle_types' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                    $('#bookingcom_vehicle_types select[name="bookingcom_vehicle_types['+ value2.id +']"]').val(value2.value);
+                  });
+                }
+              }
+              else if( key == 'transferz_vehicle_types' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                    $('#transferz_vehicle_types select[name="transferz_vehicle_types['+ value2.id +']"]').val(value2.value);
+                  });
+                }
+              }
+              else if( key == 'booking_vehicle_min_price' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                    var index = newVehicleMinPriceList(value2.id);
+                    var row = $('#vehicleMinPriceList tr.vehicleMinPriceListRow'+ index);
+                    row.find('#vehicle_min_price_id').val(value2.id);
+                    row.find('#vehicle_min_price_value').val(value2.value);
+                  });
+                }
+
+                updateVehicleMinPriceOptions();
+              }
+              else if( key == 'google_ads_conversions' ) {
+                if ($('#settings_group').length > 0 && $('#settings_group').val() == 'google' && value) {
+                  googleAdsConversionsLoad(value);
+                }
+                field.val(value);
+              }
+              else if( key == 'booking_items' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                    var index = newItemsList();
+                    var row = $('#itemsList tr.itemsListRow'+ index);
+                    row.find('#item_name').val(value2.name);
+                    row.find('#item_value').val(value2.value);
+                    row.find('#item_type').val(value2.type ? value2.type : 'amount').change();
+                    row.find('#item_amount').val(value2.amount);
+                    row.find('#item_custom').val(value2.custom ? value2.custom : '');
+                  });
+                }
+              }
+              else if( key == 'booking_deposit' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                      createDepositRow(value2);
+                  });
+                }
+              }
+              else if( key == 'booking_night_surcharge' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                      createNightSurchargeRow(value2);
+                  });
+                }
+              }
+              else if( key == 'override' ) {
+                if( value ) {
+                  $.each(value, function(key2, value2) {
+                    var index = newCharge();
+                    var row = $('#chargesList tr.chargesRow'+ index);
+
+                    row.find('#charges_id').val(value2.id);
+                    row.find('#charges_note').val(value2.note);
+                    row.find('#charges_factor_type').val(value2.factor_type);
+                    row.find('#charges_value').val(value2.value);
+                    row.find('#charges_start_date').val(value2.start_date);
+                    row.find('#charges_end_date').val(value2.end_date);
+                  });
+                }
+              }
+              else if( key == 'privacy_driver_app_text' ) {
+                field.val(value);
+                if( value ) {
+                  $('#config .field-privacy_driver_app_text').removeClass('hide_advanced');
+                }
+              }
+              else if (key == 'booking_btn_chat_links') {
+                  if ($('#settings_group').length > 0 && $('#settings_group').val() == 'web_booking_widget' && value) {
+                      $.each(value, function(k, v) {
+                          addChatLink({ name: v.name, url: v.url });
+                      });
+                  }
+              }
+              else {
+                field.val(value);
+              }
+            });
+
+            // Web Booking Widget
+            // if ($('#settings_group').length > 0 && $('#settings_group').val() == 'web_booking_widget') {
+            //     $('#booking_btn_chat').change(function() {
+            //         if ($(this).is(':checked')) {
+            //             $('.eto-config-chat-box').removeClass('hidden');
+            //         } else {
+            //             $('.eto-config-chat-box').addClass('hidden');
+            //         }
+            //     }).change();
+            // }
+
+            // Driver journey
+            $('#booking_base_action').change(function() {
+                if( $(this).val() == 'allow' ) {
+                    $('.field-booking_base_calculate_type').show();
+                }
+                else {
+                    $('.field-booking_base_calculate_type').hide();
+                }
+            }).change();
+
+            // Fixed price
+            $('#fixed_prices_deposit_enable').change(function() {
+                if( $(this).is(':checked') == true ) {
+                    $('.field-fixed_prices_deposit_type').show();
+                }
+                else {
+                    $('.field-fixed_prices_deposit_type').hide();
+                }
+            }).change();
+
+            // Mail
+            $('#mail_driver').change(function() {
+                $('#config-mail-smtp').hide();
+                $('#config-mail-sendmail').hide();
+
+                if ($(this).val() == 'smtp') {
+                    $('#config-mail-smtp').show();
+                }
+                else if ($(this).val() == 'sendmail') {
+                    $('#config-mail-sendmail').show();
+                }
+            }).change();
+
+            // Initial Mail Settings
+            if ($('#settings_group').length > 0 && $('#settings_group').val() == 'mail') {
+              checkMailSaveStatus(true);
+              checkMailProvider();
+              checkAdminEmail();
+            }
+
+            // Caller ID Type
+            $('#callerid_type').change(function() {
+                // RingCentral
+                if( $(this).val() == 'ringcentral' ) {
+                    $('#config-callerid-ringcentral').show();
+                } else {
+                    $('#config-callerid-ringcentral').hide();
+                }
+
+                if( $(this).val() != '' ) {
+                    $('#config-callerid-general').show();
+                } else {
+                    $('#config-callerid-general').hide();
+                }
+            }).change();
+
+            // Other discounts tab
+            if ($('#settings_group').length > 0 && $('#settings_group').val() == 'other_discounts') {
+                // Sale journey discount
+                $('#booking_sale_discount_type').change(function() {
+                    if ($(this).val() != '0') {
+                        $('.field-booking_sale_discount_value').removeClass('hidden');
+                    } else {
+                        $('.field-booking_sale_discount_value').addClass('hidden');
+                    }
+                }).change();
+
+                // Return time journey discount
+                $('#booking_return_time_discount_type').change(function() {
+                    if ($(this).val() != '0') {
+                        $('.field-booking_return_time_discount_value').removeClass('hidden');
+                    } else {
+                        $('.field-booking_return_time_discount_value').addClass('hidden');
+                    }
+                }).change();
+            }
+
+            // Integration tab
+            if ($('#settings_group').length > 0 && $('#settings_group').val() == 'integration') {
+                function limitText(field, maxChar){
+                    var ref = $(field),
+                        val = ref.val();
+                    if ( val.length >= maxChar ){
+                        ref.val(function() {
+                            return val.substr(0, maxChar);
+                        });
+                    }
+                }
+
+                var maxCharsFrom = 11;
+                var fieldID = $('.field-webexinteract_sender')
+                limitText(fieldID.find('#webexinteract_sender'), maxCharsFrom);
+
+                fieldID.find('#webexinteract_sender').bind('keyup change', function() {
+                    limitText(this, maxCharsFrom);
+                    var length = $(this).val().length;
+                    var countMsg = '('+ length +' / '+ maxCharsFrom +')';
+                    fieldID.find('#webexinteract_sender-counter').text(countMsg);
+                })
+                .trigger('keyup');
+
+                var maxCharsFrom = 11;
+                var fieldID = $('.field-textlocal_sender')
+                limitText(fieldID.find('#textlocal_sender'), maxCharsFrom);
+
+                fieldID.find('#textlocal_sender').bind('keyup change', function() {
+                    limitText(this, maxCharsFrom);
+                    var length = $(this).val().length;
+                    var countMsg = '('+ length +' / '+ maxCharsFrom +')';
+                    fieldID.find('#textlocal_sender-counter').text(countMsg);
+                })
+                .trigger('keyup');
+            }
+
+            // Tax tab
+            if ($('#settings_group').length > 0 && $('#settings_group').val() == 'tax') {
+                $('#tax_type').change(function(e){
+                    if (parseInt($(this).val()) > 0) {
+                        $('.field-tax_rate').removeClass('hidden');
+                    } else {
+                        $('.field-tax_rate').addClass('hidden');
+                    }
+                    e.preventDefault();
+                }).change();
+            }
+
+            // SMS Service Type
+            $('#sms_service_type').change(function() {
+                $('.config-sms_service_type-webexinteract').hide();
+                $('.config-sms_service_type-textlocal').hide();
+                $('.config-sms_service_type-twilio').hide();
+
+                if( $(this).val() == 'webexinteract' ) {
+                    $('.config-sms_service_type-webexinteract').show();
+                }
+                else if( $(this).val() == 'textlocal' ) {
+                    $('.config-sms_service_type-textlocal').show();
+                }
+                else if( $(this).val() == 'twilio' ) {
+                    $('.config-sms_service_type-twilio').show();
+                }
+
+                if ($(this).val()) {
+                    $('.field-notification_admin_phone').show();
+                } else {
+                    $('.field-notification_admin_phone').hide();
+                }
+            }).change();
+
+            // Flight Details Service Type
+            $('#flight_details_service_type').change(function() {
+                $('.config-flight_details_service_type-flightstats').hide();
+                $('.config-flight_details_service_type-aviationstack').hide();
+
+                if( $(this).val() == 'flightstats' ) {
+                    $('.config-flight_details_service_type-flightstats').show();
+                }
+                else if( $(this).val() == 'aviationstack' ) {
+                    $('.config-flight_details_service_type-aviationstack').show();
+                }
+            }).change();
+
+            // Admin phone check
+            if ($('#notification_admin_phone').length > 0) {
+                $('#notification_admin_phone').change();
+            }
+
+            $("#url_locales").change();
+
+            
+
+            $('#config input[name="feedback_type"]').change(function() {
+                if( $('#config input[name="feedback_type"]:checked').val() == 2 ) {
+                    $('#config .feedback-type0-container').hide();
+                    $('#config .feedback-type1-container').hide();
+                    var optionEnabled = false;
+                }
+                else if( $('#config input[name="feedback_type"]:checked').val() == 1 ) {
+                    $('#config .feedback-type0-container').hide();
+                    $('#config .feedback-type1-container').show();
+                    var optionEnabled = false;
+                }
+                else {
+                    $('#config .feedback-type0-container').show();
+                    $('#config .feedback-type1-container').hide();
+                    var optionEnabled = true;
+                }
+
+                $('#config #url_feedback').attr('required', optionEnabled);
+                formValidation.formValidation('enableFieldValidators', 'url_feedback', optionEnabled);
+            }).change();
+
+            $('#config input[name="terms_type"]').change(function() {
+                if( $('#config input[name="terms_type"]:checked').val() == 1 ) {
+                    $('#config .terms-type0-container').hide();
+                    $('#config .terms-type1-container').show();
+                    var optionEnabled = false;
+                }
+                else {
+                    $('#config .terms-type0-container').show();
+                    $('#config .terms-type1-container').hide();
+                    var optionEnabled = true;
+                }
+
+                $('#config #url_terms').attr('required', optionEnabled);
+                formValidation.formValidation('enableFieldValidators', 'url_terms', optionEnabled);
+            }).change();
+
+            $('#config #booking_show_preferred').change(function() {
+                if ($(this).is(':checked') == true) {
+                    $('#config .booking_show_preferred_type_box').removeClass('hidden');
+                } else {
+                    $('#config .booking_show_preferred_type_box').addClass('hidden');
+                }
+            }).change();
+
+            $('#config input[name="booking_price_status"]').change(function() {
+                if($('#config input[name="booking_price_status"]:checked').val() == 1) {
+                    $('#config .eto-container-booking_price_status_0').hide();
+                    $('#config .eto-container-booking_price_status_1').show();
+                }
+                else {
+                    $('#config .eto-container-booking_price_status_0').show();
+                    $('#config .eto-container-booking_price_status_1').hide();
+                }
+            }).change();
+
+            // Distance ranges
+            $('#config #booking_range_advanced').change(function() {
+                if ($(this).is(':checked') == true) {
+                    $('#config .eto-range-advanced').removeClass('hidden');
+                    $('#config .field-booking_range_add_thresholds').addClass('hidden');
+                } else {
+                    $('#config .eto-range-advanced').addClass('hidden');
+                    $('#config .field-booking_range_add_thresholds').removeClass('hidden');
+                }
+            }).change();
+
+            $('#config #booking_range_advanced_display').change(function() {
+                if ($(this).is(':checked') == true || $('#config #booking_range_advanced').is(':checked') == true) {
+                    $('#config .field-booking_range_advanced').removeClass('hidden');
+                } else {
+                    $('#config .field-booking_range_advanced').addClass('hidden');
+                }
+            }).change();
+
+            // Display labels
+            $('#config form').find('input:not([type="submit"]), textarea, select').each(function() {
+                updateFormPlaceholder(this);
+            })
+            .bind('change keyup', function(e) {
+                updateFormPlaceholder(this);
+            });
+
+            // Tooltip
+            $('#config [title]').tooltip({
+              placement: 'auto',
+              container: 'body',
+              selector: '',
+              html: true,
+              trigger: 'hover',
+              delay: {
+                'show': 500,
+                'hide': 100
+              }
+            });
+
+            $('[data-toggle="popover"]').popover({
+                placement: 'auto right',
+                container: 'body',
+                trigger: 'click focus hover',
+                html: true
+            });
+
+            // Color picker
+            $('.colorpicker').each( function(){
+                $(this).minicolors({
+                    animationSpeed: 50,
+                    animationEasing: 'swing',
+                    change: null,
+                    changeDelay: 0,
+                    control: 'hue',
+                    defaultValue: $(this).attr('value') || '',
+                    format: 'hex',
+                    hide: null,
+                    hideSpeed: 100,
+                    inline: false,
+                    keywords: '',
+                    letterCase: 'lowercase',
+                    opacity: false,
+                    position: 'bottom left',
+                    show: null,
+                    showSpeed: 100,
+                    theme: 'bootstrap',
+                    swatches: [
+                        '#000000',
+                        '#ffffff',
+                        '#FF0000',
+                        '#777777',
+                        '#337ab7',
+                        '#5cb85c',
+                        '#5bc0de',
+                        '#f0ad4e',
+                        '#d9534f'
+                    ]
+                });
+            });
+
+            $('.admin-settings-styles-box input.form-control').on('change', function() {
+                var el = $(this);
+                var box = el.closest('.admin-settings-styles-box');
+                var default_color = el.attr('data-default_color');
+                var current_color = el.val();
+
+                if (default_color != current_color) {
+                    box.find('.admin-settings-styles-remove').remove();
+                    el.after('<span class="admin-settings-styles-remove"><i class="fa fa-trash"></i></span>');
+                }
+            }).change();
+
+            $('body').on('click', '.admin-settings-styles-remove', function() {
+                var input = $(this).closest('.admin-settings-styles-box').find('input.form-control');
+                input.minicolors('value', input.attr('data-default_color'));
+                $(this).remove();
+            });
+
+          }
+
+          $('#config form #locale_switcher_enabled').change(function() {
+              if( $(this).is(':checked') ) {
+                  $('#config form .locale-switcher-container').show();
+              }
+              else {
+                  $('#config form .locale-switcher-container').hide();
+              }
+          }).change();
+
+          $('#config form #language').change(function() {
+              $('#config form input[name="locale_active[]"][value="'+ $(this).val() +'"]').attr('checked', true);
+          });
+
+          var container = $('.panel-collapse.in').closest('.panel');
+
+          checkPermission(container);
+        }
+        else {
+          $('#config #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nSettingsData.status_msg.load_failed +'</span>');
+        }
+      },
+      error: function(response) {
+        $('#config #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nSettingsData.status_msg.request_error +'</span>');
+      },
+      beforeSend: function() {
+        $('#config #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nSettingsData.status_msg.in_progress);
+        $('#config .modal-overlay').show();
+      },
+      complete: function() {
+        $('#config .modal-overlay').hide();
+      }
+    });
+
+    // Form validation and submission
+    var isReady = 1;
+
+    var formValidation = $('#config form').formValidation({
+      framework: 'bootstrap',
+      icon: {
+        valid: 'glyphicon glyphicon-ok',
+        invalid: 'glyphicon glyphicon-remove',
+        validating: 'glyphicon glyphicon-refresh'
+      },
+      excluded: ':disabled'
+      // excluded: ':readonly'
+    })
+    .on('err.field.fv', function(e, data) {
+      e.preventDefault();
+      if( data.fv.getSubmitButton() ) {
+        data.fv.disableSubmitButtons(false);
+      }
+    })
+    .on('success.field.fv', function(e, data) {
+      e.preventDefault();
+      if( data.fv.getSubmitButton() ) {
+        data.fv.disableSubmitButtons(false);
+      }
+    })
+    .on('success.form.fv', function(e) {
+      e.preventDefault();
+      if( isReady ) {
+
+        // var formValues = $("#config form").serializeArray();
+
+        // var values = {};
+        // $.each(formValues, function() {
+        //   if (values[this.name] || values[this.name] == '') {
+        //     if (!values[this.name].push) {
+        //       values[this.name] = [values[this.name]];
+        //     }
+        //     values[this.name].push(this.value || '');
+        //   } else {
+        //     values[this.name] = this.value || '';
+        //   }
+        // });
+
+        var values = $('#config form').serializeObject();
+
+        values.distanceRanges = JSON.stringify(values.distanceRanges);
+        values.charges = JSON.stringify(values.charges);
+        values.basesList = JSON.stringify(values.basesList);
+        values.vehicleMinPriceList = JSON.stringify(values.vehicleMinPriceList);
+        values.itemsList = JSON.stringify(values.itemsList);
+        values.depositList = JSON.stringify(values.depositList);
+        values.nightSurchargeList = JSON.stringify(values.nightSurchargeList);
+
+        if ($('#settings_group').length > 0 && $('#settings_group').val() == 'google') {
+            var gCodes = [];
+            $('#google_country_code option:selected').toArray().map(function(item) {
+                if (item.value) { gCodes.push(item.value); }
+            });
+            values.google_country_code = gCodes.join();
+        }
+
+        var params = {
+          task: 'config',
+          action: 'update'
+        };
+
+        $.ajax({
+          headers : {
+            'X-CSRF-TOKEN': EasyTaxiOffice.csrfToken
+          },
+          url: EasyTaxiOffice.appPath +'/etov2?apiType=backend',
+          type: 'POST',
+          dataType: 'json',
+          cache: false,
+          data: $.extend(params, values),
+          success: function(response) {
+            // Initial Mail Settings
+            if ($('#settings_group').length > 0 && $('#settings_group').val() == 'mail') {
+              checkMailSaveStatus(true);
+            }
+
+            if (response.success) {
+              $('#config #statusMsg').html('<span class="text-green"><i class="fa fa-check-circle"></i> '+ i18nSettingsData.status_msg.saved +'</span>');
+            } else {
+              $('#config #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nSettingsData.status_msg.update_failed +'</span>');
+            }
+
+            // Admin phone check
+            if ($('#notification_admin_phone').length > 0) {
+              $('#notification_admin_phone').change();
+            }
+          },
+          error: function(response) {
+            $('#config #statusMsg').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> '+ i18nSettingsData.status_msg.request_error +'</span>');
+          },
+          beforeSend: function() {
+            $('#config #statusMsg').html('<i class="fa fa-spinner fa-spin"></i> '+ i18nSettingsData.status_msg.in_progress);
+            isReady = 0;
+          },
+          complete: function() {
+            isReady = 1;
+          }
+        });
+      }
+    });
+
+  });
+  </script>
+    
+    </body>
+</html>

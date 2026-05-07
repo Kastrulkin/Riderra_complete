@@ -1,0 +1,48 @@
+{
+  "batch8_airports_ports_stations_remaining_after_batch7.kml": {
+    "placemarks": 33,
+    "bySource": {
+      "fallback-circle": 33
+    },
+    "byCat": {
+      "airport": 31,
+      "port": 1,
+      "station": 1
+    },
+    "suspiciousCount": 0,
+    "suspicious": []
+  },
+  "batch9_cities_top100_after_batch7_safe.kml": {
+    "placemarks": 79,
+    "bySource": {
+      "google-viewport": 79
+    },
+    "byCat": {
+      "city": 79
+    },
+    "suspiciousCount": 0,
+    "suspicious": []
+  },
+  "batch10_cities_next100_after_batch7_safe.kml": {
+    "placemarks": 81,
+    "bySource": {
+      "google-viewport": 81
+    },
+    "byCat": {
+      "city": 81
+    },
+    "suspiciousCount": 0,
+    "suspicious": []
+  },
+  "batch11_cities_next100_after_batch7_safe.kml": {
+    "placemarks": 81,
+    "bySource": {
+      "google-viewport": 81
+    },
+    "byCat": {
+      "city": 81
+    },
+    "suspiciousCount": 0,
+    "suspicious": []
+  }
+}

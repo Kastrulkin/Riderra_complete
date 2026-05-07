@@ -1,0 +1,376 @@
+{
+  "batch1_top30_missing_zones.kml": {
+    "placemarks": 30,
+    "bySource": {
+      "fallback-circle": 29,
+      "named-boundary": 1
+    },
+    "byCat": {
+      "airport": 27,
+      "port": 2,
+      "district_area": 1
+    },
+    "fallbackCount": 29,
+    "fallbackSample": [
+      {
+        "name": "Phuket International Airport (HKT)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Dubai international Airport (DXB)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Antalya Airport (AYT)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Bangkok Suvarnabhumi Airport (BKK)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Seoul Gimpo Airport (GMP)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Seoul Incheon Airport (ICN)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Marrakesh Menara Airport (RAK)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Samui International Airport (USM)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Larnaca Airport (LCA)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Port of Los Angeles",
+        "cat": "port",
+        "detail": "radiusKm=2"
+      },
+      {
+        "name": "Oslo Gardermoen Airport (OSL)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Saint-Petersburg Pulkovo Airport (LED)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      }
+    ],
+    "sample": [
+      {
+        "name": "Phuket International Airport (HKT)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Dubai international Airport (DXB)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Antalya Airport (AYT)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Bangkok Suvarnabhumi Airport (BKK)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Seoul Gimpo Airport (GMP)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Seoul Incheon Airport (ICN)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Marrakesh Menara Airport (RAK)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Samui International Airport (USM)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      }
+    ]
+  },
+  "batch2_airports_ports_next100_after_batch1.kml": {
+    "placemarks": 100,
+    "bySource": {
+      "fallback-circle": 100
+    },
+    "byCat": {
+      "airport": 94,
+      "port": 5,
+      "station": 1
+    },
+    "fallbackCount": 100,
+    "fallbackSample": [
+      {
+        "name": "Tokyo Narita Airport (NRT)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Istanbul Airport (IST)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Istanbul Sabiha Gokcen Airport (SAW)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Tokyo Haneda Airport (HND)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Port Everglades",
+        "cat": "port",
+        "detail": "radiusKm=2"
+      },
+      {
+        "name": "Hong Kong Airport (HKG)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Zurich Airport (ZRH)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Copenhagen Kastrup Airport (CPH)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Port of Miami",
+        "cat": "port",
+        "detail": "radiusKm=2"
+      },
+      {
+        "name": "Cairo International Airport (CAI)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Dubai Al Maktoum Airport (DWC)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Dalaman Airport (DLM)",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      }
+    ],
+    "sample": [
+      {
+        "name": "Tokyo Narita Airport (NRT)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Istanbul Airport (IST)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Istanbul Sabiha Gokcen Airport (SAW)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Tokyo Haneda Airport (HND)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Port Everglades",
+        "source": "fallback-circle",
+        "cat": "port",
+        "detail": "radiusKm=2"
+      },
+      {
+        "name": "Hong Kong Airport (HKG)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Zurich Airport (ZRH)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      },
+      {
+        "name": "Copenhagen Kastrup Airport (CPH)",
+        "source": "fallback-circle",
+        "cat": "airport",
+        "detail": "radiusKm=3"
+      }
+    ]
+  },
+  "batch3_cities_top60_after_batch1.kml": {
+    "placemarks": 60,
+    "bySource": {
+      "google-viewport": 57,
+      "named-boundary": 3
+    },
+    "byCat": {
+      "city": 60
+    },
+    "fallbackCount": 0,
+    "fallbackSample": [],
+    "sample": [
+      {
+        "name": "Paris",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=2.22422,48.81556,2.46985,48.90215"
+      },
+      {
+        "name": "Moscow",
+        "source": "named-boundary",
+        "cat": "city",
+        "detail": "boundaryRule=named"
+      },
+      {
+        "name": "Calabasas",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=-118.71981,34.10391,-118.60620,34.16862"
+      },
+      {
+        "name": "Jurupa Valley",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=-117.55234,33.94961,-117.36730,34.03431"
+      },
+      {
+        "name": "Pomona",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=-117.82872,34.01855,-117.71117,34.11260"
+      },
+      {
+        "name": "San Bernardino",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=-117.44312,34.05051,-117.16507,34.24257"
+      },
+      {
+        "name": "San Fernando",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=-118.45601,34.27331,-118.41579,34.30469"
+      },
+      {
+        "name": "Torrance",
+        "source": "google-viewport",
+        "cat": "city",
+        "detail": "googleViewport=-118.48324,33.78052,-118.30825,33.88706"
+      }
+    ]
+  },
+  "batch4_districts_top60_after_batch1.kml": {
+    "placemarks": 60,
+    "bySource": {
+      "named-boundary": 23,
+      "google-viewport": 37
+    },
+    "byCat": {
+      "district_area": 57,
+      "island": 3
+    },
+    "fallbackCount": 0,
+    "fallbackSample": [],
+    "sample": [
+      {
+        "name": "Inglewood",
+        "source": "named-boundary",
+        "cat": "district_area",
+        "detail": "boundaryRule=named"
+      },
+      {
+        "name": "Laguna Beach",
+        "source": "google-viewport",
+        "cat": "district_area",
+        "detail": "googleViewport=-117.82017,33.48318,-117.73118,33.61030"
+      },
+      {
+        "name": "Beverly Hills",
+        "source": "named-boundary",
+        "cat": "district_area",
+        "detail": "boundaryRule=named"
+      },
+      {
+        "name": "Miami Beach",
+        "source": "named-boundary",
+        "cat": "district_area",
+        "detail": "boundaryRule=named"
+      },
+      {
+        "name": "Santa Monica",
+        "source": "named-boundary",
+        "cat": "district_area",
+        "detail": "boundaryRule=named"
+      },
+      {
+        "name": "Stockholm city center",
+        "source": "named-boundary",
+        "cat": "district_area",
+        "detail": "boundaryRule=named"
+      },
+      {
+        "name": "Fort Lauderdale City Florida USA",
+        "source": "named-boundary",
+        "cat": "district_area",
+        "detail": "boundaryRule=named"
+      },
+      {
+        "name": "Long Beach",
+        "source": "google-viewport",
+        "cat": "district_area",
+        "detail": "googleViewport=-118.24897,33.69059,-118.06317,33.88553"
+      }
+    ]
+  }
+}

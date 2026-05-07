@@ -1,0 +1,19 @@
+{
+  "updateSuccess": true,
+  "message": [],
+  "id": 192,
+  "published": 1,
+  "is_backend": 0,
+  "beforeCurrency": "GBP",
+  "afterCurrency": "EUR",
+  "mode": "live",
+  "liveKeys": {
+    "pk": true,
+    "sk": true
+  },
+  "liveWebhook": {
+    "enabled": "1",
+    "id": true,
+    "secret": true
+  }
+}

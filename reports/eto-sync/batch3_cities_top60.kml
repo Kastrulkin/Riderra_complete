@@ -1,0 +1,666 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Riderra ETO missing zones batch</name>
+    <Placemark>
+      <name>Paris</name>
+      <description>source=Riderra price book; count=25; countries=France; category=city; geometrySource=google-viewport; googleViewport=2.22422,48.81556,2.46985,48.90215; geocode=Paris, France</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>2.224217,48.815562,0 2.469851,48.815562,0 2.469851,48.902148,0 2.224217,48.902148,0 2.224217,48.815562,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Moscow</name>
+      <description>source=Riderra price book; count=24; countries=Russia; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Moscow, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>37.842000,55.774600,0 37.839000,55.818000,0 37.785000,55.866000,0 37.692000,55.912000,0 37.590000,55.912000,0 37.478000,55.884000,0 37.398000,55.820000,0 37.369000,55.736000,0 37.394000,55.652000,0 37.458000,55.583000,0 37.560000,55.558000,0 37.690000,55.573000,0 37.789000,55.638000,0 37.839000,55.716000,0 37.842000,55.774600,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Calabasas</name>
+      <description>source=Riderra price book; count=21; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.71981,34.10391,-118.60620,34.16862; geocode=Calabasas, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.719812,34.103912,0 -118.606200,34.103912,0 -118.606200,34.168619,0 -118.719812,34.168619,0 -118.719812,34.103912,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Jurupa Valley</name>
+      <description>source=Riderra price book; count=21; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.55234,33.94961,-117.36730,34.03431; geocode=Jurupa Valley, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.552338,33.949606,0 -117.367299,33.949606,0 -117.367299,34.034313,0 -117.552338,34.034313,0 -117.552338,33.949606,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pomona</name>
+      <description>source=Riderra price book; count=21; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.82872,34.01855,-117.71117,34.11260; geocode=Pomona, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.828719,34.018554,0 -117.711170,34.018554,0 -117.711170,34.112600,0 -117.828719,34.112600,0 -117.828719,34.018554,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>San Bernardino</name>
+      <description>source=Riderra price book; count=21; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.44312,34.05051,-117.16507,34.24257; geocode=San Bernardino, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.443116,34.050505,0 -117.165068,34.050505,0 -117.165068,34.242574,0 -117.443116,34.242574,0 -117.443116,34.050505,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>San Fernando</name>
+      <description>source=Riderra price book; count=21; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.45601,34.27331,-118.41579,34.30469; geocode=San Fernando, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.456008,34.273310,0 -118.415792,34.273310,0 -118.415792,34.304687,0 -118.456008,34.304687,0 -118.456008,34.273310,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Torrance</name>
+      <description>source=Riderra price book; count=21; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.48324,33.78052,-118.30825,33.88706; geocode=Torrance, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.483240,33.780520,0 -118.308254,33.780520,0 -118.308254,33.887061,0 -118.483240,33.887061,0 -118.483240,33.780520,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dallas</name>
+      <description>source=Riderra price book; count=20; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-97.00048,32.61322,-96.46371,33.02379; geocode=Dallas, TX, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-97.000482,32.613216,0 -96.463710,32.613216,0 -96.463710,33.023792,0 -97.000482,33.023792,0 -97.000482,32.613216,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Disneyland</name>
+      <description>source=Riderra price book; count=20; countries=France; category=city; geometrySource=google-viewport; googleViewport=2.78169,48.86739,2.79637,48.87622; geocode=Bd de Parc, 77700 Coupvray, France</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>2.781693,48.867386,0 2.796373,48.867386,0 2.796373,48.876223,0 2.781693,48.876223,0 2.781693,48.867386,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Miami</name>
+      <description>source=Riderra price book; count=20; countries=United States of America; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Miami, FL, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.320000,25.705000,0 -80.135000,25.705000,0 -80.135000,25.855000,0 -80.320000,25.855000,0 -80.320000,25.705000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ontario</name>
+      <description>source=Riderra price book; count=19; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.68295,33.97531,-117.52400,34.09322; geocode=Ontario, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.682947,33.975312,0 -117.524001,33.975312,0 -117.524001,34.093224,0 -117.682947,34.093224,0 -117.682947,33.975312,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Milan</name>
+      <description>source=Riderra price book; count=16; countries=Italy; category=city; geometrySource=google-viewport; googleViewport=9.06512,45.38978,9.29035,45.53569; geocode=Milan, Metropolitan City of Milan, Italy</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>9.065118,45.389779,0 9.290346,45.389779,0 9.290346,45.535689,0 9.065118,45.535689,0 9.065118,45.389779,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Orange</name>
+      <description>source=Riderra price book; count=16; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.90473,33.76783,-117.72978,33.84713; geocode=Orange, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.904734,33.767835,0 -117.729776,33.767835,0 -117.729776,33.847130,0 -117.904734,33.847130,0 -117.904734,33.767835,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bangkok</name>
+      <description>source=Riderra price book; count=15; countries=Thailand; category=city; geometrySource=named-boundary; boundaryRule=named; geocode=Bangkok, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.320000,13.550000,0 100.950000,13.550000,0 100.950000,13.950000,0 100.320000,13.950000,0 100.320000,13.550000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>New York</name>
+      <description>source=Riderra price book; count=15; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-74.25884,40.47658,-73.70017,40.91770; geocode=New York, NY, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-74.258843,40.476578,0 -73.700169,40.476578,0 -73.700169,40.917705,0 -74.258843,40.917705,0 -74.258843,40.476578,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ajman</name>
+      <description>source=Riderra price book; count=14; countries=United Arab Emirates; category=city; geometrySource=google-viewport; googleViewport=55.42184,25.35602,55.63006,25.45070; geocode=Ajman - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.421842,25.356023,0 55.630057,25.356023,0 55.630057,25.450698,0 55.421842,25.450698,0 55.421842,25.356023,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bakersfield</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-119.26532,35.19398,-118.77266,35.44798; geocode=Bakersfield, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-119.265315,35.193979,0 -118.772660,35.193979,0 -118.772660,35.447975,0 -119.265315,35.447975,0 -119.265315,35.193979,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Buena Park</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.03736,33.80983,-117.97625,33.89560; geocode=Buena Park, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.037360,33.809830,0 -117.976250,33.809830,0 -117.976250,33.895604,0 -118.037360,33.895604,0 -118.037360,33.809830,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Burbank</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.37031,34.14264,-118.27998,34.22165; geocode=Burbank, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.370313,34.142636,0 -118.279981,34.142636,0 -118.279981,34.221654,0 -118.370313,34.221654,0 -118.370313,34.142636,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Chula Vista</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.12399,32.57796,-116.92771,32.68561; geocode=Chula Vista, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.123994,32.577965,0 -116.927715,32.577965,0 -116.927715,32.685613,0 -117.123994,32.685613,0 -117.123994,32.577965,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>El Cajon</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.01120,32.76751,-116.89574,32.83097; geocode=El Cajon, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.011201,32.767508,0 -116.895739,32.767508,0 -116.895739,32.830966,0 -117.011201,32.830966,0 -117.011201,32.767508,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Fresno</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-119.93440,36.66216,-119.65051,36.91154; geocode=Fresno, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-119.934397,36.662162,0 -119.650509,36.662162,0 -119.650509,36.911536,0 -119.934397,36.911536,0 -119.934397,36.662162,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>La Crescenta-Montrose</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.24875,34.20548,-118.22161,34.25231; geocode=La Crescenta-Montrose, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.248753,34.205478,0 -118.221610,34.205478,0 -118.221610,34.252306,0 -118.248753,34.252306,0 -118.248753,34.205478,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Montrose</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-107.92481,38.42155,-107.78323,38.52376; geocode=Montrose, CO, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-107.924814,38.421550,0 -107.783225,38.421550,0 -107.783225,38.523757,0 -107.924814,38.523757,0 -107.924814,38.421550,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ojai+ Oak View</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-119.31636,34.37956,-119.27740,34.42260; geocode=Oak View, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-119.316363,34.379555,0 -119.277400,34.379555,0 -119.277400,34.422600,0 -119.316363,34.422600,0 -119.316363,34.379555,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Oxnard+Ventura+Camarillo</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-119.10947,34.19137,-118.95783,34.25260; geocode=Camarillo, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-119.109465,34.191366,0 -118.957834,34.191366,0 -118.957834,34.252601,0 -119.109465,34.252601,0 -119.109465,34.191366,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Palm Springs+Coachella</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-116.68472,33.61242,-116.44281,33.93207; geocode=Palm Springs, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-116.684723,33.612422,0 -116.442812,33.612422,0 -116.442812,33.932074,0 -116.684723,33.932074,0 -116.684723,33.612422,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ras Al Khaimah</name>
+      <description>source=Riderra price book; count=14; countries=United Arab Emirates; category=city; geometrySource=google-viewport; googleViewport=55.86379,25.54043,56.07276,25.91235; geocode=Ras Al-Khaimah - Ras Al Khaimah - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.863794,25.540431,0 56.072760,25.540431,0 56.072760,25.912350,0 55.863794,25.912350,0 55.863794,25.540431,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>San Marcos+Rancho Santa Fe+Escondido</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-117.23010,33.00386,-117.16191,33.04456; geocode=Rancho Santa Fe, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.230105,33.003858,0 -117.161910,33.003858,0 -117.161910,33.044558,0 -117.230105,33.044558,0 -117.230105,33.003858,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Santa Barbara+Carpinteria</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-119.54422,34.34929,-119.48010,34.41361; geocode=Carpinteria, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-119.544216,34.349288,0 -119.480095,34.349288,0 -119.480095,34.413613,0 -119.544216,34.413613,0 -119.544216,34.349288,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sharjah</name>
+      <description>source=Riderra price book; count=14; countries=United Arab Emirates; category=city; geometrySource=google-viewport; googleViewport=55.34909,25.20732,55.74347,25.43257; geocode=Sharjah - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.349089,25.207321,0 55.743465,25.207321,0 55.743465,25.432569,0 55.349089,25.432569,0 55.349089,25.207321,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sunland+Tujunga</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.33811,34.24813,-118.28633,34.29326; geocode=Sunland, Los Angeles, CA 91040, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.338113,34.248129,0 -118.286326,34.248129,0 -118.286326,34.293264,0 -118.338113,34.293264,0 -118.338113,34.248129,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Thousand Oaks+Simi Valley</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=city; geometrySource=google-viewport; googleViewport=-118.83111,34.20837,-118.63255,34.32265; geocode=Simi Valley, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.831115,34.208375,0 -118.632546,34.208375,0 -118.632546,34.322650,0 -118.831115,34.322650,0 -118.831115,34.208375,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>London East</name>
+      <description>source=Riderra price book; count=12; countries=United Kingdom; category=city; geometrySource=google-viewport; googleViewport=-0.10451,51.48415,0.33400,51.64653; geocode=East London, UK</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-0.104511,51.484150,0 0.333996,51.484150,0 0.333996,51.646527,0 -0.104511,51.646527,0 -0.104511,51.484150,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>London North</name>
+      <description>source=Riderra price book; count=12; countries=United Kingdom; category=city; geometrySource=google-viewport; googleViewport=-0.35147,51.38494,0.14827,51.67234; geocode=London, UK</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-0.351468,51.384940,0 0.148271,51.384940,0 0.148271,51.672343,0 -0.351468,51.672343,0 -0.351468,51.384940,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>London North-West</name>
+      <description>source=Riderra price book; count=12; countries=United Kingdom; category=city; geometrySource=google-viewport; googleViewport=-0.20073,51.55929,-0.19803,51.56199; geocode=42 Lyndale Ave, London NW2 2QA, UK</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-0.200727,51.559293,0 -0.198029,51.559293,0 -0.198029,51.561991,0 -0.200727,51.561991,0 -0.200727,51.559293,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>London South-East</name>
+      <description>source=Riderra price book; count=12; countries=United Kingdom; category=city; geometrySource=google-viewport; googleViewport=-0.35147,51.38494,0.14827,51.67234; geocode=London, UK</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-0.351468,51.384940,0 0.148271,51.384940,0 0.148271,51.672343,0 -0.351468,51.672343,0 -0.351468,51.384940,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>London South-West</name>
+      <description>source=Riderra price book; count=12; countries=United Kingdom; category=city; geometrySource=google-viewport; googleViewport=-0.16890,51.46257,-0.16620,51.46527; geocode=276-288 Lavender Hill, London SW11 1LJ, UK</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-0.168901,51.462568,0 -0.166203,51.462568,0 -0.166203,51.465266,0 -0.168901,51.465266,0 -0.168901,51.462568,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>London West</name>
+      <description>source=Riderra price book; count=12; countries=United Kingdom; category=city; geometrySource=google-viewport; googleViewport=-0.35147,51.38494,0.14827,51.67234; geocode=London, UK</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-0.351468,51.384940,0 0.148271,51.384940,0 0.148271,51.672343,0 -0.351468,51.672343,0 -0.351468,51.384940,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Khao Lak, Phang Nga</name>
+      <description>source=Riderra price book; count=11; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.22080,8.60699,98.30962,8.76342; geocode=Khao Lak, Phang Nga, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.220801,8.606992,0 98.309624,8.606992,0 98.309624,8.763423,0 98.220801,8.763423,0 98.220801,8.606992,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Mina Jebel Ali, Dubai</name>
+      <description>source=Riderra price book; count=11; countries=United Arab Emirates; category=city; geometrySource=google-viewport; googleViewport=55.01910,24.94702,55.09686,25.02337; geocode=Mena Jabal Ali - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.019101,24.947020,0 55.096858,24.947020,0 55.096858,25.023374,0 55.019101,25.023374,0 55.019101,24.947020,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>PaTong, Phuket</name>
+      <description>source=Riderra price book; count=11; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.26101,7.86982,98.32395,7.93710; geocode=Pa Tong, Kathu District, Phuket, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.261010,7.869819,0 98.323952,7.869819,0 98.323952,7.937100,0 98.261010,7.937100,0 98.261010,7.869819,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Al Ain</name>
+      <description>source=Riderra price book; count=10; countries=United Arab Emirates; category=city; geometrySource=google-viewport; googleViewport=55.47874,24.01605,56.01500,24.36994; geocode=Al Ain - Abu Dhabi - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.478738,24.016048,0 56.014995,24.016048,0 56.014995,24.369936,0 55.478738,24.369936,0 55.478738,24.016048,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ansan</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=126.38003,37.08068,126.93961,37.37747; geocode=Ansan-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.380031,37.080683,0 126.939608,37.080683,0 126.939608,37.377467,0 126.380031,37.377467,0 126.380031,37.080683,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Asian Side Central (Kavacik, Atasehir, Umraniye, Kadikoy, Uskudar)</name>
+      <description>source=Riderra price book; count=10; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=29.01485,40.95000,29.11126,41.01227; geocode=Kadıköy/İstanbul, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>29.014849,40.949998,0 29.111257,40.949998,0 29.111257,41.012268,0 29.014849,41.012268,0 29.014849,40.949998,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dongducheon</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=127.00622,37.86035,127.15538,37.98105; geocode=Dongducheon-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>127.006221,37.860348,0 127.155376,37.860348,0 127.155376,37.981050,0 127.006221,37.981050,0 127.006221,37.860348,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>European Side</name>
+      <description>source=Riderra price book; count=10; countries=Turkey; category=city; geometrySource=google-viewport; googleViewport=28.59555,40.95451,29.07749,41.19924; geocode=European Side, İstanbul, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>28.595554,40.954508,0 29.077487,40.954508,0 29.077487,41.199239,0 28.595554,41.199239,0 28.595554,40.954508,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gimpo</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=126.51706,37.57959,126.80281,37.78289; geocode=Gimpo-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.517058,37.579586,0 126.802809,37.579586,0 126.802809,37.782886,0 126.517058,37.782886,0 126.517058,37.579586,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Goyang</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=126.67011,37.57430,126.99433,37.74849; geocode=Goyang-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.670105,37.574300,0 126.994329,37.574300,0 126.994329,37.748492,0 126.670105,37.748492,0 126.670105,37.574300,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Guri</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=127.10080,37.55633,127.17060,37.64628; geocode=Guri-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>127.100802,37.556333,0 127.170604,37.556333,0 127.170604,37.646279,0 127.100802,37.646279,0 127.100802,37.556333,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gwacheon</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=126.96092,37.40061,127.04740,37.46764; geocode=Gwacheon-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.960924,37.400605,0 127.047397,37.400605,0 127.047397,37.467645,0 126.960924,37.467645,0 126.960924,37.400605,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gwangmyeong</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=126.82609,37.40151,126.89993,37.49513; geocode=Gwangmyeong-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.826091,37.401513,0 126.899928,37.401513,0 126.899928,37.495127,0 126.826091,37.495127,0 126.826091,37.401513,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hanam</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=127.13995,37.46875,127.28564,37.59189; geocode=Hanam-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>127.139952,37.468751,0 127.285636,37.468751,0 127.285636,37.591889,0 127.139952,37.591889,0 127.139952,37.468751,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Incheon</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=124.61268,33.54894,126.79375,37.98413; geocode=Incheon, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>124.612678,33.548938,0 126.793751,33.548938,0 126.793751,37.984126,0 124.612678,37.984126,0 124.612678,33.548938,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Mai Khao, Maikhao Phuket</name>
+      <description>source=Riderra price book; count=10; countries=Thailand; category=city; geometrySource=google-viewport; googleViewport=98.29755,8.11274,98.33497,8.15205; geocode=Mai Khao, Thalang District, Phuket 83110, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.297551,8.112742,0 98.334967,8.112742,0 98.334967,8.152045,0 98.297551,8.152045,0 98.297551,8.112742,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Naberezhnye Chelny</name>
+      <description>source=Riderra price book; count=10; countries=Russia; category=city; geometrySource=google-viewport; googleViewport=52.27499,55.65222,52.46431,55.77749; geocode=Naberezhnye Chelny, Republic of Tatarstan, Russia</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>52.274992,55.652217,0 52.464313,55.652217,0 52.464313,55.777487,0 52.274992,55.777487,0 52.274992,55.652217,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Namyangju</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=127.08025,37.50550,127.38100,37.78053; geocode=Namyangju-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>127.080252,37.505503,0 127.380997,37.505503,0 127.380997,37.780527,0 127.080252,37.780527,0 127.080252,37.505503,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Osan</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=126.99491,37.12533,127.10310,37.20088; geocode=Osan-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.994914,37.125331,0 127.103103,37.125331,0 127.103103,37.200880,0 126.994914,37.200880,0 126.994914,37.125331,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Paju</name>
+      <description>source=Riderra price book; count=10; countries=South Korea; category=city; geometrySource=google-viewport; googleViewport=126.66262,37.68862,127.01711,38.00995; geocode=Paju-si, Gyeonggi-do, South Korea</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>126.662618,37.688624,0 127.017113,37.688624,0 127.017113,38.009952,0 126.662618,38.009952,0 126.662618,37.688624,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

@@ -1,0 +1,34 @@
+{
+  "spreadsheet": {
+    "id": "17YqqHe0TgDvUgXDNq0FeYe7113R2LTZza4musWLjEUo",
+    "title": "005 price list",
+    "sheet": "Актуальный полный",
+    "sourceCsv": "reports/eto-sync/price005_actual_full.csv"
+  },
+  "tenant": {
+    "id": "cmm3kvdnr000011wfd6avqt9g",
+    "code": "riderra",
+    "name": "Riderra"
+  },
+  "sheetRows": 4227,
+  "dbRows": 4206,
+  "matchedKeysWithoutDiffs": 3910,
+  "exactMatchedRows": 3910,
+  "diffRows": 231,
+  "diffRowsByStatus": {
+    "price_set_mismatch": 29,
+    "only_in_db": 10,
+    "duplicate_key_same_values": 92,
+    "only_in_sheet": 30,
+    "pax_metadata_mismatch": 70
+  },
+  "blockingDiffRows": 69,
+  "duplicateRows": 376,
+  "outputs": {
+    "sheetNormalized": "reports/eto-sync/price005_sheet_normalized.csv",
+    "dbNormalized": "reports/eto-sync/price005_db_normalized.csv",
+    "diffs": "reports/eto-sync/price005_vs_db_diffs.csv",
+    "blockers": "reports/eto-sync/price005_vs_db_blockers.csv",
+    "duplicates": "reports/eto-sync/price005_duplicates.csv"
+  }
+}

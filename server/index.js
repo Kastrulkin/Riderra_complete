@@ -251,7 +251,7 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
       <div class="toolbar">
         <a class="back" href="https://riderra.com/">${homeLabel}</a>
         <div class="lang-switch" aria-label="Language switcher">
-          ${isEn ? '<a href="/privacy-policy">RU</a><span>EN</span>' : '<span>RU</span><a href="/privacy-policy/en">EN</a>'}
+          ${isEn ? '<a href="/privacy-policy/ru">RU</a><span>EN</span>' : '<span>RU</span><a href="/privacy-policy/en">EN</a>'}
         </div>
       </div>
       <section class="card">
@@ -271,7 +271,11 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
 </html>`
 }
 
-app.get(['/privacy-policy', '/privacy-policy/en'], (req, res) => {
+app.get('/privacy-policy', (req, res) => {
+  res.redirect(302, '/privacy-policy/en')
+})
+
+app.get(['/privacy-policy/ru', '/privacy-policy/en'], (req, res) => {
   const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
@@ -2098,6 +2102,20 @@ function pickField(row, aliases) {
   return null
 }
 
+function pickFieldLoose(row, aliases) {
+  const exact = pickField(row, aliases)
+  if (exact !== null) return exact
+  const normalizedAliases = aliases.map((alias) => normalizeHeader(alias)).filter(Boolean)
+  for (const [key, value] of Object.entries(row || {})) {
+    const normalizedKey = normalizeHeader(key)
+    if (!normalizedKey || String(value || '').trim() === '') continue
+    if (normalizedAliases.some((alias) => normalizedKey.includes(alias))) {
+      return String(value).trim()
+    }
+  }
+  return null
+}
+
 function parseColumnMapping(raw) {
   if (!raw) return {}
   if (typeof raw === 'object' && raw !== null) return raw
@@ -2128,6 +2146,173 @@ function toFloat(value, fallback = 0) {
   const normalized = String(value).replace(',', '.').replace(/[^\d.\-]/g, '')
   const parsed = parseFloat(normalized)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function detectCurrencyFromText(value, fallback = 'EUR') {
+  const raw = String(value || '').toLowerCase()
+  if (/(?:^|[\s\d])(?:usd|us\$|\$)(?:$|[\s\d.,])/i.test(String(value || ''))) return 'USD'
+  if (/€|eur|euro|euros|евро/.test(raw)) return 'EUR'
+  if (/₽|rub|руб|рубл/.test(raw)) return 'RUB'
+  return fallback
+}
+
+function firstMoneyAmountFromText(value) {
+  const raw = String(value || '')
+  const moneyPattern = /([$€₽])?\s*(-?\d{1,3}(?:[ .]\d{3})*(?:[,.]\d+)?|-?\d+(?:[,.]\d+)?)\s*(usd|eur|euro|euros|rub|руб(?:\.|лей|ля)?|₽|\$|€)?/gi
+  let match
+  while ((match = moneyPattern.exec(raw))) {
+    const nextChar = raw[moneyPattern.lastIndex] || ''
+    if (nextChar === '%') continue
+    const token = match[2]
+    const amount = toFloat(token, null)
+    if (amount === null || Math.abs(amount) < 0.01) continue
+    return {
+      amount: Math.abs(amount),
+      currency: detectCurrencyFromText(`${match[1] || ''} ${match[3] || ''}`.trim(), null)
+    }
+  }
+  return null
+}
+
+function extractOrderPenaltyFromSheetRow(raw, mapping, clientPrice) {
+  const comment = pickFieldLoose(raw, aliasesWithMapping([
+    'comment',
+    'комментарий',
+    'примечание',
+    'комментарий (то, что было в скобках'
+  ], mapping, 'comment')) || ''
+  const sumRaw = pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum'))
+  const joinedText = Object.values(raw || {}).map((value) => String(value || '')).join(' | ')
+  const penaltyText = [comment, joinedText].filter(Boolean).join(' | ')
+  const hasPenaltyText = /штраф|deduction|penalty|fine|chargeback|deduct/i.test(penaltyText)
+  const sumValue = toFloat(sumRaw, null)
+  const negativeSum = sumValue !== null && sumValue < 0
+
+  if (!hasPenaltyText && !negativeSum) return null
+
+  let amount = negativeSum ? Math.abs(sumValue) : null
+  let currency = detectCurrencyFromText(`${sumRaw || ''} ${penaltyText}`, 'EUR')
+  let reason = comment || null
+  let calculation = negativeSum ? 'negative_sheet_sum' : 'penalty_text'
+
+  if (amount === null) {
+    const percentMatch = penaltyText.match(/(?:штраф|penalty|fine|deduction)[^\d%]{0,40}(\d+(?:[,.]\d+)?)\s*%|(\d+(?:[,.]\d+)?)\s*%[^\n|]{0,40}(?:штраф|penalty|fine|deduction)/i)
+    const percent = percentMatch ? toFloat(percentMatch[1] || percentMatch[2], null) : null
+    if (percent !== null && clientPrice > 0) {
+      amount = Math.round((clientPrice * percent / 100) * 100) / 100
+      calculation = `percent:${percent}`
+      if (!reason) reason = `Penalty ${percent}%`
+    }
+  }
+
+  if (amount === null) {
+    const explicitMoney = firstMoneyAmountFromText(penaltyText)
+    if (explicitMoney) {
+      amount = explicitMoney.amount
+      currency = explicitMoney.currency || currency
+      calculation = 'explicit_amount'
+    }
+  }
+
+  return {
+    type: 'penalty',
+    amount,
+    currency,
+    reason,
+    rawText: penaltyText.slice(0, 4000),
+    calculation
+  }
+}
+
+function normalizeLookupText(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+async function findCustomerCompanyForAdjustment(tenantId, counterpartyName) {
+  const name = String(counterpartyName || '').trim()
+  if (!tenantId || !name) return null
+  return prisma.customerCompany.findFirst({
+    where: {
+      tenantId,
+      OR: [
+        { name: { equals: name, mode: 'insensitive' } },
+        { name: { contains: name, mode: 'insensitive' } }
+      ]
+    },
+    select: { id: true, name: true }
+  })
+}
+
+async function findDriverForAdjustment(tenantId, order, driverNameRaw) {
+  if (order?.driverId) return { id: order.driverId }
+  const name = String(driverNameRaw || '').trim()
+  if (!tenantId || !name) return null
+  const candidates = await prisma.driver.findMany({
+    where: {
+      tenantId,
+      name: { contains: name, mode: 'insensitive' }
+    },
+    select: { id: true, name: true },
+    take: 10
+  })
+  const normalizedName = normalizeLookupText(name)
+  return candidates.find((driver) => normalizeLookupText(driver.name) === normalizedName) || candidates[0] || null
+}
+
+async function syncOrderAdjustmentFromSheetRow({ tenantId, source, sourceRow, raw, mapping, order }) {
+  const sourceKey = `order-adjustment:google_sheet:${normalizeGoogleSheetId(source.googleSheetId)}:${source.tabName}:${sourceRow}:penalty`
+  const penalty = extractOrderPenaltyFromSheetRow(raw, mapping, Number(order?.clientPrice || 0))
+  if (!penalty) {
+    await prisma.orderAdjustment.updateMany({
+      where: { tenantId, sourceKey },
+      data: { isActive: false }
+    })
+    return { synced: false }
+  }
+
+  const counterpartyName = pickField(raw, aliasesWithMapping([
+    'контрагент',
+    'counterparty',
+    'customer',
+    'заказчик'
+  ], mapping, 'counterparty')) || null
+  const driverNameRaw = pickField(raw, aliasesWithMapping([
+    'водитель',
+    'водители',
+    'driver',
+    'supplier',
+    'исполнитель',
+    'перевозчик'
+  ], mapping, 'driver')) || null
+  const customerCompany = await findCustomerCompanyForAdjustment(tenantId, counterpartyName)
+  const driver = await findDriverForAdjustment(tenantId, order, driverNameRaw)
+
+  const payload = {
+    tenantId,
+    orderId: order?.id || null,
+    driverId: driver?.id || null,
+    customerCompanyId: customerCompany?.id || null,
+    type: penalty.type,
+    amount: penalty.amount,
+    currency: penalty.currency || 'EUR',
+    reason: penalty.reason || null,
+    counterpartyName,
+    driverNameRaw,
+    source: 'google_sheet',
+    sourceSheetId: normalizeGoogleSheetId(source.googleSheetId),
+    sourceTabName: source.tabName || null,
+    sourceRow,
+    rawText: penalty.rawText || null,
+    rawPayload: JSON.stringify({ raw, calculation: penalty.calculation }),
+    isActive: true
+  }
+
+  await prisma.orderAdjustment.upsert({
+    where: { sourceKey },
+    update: payload,
+    create: { ...payload, sourceKey }
+  })
+  return { synced: true, amount: penalty.amount }
 }
 
 function toInt(value, fallback = null) {
@@ -2337,6 +2522,22 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       orderBy: { createdAt: 'desc' }
     })
     if (latestSnapshot && latestSnapshot.rowHash === rowHash) {
+      if (latestSnapshot.orderId) {
+        const unchangedOrder = await prisma.order.findFirst({
+          where: { id: latestSnapshot.orderId, tenantId: effectiveTenantId },
+          select: { id: true, tenantId: true, driverId: true, clientPrice: true, driverPrice: true }
+        })
+        if (unchangedOrder) {
+          await syncOrderAdjustmentFromSheetRow({
+            tenantId: effectiveTenantId,
+            source,
+            sourceRow,
+            raw,
+            mapping,
+            order: unchangedOrder
+          })
+        }
+      }
       stats.unchanged++
       continue
     }
@@ -2350,6 +2551,8 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       const toPoint = pickField(raw, aliasesWithMapping(['to', 'куда', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || 'UNKNOWN'
       const vehicleType = pickField(raw, aliasesWithMapping(['vehicle type', 'тип авто', 'класс', 'class'], mapping, 'vehicleType')) || 'standard'
       const clientPrice = toFloat(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), 0)
+      const driverPriceRaw = pickField(raw, aliasesWithMapping(['driver price', 'цена водителя', 'закупочная стоимость', 'закупка', 'себестоимость', 'supplier price'], mapping, 'driverPrice'))
+      const driverPrice = toFloat(driverPriceRaw, null)
       const passengers = toInt(pickField(raw, aliasesWithMapping(['passengers', 'пассажиры', 'pax'], mapping, 'passengers')), null)
       const luggage = toInt(pickField(raw, aliasesWithMapping(['luggage', 'багаж'], mapping, 'luggage')), null)
       const pickupRaw = pickField(raw, aliasesWithMapping([
@@ -2362,7 +2565,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       ], mapping, 'date'))
       const pickupAt = parseDateTimeFlexible(pickupRaw)
       const lang = pickField(raw, aliasesWithMapping(['lang', 'язык'], mapping, 'lang')) || null
-      const comment = pickField(raw, aliasesWithMapping(['comment', 'комментарий', 'примечание'], mapping, 'comment')) || null
+      const comment = pickFieldLoose(raw, aliasesWithMapping(['comment', 'комментарий', 'примечание'], mapping, 'comment')) || null
       const incomingStatus = normalizeIncomingOrderStatus(
         pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending',
         'pending'
@@ -2379,6 +2582,9 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         pickupAt,
         lang,
         comment
+      }
+      if (driverPriceRaw !== null) {
+        orderPayload.driverPrice = driverPrice
       }
 
       const existingOrder = await prisma.order.findUnique({
@@ -2429,6 +2635,15 @@ async function syncSheetSource(sheetSourceId, tenantId) {
           rowHash,
           rawPayload: JSON.stringify(raw)
         }
+      })
+
+      await syncOrderAdjustmentFromSheetRow({
+        tenantId: effectiveTenantId,
+        source,
+        sourceRow,
+        raw,
+        mapping,
+        order: upserted
       })
 
       if (!latestSnapshot) stats.created++
@@ -9449,7 +9664,11 @@ async function recalculatePriceConflicts(tenantId) {
       fromPoint: true,
       toPoint: true,
       status: true,
-      updatedAt: true
+      updatedAt: true,
+      adjustments: {
+        where: { isActive: true, type: 'penalty' },
+        select: { amount: true, currency: true }
+      }
     },
     take: 5000
   })
@@ -9460,12 +9679,13 @@ async function recalculatePriceConflicts(tenantId) {
   for (const order of orders) {
     const sellPrice = Number(order.clientPrice || 0)
     const driverCost = Number(order.driverPrice || 0)
-    const marginAbs = sellPrice - driverCost
+    const penaltyCost = order.adjustments.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+    const marginAbs = sellPrice - driverCost - penaltyCost
     const marginPct = sellPrice > 0 ? (marginAbs / sellPrice) * 100 : 0
 
     let issueType = null
     let severity = null
-    if (driverCost > sellPrice) {
+    if (driverCost + penaltyCost > sellPrice) {
       issueType = 'driver_gt_sell'
       severity = 'critical'
     } else if (marginPct < 10) {
@@ -9490,7 +9710,10 @@ async function recalculatePriceConflicts(tenantId) {
         driverCost,
         marginAbs,
         marginPct,
-        details: `${order.fromPoint} -> ${order.toPoint}`
+        details: JSON.stringify({
+          route: `${order.fromPoint} -> ${order.toPoint}`,
+          penaltyCost
+        })
       },
       create: {
         tenantId: order.tenantId || tenantId || null,
@@ -9502,7 +9725,10 @@ async function recalculatePriceConflicts(tenantId) {
         driverCost,
         marginAbs,
         marginPct,
-        details: `${order.fromPoint} -> ${order.toPoint}`
+        details: JSON.stringify({
+          route: `${order.fromPoint} -> ${order.toPoint}`,
+          penaltyCost
+        })
       }
     })
     createdOrUpdated++
@@ -9567,6 +9793,133 @@ app.get('/api/admin/pricing/conflicts', authenticateToken, resolveActorContext, 
   } catch (error) {
     console.error('Error fetching price conflicts:', error)
     res.status(500).json({ error: 'Failed to fetch price conflicts' })
+  }
+})
+
+app.get('/api/admin/pricing/adjustments/summary', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing'), async (req, res) => {
+  try {
+    const { from = '', to = '', type = 'penalty', limit = '1000' } = req.query
+    const take = Math.min(parseInt(limit, 10) || 1000, 5000)
+    const where = {
+      tenantId: req.actorContext.tenantId,
+      isActive: true
+    }
+    if (type) where.type = String(type)
+    const fromDate = parseDateBoundary(from, 'start')
+    const toDate = parseDateBoundary(to, 'end')
+    if (fromDate || toDate) {
+      where.createdAt = {}
+      if (fromDate) where.createdAt.gte = fromDate
+      if (toDate) where.createdAt.lte = toDate
+    }
+
+    const rows = await prisma.orderAdjustment.findMany({
+      where,
+      include: {
+        driver: { select: { id: true, name: true } },
+        customerCompany: { select: { id: true, name: true } },
+        order: {
+          select: {
+            id: true,
+            externalKey: true,
+            sourceRow: true,
+            pickupAt: true,
+            fromPoint: true,
+            toPoint: true,
+            vehicleType: true,
+            clientPrice: true,
+            driverPrice: true,
+            status: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take
+    })
+
+    const byDriver = new Map()
+    const byCounterparty = new Map()
+    const byOrder = new Map()
+    const byCurrency = new Map()
+    let penaltyAmount = 0
+    let unknownAmountCount = 0
+
+    for (const row of rows) {
+      const amount = row.amount === null || row.amount === undefined ? null : Number(row.amount)
+      const currency = row.currency || 'EUR'
+      if (amount === null || Number.isNaN(amount)) unknownAmountCount++
+      else {
+        penaltyAmount += amount
+        const currencyStat = byCurrency.get(currency) || { currency, adjustmentCount: 0, penaltyAmount: 0, grossSell: 0, grossDriverCost: 0, netProfit: 0 }
+        currencyStat.penaltyAmount += amount
+        byCurrency.set(currency, currencyStat)
+      }
+
+      const driverKey = `${row.driver?.id || `raw:${row.driverNameRaw || 'unknown'}`}:${currency}`
+      const driverName = row.driver?.name || row.driverNameRaw || 'Не указан'
+      const driverStat = byDriver.get(driverKey) || { key: driverKey, driverId: row.driver?.id || null, name: driverName, count: 0, amount: 0, currency, unknownAmountCount: 0 }
+      driverStat.count++
+      if (amount === null || Number.isNaN(amount)) driverStat.unknownAmountCount++
+      else driverStat.amount += amount
+      byDriver.set(driverKey, driverStat)
+
+      const counterpartyKey = `${row.customerCompany?.id || `raw:${row.counterpartyName || 'unknown'}`}:${currency}`
+      const counterpartyName = row.customerCompany?.name || row.counterpartyName || 'Не указан'
+      const counterpartyStat = byCounterparty.get(counterpartyKey) || { key: counterpartyKey, customerCompanyId: row.customerCompany?.id || null, name: counterpartyName, count: 0, amount: 0, currency, unknownAmountCount: 0 }
+      counterpartyStat.count++
+      if (amount === null || Number.isNaN(amount)) counterpartyStat.unknownAmountCount++
+      else counterpartyStat.amount += amount
+      byCounterparty.set(counterpartyKey, counterpartyStat)
+
+      if (row.order) {
+        const orderStat = byOrder.get(row.order.id) || {
+          orderId: row.order.id,
+          currency,
+          clientPrice: Number(row.order.clientPrice || 0),
+          driverPrice: Number(row.order.driverPrice || 0),
+          penaltyAmount: 0
+        }
+        if (amount !== null && !Number.isNaN(amount)) orderStat.penaltyAmount += amount
+        byOrder.set(row.order.id, orderStat)
+      }
+    }
+
+    const orderStats = [...byOrder.values()]
+    const grossSell = orderStats.reduce((sum, row) => sum + row.clientPrice, 0)
+    const grossDriverCost = orderStats.reduce((sum, row) => sum + row.driverPrice, 0)
+    const netProfit = orderStats.reduce((sum, row) => sum + row.clientPrice - row.driverPrice - row.penaltyAmount, 0)
+    for (const orderStat of orderStats) {
+      const currencyStat = byCurrency.get(orderStat.currency) || { currency: orderStat.currency, adjustmentCount: 0, penaltyAmount: 0, grossSell: 0, grossDriverCost: 0, netProfit: 0 }
+      currencyStat.grossSell += orderStat.clientPrice
+      currencyStat.grossDriverCost += orderStat.driverPrice
+      currencyStat.netProfit += orderStat.clientPrice - orderStat.driverPrice - orderStat.penaltyAmount
+      byCurrency.set(orderStat.currency, currencyStat)
+    }
+    for (const row of rows) {
+      const currency = row.currency || 'EUR'
+      const currencyStat = byCurrency.get(currency) || { currency, adjustmentCount: 0, penaltyAmount: 0, grossSell: 0, grossDriverCost: 0, netProfit: 0 }
+      currencyStat.adjustmentCount++
+      byCurrency.set(currency, currencyStat)
+    }
+
+    res.json({
+      totals: {
+        adjustmentCount: rows.length,
+        ordersWithAdjustment: orderStats.length,
+        penaltyAmount,
+        unknownAmountCount,
+        grossSell,
+        grossDriverCost,
+        netProfit,
+        byCurrency: [...byCurrency.values()].sort((a, b) => a.currency.localeCompare(b.currency))
+      },
+      byDriver: [...byDriver.values()].sort((a, b) => b.amount - a.amount || b.count - a.count),
+      byCounterparty: [...byCounterparty.values()].sort((a, b) => b.amount - a.amount || b.count - a.count),
+      recent: rows.slice(0, 50)
+    })
+  } catch (error) {
+    console.error('Error fetching adjustment summary:', error)
+    res.status(500).json({ error: 'Failed to fetch adjustment summary' })
   }
 })
 

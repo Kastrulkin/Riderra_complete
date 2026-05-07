@@ -1,0 +1,666 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Riderra ETO missing zones batch</name>
+    <Placemark>
+      <name>Tokyo (within 23 wards)</name>
+      <description>source=Riderra price book; count=32; countries=Japan; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Tokyo, Japan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>139.560000,35.520000,0 139.930000,35.520000,0 139.930000,35.820000,0 139.560000,35.820000,0 139.560000,35.520000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Inglewood</name>
+      <description>source=Riderra price book; count=28; countries=United States of America; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Inglewood, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.380000,33.930000,0 -118.315000,33.930000,0 -118.315000,34.000000,0 -118.380000,34.000000,0 -118.380000,33.930000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Laguna Beach</name>
+      <description>source=Riderra price book; count=28; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-117.82017,33.48318,-117.73118,33.61030; geocode=Laguna Beach, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.820166,33.483182,0 -117.731183,33.483182,0 -117.731183,33.610298,0 -117.820166,33.610298,0 -117.820166,33.483182,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Beverly Hills</name>
+      <description>source=Riderra price book; count=24; countries=United States of America; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Beverly Hills, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.430000,34.055000,0 -118.370000,34.055000,0 -118.370000,34.095000,0 -118.430000,34.095000,0 -118.430000,34.055000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Miami Beach</name>
+      <description>source=Riderra price book; count=24; countries=United States of America; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Miami Beach, FL, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.155000,25.760000,0 -80.110000,25.760000,0 -80.110000,25.885000,0 -80.155000,25.885000,0 -80.155000,25.760000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Santa Monica</name>
+      <description>source=Riderra price book; count=24; countries=United States of America; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Santa Monica, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.525000,33.995000,0 -118.445000,33.995000,0 -118.445000,34.050000,0 -118.525000,34.050000,0 -118.525000,33.995000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Stockholm city center</name>
+      <description>source=Riderra price book; count=15; countries=Norway|Sweden; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Norway</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>18.030000,59.315000,0 18.105000,59.315000,0 18.105000,59.350000,0 18.030000,59.350000,0 18.030000,59.315000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Fort Lauderdale City Florida USA</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Fort Lauderdale, FL, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.220000,26.080000,0 -80.095000,26.080000,0 -80.095000,26.210000,0 -80.220000,26.210000,0 -80.220000,26.080000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Long Beach</name>
+      <description>source=Riderra price book; count=14; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-118.24897,33.69059,-118.06317,33.88553; geocode=Long Beach, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.248966,33.690593,0 -118.063170,33.690593,0 -118.063170,33.885531,0 -118.248966,33.885531,0 -118.248966,33.690593,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Downtown Dubai</name>
+      <description>source=Riderra price book; count=12; countries=United Arab Emirates; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Burj Khalifa - Downtown Dubai - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.255000,25.185000,0 55.315000,25.185000,0 55.315000,25.215000,0 55.255000,25.215000,0 55.255000,25.185000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>West Palm Beach Florida USA</name>
+      <description>source=Riderra price book; count=12; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-80.21463,26.64437,-80.04288,26.83810; geocode=West Palm Beach, FL, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-80.214628,26.644366,0 -80.042879,26.644366,0 -80.042879,26.838101,0 -80.214628,26.838101,0 -80.214628,26.644366,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Al Barsha, Dubai</name>
+      <description>source=Riderra price book; count=10; countries=United Arab Emirates; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Al Barsha - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.185000,25.085000,0 55.245000,25.085000,0 55.245000,25.130000,0 55.185000,25.130000,0 55.185000,25.085000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bur Dubai Area</name>
+      <description>source=Riderra price book; count=10; countries=United Arab Emirates; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Bur Dubai - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.265000,25.235000,0 55.315000,25.235000,0 55.315000,25.270000,0 55.265000,25.270000,0 55.265000,25.235000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Deira Dubai</name>
+      <description>source=Riderra price book; count=10; countries=United Arab Emirates; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Deira - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.295000,25.255000,0 55.355000,25.255000,0 55.355000,25.295000,0 55.295000,25.295000,0 55.295000,25.255000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dubai Marina</name>
+      <description>source=Riderra price book; count=10; countries=United Arab Emirates; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Dubai Marina - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.120000,25.065000,0 55.165000,25.065000,0 55.165000,25.095000,0 55.120000,25.095000,0 55.120000,25.065000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kamala beach, Phuket</name>
+      <description>source=Riderra price book; count=10; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.27686,7.94912,98.28385,7.96376; geocode=Kamala Beach, Kamala, Phuket 83120, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.276862,7.949124,0 98.283854,7.949124,0 98.283854,7.963760,0 98.276862,7.963760,0 98.276862,7.949124,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kiev City center</name>
+      <description>source=Riderra price book; count=10; countries=Ukraine; category=district_area; geometrySource=google-viewport; googleViewport=30.51494,50.43807,30.51763,50.44077; geocode=Kyiv, Ukraine, 02000</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.514937,50.438069,0 30.517634,50.438069,0 30.517634,50.440767,0 30.514937,50.440767,0 30.514937,50.438069,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Shanghai city center</name>
+      <description>source=Riderra price book; count=10; countries=China; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Shanghai, China</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>121.420000,31.190000,0 121.535000,31.190000,0 121.535000,31.270000,0 121.420000,31.270000,0 121.420000,31.190000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bangkok Outskirts</name>
+      <description>source=Riderra price book; count=9; countries=Thailand; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Bangkok, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.100000,13.350000,0 101.150000,13.350000,0 101.150000,14.150000,0 100.100000,14.150000,0 100.100000,13.350000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Beijing city center</name>
+      <description>source=Riderra price book; count=9; countries=China; category=district_area; geometrySource=google-viewport; googleViewport=116.45041,39.90366,116.45311,39.90636; geocode=16 Yong An Li Dong Jie, Chao Yang Qu, Bei Jing Shi, China, 100020</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>116.450412,39.903660,0 116.453110,39.903660,0 116.453110,39.906358,0 116.450412,39.906358,0 116.450412,39.903660,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Disney Area, Tokyo</name>
+      <description>source=Riderra price book; count=9; countries=Japan; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Tokyo, Japan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>139.865000,35.615000,0 139.905000,35.615000,0 139.905000,35.650000,0 139.865000,35.650000,0 139.865000,35.615000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Gunma district</name>
+      <description>source=Riderra price book; count=9; countries=Japan; category=district_area; geometrySource=google-viewport; googleViewport=138.39684,35.98534,139.66997,37.05871; geocode=Gunma, Japan</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>138.396842,35.985342,0 139.669974,35.985342,0 139.669974,37.058711,0 138.396842,37.058711,0 138.396842,35.985342,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Dubai N-E Outskirts</name>
+      <description>source=Riderra price book; count=8; countries=United Arab Emirates; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.365000,25.120000,0 55.565000,25.120000,0 55.565000,25.360000,0 55.365000,25.360000,0 55.365000,25.120000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Global Village, Dubai</name>
+      <description>source=Riderra price book; count=8; countries=United Arab Emirates; category=district_area; geometrySource=google-viewport; googleViewport=55.30698,25.07017,55.30968,25.07287; geocode=38C5+F57 - Wadi Al Safa 4 - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.306982,25.070169,0 55.309680,25.070169,0 55.309680,25.072867,0 55.306982,25.072867,0 55.306982,25.070169,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>JVC Dubai</name>
+      <description>source=Riderra price book; count=8; countries=United Arab Emirates; category=district_area; geometrySource=google-viewport; googleViewport=55.19440,25.04429,55.22279,25.07682; geocode=Jumeirah Village - Jumeirah Village Circle - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.194401,25.044288,0 55.222785,25.044288,0 55.222785,25.076821,0 55.194401,25.076821,0 55.194401,25.044288,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kata Village and Beach, Phuket</name>
+      <description>source=Riderra price book; count=8; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.30746,7.81882,98.31015,7.82152; geocode=Kata Village, Mueang Phuket, Mueang Phuket District, Phuket 83100, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.307455,7.818820,0 98.310153,7.818820,0 98.310153,7.821518,0 98.307455,7.821518,0 98.307455,7.818820,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Surat Thani district</name>
+      <description>source=Riderra price book; count=8; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.27347,9.06798,99.39489,9.24390; geocode=Surat Thani, Mueang Surat Thani District, Surat Thani, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.273465,9.067984,0 99.394895,9.067984,0 99.394895,9.243902,0 99.273465,9.243902,0 99.273465,9.067984,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bangrak Beach</name>
+      <description>source=Riderra price book; count=7; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.05185,9.55564,100.05455,9.55834; geocode=H343+V8J, 4171, Tambon Bo Put, Amphoe Ko Samui, Chang Wat Surat Thani 84320, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.051849,9.555641,0 100.054547,9.555641,0 100.054547,9.558339,0 100.051849,9.558339,0 100.051849,9.555641,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Choengmom beach and gardens</name>
+      <description>source=Riderra price book; count=7; countries=Thailand; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.070000,9.560000,0 100.095000,9.560000,0 100.095000,9.585000,0 100.070000,9.585000,0 100.070000,9.560000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Discovery Gardens Dubai</name>
+      <description>source=Riderra price book; count=7; countries=United Arab Emirates; category=district_area; geometrySource=google-viewport; googleViewport=55.12732,25.02534,55.16212,25.05098; geocode=Jebel Ali Village - Discovery Gardens - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.127324,25.025341,0 55.162117,25.025341,0 55.162117,25.050984,0 55.127324,25.050984,0 55.127324,25.025341,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Downtown Los Angeles</name>
+      <description>source=Riderra price book; count=7; countries=United States of America; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Downtown Los Angeles, Los Angeles, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.285000,34.025000,0 -118.220000,34.025000,0 -118.220000,34.075000,0 -118.285000,34.075000,0 -118.285000,34.025000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ko Kaeo, Muaeng, Phuket</name>
+      <description>source=Riderra price book; count=7; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=98.35268,7.92285,98.45652,7.96922; geocode=Ko Kaeo, Mueang Phuket District, Phuket, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.352677,7.922853,0 98.456522,7.922853,0 98.456522,7.969222,0 98.352677,7.969222,0 98.352677,7.922853,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Marrakesh city centre (riads)</name>
+      <description>source=Riderra price book; count=7; countries=Morocco; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Marrakesh, Morocco</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-7.995000,31.615000,0 -7.970000,31.615000,0 -7.970000,31.635000,0 -7.995000,31.635000,0 -7.995000,31.615000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Marrakesh outskirts</name>
+      <description>source=Riderra price book; count=7; countries=Morocco; category=district_area; geometrySource=google-viewport; googleViewport=-8.12808,31.55298,-7.88763,31.71627; geocode=Marrakesh, Morocco</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-8.128080,31.552976,0 -7.887626,31.552976,0 -7.887626,31.716267,0 -8.128080,31.716267,0 -8.128080,31.552976,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Newport Beach</name>
+      <description>source=Riderra price book; count=7; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-117.98874,33.53537,-117.78388,33.67175; geocode=Newport Beach, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.988741,33.535371,0 -117.783883,33.535371,0 -117.783883,33.671747,0 -117.988741,33.671747,0 -117.988741,33.535371,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Santa Ana+Irvine+Huntington Beach</name>
+      <description>source=Riderra price book; count=7; countries=United States of America; category=district_area; geometrySource=google-viewport; googleViewport=-117.94394,33.69194,-117.83026,33.78401; geocode=Santa Ana, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-117.943945,33.691939,0 -117.830257,33.691939,0 -117.830257,33.784012,0 -117.943945,33.784012,0 -117.943945,33.691939,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Silicon Oasis / International City Dubai</name>
+      <description>source=Riderra price book; count=7; countries=United Arab Emirates; category=district_area; geometrySource=google-viewport; googleViewport=55.39313,25.14958,55.42682,25.17828; geocode=Warsan First - Dubai International City - Dubai - United Arab Emirates</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>55.393131,25.149582,0 55.426819,25.149582,0 55.426819,25.178282,0 55.393131,25.178282,0 55.393131,25.149582,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ao Luek District, Krabi</name>
+      <description>source=Riderra price book; count=6; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.61160,8.20320,98.92949,8.56343; geocode=Ao Luek District, Krabi, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.611598,8.203197,0 98.929492,8.203197,0 98.929492,8.563432,0 98.611598,8.563432,0 98.611598,8.203197,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Bophut Beach</name>
+      <description>source=Riderra price book; count=6; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.01772,9.55970,100.04067,9.56965; geocode=Bo Phut Beach, Surat Thani, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.017723,9.559700,0 100.040670,9.559700,0 100.040670,9.569655,0 100.017723,9.569655,0 100.017723,9.559700,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Hollywood</name>
+      <description>source=Riderra price book; count=6; countries=United States of America; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Hollywood, Los Angeles, CA, USA</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-118.370000,34.075000,0 -118.300000,34.075000,0 -118.300000,34.125000,0 -118.370000,34.125000,0 -118.370000,34.075000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Karon Beach, Phuket</name>
+      <description>source=Riderra price book; count=6; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.28856,7.82777,98.30786,7.86035; geocode=Karon Beach, Karon, Mueang Phuket District, Phuket 83100, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.288563,7.827773,0 98.307862,7.827773,0 98.307862,7.860345,0 98.288563,7.860345,0 98.288563,7.827773,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sangklaburi District Provincial</name>
+      <description>source=Riderra price book; count=6; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.18170,14.85317,98.89144,15.66074; geocode=Sangkhla Buri District, Kanchanaburi 71240, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.181697,14.853167,0 98.891439,14.853167,0 98.891439,15.660740,0 98.181697,15.660740,0 98.181697,14.853167,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sathorn district, Bangkok</name>
+      <description>source=Riderra price book; count=6; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.50819,13.70087,100.55361,13.72616; geocode=Sathon, Bangkok 10120, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.508189,13.700869,0 100.553609,13.700869,0 100.553609,13.726156,0 100.508189,13.726156,0 100.508189,13.700869,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Angthong district</name>
+      <description>source=Riderra price book; count=5; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.38637,14.51796,100.50013,14.63227; geocode=Mueang Ang Thong District, Ang Thong, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.386373,14.517960,0 100.500128,14.517960,0 100.500128,14.632269,0 100.386373,14.632269,0 100.386373,14.517960,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Cha Am Beach, Phetchaburi</name>
+      <description>source=Riderra price book; count=5; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.97487,12.76974,99.99128,12.81061; geocode=Cha-Am Beach, Phetchaburi, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.974868,12.769741,0 99.991276,12.769741,0 99.991276,12.810606,0 99.974868,12.810606,0 99.974868,12.769741,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>GuangZhou city center</name>
+      <description>source=Riderra price book; count=5; countries=China; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Guangzhou, Guangdong Province, China</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>113.220000,23.090000,0 113.360000,23.090000,0 113.360000,23.160000,0 113.220000,23.160000,0 113.220000,23.090000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Mae Nam Ko Samui Thailand</name>
+      <description>source=Riderra price book; count=5; countries=Thailand; category=island; geometrySource=google-viewport; googleViewport=99.91537,9.51592,100.02123,9.58725; geocode=Mae Nam, Ko Samui District, Surat Thani, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.915374,9.515917,0 100.021235,9.515917,0 100.021235,9.587246,0 99.915374,9.587246,0 99.915374,9.515917,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Mueang Phuket District</name>
+      <description>source=Riderra price book; count=5; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.27171,7.47850,98.48332,7.97558; geocode=Mueang Phuket District, Phuket, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.271707,7.478502,0 98.483325,7.478502,0 98.483325,7.975585,0 98.271707,7.975585,0 98.271707,7.478502,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Antalya city centre district</name>
+      <description>source=Riderra price book; count=4; countries=Turkey; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.665000,36.870000,0 30.745000,36.870000,0 30.745000,36.910000,0 30.665000,36.910000,0 30.665000,36.870000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Ko Pha-ngan District, Surat Thani</name>
+      <description>source=Riderra price book; count=4; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=99.81086,9.66568,100.08169,10.12626; geocode=Ko Pha-ngan District, Surat Thani, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>99.810862,9.665684,0 100.081690,9.665684,0 100.081690,10.126264,0 99.810862,10.126264,0 99.810862,9.665684,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Kundu beach</name>
+      <description>source=Riderra price book; count=4; countries=Turkey; category=district_area; geometrySource=google-viewport; googleViewport=30.90894,36.86978,30.91691,36.88361; geocode=Özlü, 07112 Aksu/Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>30.908944,36.869784,0 30.916907,36.869784,0 30.916907,36.883609,0 30.908944,36.883609,0 30.908944,36.869784,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>London City Center</name>
+      <description>source=Riderra price book; count=4; countries=United Kingdom; category=district_area; geometrySource=google-viewport; googleViewport=-0.11382,51.50687,-0.07275,51.52332; geocode=City of London, London, UK</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-0.113821,51.506870,0 -0.072749,51.506870,0 -0.072749,51.523321,0 -0.113821,51.523321,0 -0.113821,51.506870,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Pattaya Jomtein beach, Pattaya</name>
+      <description>source=Riderra price book; count=4; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.85575,12.86798,100.89140,12.91025; geocode=Jomtien Beach, Chon Buri, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.855748,12.867981,0 100.891397,12.867981,0 100.891397,12.910245,0 100.855748,12.910245,0 100.855748,12.867981,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Phra Nakhon, Bangkok</name>
+      <description>source=Riderra price book; count=4; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.48762,13.73865,100.50936,13.77277; geocode=Phra Nakhon, Bangkok 10200, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.487616,13.738652,0 100.509361,13.738652,0 100.509361,13.772767,0 100.487616,13.772767,0 100.487616,13.738652,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sattahip District</name>
+      <description>source=Riderra price book; count=4; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.69764,12.50787,101.01542,12.86669; geocode=Sattahip District, Chon Buri, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.697639,12.507871,0 101.015423,12.507871,0 101.015423,12.866690,0 100.697639,12.866690,0 100.697639,12.507871,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Shenzhen city center</name>
+      <description>source=Riderra price book; count=4; countries=China; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Shenzhen, Guangdong Province, China</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>114.000000,22.500000,0 114.145000,22.500000,0 114.145000,22.585000,0 114.000000,22.585000,0 114.000000,22.500000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Side district</name>
+      <description>source=Riderra price book; count=4; countries=Turkey; category=district_area; geometrySource=google-viewport; googleViewport=31.28147,36.75073,31.45077,36.82906; geocode=Side, Manavgat/Antalya, Türkiye</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>31.281469,36.750730,0 31.450773,36.750730,0 31.450773,36.829063,0 31.281469,36.829063,0 31.281469,36.750730,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Silom, Bangkok</name>
+      <description>source=Riderra price book; count=4; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=100.51508,13.71809,100.54474,13.72958; geocode=Si Lom, Bang Rak, Bangkok, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.515080,13.718085,0 100.544741,13.718085,0 100.544741,13.729579,0 100.515080,13.729579,0 100.515080,13.718085,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Sukhumvit Road, Bangkok</name>
+      <description>source=Riderra price book; count=4; countries=Thailand; category=district_area; geometrySource=named-boundary; boundaryRule=named; geocode=Sukhumvit Rd, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>100.540000,13.705000,0 100.635000,13.705000,0 100.635000,13.745000,0 100.540000,13.745000,0 100.540000,13.705000,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Tubkaek Beach, Krabi</name>
+      <description>source=Riderra price book; count=4; countries=Thailand; category=district_area; geometrySource=google-viewport; googleViewport=98.74619,8.08959,98.74889,8.09229; geocode=Tubkaek Beach 6024, Tambon Nong Thale, Amphoe Mueang Krabi, Chang Wat Krabi 81000, Thailand</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>98.746195,8.089594,0 98.748893,8.089594,0 98.748893,8.092292,0 98.746195,8.092292,0 98.746195,8.089594,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>
