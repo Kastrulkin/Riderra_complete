@@ -39,6 +39,61 @@ function parseOptionalDate(value) {
   return Number.isNaN(fallback.getTime()) ? null : fallback
 }
 
+function normalizeIssueFlags(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String)
+  if (!value) return []
+  return String(value)
+    .split(/[;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function classifyQualitySignals(row) {
+  const text = [row.comment, row.driver, row.counterparty].filter(Boolean).join(' ')
+  const lowered = text.toLowerCase()
+  const signals = []
+  const add = (type, severity = 'medium', confidence = 1) => {
+    if (!signals.some((signal) => signal.type === type)) {
+      signals.push({ type, severity, confidence, text: row.comment || null })
+    }
+  }
+
+  if (row.has_complaint || /жалоб|претензи|complaint/.test(lowered)) add('complaint', 'high')
+  if (/no[\s-]?show|did not show|не приех|не встрет|не было машины/.test(lowered)) add('no_show', 'high')
+  if (/опозд|late|delay|задерж/.test(lowered)) add('late', 'medium')
+  if (/wrong address|адрес|уточнить адрес|неверн.*адрес/.test(lowered)) add('wrong_address', 'medium', 0.8)
+  if (/flight|рейс|arrival|departure|прилет|прибыт/.test(lowered)) add('flight_info', 'low', 0.7)
+  if (/child|booster|baby seat|детск|кресл/.test(lowered)) add('child_seat', 'low')
+  if (/wait|waiting|ожидан|ждал/.test(lowered)) add('extra_waiting', 'medium', 0.8)
+  if (/штраф|penalty/.test(lowered)) add('penalty', 'high')
+  if (/отмена|cancel|declined/.test(lowered)) add('cancelled_signal', 'medium')
+  if (/будет оплачен|будет оплачена|paid/.test(lowered)) add('paid_after_cancel', 'medium', 0.8)
+
+  for (const flag of normalizeIssueFlags(row.issue_flags)) {
+    add(flag, flag === 'complaint' ? 'high' : 'medium', 1)
+  }
+
+  return signals
+}
+
+function normalizedSourceData(row) {
+  const issueFlags = normalizeIssueFlags(row.issue_flags)
+  return {
+    counterpartyName: row.counterparty || null,
+    driverNameRaw: row.driver || null,
+    sourceComment: row.comment || null,
+    sourceCurrency: row.currency || null,
+    sourceCityCode: row.city_code || null,
+    sourceVehicleCode: row.vehicle_code || null,
+    sourceDirection: row.direction || null,
+    sourceOrderNumber: row.order_number || null,
+    sourceBookingId: row.booking_id || null,
+    sourceInternalOrderNumber: row.internal_order_number || null,
+    hasComplaint: Boolean(row.has_complaint),
+    issueFlagsJson: JSON.stringify(issueFlags)
+  }
+}
+
 async function getTenant() {
   const tenant = await prisma.tenant.findFirst({
     where: { isActive: true },
@@ -120,12 +175,7 @@ async function main() {
         commission: null,
         status: row.status || 'pending',
         vehicleType: row.vehicle_type || 'standard',
-        comment: [
-          row.counterparty ? `counterparty=${row.counterparty}` : null,
-          row.driver ? `driver=${row.driver}` : null,
-          row.comment || null,
-          row.city_code || row.vehicle_code || row.direction ? `orderMeta=${[row.city_code, row.vehicle_code, row.direction].filter(Boolean).join(' ')}` : null
-        ].filter(Boolean).join('\n') || null
+        ...normalizedSourceData(row)
       }
 
       const existing = await prisma.order.findUnique({ where: { externalKey: row.external_key } })
@@ -145,6 +195,34 @@ async function main() {
         }
       })
       stats.snapshots += 1
+
+      const signals = classifyQualitySignals(row)
+      if (signals.length) {
+        await Promise.all(signals.map((signal) => prisma.orderQualitySignal.upsert({
+          where: {
+            orderId_type_source: {
+              orderId: order.id,
+              type: signal.type,
+              source: 'rule'
+            }
+          },
+          update: {
+            tenantId: tenant.id,
+            severity: signal.severity,
+            text: signal.text,
+            confidence: signal.confidence
+          },
+          create: {
+            tenantId: tenant.id,
+            orderId: order.id,
+            type: signal.type,
+            severity: signal.severity,
+            source: 'rule',
+            text: signal.text,
+            confidence: signal.confidence
+          }
+        })))
+      }
     } catch (error) {
       stats.errors += 1
       console.error(`Row ${row.source_row} failed: ${error.message}`)

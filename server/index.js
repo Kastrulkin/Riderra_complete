@@ -2566,6 +2566,14 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       const pickupAt = parseDateTimeFlexible(pickupRaw)
       const lang = pickField(raw, aliasesWithMapping(['lang', 'язык'], mapping, 'lang')) || null
       const comment = pickFieldLoose(raw, aliasesWithMapping(['comment', 'комментарий', 'примечание'], mapping, 'comment')) || null
+      const sourceData = normalizedOrderSourceDataFromRaw({
+        ...raw,
+        comment,
+        counterparty: pickField(raw, aliasesWithMapping(['counterparty', 'контрагент', 'contractor'], mapping, 'counterparty')) || null,
+        driver: pickField(raw, aliasesWithMapping(['driver', 'водитель'], mapping, 'driver')) || null,
+        orderNumber: externalKey,
+        currency: parsePriceCurrency(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), null)
+      })
       const incomingStatus = normalizeIncomingOrderStatus(
         pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending',
         'pending'
@@ -2581,7 +2589,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         luggage,
         pickupAt,
         lang,
-        comment
+        ...sourceData
       }
       if (driverPriceRaw !== null) {
         orderPayload.driverPrice = driverPrice
@@ -2645,6 +2653,8 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         mapping,
         order: upserted
       })
+
+      await upsertOrderQualitySignals(effectiveTenantId, upserted.id, sourceData)
 
       if (!latestSnapshot) stats.created++
       else stats.updated++
@@ -7547,11 +7557,109 @@ function boolRaw(raw, keys) {
 }
 
 function issueFlagsFromRaw(raw, order = null) {
-  const flags = Array.isArray(raw?.issue_flags) ? [...raw.issue_flags] : []
+  const orderFlags = order?.issueFlagsJson ? parseJsonSafe(order.issueFlagsJson, []) : []
+  const signalTypes = Array.isArray(order?.qualitySignals) ? order.qualitySignals.map((signal) => signal.type).filter(Boolean) : []
+  const flags = Array.isArray(raw?.issue_flags) ? [...raw.issue_flags] : Array.isArray(orderFlags) ? [...orderFlags] : []
+  flags.push(...signalTypes)
   if (order?.needsInfo) flags.push('needs_info')
-  const comment = String(rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || '').toLowerCase()
+  const comment = String(order?.sourceComment || rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || '').toLowerCase()
   if (comment.includes('жалоб') || comment.includes('complaint')) flags.push('complaint_comment')
   return [...new Set(flags.filter(Boolean))]
+}
+
+function parseOrderMetaFromSourceOrderNumber(value) {
+  const raw = String(value || '').trim()
+  const match = raw.match(/\(([^)]+)\)/)
+  if (!match) return { bookingId: raw, cityCode: '', vehicleCode: '', direction: '' }
+  const parts = match[1].trim().split(/\s+/).filter(Boolean)
+  const direction = parts.length ? parts[parts.length - 1] : ''
+  const vehicleCode = parts.length >= 2 ? parts[parts.length - 2] : ''
+  const cityCode = parts.length >= 2 ? parts.slice(0, -2).join(' ') : parts.join(' ')
+  return { bookingId: raw.split('(', 1)[0].trim(), cityCode, vehicleCode, direction }
+}
+
+function normalizeIssueFlags(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String)
+  if (!value) return []
+  return String(value)
+    .split(/[;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function normalizedOrderSourceDataFromRaw(raw) {
+  const sourceOrderNumber = String(rawFirst(raw, ['order_number', 'orderNumber', 'номер заказа'], '') || '')
+  const meta = parseOrderMetaFromSourceOrderNumber(sourceOrderNumber)
+  const sourceComment = String(rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || '')
+  const issueFlags = normalizeIssueFlags(raw?.issue_flags)
+  const hasComplaint = boolRaw(raw, ['has_complaint', 'complaint']) || /жалоб|претензи|complaint|no[\s-]?show|did not show|не приех|не встрет/i.test(sourceComment)
+  return {
+    counterpartyName: String(rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '') || null,
+    driverNameRaw: String(rawFirst(raw, ['driver', 'водитель'], '') || '') || null,
+    sourceComment: sourceComment || null,
+    sourceCurrency: String(rawFirst(raw, ['currency', 'валюта'], '') || '') || null,
+    sourceCityCode: String(rawFirst(raw, ['city_code', 'cityCode'], meta.cityCode) || '') || null,
+    sourceVehicleCode: String(rawFirst(raw, ['vehicle_code', 'vehicleCode'], meta.vehicleCode) || '') || null,
+    sourceDirection: String(rawFirst(raw, ['direction'], meta.direction) || '') || null,
+    sourceOrderNumber: sourceOrderNumber || null,
+    sourceBookingId: String(rawFirst(raw, ['booking_id', 'bookingId'], meta.bookingId) || '') || null,
+    sourceInternalOrderNumber: String(rawFirst(raw, ['internal_order_number', 'internalOrderNumber', 'внутренний номер заказа'], '') || '') || null,
+    hasComplaint,
+    issueFlagsJson: JSON.stringify(issueFlags)
+  }
+}
+
+function classifyOrderQualitySignals(data) {
+  const text = [data.sourceComment, data.driverNameRaw, data.counterpartyName].filter(Boolean).join(' ')
+  const lowered = text.toLowerCase()
+  const issueFlags = normalizeIssueFlags(parseJsonSafe(data.issueFlagsJson || '[]', []))
+  const signals = []
+  const add = (type, severity = 'medium', confidence = 1) => {
+    if (!signals.some((signal) => signal.type === type)) {
+      signals.push({ type, severity, confidence, text: data.sourceComment || null })
+    }
+  }
+  if (data.hasComplaint || /жалоб|претензи|complaint/.test(lowered)) add('complaint', 'high')
+  if (/no[\s-]?show|did not show|не приех|не встрет|не было машины/.test(lowered)) add('no_show', 'high')
+  if (/опозд|late|delay|задерж/.test(lowered)) add('late', 'medium')
+  if (/wrong address|адрес|уточнить адрес|неверн.*адрес/.test(lowered)) add('wrong_address', 'medium', 0.8)
+  if (/flight|рейс|arrival|departure|прилет|прибыт/.test(lowered)) add('flight_info', 'low', 0.7)
+  if (/child|booster|baby seat|детск|кресл/.test(lowered)) add('child_seat', 'low')
+  if (/wait|waiting|ожидан|ждал/.test(lowered)) add('extra_waiting', 'medium', 0.8)
+  if (/штраф|penalty/.test(lowered)) add('penalty', 'high')
+  if (/отмена|cancel|declined/.test(lowered)) add('cancelled_signal', 'medium')
+  if (/будет оплачен|будет оплачена|paid/.test(lowered)) add('paid_after_cancel', 'medium', 0.8)
+  for (const flag of issueFlags) add(flag, String(flag).includes('complaint') ? 'high' : 'medium', 1)
+  return signals
+}
+
+async function upsertOrderQualitySignals(tenantId, orderId, sourceData) {
+  const signals = classifyOrderQualitySignals(sourceData)
+  if (!signals.length) return
+  await Promise.all(signals.map((signal) => prisma.orderQualitySignal.upsert({
+    where: {
+      orderId_type_source: {
+        orderId,
+        type: signal.type,
+        source: 'rule'
+      }
+    },
+    update: {
+      tenantId,
+      severity: signal.severity,
+      text: signal.text,
+      confidence: signal.confidence
+    },
+    create: {
+      tenantId,
+      orderId,
+      type: signal.type,
+      severity: signal.severity,
+      source: 'rule',
+      text: signal.text,
+      confidence: signal.confidence
+    }
+  })))
 }
 
 function tripRowFromSnapshot(snapshot, source = null) {
@@ -7559,12 +7667,12 @@ function tripRowFromSnapshot(snapshot, source = null) {
   const order = snapshot.order || null
   const amount = order?.clientPrice ?? numericRaw(raw, ['client_price', 'clientPrice', 'sum', 'сумма', 'price'], 0)
   const driverCost = order?.driverPrice ?? numericRaw(raw, ['driver_price', 'driverPrice', 'supplier_price'], null)
-  const currency = String(rawFirst(raw, ['currency', 'валюта'], parsePriceCurrency(rawFirst(raw, ['sum', 'сумма'], ''), 'EUR')) || 'EUR')
+  const currency = String(order?.sourceCurrency || rawFirst(raw, ['currency', 'валюта'], parsePriceCurrency(rawFirst(raw, ['sum', 'сумма'], ''), 'EUR')) || 'EUR')
   const status = String(order?.status || rawFirst(raw, ['status', 'статус'], 'pending') || 'pending')
   const issueFlags = issueFlagsFromRaw(raw, order)
-  const hasComplaint = boolRaw(raw, ['has_complaint', 'complaint']) || issueFlags.some((flag) => String(flag).toLowerCase().includes('complaint'))
-  const driver = String(rawFirst(raw, ['driver', 'водитель'], '') || '')
-  const counterparty = String(rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '')
+  const hasComplaint = Boolean(order?.hasComplaint) || boolRaw(raw, ['has_complaint', 'complaint']) || issueFlags.some((flag) => String(flag).toLowerCase().includes('complaint'))
+  const driver = String(order?.driverNameRaw || rawFirst(raw, ['driver', 'водитель'], '') || '')
+  const counterparty = String(order?.counterpartyName || rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '')
   const profit = driverCost === null || driverCost === undefined ? null : Number((Number(amount || 0) - Number(driverCost || 0)).toFixed(2))
   return {
     id: order?.id || '',
@@ -7572,22 +7680,30 @@ function tripRowFromSnapshot(snapshot, source = null) {
     sourceName: source?.name || '',
     monthLabel: source?.monthLabel || rawFirst(raw, ['month_label'], ''),
     sourceRow: snapshot.sourceRow,
-    orderNumber: String(rawFirst(raw, ['order_number', 'orderNumber', 'номер заказа'], '') || ''),
-    internalOrderNumber: String(rawFirst(raw, ['internal_order_number', 'internalOrderNumber'], '') || ''),
+    orderNumber: String(order?.sourceOrderNumber || rawFirst(raw, ['order_number', 'orderNumber', 'номер заказа'], '') || ''),
+    internalOrderNumber: String(order?.sourceInternalOrderNumber || rawFirst(raw, ['internal_order_number', 'internalOrderNumber'], '') || ''),
     pickupAt: order?.pickupAt || rawFirst(raw, ['pickup_at', 'date', 'дата'], ''),
     fromPoint: order?.fromPoint || String(rawFirst(raw, ['from_point', 'fromPoint', 'from', 'откуда'], '') || ''),
     toPoint: order?.toPoint || String(rawFirst(raw, ['to_point', 'toPoint', 'to', 'куда'], '') || ''),
     counterparty,
     driver,
     vehicleType: order?.vehicleType || String(rawFirst(raw, ['vehicle_type', 'vehicleType', 'class', 'класс'], '') || ''),
+    cityCode: order?.sourceCityCode || String(rawFirst(raw, ['city_code', 'cityCode'], '') || ''),
+    vehicleCode: order?.sourceVehicleCode || String(rawFirst(raw, ['vehicle_code', 'vehicleCode'], '') || ''),
+    direction: order?.sourceDirection || String(rawFirst(raw, ['direction'], '') || ''),
     status,
     clientPrice: Number(Number(amount || 0).toFixed(2)),
     driverPrice: driverCost === null || driverCost === undefined ? null : Number(Number(driverCost || 0).toFixed(2)),
     profit,
     currency,
-    comment: String(rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || ''),
+    comment: String(order?.sourceComment || rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || ''),
     hasComplaint,
     issueFlags,
+    qualitySignals: Array.isArray(order?.qualitySignals) ? order.qualitySignals.map((signal) => ({
+      type: signal.type,
+      severity: signal.severity,
+      text: signal.text || ''
+    })) : [],
     issueCount: issueFlags.length,
     needsInfo: Boolean(order?.needsInfo),
     infoReason: order?.infoReason || null
@@ -7635,6 +7751,30 @@ function summarizeTrips(trips) {
   return summary
 }
 
+function topCurrencyValue(amounts = {}) {
+  const entries = Object.entries(amounts || {})
+    .map(([currency, amount]) => ({ currency, amount: Number(amount || 0) }))
+    .filter((entry) => entry.amount !== 0)
+    .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+  return entries[0] || { currency: '', amount: 0 }
+}
+
+function addSignalCounts(row, trip) {
+  const flags = Array.isArray(trip.issueFlags) ? trip.issueFlags : []
+  for (const flag of flags) {
+    const key = String(flag || '').trim()
+    if (!key) continue
+    row.signalCounts[key] = (row.signalCounts[key] || 0) + 1
+  }
+}
+
+function finalizeSignalCounts(signalCounts = {}, limit = 5) {
+  return Object.entries(signalCounts || {})
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([type, count]) => ({ type, count }))
+}
+
 function groupTripStats(trips, keyName, outName) {
   const map = new Map()
   for (const trip of trips || []) {
@@ -7648,6 +7788,10 @@ function groupTripStats(trips, keyName, outName) {
         pending: 0,
         complaints: 0,
         issueCount: 0,
+        missingDriverCount: 0,
+        priceRiskCount: 0,
+        signalCounts: {},
+        topSignals: [],
         grossByCurrency: {},
         driverCostByCurrency: {},
         profitByCurrency: {},
@@ -7659,6 +7803,9 @@ function groupTripStats(trips, keyName, outName) {
     row[trip.status] = (row[trip.status] || 0) + 1
     if (trip.hasComplaint) row.complaints += 1
     row.issueCount += Number(trip.issueCount || 0)
+    if (!String(trip.driver || '').trim()) row.missingDriverCount += 1
+    if (trip.profit !== null && trip.profit < 0) row.priceRiskCount += 1
+    addSignalCounts(row, trip)
     addCurrencyTotal(row.grossByCurrency, trip.currency, trip.clientPrice)
     if (trip.driverPrice !== null && trip.driverPrice !== undefined) {
       addCurrencyTotal(row.driverCostByCurrency, trip.currency, trip.driverPrice)
@@ -7667,8 +7814,59 @@ function groupTripStats(trips, keyName, outName) {
   }
   return [...map.values()]
     .filter((row) => row[outName] !== '(empty)')
-    .map((row) => ({ ...row, issueRate: row.total ? Number((row.issueCount / row.total).toFixed(3)) : 0 }))
+    .map((row) => ({ ...row, issueRate: row.total ? Number((row.issueCount / row.total).toFixed(3)) : 0, topSignals: finalizeSignalCounts(row.signalCounts) }))
     .sort((a, b) => b.completed - a.completed || b.total - a.total || a[outName].localeCompare(b[outName]))
+}
+
+function buildAnalyticsRankings(trips) {
+  const drivers = groupTripStats(trips, 'driver', 'driver')
+  const counterparties = groupTripStats(trips, 'counterparty', 'counterparty')
+  const activeDrivers = drivers.filter((row) => row.total > 0)
+  const activeCounterparties = counterparties.filter((row) => row.total > 0)
+  const byGross = (a, b) => topCurrencyValue(b.grossByCurrency).amount - topCurrencyValue(a.grossByCurrency).amount
+  const byProfit = (a, b) => topCurrencyValue(b.profitByCurrency).amount - topCurrencyValue(a.profitByCurrency).amount
+  const byIssues = (a, b) => b.complaints - a.complaints || b.issueCount - a.issueCount || b.issueRate - a.issueRate || b.total - a.total
+  return {
+    topDriversByTrips: [...activeDrivers].sort((a, b) => b.completed - a.completed || b.total - a.total).slice(0, 15),
+    lowVolumeDrivers: [...activeDrivers].sort((a, b) => a.completed - b.completed || a.total - b.total || a.driver.localeCompare(b.driver)).slice(0, 15),
+    driversByIssues: [...activeDrivers].filter((row) => row.issueCount || row.complaints).sort(byIssues).slice(0, 15),
+    topClientsByGross: [...activeCounterparties].sort(byGross).slice(0, 15),
+    topClientsByProfit: [...activeCounterparties].sort(byProfit).slice(0, 15),
+    clientsByIssues: [...activeCounterparties].filter((row) => row.issueCount || row.complaints).sort(byIssues).slice(0, 15)
+  }
+}
+
+function buildSignalSummary(trips) {
+  const byType = {}
+  const bySeverity = {}
+  const comments = []
+  for (const trip of trips || []) {
+    const signals = Array.isArray(trip.qualitySignals) && trip.qualitySignals.length
+      ? trip.qualitySignals
+      : (Array.isArray(trip.issueFlags) ? trip.issueFlags.map((type) => ({ type, severity: 'medium', text: trip.comment || '' })) : [])
+    for (const signal of signals) {
+      const type = String(signal.type || '').trim()
+      if (!type) continue
+      byType[type] = (byType[type] || 0) + 1
+      const severity = String(signal.severity || 'medium')
+      bySeverity[severity] = (bySeverity[severity] || 0) + 1
+    }
+    if (trip.comment && (trip.hasComplaint || trip.issueCount)) {
+      comments.push({
+        pickupAt: trip.pickupAt,
+        driver: trip.driver,
+        counterparty: trip.counterparty,
+        route: [trip.fromPoint, trip.toPoint].filter(Boolean).join(' -> '),
+        comment: trip.comment,
+        issueFlags: trip.issueFlags || []
+      })
+    }
+  }
+  return {
+    byType: finalizeSignalCounts(byType, 20),
+    bySeverity: finalizeSignalCounts(bySeverity, 10),
+    comments: comments.slice(0, 40)
+  }
 }
 
 async function tripsForSources(tenantId, sources) {
@@ -7688,6 +7886,25 @@ async function tripsForSources(tenantId, sources) {
           fromPoint: true,
           toPoint: true,
           vehicleType: true,
+          counterpartyName: true,
+          driverNameRaw: true,
+          sourceComment: true,
+          sourceCurrency: true,
+          sourceCityCode: true,
+          sourceVehicleCode: true,
+          sourceDirection: true,
+          sourceOrderNumber: true,
+          sourceBookingId: true,
+          sourceInternalOrderNumber: true,
+          hasComplaint: true,
+          issueFlagsJson: true,
+          qualitySignals: {
+            select: {
+              type: true,
+              severity: true,
+              text: true
+            }
+          },
           driverPrice: true,
           clientPrice: true
         }
@@ -7819,6 +8036,18 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
             fromPoint: true,
             toPoint: true,
             vehicleType: true,
+            counterpartyName: true,
+            driverNameRaw: true,
+            sourceComment: true,
+            sourceCurrency: true,
+            sourceCityCode: true,
+            sourceVehicleCode: true,
+            sourceDirection: true,
+            sourceOrderNumber: true,
+            sourceBookingId: true,
+            sourceInternalOrderNumber: true,
+            hasComplaint: true,
+            issueFlagsJson: true,
             driverPrice: true,
             clientPrice: true,
             updatedAt: true,
@@ -7846,15 +8075,15 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
       const raw = payload && payload.row && typeof payload.row === 'object' ? payload.row : payload
       if (!raw || typeof raw !== 'object') continue
 
-      const contractor = pickField(raw, aliasesWithMapping(['контрагент', 'contractor'], mapping, 'contractor')) || ''
-      const orderNumber = pickField(raw, aliasesWithMapping(['номер заказа', 'order id', 'номер'], mapping, 'orderNumber')) || ''
+      const contractor = snapshot.order?.counterpartyName || pickField(raw, aliasesWithMapping(['контрагент', 'counterparty', 'contractor'], mapping, 'contractor')) || ''
+      const orderNumber = snapshot.order?.sourceOrderNumber || pickField(raw, aliasesWithMapping(['номер заказа', 'order id', 'номер'], mapping, 'orderNumber')) || ''
       const date = pickField(raw, aliasesWithMapping(['дата', 'date', 'pickup datetime', 'pickup time', 'дата подачи'], mapping, 'date')) || ''
       const fromPoint = pickField(raw, aliasesWithMapping(['откуда', 'from', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || ''
       const toPoint = pickField(raw, aliasesWithMapping(['куда', 'to', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || ''
       const sum = pickField(raw, aliasesWithMapping(['сумма', 'цена', 'стоимость', 'price', 'client price'], mapping, 'sum')) || ''
-      const driver = pickField(raw, aliasesWithMapping(['водитель', 'driver'], mapping, 'driver')) || ''
-      const comment = pickField(raw, aliasesWithMapping(['комментарий', 'comment', 'примечание'], mapping, 'comment')) || ''
-      const internalOrderNumber = pickField(raw, aliasesWithMapping(['внутренний номер заказа', 'internal order number'], mapping, 'internalOrderNumber')) || ''
+      const driver = snapshot.order?.driverNameRaw || pickField(raw, aliasesWithMapping(['водитель', 'driver'], mapping, 'driver')) || ''
+      const comment = snapshot.order?.sourceComment || pickField(raw, aliasesWithMapping(['комментарий', 'comment', 'примечание'], mapping, 'comment')) || ''
+      const internalOrderNumber = snapshot.order?.sourceInternalOrderNumber || pickField(raw, aliasesWithMapping(['внутренний номер заказа', 'internal order number'], mapping, 'internalOrderNumber')) || ''
       const effectiveFromPoint = snapshot.order?.fromPoint || fromPoint
       const effectiveToPoint = snapshot.order?.toPoint || toPoint
       const effectiveVehicleType = snapshot.order?.vehicleType || ''
@@ -8327,10 +8556,14 @@ app.get('/api/admin/economics/order-archive/:monthLabel/trips', authenticateToke
     if (!payload) return res.status(404).json({ error: 'Order month not found' })
     const q = String(req.query.q || '').trim().toLowerCase()
     const status = String(req.query.status || '').trim().toLowerCase()
+    const counterparty = String(req.query.counterparty || '').trim().toLowerCase()
+    const driver = String(req.query.driver || '').trim().toLowerCase()
     const complaintsOnly = ['1', 'true', 'yes'].includes(String(req.query.complaintsOnly || '').toLowerCase())
     const issuesOnly = ['1', 'true', 'yes'].includes(String(req.query.issuesOnly || '').toLowerCase())
     const rows = payload.trips.filter((trip) => {
       if (status && String(trip.status || '').toLowerCase() !== status) return false
+      if (counterparty && !String(trip.counterparty || '').toLowerCase().includes(counterparty)) return false
+      if (driver && !String(trip.driver || '').toLowerCase().includes(driver)) return false
       if (complaintsOnly && !trip.hasComplaint) return false
       if (issuesOnly && !trip.issueCount && !trip.needsInfo) return false
       if (q) {
@@ -8433,11 +8666,15 @@ app.get('/api/admin/economics/analytics/overview', authenticateToken, resolveAct
       allTrips.push(...trips)
       months.push(publicMonthFromSources(group, trips, lang))
     }
+    const rankings = buildAnalyticsRankings(allTrips)
+    const signals = buildSignalSummary(allTrips)
     res.json({
       months,
       summary: summarizeTrips(allTrips),
       drivers: groupTripStats(allTrips, 'driver', 'driver').slice(0, 50),
-      counterparties: groupTripStats(allTrips, 'counterparty', 'counterparty').slice(0, 50)
+      counterparties: groupTripStats(allTrips, 'counterparty', 'counterparty').slice(0, 50),
+      rankings,
+      signals
     })
   } catch (error) {
     console.error('Error fetching economics analytics overview:', error)

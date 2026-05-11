@@ -12,6 +12,7 @@ pids
 *.pid.lock
 reports/*.json
 reports/db-backups/
+reports/order-sync/
 
 # Coverage
 coverage

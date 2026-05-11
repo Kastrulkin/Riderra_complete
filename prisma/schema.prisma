@@ -19,6 +19,7 @@ model Tenant {
   auditLogs         AuditLog[]
   approvals         HumanApproval[]
   orders            Order[]
+  orderQualitySignals OrderQualitySignal[]
   orderStatusEvents OrderStatusHistory[]
   pricingRows       CityPricing[]
   counterpartyRules CounterpartyPriceRule[]
@@ -232,6 +233,18 @@ model Order {
   driver      Driver?   @relation(fields: [driverId], references: [id])
   status      String    @default("pending") // pending, assigned, accepted, completed, cancelled
   vehicleType String // Тип транспорта
+  counterpartyName String?
+  driverNameRaw String?
+  sourceComment String?
+  sourceCurrency String?
+  sourceCityCode String?
+  sourceVehicleCode String?
+  sourceDirection String?
+  sourceOrderNumber String?
+  sourceBookingId String?
+  sourceInternalOrderNumber String?
+  hasComplaint Boolean @default(false)
+  issueFlagsJson String?
   passengers  Int?
   luggage     Int?
   needsInfo   Boolean   @default(false)
@@ -264,9 +277,32 @@ model Order {
   adjustments     OrderAdjustment[]
   statusHistory  OrderStatusHistory[]
   chatTasks      ChatTask[]
+  qualitySignals OrderQualitySignal[]
   tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
+  @@index([tenantId, counterpartyName])
+  @@index([tenantId, driverNameRaw])
+  @@index([tenantId, sourceCurrency])
+}
+
+model OrderQualitySignal {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type       String
+  severity   String   @default("medium")
+  source     String   @default("rule")
+  text       String?
+  confidence Float    @default(1.0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, type, source])
+  @@index([tenantId, type, severity])
+  @@index([tenantId, orderId])
 }
 
 model OrderAdjustment {

@@ -37,6 +37,8 @@
 
         <div class="toolbar">
           <input v-model="q" class="input toolbar-search" :placeholder="t.search" @input="applyTripsFilter" />
+          <input v-model="counterpartyFilter" class="input month-filter" :placeholder="t.counterparty" @change="loadTrips" @keyup.enter="loadTrips" />
+          <input v-model="driverFilter" class="input month-filter" :placeholder="t.driver" @change="loadTrips" @keyup.enter="loadTrips" />
           <select v-model="status" class="input month-filter" @change="loadTrips">
             <option value="">{{ t.allStatuses }}</option>
             <option value="completed">completed</option>
@@ -56,6 +58,7 @@
             <div>{{ t.status }}</div>
             <div>{{ t.money }}</div>
             <div>{{ t.risks }}</div>
+            <div>{{ t.comment }}</div>
           </div>
           <div v-for="row in filteredTrips" :key="`${row.sourceId}-${row.sourceRow}`" class="table-row trips-grid" :class="{ 'table-row--risk': row.hasComplaint || row.issueCount }">
             <div>
@@ -77,6 +80,7 @@
               <strong>{{ row.hasComplaint ? t.complaint : '-' }}</strong>
               <span class="muted">{{ row.issueFlags && row.issueFlags.length ? row.issueFlags.join(', ') : '-' }}</span>
             </div>
+            <div class="comment-cell">{{ row.comment || '-' }}</div>
           </div>
           <div v-if="!filteredTrips.length" class="empty-state">{{ t.empty }}</div>
         </div>
@@ -164,6 +168,8 @@ export default {
     tab: 'trips',
     q: '',
     status: '',
+    counterpartyFilter: '',
+    driverFilter: '',
     loading: false,
     error: ''
   }),
@@ -196,6 +202,7 @@ export default {
             status: 'Статус',
             money: 'Деньги',
             risks: 'Риски',
+            comment: 'Комментарий',
             risk: 'Риск',
             profit: 'прибыль',
             gross: 'Выручка',
@@ -229,6 +236,7 @@ export default {
             status: 'Status',
             money: 'Money',
             risks: 'Risks',
+            comment: 'Comment',
             risk: 'Risk',
             profit: 'profit',
             gross: 'Gross',
@@ -306,6 +314,8 @@ export default {
     async loadTrips () {
       const params = new URLSearchParams()
       if (this.status) params.set('status', this.status)
+      if (this.counterpartyFilter.trim()) params.set('counterparty', this.counterpartyFilter.trim())
+      if (this.driverFilter.trim()) params.set('driver', this.driverFilter.trim())
       const body = await this.fetchJson(`/api/admin/economics/order-archive/${this.monthLabel}/trips?${params.toString()}`)
       this.trips = body.rows || []
       this.applyTripsFilter()
@@ -366,13 +376,13 @@ export default {
 .subtabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .subtab { border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
 .subtab--active { background: linear-gradient(135deg, #1a237e 0%, #0d1421 100%); border-color: transparent; color: #fff; }
-.toolbar { display: grid; grid-template-columns: minmax(280px, 1fr) 190px; gap: 12px; align-items: center; margin-bottom: 14px; }
+.toolbar { display: grid; grid-template-columns: minmax(280px, 1fr) 180px 180px 190px; gap: 12px; align-items: center; margin-bottom: 14px; }
 .input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #c8ccdc; background: #fff; color: #1f2b46; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 8px; overflow: auto; margin-bottom: 16px; }
 .table-head, .table-row { display: grid; gap: 14px; align-items: center; min-width: 1120px; }
 .table-head { padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #d8d8e6; font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; }
 .table-row { padding: 14px 16px; border-bottom: 1px solid #eef2f7; color: #1f2b46; }
-.trips-grid { grid-template-columns: minmax(130px, .8fr) minmax(260px, 1.6fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(110px, .7fr) minmax(160px, 1fr) minmax(190px, 1.1fr); }
+.trips-grid { grid-template-columns: minmax(130px, .8fr) minmax(260px, 1.6fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(110px, .7fr) minmax(160px, 1fr) minmax(190px, 1.1fr) minmax(240px, 1.4fr); }
 .stats-grid { grid-template-columns: minmax(240px, 1.5fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(190px, 1.1fr) minmax(190px, 1.1fr); }
 .risk-grid { grid-template-columns: minmax(180px, 1fr) minmax(300px, 1.8fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(160px, .8fr); }
 .finance-grid { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 0; min-width: 900px; }
@@ -380,6 +390,7 @@ export default {
 .finance-row span, .muted { display: block; margin-top: 4px; color: #64748b; font-size: 12px; }
 .route-cell__title { font-weight: 800; color: #17233d; }
 .route-cell__sub { color: #64748b; font-size: 12px; margin-top: 4px; }
+.comment-cell { color: #475569; font-size: 13px; line-height: 1.45; }
 .status-pill { display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; background: #eef2ff; color: #223356; font-size: 12px; font-weight: 800; }
 .table-row--risk { background: #fffdf4; }
 .empty-state, .hint { padding: 14px 16px; color: #64748b; }
