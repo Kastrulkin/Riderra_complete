@@ -2450,12 +2450,38 @@ function normalizeGoogleSheetId(value) {
 
 async function fetchGoogleSheetRows(sheetSource) {
   const accessToken = await getGoogleAccessToken()
-  const tabName = String(sheetSource.tabName || '').trim() || 'таблица'
-  const range = `${tabName}!A:AZ`
+  const requestedTabName = String(sheetSource.tabName || '').trim() || 'таблица'
   const sheetId = normalizeGoogleSheetId(sheetSource.googleSheetId)
   if (!sheetId) {
     throw new Error('Google Sheet ID is empty')
   }
+  let tabName = requestedTabName
+  const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`
+  const metadataResponse = await fetch(metadataUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  })
+  if (metadataResponse.ok) {
+    const metadata = await metadataResponse.json()
+    const titles = (metadata.sheets || []).map((sheet) => sheet?.properties?.title).filter(Boolean)
+    const candidates = [
+      requestedTabName,
+      sheetSource.name,
+      sheetSource.monthLabel,
+      'Таблица',
+      'таблица',
+      'Лист1'
+    ].map((value) => String(value || '').trim()).filter(Boolean)
+    for (const candidate of candidates) {
+      tabName = titles.find((title) => title === candidate) ||
+        titles.find((title) => normalizeHeader(title) === normalizeHeader(candidate)) ||
+        ''
+      if (tabName) break
+    }
+    if (!tabName) tabName = titles[0] || requestedTabName
+  }
+  const range = `${tabName}!A:AZ`
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`
 
   const response = await fetch(url, {
@@ -2543,9 +2569,11 @@ async function syncSheetSource(sheetSourceId, tenantId) {
     }
 
     try {
-      const externalKey =
-        pickField(raw, aliasesWithMapping(['external key', 'order id', 'номер заказа', 'id', 'номер'], mapping, 'orderNumber')) ||
-        `${source.googleSheetId}:${source.tabName}:${sourceRow}`
+      const sourceOrderNumberRaw = pickField(raw, aliasesWithMapping(['external key', 'order id', 'номер заказа', 'id', 'номер'], mapping, 'orderNumber')) || ''
+      const sourceInternalOrderNumberRaw = pickField(raw, aliasesWithMapping(['internal_order_number', 'internalOrderNumber', 'внутренний номер заказа'], mapping, 'internalOrderNumber')) || ''
+      const sourceBookingId = parseOrderMetaFromSourceOrderNumber(sourceOrderNumberRaw).bookingId || ''
+      const stableSourceId = sourceInternalOrderNumberRaw || sourceBookingId || sourceOrderNumberRaw || 'row'
+      const externalKey = `google_sheet:${normalizeGoogleSheetId(source.googleSheetId)}:${source.tabName}:${sourceRow}:${stableSourceId}`
 
       const fromPoint = pickField(raw, aliasesWithMapping(['from', 'откуда', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || 'UNKNOWN'
       const toPoint = pickField(raw, aliasesWithMapping(['to', 'куда', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || 'UNKNOWN'
@@ -2571,7 +2599,8 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         comment,
         counterparty: pickField(raw, aliasesWithMapping(['counterparty', 'контрагент', 'contractor'], mapping, 'counterparty')) || null,
         driver: pickField(raw, aliasesWithMapping(['driver', 'водитель'], mapping, 'driver')) || null,
-        orderNumber: externalKey,
+        orderNumber: sourceOrderNumberRaw,
+        internal_order_number: sourceInternalOrderNumberRaw,
         currency: parsePriceCurrency(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), null)
       })
       const incomingStatus = normalizeIncomingOrderStatus(

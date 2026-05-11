@@ -1,0 +1,788 @@
+[
+  {
+    "monthLabel": "2015-02",
+    "sourceName": "Февраль 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Февраль"
+  },
+  {
+    "monthLabel": "2015-03",
+    "sourceName": "Март 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Март"
+  },
+  {
+    "monthLabel": "2015-04",
+    "sourceName": "Апрель 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Апрель"
+  },
+  {
+    "monthLabel": "2015-05",
+    "sourceName": "Май 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Май"
+  },
+  {
+    "monthLabel": "2015-06",
+    "sourceName": "Июнь 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Июнь"
+  },
+  {
+    "monthLabel": "2015-07",
+    "sourceName": "Июль 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Июль"
+  },
+  {
+    "monthLabel": "2015-08",
+    "sourceName": "Август 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Август"
+  },
+  {
+    "monthLabel": "2015-09",
+    "sourceName": "Сентябрь 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Сентябрь"
+  },
+  {
+    "monthLabel": "2015-10",
+    "sourceName": "Октябрь 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Октябрь"
+  },
+  {
+    "monthLabel": "2015-11",
+    "sourceName": "Ноябрь 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Ноябрь"
+  },
+  {
+    "monthLabel": "2015-12",
+    "sourceName": "Декабрь 2015",
+    "spreadsheetId": "1lfzcTwb5eNbyaPdiUFLeUfv-L_g1DNua9HwW1vODNtA",
+    "tableTab": "Декабрь"
+  },
+  {
+    "monthLabel": "2016-01",
+    "sourceName": "Январь 2016",
+    "spreadsheetId": "1Ud22ABWUIpCooQlRd-M4Jk8zvKA7Ham3BxBgqtwhylk",
+    "tableTab": "Январь 2016"
+  },
+  {
+    "monthLabel": "2016-02",
+    "sourceName": "Февраль 2016",
+    "spreadsheetId": "1Ud22ABWUIpCooQlRd-M4Jk8zvKA7Ham3BxBgqtwhylk",
+    "tableTab": "Февраль 2016"
+  },
+  {
+    "monthLabel": "2016-03",
+    "sourceName": "Март 2016",
+    "spreadsheetId": "1Ud22ABWUIpCooQlRd-M4Jk8zvKA7Ham3BxBgqtwhylk",
+    "tableTab": "Март 2016"
+  },
+  {
+    "monthLabel": "2016-04",
+    "sourceName": "Апрель 2016",
+    "spreadsheetId": "1Ud22ABWUIpCooQlRd-M4Jk8zvKA7Ham3BxBgqtwhylk",
+    "tableTab": "Апрель 2016"
+  },
+  {
+    "monthLabel": "2016-05",
+    "sourceName": "Май 2016",
+    "spreadsheetId": "1Ud22ABWUIpCooQlRd-M4Jk8zvKA7Ham3BxBgqtwhylk",
+    "tableTab": "Май 2016"
+  },
+  {
+    "monthLabel": "2016-06",
+    "sourceName": "Июнь 2016",
+    "spreadsheetId": "1Ud22ABWUIpCooQlRd-M4Jk8zvKA7Ham3BxBgqtwhylk",
+    "tableTab": "Июнь 2016"
+  },
+  {
+    "monthLabel": "2016-07",
+    "sourceName": "Июль 2016",
+    "spreadsheetId": "1Ud22ABWUIpCooQlRd-M4Jk8zvKA7Ham3BxBgqtwhylk",
+    "tableTab": "Июль 2016"
+  },
+  {
+    "monthLabel": "2016-08",
+    "sourceName": "Август 2016",
+    "spreadsheetId": "1hY9XZ2cDlvUqHoIF9y6qkEk8gTSMJYdRSivrBe4nrH0"
+  },
+  {
+    "monthLabel": "2016-09",
+    "sourceName": "Сентябрь 2016",
+    "spreadsheetId": "1Sg3QoefQBFP_rxsScwnx808kPVq-bbQk58FgAuBjNsk"
+  },
+  {
+    "monthLabel": "2016-10",
+    "sourceName": "Октябрь 2016",
+    "spreadsheetId": "1BsZz93_6hDWSjZtcNWeIH0DKzCSP-pdkReGeR_bNsB4"
+  },
+  {
+    "monthLabel": "2016-11",
+    "sourceName": "Ноябрь 2016",
+    "spreadsheetId": "1N243d-tNBg-4BovOmX4ZC5L6A8QXFdSs4c386f4Hh8c"
+  },
+  {
+    "monthLabel": "2016-12",
+    "sourceName": "Декабрь 2016",
+    "spreadsheetId": "1JJM9MUvnIW-vJyttGS3EO1Xy4EfVW6eQEkfNeheUnhs"
+  },
+  {
+    "monthLabel": "2017-01",
+    "sourceName": "Январь 2017",
+    "spreadsheetId": "14ZpH8wzkjw_51TpP9byLIJNh1qluzNT0ij2cRIT4f48",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-02",
+    "sourceName": "Февраль 2017",
+    "spreadsheetId": "1nFsBPQ3b6JA1_Q8X6XBYc5o3XZlRT9EoB9pJEq7nvJg",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-03",
+    "sourceName": "Март 2017",
+    "spreadsheetId": "1MHgT1i7Rmeqk7MVX-0w53yhu-i17gRIbOewrkPCi-ho",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-04",
+    "sourceName": "Апрель 2017",
+    "spreadsheetId": "1IV1eUc2SdrZJOp4_tIercBx1j97dnPvCA4yZSmOlYus",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-05",
+    "sourceName": "Май 2017",
+    "spreadsheetId": "1EfKKI3U1LvqzaRQbhD3rvnqq40KY2ti466Lq5SBeglQ",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-06",
+    "sourceName": "Июнь 2017",
+    "spreadsheetId": "1zEhA6PCAPqtFucH87W5wYYY4rzR8zm_0tsQPjU2JvNs",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-07",
+    "sourceName": "Июль 2017",
+    "spreadsheetId": "1qxCzgP4RmRatveJFwbtCH0QiYq-lPUkQABroM8x16F4",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-08",
+    "sourceName": "Август 2017",
+    "spreadsheetId": "1ZlmaKgwfO-bdCmkC28kuPl6t0A9ivbjHazxjLNWQSQ4",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-09",
+    "sourceName": "Сентябрь 2017",
+    "spreadsheetId": "1uSYl5YZyRKp6ExO6EP_aR-e6IaeSTATvatbLLDZ_PfA",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-10",
+    "sourceName": "Октябрь 2017",
+    "spreadsheetId": "1kekmnQKmv3jLbx9lCbmtJBip7N3pz-oBtgRxpFiKgzM",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-11",
+    "sourceName": "Ноябрь 2017",
+    "spreadsheetId": "1K5iJuXnE_-JN3T2qZR_NlEdbaEJsungJT2MQwoUoCJ4",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2017-12",
+    "sourceName": "Декабрь 2017",
+    "spreadsheetId": "1nJF07UeZ-vwVfSmL4Ox2Hym4dgArQemI2i-T0izFUgU",
+    "tableTab": "Лист1"
+  },
+  {
+    "monthLabel": "2018-01",
+    "sourceName": "Январь 2018",
+    "spreadsheetId": "1DXVjeSTNTBaFdeyWIFcnnj7mKlupAwa-jI4GlG50TwU",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-02",
+    "sourceName": "Февраль 2018",
+    "spreadsheetId": "1nJVG4dVru8f0HNxpMdKTPACcO-LZHWPkbwTi_YQaEFo",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-03",
+    "sourceName": "Март 2018",
+    "spreadsheetId": "1AEQDl47EGvptcvoMfJdRvxySlDq25uLuYzl0GuLs8dQ",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-04",
+    "sourceName": "Апрель 2018",
+    "spreadsheetId": "1mqYScIQEh9rA_FETzzvQ8-skiV8xJPJY620kbOKIy58",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-05",
+    "sourceName": "Май 2018",
+    "spreadsheetId": "1b11D5HUDGtM05_VyXVtDG4FBiNNQ1MZNB_WnrHyAFcU",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-06",
+    "sourceName": "Июнь 2018",
+    "spreadsheetId": "1JItwHtPGz_rloeajZbYywlU-cSMmbsz2GnAn70YaV40",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-07",
+    "sourceName": "Июль 2018",
+    "spreadsheetId": "1vlOD0eW0AsH8lpndDjYKkenro-Qvm9RH7BlWgha8dxs",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-08",
+    "sourceName": "Август 2018",
+    "spreadsheetId": "1A7y_UeLOwiHF-3X7aNWcfACiqdIcNn3ukU5yI4TTaho",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-09",
+    "sourceName": "Сентябрь 2018",
+    "spreadsheetId": "1Xl87FHveYEBge2m2_BcP0TL2f1WAq2jWT1rFjEWuzx8",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-10",
+    "sourceName": "Октябрь 2018",
+    "spreadsheetId": "1_JsOZa2-vBAijJYUgeLY363R5nGvl2fOQtjolk2RBJc",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-11",
+    "sourceName": "Ноябрь 2018",
+    "spreadsheetId": "1SAuW8B5OKZnxH4zqiW96f6JlyBy68YxBTkaaKcXYNdM",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2018-12",
+    "sourceName": "Декабрь 2018",
+    "spreadsheetId": "1CWh7b_rGLy1nKXWNtQ_ZCzQfdUc8goXvurAXBiIRd0s",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-01",
+    "sourceName": "Январь 2019",
+    "spreadsheetId": "1qNjwbxwU_fT1RgwdYY-G6bZiSOnN1gML9Vh0kGCIxiE",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-02",
+    "sourceName": "Февраль 2019",
+    "spreadsheetId": "1x_17mxLmuhoDmAYY727b-MNQFTrCXsVezCx5GXiSTDk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-03",
+    "sourceName": "Март 2019",
+    "spreadsheetId": "1_lxTahZX2CeDnGFM0EhheLHGfwITRwbal7lM_F1Jnvk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-04",
+    "sourceName": "Апрель 2019",
+    "spreadsheetId": "1Tu-xRI8gKfrjcpPlzSQaYRtZdG7oQl8rLWmYbi4j1nc",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-05",
+    "sourceName": "Май 2019",
+    "spreadsheetId": "1HEmJOYv0xqx56WozuRQOc44F-MOxLaFzpGYSHGifbZ8",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-06",
+    "sourceName": "Июнь 2019",
+    "spreadsheetId": "1yQH6muhjjUdOVAnfz3ng9wgrJ7OPA4ky14RS5ZURDn4",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-07",
+    "sourceName": "Июль 2019",
+    "spreadsheetId": "1vVL1dgJZF6OjBELnwkoxjh-wmA6LSpsbUQfoGH6rln4",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-08",
+    "sourceName": "Август 2019",
+    "spreadsheetId": "1fiMnKAOsFHI39X6G83nTi5xbnqOJLn1auiAjXw_Sb6M",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-09",
+    "sourceName": "Сентябрь 2019",
+    "spreadsheetId": "1k2wd8RWJuZ_ojv5t1HAFiY2O_nwocJKSzs5Ja9fF0fA",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-10",
+    "sourceName": "Октябрь 2019",
+    "spreadsheetId": "1JkPUPTaNsgIsRXUW-1EY7KPxKiXJ60Ezmf9_Jf8Vv0A",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-11",
+    "sourceName": "Ноябрь 2019",
+    "spreadsheetId": "1_qsmlaZCnBNqSr996z3HPGWauKNgTwDFI4rw4rrX7vk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2019-12",
+    "sourceName": "Декабрь 2019",
+    "spreadsheetId": "1xlIoif2Z6IdfBU7xAZXhjnzzqr8a3wCvzry80pIclOk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-01",
+    "sourceName": "Январь 2020",
+    "spreadsheetId": "1LWxxCAeu6QiiOhrzIe-6ENEX_9jd2tbrN2rdrTkZewk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-02",
+    "sourceName": "Февраль 2020",
+    "spreadsheetId": "10yEQHoP123RaZ5RS46vQB1FcGvDlGLDVOyougwavzR8",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-03",
+    "sourceName": "Март 2020",
+    "spreadsheetId": "1sm8cjc_8dVS7lzqTSVn8NKUiHLMrqCPAW4sMT38p3qY",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-04",
+    "sourceName": "Апрель 2020",
+    "spreadsheetId": "1XCj3uj8PfdNhGvpKF7ms1QGCLFWHg1Ndnz2x_8hc-cw",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-05",
+    "sourceName": "Май 2020",
+    "spreadsheetId": "1APPH0WwGvuUXjByfN7HzmuLG8mKNTV1DRPX_Q8Yucyw",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-06",
+    "sourceName": "Июнь 2020",
+    "spreadsheetId": "1NNsE54VPsE9MRGaQg0jG84RGf519rmToTP5VepGME7g",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-07",
+    "sourceName": "Июль 2020",
+    "spreadsheetId": "1U0xIIX-DyCxfYqjgytdVF0CwUrisHbwCd1CqWrO5Ey8",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-08",
+    "sourceName": "Август 2020",
+    "spreadsheetId": "1J_vK0AmVKdBQo070ZetKluBUgcXygWdzpdQJZvSgAtk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-09",
+    "sourceName": "Сентябрь 2020",
+    "spreadsheetId": "1yx6YMAdZ_iW9Nev1rSUN_E-caaKss0yWZ8rSIey0Ftg",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-10",
+    "sourceName": "Октябрь 2020",
+    "spreadsheetId": "1VU2L4IN7q7ZmdgpJJj5bw1X54rs7-nUvIvMWNUNNg_g",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-11",
+    "sourceName": "Ноябрь 2020",
+    "spreadsheetId": "1SsPA2JWvvpbtPorrrjahA-5Z9bR4fOc9GYghN-w2RXQ",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2020-12",
+    "sourceName": "Декабрь 2020",
+    "spreadsheetId": "1YKgunJv-T-4MiOUrw7Hn4w1HM9vGonzSQ-RWeYJrUvM",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-01",
+    "sourceName": "Январь 2021",
+    "spreadsheetId": "1NQLZxD-YEVtwBjjoldAdc3odT3QEgGYY674BTZX8pCg",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-02",
+    "sourceName": "Февраль 2021",
+    "spreadsheetId": "1z32OG0iuo8H3lgl1Pm3HCFgcue90rGSq-i2a2BCHBVA",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-03",
+    "sourceName": "Март 2021",
+    "spreadsheetId": "1JI6ZTfDioLbXOOpfg8GRQRZwGSDr-9Lum4n2B6MHh7k",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-04",
+    "sourceName": "Апрель 2021",
+    "spreadsheetId": "1JUqixQmnGPHXRwOGqSBjg_TuGFHupcowYVb4hPignXU",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-05",
+    "sourceName": "Май 2021",
+    "spreadsheetId": "1yXUEmk3a1ctPC_MBJJX9NUWJarN7VmtKzQ71QzaWkk0",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-06",
+    "sourceName": "Июнь 2021",
+    "spreadsheetId": "1QggZGqv9QqE0Y07od39i5VD8JYGDe7bP6eKfVfCFnWY",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-07",
+    "sourceName": "Июль 2021",
+    "spreadsheetId": "1guhVrZ3fH9wIOHOfrxWwi9fBpaQCvL0R-cgQzeGcurc",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-09",
+    "sourceName": "Сентябрь 2021",
+    "spreadsheetId": "1-NNICxhYdA8hp_jBzJGxaNgINf_ShnUOCoKDMHUjB4M",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-10",
+    "sourceName": "Октябрь 2021",
+    "spreadsheetId": "10qxVbQAgRlpg3YG-34UK8RR4KklPOXDPfN3Dc6bDnPY",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-11",
+    "sourceName": "Ноябрь 2021",
+    "spreadsheetId": "1BTo6IyjLP42OCRMUs5YEeG6HWCnpqw1YqZ659QX4IME",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2021-12",
+    "sourceName": "Декабрь 2021",
+    "spreadsheetId": "1mKGUz2JQ6mk6fUzauhFffAJIIOtFzO8abRPdiXO_NVw",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-01",
+    "sourceName": "Январь 2022",
+    "spreadsheetId": "1EscgiQ-4Sdggl6IWCc9u0x60NWcekRi0LA3jG4sLqlA",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-02",
+    "sourceName": "Февраль 2022",
+    "spreadsheetId": "1zQ3HMuRr7zE0tgfWMIGwGDhJ1IB6M1cIpyEMgNz1O1o",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-03",
+    "sourceName": "Март 2022",
+    "spreadsheetId": "1KjyCpPKK78WOMU6VLSpwiYm3a4PwZeaiFyXVo5fYAHg",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-04",
+    "sourceName": "Апрель 2022",
+    "spreadsheetId": "1s79gWCm7A8X1drwN6yAscetf0adpRkamHCJyHCkyIqY",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-05",
+    "sourceName": "Май 2022",
+    "spreadsheetId": "1TUidJdJx_OhR4BSujgnlZpNQ5-ohyTb4NwoNvcR56NU",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-06",
+    "sourceName": "Июнь 2022",
+    "spreadsheetId": "1u81FG_KAiDqaez844PwTrYCVggCSbtFxA3kp63Vvjzg",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-07",
+    "sourceName": "Июль 2022",
+    "spreadsheetId": "15vU8FYNZqD-jWWlyGaJLCJeOkwSPCe5Do6Xs95vOt8s",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-08",
+    "sourceName": "Август 2022",
+    "spreadsheetId": "10ZKS76A02dQzQDIsE2lILKMnLMsmm2pixkY1Npwapnk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-09",
+    "sourceName": "Сентябрь 2022",
+    "spreadsheetId": "1jVOwld0uLQZFUZzqhwiIelexf4oTEwDxMXHHr2TO4zE",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-10",
+    "sourceName": "Октябрь 2022",
+    "spreadsheetId": "1XhNTknqtNrxyifc4Az_GWqUngsRJdhgTNO7P5j1W66k",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-11",
+    "sourceName": "Ноябрь 2022",
+    "spreadsheetId": "1jMnyc8hH8v9_HV5zxBcZBaECk1gIxiNWwUh6vILePKQ",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2022-12",
+    "sourceName": "Декабрь 2022",
+    "spreadsheetId": "1nibR__bYs0fl2XqaWOs_9xSaZVE_Os8bOhEnhS8w9_E",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-01",
+    "sourceName": "Январь 2023",
+    "spreadsheetId": "122kOavik_RX7xaLYaBc-IpWD3RPnq1Zt4iTpf1f0ky4",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-02",
+    "sourceName": "Февраль 2023",
+    "spreadsheetId": "1owWb6tgCSRg9LvMcagAAniENvvWfnm9KZ7DqgWXfDqo",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-03",
+    "sourceName": "Март 2023",
+    "spreadsheetId": "1tRFBwlmyRR2zoM2lOQ0Kj5kAQqt9hFOxoskq4xgTSpU",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-04",
+    "sourceName": "Апрель 2023",
+    "spreadsheetId": "1_ljps_poJbFx6zd3CrOAX25NrVqctxRdaD4COHR1SNY",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-05",
+    "sourceName": "Май 2023",
+    "spreadsheetId": "1aKj3ay9qa8IBz70XRkKz_juYSDT1IOQaDWyLYvjFVBw",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-06",
+    "sourceName": "Июнь 2023",
+    "spreadsheetId": "1TimthyQyyPZXhMyCbQq_GeYAbEz8zAAGaBn7AUpI5pk",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-07",
+    "sourceName": "Июль 2023",
+    "spreadsheetId": "1H2AF6Xlige6_mIokNdITF5GEDmnzPmwqwJA81WReNR0",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-08",
+    "sourceName": "Август 2023",
+    "spreadsheetId": "1as-T3WjTYiBU6V315Qes-8SkWdhfTfSiydJc4fXqhtg",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-09",
+    "sourceName": "Сентябрь 2023",
+    "spreadsheetId": "1qTX_RGlnDtRQie754Yd-qFts9USM0_xKwR6cIqtHQ2U",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-10",
+    "sourceName": "Октябрь 2023",
+    "spreadsheetId": "1xOnjDuJKGfrVGBgouSe8WQzyf63iwEGJJNHQX9JAdm0",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-11",
+    "sourceName": "Ноябрь 2023",
+    "spreadsheetId": "1REPCGMEH4yAkgWBi-yABkqqCx0sVuOhiLpfAfLf_JJM",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2023-12",
+    "sourceName": "Декабрь 2023",
+    "spreadsheetId": "1Uwp73jdv5ORAmtRFIkkhQyyq360nOClOPF6PndqXov4",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-01",
+    "sourceName": "Январь 2024",
+    "spreadsheetId": "15WUBM_Aesfo9m_tYGNMLzrgJL4dj-ae24ECtHm9e2hE",
+    "tableTab": "таблица",
+    "detailsTab": "подробности"
+  },
+  {
+    "monthLabel": "2024-02",
+    "sourceName": "Февраль 2024",
+    "spreadsheetId": "1SM6Nw3eYfgvWurWLM85DnHb6BU8KTL8z535T-mxfkLA",
+    "tableTab": "таблица",
+    "detailsTab": "подробности"
+  },
+  {
+    "monthLabel": "2024-03",
+    "sourceName": "Март 2024",
+    "spreadsheetId": "1Wadn8Zl0heaePBSrfSgHZ4FFob2PnzZKfhiU18bQumo",
+    "tableTab": "таблица",
+    "detailsTab": "подробности"
+  },
+  {
+    "monthLabel": "2024-04",
+    "sourceName": "Апрель 2024",
+    "spreadsheetId": "1_KAv2fvLb9m_IRNjFf1li5JY87jwHEvb_YXd5VsikFI",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-05",
+    "sourceName": "Май 2024",
+    "spreadsheetId": "13QPFuSPCudGL5DT00YmOgwgW2MPEZ7L3vlk5YQGuHrg",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-06",
+    "sourceName": "Июнь 2024",
+    "spreadsheetId": "1AUPJb1AJqEU3f9D3vPTg_PL18YjMwy7KcJJnUmkS9QA",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-07",
+    "sourceName": "Июль 2024",
+    "spreadsheetId": "11qWBB3N0KzaHWXMceaGNKTUxOWkbODl10mQKQAqsN5E",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-08",
+    "sourceName": "Август 2024",
+    "spreadsheetId": "1aslK03KTBN76WmQqtdI3gDNwXQT6QlZ9K9R4hMB83Xw",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-09",
+    "sourceName": "Сентябрь 2024",
+    "spreadsheetId": "1998FTKvEvRNsLvzm_Bhhmv9ER_tMgKicuWHxGV_6et8",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-10",
+    "sourceName": "Октябрь 2024",
+    "spreadsheetId": "10YBcC2vJ-tuqR_e52WEGLXMQtctIpRUVgbA2HsazYwA",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-11",
+    "sourceName": "Ноябрь 2024",
+    "spreadsheetId": "1dpqpPfb_SyZ2fYvS-O6SXQ5__1F6hrNRLdVU2puSeFA",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  },
+  {
+    "monthLabel": "2024-12",
+    "sourceName": "Декабрь 2024",
+    "spreadsheetId": "1cvs4ye2g7bcHloocIgFW29JsKlk6zfoZhGYsVVwwDSw",
+    "tableTab": "Таблица",
+    "detailsTab": "Подробности"
+  }
+]
