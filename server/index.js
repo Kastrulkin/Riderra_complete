@@ -7535,9 +7535,19 @@ function rawPayloadFromSnapshot(snapshot) {
 }
 
 function rawFirst(raw, keys, fallback = '') {
+  const entries = Object.entries(raw || {})
+  const normalizedKeys = keys.map((key) => String(key || '').trim().toLowerCase()).filter(Boolean)
   for (const key of keys) {
     const value = raw?.[key]
     if (value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  for (const [rawKey, value] of entries) {
+    const normalizedRawKey = String(rawKey || '').trim().toLowerCase()
+    if (normalizedKeys.includes(normalizedRawKey) && value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  for (const [rawKey, value] of entries) {
+    const normalizedRawKey = String(rawKey || '').trim().toLowerCase()
+    if (normalizedKeys.some((key) => key.length > 4 && normalizedRawKey.includes(key)) && value !== undefined && value !== null && String(value).trim() !== '') return value
   }
   return fallback
 }

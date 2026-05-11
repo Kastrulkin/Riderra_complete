@@ -19,9 +19,19 @@ function rawPayloadFromSnapshot(snapshot) {
 }
 
 function rawFirst(raw, keys, fallback = '') {
+  const entries = Object.entries(raw || {})
+  const normalizedKeys = keys.map((key) => String(key || '').trim().toLowerCase()).filter(Boolean)
   for (const key of keys) {
     const value = raw?.[key]
     if (value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  for (const [rawKey, value] of entries) {
+    const normalizedRawKey = String(rawKey || '').trim().toLowerCase()
+    if (normalizedKeys.includes(normalizedRawKey) && value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  for (const [rawKey, value] of entries) {
+    const normalizedRawKey = String(rawKey || '').trim().toLowerCase()
+    if (normalizedKeys.some((key) => key.length > 4 && normalizedRawKey.includes(key)) && value !== undefined && value !== null && String(value).trim() !== '') return value
   }
   return fallback
 }
@@ -55,17 +65,32 @@ function normalizeIssueFlags(value) {
     .filter(Boolean)
 }
 
+function parsePriceAmount(value) {
+  if (value === null || value === undefined || value === '') return null
+  const normalized = String(value).replace(/\s+/g, '').replace(',', '.').replace(/[^\d.-]/g, '')
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function parsePriceCurrency(value, fallback = 'EUR') {
+  const text = String(value || '').toUpperCase()
+  const match = text.match(/\b(EUR|USD|GBP|DKK|SEK|NOK|AED|THB|TRY)\b/)
+  return match ? match[1] : fallback
+}
+
 function normalizedSourceData(raw) {
   const sourceOrderNumber = String(rawFirst(raw, ['order_number', 'orderNumber', 'номер заказа'], '') || '')
   const meta = parseOrderMeta(sourceOrderNumber)
   const sourceComment = String(rawFirst(raw, ['comment', 'комментарий', 'примечание'], '') || '')
+  const priceRaw = rawFirst(raw, ['client_price', 'clientPrice', 'sum', 'сумма', 'цена', 'стоимость'], null)
+  const clientPrice = parsePriceAmount(priceRaw)
   const issueFlags = normalizeIssueFlags(raw?.issue_flags)
   const hasComplaint = boolRaw(raw, ['has_complaint', 'complaint']) || /жалоб|претензи|complaint|no[\s-]?show|did not show|не приех|не встрет/i.test(sourceComment)
-  return {
+  const data = {
     counterpartyName: String(rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '') || null,
     driverNameRaw: String(rawFirst(raw, ['driver', 'водитель'], '') || '') || null,
     sourceComment: sourceComment || null,
-    sourceCurrency: String(rawFirst(raw, ['currency', 'валюта'], '') || '') || null,
+    sourceCurrency: String(rawFirst(raw, ['currency', 'валюта'], parsePriceCurrency(priceRaw, 'EUR')) || '') || null,
     sourceCityCode: String(rawFirst(raw, ['city_code', 'cityCode'], meta.cityCode) || '') || null,
     sourceVehicleCode: String(rawFirst(raw, ['vehicle_code', 'vehicleCode'], meta.vehicleCode) || '') || null,
     sourceDirection: String(rawFirst(raw, ['direction'], meta.direction) || '') || null,
@@ -75,6 +100,8 @@ function normalizedSourceData(raw) {
     hasComplaint,
     issueFlagsJson: JSON.stringify(issueFlags)
   }
+  if (clientPrice !== null) data.clientPrice = clientPrice
+  return data
 }
 
 function classifyQualitySignals(data) {
