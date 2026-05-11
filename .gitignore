@@ -13,6 +13,8 @@ pids
 reports/*.json
 reports/db-backups/
 reports/order-sync/
+reports/order-sheet-downloads/
+reports/order-sheet-rows/
 
 # Coverage
 coverage
