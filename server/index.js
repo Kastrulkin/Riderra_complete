@@ -8150,17 +8150,12 @@ async function aggregateArchiveOverview(tenantId, sources, lang = 'ru') {
   }
 
   const inSql = sourceIdsWhereSql(sourceIds)
-  const baseCte = `
-    WITH latest AS (
-      SELECT DISTINCT ON (snapshot."sheetSourceId", snapshot."sourceRow")
-        snapshot."sheetSourceId",
-        snapshot."sourceRow",
-        snapshot."orderId"
-      FROM "OrderSourceSnapshot" snapshot
-      WHERE snapshot."tenantId" = $1
-        AND snapshot."sheetSourceId" IN (${inSql})
-      ORDER BY snapshot."sheetSourceId", snapshot."sourceRow", snapshot."createdAt" DESC
-    )
+  const aggregateFromSql = `
+    FROM "OrderSourceSnapshot" snapshot
+    JOIN "SheetSource" sources ON sources."id" = snapshot."sheetSourceId"
+    JOIN "Order" orders ON orders."id" = snapshot."orderId"
+    WHERE snapshot."tenantId" = $1
+      AND snapshot."sheetSourceId" IN (${inSql})
   `
   const aggregateSelect = `
       COUNT(*)::int AS "total",
@@ -8177,26 +8172,21 @@ async function aggregateArchiveOverview(tenantId, sources, lang = 'ru') {
   `
   const params = [tenantId, ...sourceIds]
   const monthRows = await prisma.$queryRawUnsafe(`
-    ${baseCte}
     SELECT
       sources."monthLabel" AS "monthLabel",
       COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR') AS "currency",
       ${aggregateSelect}
-    FROM latest
-    JOIN "SheetSource" sources ON sources."id" = latest."sheetSourceId"
-    JOIN "Order" orders ON orders."id" = latest."orderId"
+    ${aggregateFromSql}
     GROUP BY sources."monthLabel", COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR')
     ORDER BY sources."monthLabel" ASC
   `, ...params)
 
   const entityQuery = async (fieldSql) => prisma.$queryRawUnsafe(`
-    ${baseCte}
     SELECT
       COALESCE(NULLIF(TRIM(${fieldSql}), ''), '') AS "name",
       COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR') AS "currency",
       ${aggregateSelect}
-    FROM latest
-    JOIN "Order" orders ON orders."id" = latest."orderId"
+    ${aggregateFromSql}
     GROUP BY COALESCE(NULLIF(TRIM(${fieldSql}), ''), ''), COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR')
   `, ...params)
 
