@@ -7974,6 +7974,52 @@ async function tripsForSources(tenantId, sources) {
   return latestSnapshotsBySourceRow(snapshots).map((snapshot) => tripRowFromSnapshot(snapshot, sourceById.get(snapshot.sheetSourceId)))
 }
 
+async function lightweightTripsForSources(tenantId, sources) {
+  const sourceIds = (sources || []).map((source) => source.id).filter(Boolean)
+  if (!sourceIds.length) return []
+  const sourceById = new Map(sources.map((source) => [source.id, source]))
+  const snapshots = await prisma.orderSourceSnapshot.findMany({
+    where: { tenantId, sheetSourceId: { in: sourceIds } },
+    select: {
+      sheetSourceId: true,
+      sourceRow: true,
+      createdAt: true,
+      orderId: true,
+      order: {
+        select: {
+          id: true,
+          externalKey: true,
+          status: true,
+          needsInfo: true,
+          infoReason: true,
+          pickupAt: true,
+          fromPoint: true,
+          toPoint: true,
+          vehicleType: true,
+          counterpartyName: true,
+          driverNameRaw: true,
+          sourceComment: true,
+          sourceCurrency: true,
+          sourceCityCode: true,
+          sourceVehicleCode: true,
+          sourceDirection: true,
+          sourceOrderNumber: true,
+          sourceBookingId: true,
+          sourceInternalOrderNumber: true,
+          hasComplaint: true,
+          issueFlagsJson: true,
+          driverPrice: true,
+          clientPrice: true
+        }
+      }
+    },
+    orderBy: [{ sheetSourceId: 'asc' }, { sourceRow: 'asc' }, { createdAt: 'desc' }]
+  })
+  return latestSnapshotsBySourceRow(snapshots)
+    .filter((snapshot) => snapshot.order)
+    .map((snapshot) => tripRowFromSnapshot(snapshot, sourceById.get(snapshot.sheetSourceId)))
+}
+
 async function monthSummariesForSources(tenantId, sources, lang = 'ru') {
   const sourceIds = (sources || []).map((source) => source.id).filter(Boolean)
   if (!sourceIds.length) return []
@@ -8767,7 +8813,7 @@ app.get('/api/admin/economics/analytics/overview', authenticateToken, resolveAct
     const selectedSources = [...grouped.values()].flat()
     const [months, allTrips] = await Promise.all([
       monthSummariesForSources(tenantId, selectedSources, lang),
-      tripsForSources(tenantId, selectedSources)
+      lightweightTripsForSources(tenantId, selectedSources)
     ])
     months.sort((a, b) => compareMonthLabels(a.monthLabel, b.monthLabel))
     const rankings = buildAnalyticsRankings(allTrips)
