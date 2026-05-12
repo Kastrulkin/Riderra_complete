@@ -60,7 +60,7 @@
             <div>{{ t.risks }}</div>
             <div>{{ t.comment }}</div>
           </div>
-          <div v-for="row in filteredTrips" :key="`${row.sourceId}-${row.sourceRow}`" class="table-row trips-grid" :class="{ 'table-row--risk': row.hasComplaint || row.issueCount }">
+          <div v-for="row in filteredTrips" :key="tripKey(row)" class="table-row trips-grid" :class="{ 'table-row--risk': row.hasComplaint || row.issueCount }">
             <div>
               <strong>{{ formatDate(row.pickupAt) }}</strong>
               <span class="muted">#{{ row.orderNumber || row.internalOrderNumber || row.sourceRow }}</span>
@@ -110,7 +110,7 @@
             <div>{{ t.driver }}</div>
             <div>{{ t.money }}</div>
           </div>
-          <div v-for="row in risks" :key="`${row.sourceId}-${row.sourceRow}`" class="table-row risk-grid table-row--risk">
+          <div v-for="row in risks" :key="tripKey(row)" class="table-row risk-grid table-row--risk">
             <div>
               <strong>{{ riskLabel(row.riskType) }}</strong>
               <span class="muted">{{ row.issueFlags && row.issueFlags.length ? row.issueFlags.join(', ') : row.status }}</span>
@@ -133,6 +133,8 @@
 <script>
 import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
+
+const archiveUtils = require('~/utils/orderArchiveDashboard')
 
 const StatsTable = {
   props: ['rows', 'nameKey', 't', 'moneyMap'],
@@ -332,9 +334,7 @@ export default {
       return `${currency || 'EUR'} ${Number(value || 0).toLocaleString('ru-RU')}`
     },
     moneyMap (value) {
-      const entries = Object.entries(value || {}).filter(([, amount]) => Number(amount || 0) !== 0)
-      if (!entries.length) return '-'
-      return entries.map(([currency, amount]) => this.money(amount, currency)).join(' · ')
+      return archiveUtils.formatEur(archiveUtils.totalEur(value))
     },
     roiMap (value) {
       const entries = Object.entries(value || {}).filter(([, amount]) => amount !== null && amount !== undefined)
@@ -355,6 +355,9 @@ export default {
         incomplete_data: 'Incomplete data'
       }
       return labels[value] || value || '-'
+    },
+    tripKey (row) {
+      return row.id || [row.sourceId, row.sourceRow, row.orderNumber, row.pickupAt, row.fromPoint, row.toPoint].join(':')
     }
   }
 }

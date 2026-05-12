@@ -5,169 +5,226 @@
     <section class="site-section site-section--pf admin-section">
       <div class="container">
         <admin-tabs />
+        <dashboard-header :loading="loading" @refresh="load" />
 
-        <div class="section-actions">
-          <button class="btn btn--primary" :disabled="loading" @click="load">
-            {{ loading ? t.loading : t.refresh }}
-          </button>
-        </div>
-
-        <div class="overview-strip">
-          <div v-for="card in overviewCards" :key="card.key" class="overview-card" :class="`overview-card--${card.tone}`">
-            <div class="overview-card__value">{{ card.value }}</div>
-            <div class="overview-card__label">{{ card.label }}</div>
-            <div class="overview-card__hint">{{ card.hint }}</div>
+        <div class="filter-bar">
+          <div class="period-tabs" role="group" aria-label="Период">
+            <button v-for="item in periods" :key="item.key" type="button" :class="{ active: period === item.key }" @click="period = item.key">
+              {{ item.label }}
+            </button>
           </div>
-        </div>
-
-        <div class="toolbar">
-          <input v-model="q" class="input toolbar-search" :placeholder="t.search" @input="applyFilter" />
-          <select v-model="year" class="input month-filter" @change="load">
-            <option value="">{{ t.allYears }}</option>
+          <label class="compare-toggle">
+            <input v-model="comparePrevious" type="checkbox" />
+            <span>Сравнить с прошлым периодом</span>
+          </label>
+          <input v-model="q" class="input search-input" placeholder="Поиск: клиент, исполнитель, месяц, Google Sheet" />
+          <select v-model="year" class="input year-filter">
+            <option value="">Все годы</option>
             <option v-for="item in years" :key="item" :value="item">{{ item }}</option>
           </select>
         </div>
 
-        <div v-if="error" class="hint hint--error">{{ error }}</div>
+        <div v-if="loading" class="skeleton-grid">
+          <div v-for="item in 10" :key="item" class="skeleton-card"></div>
+        </div>
 
-        <div class="table-wrap">
-          <div class="table-head archive-grid">
-            <div>{{ t.month }}</div>
-            <div>{{ t.source }}</div>
-            <div>{{ t.trips }}</div>
-            <div>{{ t.quality }}</div>
-            <div>{{ t.money }}</div>
-            <div>{{ t.updated }}</div>
-            <div>{{ t.actions }}</div>
+        <div v-else>
+          <div v-if="error" class="hint hint--error">{{ error }}</div>
+
+          <kpi-grid :cards="kpiCards" @select="selectKpi" />
+
+          <div class="dashboard-grid dashboard-grid--charts">
+            <archive-trend-chart
+              title="Поездки по времени"
+              subtitle="Клик по точке открывает месяц."
+              :months="visibleMonths"
+              primary-key="total"
+              primary-label="Поездки"
+              secondary-key="completed"
+              secondary-label="Выполнено"
+              @month="openMonth"
+            />
+            <revenue-chart :months="visibleMonths" />
           </div>
-          <div v-for="m in filteredMonths" :key="m.monthLabel" class="table-row archive-grid">
-            <div class="route-cell">
-              <div class="route-cell__title">{{ m.displayName || m.monthLabel }}</div>
-              <div class="route-cell__sub">{{ m.monthLabel }}</div>
-            </div>
-            <div class="cell-wrap">
-              <strong>{{ m.sourceSheetName || '-' }}</strong>
-              <span class="muted">{{ m.sourceSheetId || '-' }}</span>
-            </div>
+
+          <div class="dashboard-grid dashboard-grid--charts">
+            <archive-trend-chart
+              title="Выполнено vs отменено"
+              subtitle="Отмены видны отдельно, без смешивания со статусами ожидания."
+              :months="visibleMonths"
+              primary-key="completed"
+              primary-label="Выполнено"
+              secondary-key="cancelled"
+              secondary-label="Отменено"
+              @month="openMonth"
+            />
+            <archive-trend-chart
+              title="Жалобы и риски"
+              subtitle="Качество месяца: жалобы и все флаги риска."
+              :months="visibleMonths"
+              primary-key="complaints"
+              primary-label="Жалобы"
+              secondary-key="issueCount"
+              secondary-label="Риски"
+              @month="openMonth"
+            />
+          </div>
+
+          <div class="leaderboard-toolbar">
             <div>
-              <strong>{{ m.total || 0 }}</strong>
-              <div class="muted">{{ t.completed }} {{ m.completed || 0 }} · {{ t.cancelled }} {{ m.cancelled || 0 }}</div>
+              <h2>Заказчики и исполнители</h2>
+              <p>Негативные рейтинги показывают только участников с {{ minimumVolume }}+ поездками, чтобы разовые случаи не искажали картину.</p>
             </div>
-            <div>
-              <strong>{{ t.complaints }} {{ m.complaints || 0 }}</strong>
-              <div class="muted">{{ t.issues }} {{ m.issueCount || 0 }}</div>
-            </div>
-            <div>
-              <strong>{{ moneyMap(m.grossByCurrency) }}</strong>
-              <div class="muted">{{ t.profit }} {{ moneyMap(m.profitByCurrency) }}</div>
-            </div>
-            <div>
-              <strong>{{ formatDate(m.lastSyncedAt) }}</strong>
-              <div class="muted">{{ t.closed }} {{ formatDate(m.closedAt) }}</div>
-            </div>
-            <div class="row-actions">
-              <button class="btn btn--small btn--primary" @click="$router.push(`/admin-order-archive/${m.monthLabel}`)">
-                {{ t.open }}
-              </button>
-              <a v-if="m.sourceSheetUrl" class="btn btn--small" :href="m.sourceSheetUrl" target="_blank" rel="noopener">
-                Google Sheet
-              </a>
+            <div class="period-tabs period-tabs--compact" role="group" aria-label="Режим рейтинга">
+              <button type="button" :class="{ active: rankingMode === 'absolute' }" @click="rankingMode = 'absolute'">Absolute</button>
+              <button type="button" :class="{ active: rankingMode === 'rate' }" @click="rankingMode = 'rate'">Rate</button>
             </div>
           </div>
-          <div v-if="!filteredMonths.length" class="empty-state">{{ t.empty }}</div>
+
+          <div class="dashboard-grid dashboard-grid--leaders">
+            <performance-leaderboard
+              title="Лучшие заказчики"
+              hint="По выполненным поездкам и выручке."
+              :rows="leaderboards.topClients"
+              :mode="rankingMode"
+              toggle
+              @mode="rankingMode = $event"
+              @select="openEntity($event, 'client')"
+            />
+            <performance-leaderboard
+              title="Лучшие исполнители"
+              hint="Кто сделал больше всего выполненных поездок."
+              :rows="leaderboards.topDrivers"
+              :mode="rankingMode"
+              @select="openEntity($event, 'driver')"
+            />
+            <performance-leaderboard
+              title="Проблемные заказчики"
+              hint="Complaint, cancellation и risk rate."
+              :rows="leaderboards.problemClients"
+              :mode="rankingMode"
+              problem
+              @select="openEntity($event, 'client')"
+            />
+            <performance-leaderboard
+              title="Проблемные исполнители"
+              hint="Инциденты и риски с учетом объема."
+              :rows="leaderboards.problemDrivers"
+              :mode="rankingMode"
+              problem
+              @select="openEntity($event, 'driver')"
+            />
+          </div>
+
+          <month-archive-table
+            :rows="archiveRows"
+            @open-month="openMonth"
+            @open-trips="openTrips"
+            @open-analytics="openAnalytics"
+          />
         </div>
       </div>
     </section>
+    <entity-detail-drawer :entity="selectedEntity" :type="selectedEntityType" @close="selectedEntity = null" @filter-trips="jumpToEntityTrips" />
   </div>
 </template>
 
 <script>
 import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
+import DashboardHeader from '~/components/admin/orderArchive/DashboardHeader.vue'
+import KPIGrid from '~/components/admin/orderArchive/KPIGrid.vue'
+import ArchiveTrendChart from '~/components/admin/orderArchive/ArchiveTrendChart.vue'
+import RevenueChart from '~/components/admin/orderArchive/RevenueChart.vue'
+import PerformanceLeaderboard from '~/components/admin/orderArchive/PerformanceLeaderboard.vue'
+import MonthArchiveTable from '~/components/admin/orderArchive/MonthArchiveTable.vue'
+import EntityDetailDrawer from '~/components/admin/orderArchive/EntityDetailDrawer.vue'
+
+const archiveUtils = require('~/utils/orderArchiveDashboard')
 
 export default {
   middleware: 'staff',
-  components: { navigation, adminTabs },
+  components: {
+    navigation,
+    adminTabs,
+    DashboardHeader,
+    KPIGrid,
+    ArchiveTrendChart,
+    RevenueChart,
+    PerformanceLeaderboard,
+    MonthArchiveTable,
+    EntityDetailDrawer
+  },
   data: () => ({
     months: [],
-    filteredMonths: [],
+    drivers: [],
+    counterparties: [],
+    summary: {},
     q: '',
     year: '',
+    period: '12m',
+    comparePrevious: true,
+    rankingMode: 'absolute',
     loading: false,
-    error: ''
+    error: '',
+    selectedEntity: null,
+    selectedEntityType: 'client',
+    minimumVolume: archiveUtils.MIN_NEGATIVE_RANKING_VOLUME
   }),
   computed: {
-    t () {
-      return this.$store.state.language === 'ru'
-        ? {
-            refresh: 'Обновить',
-            loading: 'Загружаю...',
-            search: 'Поиск по месяцу или источнику',
-            allYears: 'Все годы',
-            month: 'Месяц',
-            source: 'Источник',
-            trips: 'Поездки',
-            quality: 'Качество',
-            money: 'Деньги',
-            updated: 'Обновление',
-            actions: 'Действия',
-            completed: 'выполнено',
-            cancelled: 'отмен',
-            complaints: 'жалоб',
-            issues: 'рисков',
-            profit: 'прибыль',
-            closed: 'закрыт',
-            open: 'Открыть',
-            empty: 'Архивных месяцев пока нет',
-            months: 'Месяцев',
-            totalTrips: 'Поездок',
-            totalGross: 'Выручка',
-            totalComplaints: 'Жалоб'
-          }
-        : {
-            refresh: 'Refresh',
-            loading: 'Loading...',
-            search: 'Search by month or source',
-            allYears: 'All years',
-            month: 'Month',
-            source: 'Source',
-            trips: 'Trips',
-            quality: 'Quality',
-            money: 'Money',
-            updated: 'Updated',
-            actions: 'Actions',
-            completed: 'completed',
-            cancelled: 'cancelled',
-            complaints: 'complaints',
-            issues: 'risks',
-            profit: 'profit',
-            closed: 'closed',
-            open: 'Open',
-            empty: 'No archived months yet',
-            months: 'Months',
-            totalTrips: 'Trips',
-            totalGross: 'Gross',
-            totalComplaints: 'Complaints'
-          }
+    periods () {
+      return [
+        { key: '1m', label: '1м' },
+        { key: '3m', label: '3м' },
+        { key: '6m', label: '6м' },
+        { key: '12m', label: '12м' },
+        { key: 'ytd', label: 'YTD' },
+        { key: 'all', label: 'Все' }
+      ]
     },
     years () {
       return [...new Set(this.months.map((m) => String(m.monthLabel || '').slice(0, 4)).filter(Boolean))].sort((a, b) => b.localeCompare(a))
     },
-    overviewCards () {
-      const totals = this.months.reduce((acc, m) => {
-        acc.trips += Number(m.total || 0)
-        acc.complaints += Number(m.complaints || 0)
-        for (const [currency, amount] of Object.entries(m.grossByCurrency || {})) {
-          acc.gross[currency] = Number(((acc.gross[currency] || 0) + Number(amount || 0)).toFixed(2))
-        }
-        return acc
-      }, { trips: 0, complaints: 0, gross: {} })
+    periodParts () {
+      return archiveUtils.splitCurrentAndPrevious(this.months, this.period)
+    },
+    visibleMonths () {
+      return this.periodParts.current
+    },
+    currentSummary () {
+      return archiveUtils.buildPeriodSummary(this.visibleMonths)
+    },
+    previousSummary () {
+      return archiveUtils.buildPeriodSummary(this.periodParts.previous)
+    },
+    kpiCards () {
+      const summary = this.currentSummary
+      const previous = this.previousSummary
+      const delta = (key) => this.comparePrevious ? archiveUtils.metricDelta(summary, previous, key) : 0
+      const spark = (key) => this.visibleMonths.map((m) => Number(m[key] || 0))
       return [
-        { key: 'months', value: this.months.length, label: this.t.months, hint: this.t.allYears, tone: 'neutral' },
-        { key: 'trips', value: totals.trips, label: this.t.totalTrips, hint: this.t.completed, tone: 'info' },
-        { key: 'gross', value: this.moneyMap(totals.gross), label: this.t.totalGross, hint: this.t.money, tone: 'ok' },
-        { key: 'complaints', value: totals.complaints, label: this.t.totalComplaints, hint: this.t.quality, tone: totals.complaints ? 'warn' : 'ok' }
+        { key: 'total', label: 'Поездки', value: summary.total, delta: delta('total'), sparkline: spark('total'), description: 'Все поездки выбранного периода.' },
+        { key: 'completed', label: 'Выполнено', value: summary.completed, delta: delta('completed'), sparkline: spark('completed'), description: 'Количество выполненных поездок.' },
+        { key: 'completedRate', label: 'Доля выполненных', value: archiveUtils.formatRate(summary.completedRate), delta: delta('completedRate'), sparkline: this.visibleMonths.map((m) => archiveUtils.toNumber(m.completed) / Math.max(archiveUtils.toNumber(m.total), 1)), description: 'Выполненные поездки / все поездки.' },
+        { key: 'cancelled', label: 'Отмены', value: summary.cancelled, delta: delta('cancelled'), sparkline: spark('cancelled'), description: 'Все отмененные поездки.' },
+        { key: 'cancellationRate', label: 'Доля отмен', value: archiveUtils.formatRate(summary.cancellationRate), delta: delta('cancellationRate'), sparkline: this.visibleMonths.map((m) => archiveUtils.toNumber(m.cancelled) / Math.max(archiveUtils.toNumber(m.total), 1)), description: 'Отмены / все поездки.' },
+        { key: 'grossByCurrency', label: 'Выручка', value: archiveUtils.formatEur(archiveUtils.totalEur(summary.grossByCurrency)), delta: delta('grossByCurrency'), sparkline: this.visibleMonths.map((m) => archiveUtils.totalEur(m.grossByCurrency)), description: 'Все валюты приведены к EUR по аналитическому курсу.' },
+        { key: 'complaints', label: 'Жалобы', value: summary.complaints, delta: delta('complaints'), sparkline: spark('complaints'), description: 'Количество поездок с жалобой.' },
+        { key: 'complaintRate', label: 'Доля жалоб', value: archiveUtils.formatRate(summary.complaintRate), delta: delta('complaintRate'), sparkline: this.visibleMonths.map((m) => archiveUtils.toNumber(m.complaints) / Math.max(archiveUtils.toNumber(m.total), 1)), description: 'Жалобы / все поездки.' },
+        { key: 'issueCount', label: 'Риски', value: summary.issueCount, delta: delta('issueCount'), sparkline: spark('issueCount'), description: 'Все зафиксированные флаги риска.' },
+        { key: 'profitByCurrency', label: 'Прибыль', value: archiveUtils.formatEur(archiveUtils.totalEur(summary.profitByCurrency)), delta: delta('profitByCurrency'), sparkline: this.visibleMonths.map((m) => archiveUtils.totalEur(m.profitByCurrency)), description: 'Прибыль доступна там, где есть цена водителя; валюты приведены к EUR.' }
       ]
+    },
+    leaderboards () {
+      return archiveUtils.buildLeaderboards({
+        drivers: this.filteredEntities(this.drivers, 'driver'),
+        counterparties: this.filteredEntities(this.counterparties, 'counterparty'),
+        mode: this.rankingMode,
+        minimumVolume: this.minimumVolume
+      })
+    },
+    archiveRows () {
+      return archiveUtils.filterArchiveRows(this.months, this.q, this.year)
     }
   },
   mounted () {
@@ -182,66 +239,178 @@ export default {
       this.loading = true
       this.error = ''
       try {
-        const params = new URLSearchParams()
-        if (this.year) params.set('year', this.year)
-        params.set('lang', this.$store.state.language || 'ru')
-        const res = await fetch(`/api/admin/economics/order-archive/months?${params.toString()}`, { headers: this.headers() })
+        const params = new URLSearchParams({ status: 'archived', lang: this.$store.state.language || 'ru' })
+        const res = await fetch(`/api/admin/economics/analytics/overview?${params.toString()}`, { headers: this.headers() })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
         this.months = data.months || []
-        this.applyFilter()
+        this.drivers = data.drivers || []
+        this.counterparties = data.counterparties || []
+        this.summary = data.summary || {}
       } catch (error) {
-        this.months = []
-        this.filteredMonths = []
-        this.error = error?.message || 'Failed to load archive'
+        this.error = error?.message || 'Failed to load archive dashboard'
       } finally {
         this.loading = false
       }
     },
-    applyFilter () {
+    filteredEntities (rows, key) {
       const q = this.q.trim().toLowerCase()
-      this.filteredMonths = this.months.filter((m) => {
-        if (!q) return true
-        return [m.monthLabel, m.displayName, m.sourceSheetName, m.sourceSheetId].join(' ').toLowerCase().includes(q)
-      })
+      if (!q) return rows
+      return rows.filter((row) => String(row[key] || '').toLowerCase().includes(q))
     },
-    moneyMap (value) {
-      const entries = Object.entries(value || {}).filter(([, amount]) => Number(amount || 0) !== 0)
-      if (!entries.length) return '-'
-      return entries.map(([currency, amount]) => `${currency} ${Number(amount).toLocaleString('ru-RU')}`).join(' · ')
+    selectKpi (card) {
+      if (card.key === 'grossByCurrency' || card.key === 'profitByCurrency') this.$router.push('/admin-order-analytics')
     },
-    formatDate (value) {
-      if (!value) return '-'
-      const date = new Date(value)
-      return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString()
+    openMonth (month) {
+      if (month?.monthLabel) this.$router.push(`/admin-order-archive/${month.monthLabel}`)
+    },
+    openTrips (month) {
+      this.openMonth(month)
+    },
+    openAnalytics (month) {
+      const query = month?.monthLabel ? { fromMonth: month.monthLabel, toMonth: month.monthLabel } : {}
+      this.$router.push({ path: '/admin-order-analytics', query })
+    },
+    openEntity (entity, type) {
+      this.selectedEntity = entity
+      this.selectedEntityType = type
+    },
+    jumpToEntityTrips () {
+      const firstMonth = this.visibleMonths[this.visibleMonths.length - 1]
+      if (!firstMonth) return
+      this.$router.push(`/admin-order-archive/${firstMonth.monthLabel}`)
     }
   }
 }
 </script>
 
 <style scoped>
-.overview-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-.overview-card { padding: 14px 16px; border-radius: 8px; border: 1px solid #d8e0ef; background: #fff; box-shadow: 0 12px 28px rgba(16, 30, 67, 0.06); }
-.overview-card__value { font-size: 24px; font-weight: 800; color: #17233d; }
-.overview-card__label { margin-top: 4px; font-size: 14px; font-weight: 700; color: #223356; }
-.overview-card__hint { margin-top: 6px; font-size: 12px; color: #6b7280; }
-.overview-card--warn { border-color: #fde68a; background: #fffdf4; }
-.overview-card--ok { border-color: #bbf7d0; background: #f7fff9; }
-.overview-card--info { border-color: #bfdbfe; background: #f7fbff; }
-.toolbar { display: grid; grid-template-columns: minmax(280px, 1fr) 180px; gap: 12px; align-items: center; margin-bottom: 14px; }
-.input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #c8ccdc; background: #fff; color: #1f2b46; }
-.table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 8px; overflow: auto; }
-.archive-grid { display: grid; grid-template-columns: minmax(150px, 1.1fr) minmax(220px, 1.3fr) minmax(150px, 1fr) minmax(130px, 0.9fr) minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(180px, 1fr); min-width: 1180px; gap: 14px; align-items: center; }
-.table-head { padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #d8d8e6; font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; }
-.table-row { padding: 14px 16px; border-bottom: 1px solid #eef2f7; color: #1f2b46; }
-.route-cell__title { font-weight: 800; color: #17233d; }
-.route-cell__sub, .muted { display: block; margin-top: 4px; color: #64748b; font-size: 12px; }
-.cell-wrap { min-width: 0; overflow-wrap: anywhere; }
-.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.empty-state, .hint { padding: 14px 16px; color: #64748b; }
-.hint--error { color: #b91c1c; }
-@media (max-width: 900px) {
-  .overview-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .toolbar { grid-template-columns: 1fr; }
+.admin-section {
+  padding-top: 150px;
+  color: #17233d;
+}
+.filter-bar {
+  position: sticky;
+  top: 78px;
+  z-index: 65;
+  display: grid;
+  grid-template-columns: auto auto minmax(220px, 1fr) 150px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .95);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, .06);
+  backdrop-filter: blur(10px);
+}
+.period-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.period-tabs button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #53627c;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 8px 10px;
+}
+.period-tabs button.active {
+  background: #17233d;
+  color: #fff;
+}
+.period-tabs--compact button {
+  padding: 7px 10px;
+}
+.compare-toggle {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #53627c;
+  font-size: 12px;
+  font-weight: 800;
+}
+.input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #17233d;
+}
+.dashboard-grid {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.dashboard-grid--charts,
+.dashboard-grid--leaders {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.leaderboard-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin: 8px 0 14px;
+}
+.leaderboard-toolbar h2 {
+  margin: 0;
+  color: #17233d;
+  font-size: 20px;
+}
+.leaderboard-toolbar p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.skeleton-card {
+  min-height: 138px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #edf2f7 0%, #f8fafc 45%, #edf2f7 90%);
+  background-size: 240% 100%;
+  animation: shimmer 1.25s linear infinite;
+}
+.hint {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+}
+.hint--error {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+@keyframes shimmer {
+  to { background-position: -240% 0; }
+}
+@media (max-width: 1100px) {
+  .filter-bar { grid-template-columns: 1fr 1fr; }
+  .dashboard-grid--charts,
+  .dashboard-grid--leaders,
+  .skeleton-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .filter-bar {
+    position: static;
+    grid-template-columns: 1fr;
+  }
+  .period-tabs { overflow-x: auto; }
+  .leaderboard-toolbar { display: grid; }
 }
 </style>

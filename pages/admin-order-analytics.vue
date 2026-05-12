@@ -96,6 +96,8 @@
 import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 
+const archiveUtils = require('~/utils/orderArchiveDashboard')
+
 const StatsTable = {
   props: ['rows', 'nameKey', 't', 'moneyMap'],
   template: `
@@ -228,7 +230,11 @@ export default {
       ]
     }
   },
-  mounted () { this.load() },
+  mounted () {
+    if (this.$route.query.fromMonth) this.fromMonth = String(this.$route.query.fromMonth)
+    if (this.$route.query.toMonth) this.toMonth = String(this.$route.query.toMonth)
+    this.load()
+  },
   methods: {
     headers () {
       const token = localStorage.getItem('authToken')
@@ -257,9 +263,7 @@ export default {
       }
     },
     moneyMap (value) {
-      const entries = Object.entries(value || {}).filter(([, amount]) => Number(amount || 0) !== 0)
-      if (!entries.length) return '-'
-      return entries.map(([currency, amount]) => `${currency} ${Number(amount || 0).toLocaleString('ru-RU')}`).join(' · ')
+      return archiveUtils.formatEur(archiveUtils.totalEur(value))
     },
     roiMap (value) {
       const entries = Object.entries(value || {}).filter(([, amount]) => amount !== null && amount !== undefined)

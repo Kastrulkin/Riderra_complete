@@ -50,7 +50,8 @@
 <script>
 export default {
   data: () => ({
-    isCondensed: false
+    isCondensed: false,
+    selectedSectionKey: ''
   }),
   computed: {
     lang () { return this.$store.state.language },
@@ -169,6 +170,9 @@ export default {
       return this.lang === 'ru' ? ru : en
     },
     activeSectionKey () {
+      if (this.selectedSectionKey && this.sections.some((section) => section.key === this.selectedSectionKey)) {
+        return this.selectedSectionKey
+      }
       const path = this.routePath
       const found = this.sections.find((section) => section.tabs.some((tab) => path === tab.to || path.startsWith(`${tab.to}/`)))
       return found ? found.key : 'operations'
@@ -192,6 +196,11 @@ export default {
     this.handleScroll()
     window.addEventListener('scroll', this.handleScroll, { passive: true })
   },
+  watch: {
+    routePath () {
+      this.selectedSectionKey = ''
+    }
+  },
   beforeDestroy () {
     window.removeEventListener('scroll', this.handleScroll)
   },
@@ -201,12 +210,16 @@ export default {
         this.isCondensed = false
         return
       }
-      this.isCondensed = window.scrollY > 140
+      const scrollY = window.scrollY || 0
+      if (!this.isCondensed && scrollY > 180) {
+        this.isCondensed = true
+      } else if (this.isCondensed && scrollY < 110) {
+        this.isCondensed = false
+      }
     },
     goToSection (section) {
       if (!section) return
-      const target = section.defaultTo || section.tabs?.[0]?.to || '/admin'
-      if (target && target !== this.routePath) this.$router.push(target)
+      this.selectedSectionKey = section.key
     }
   }
 }

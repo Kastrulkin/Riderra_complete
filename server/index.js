@@ -7550,7 +7550,7 @@ function latestSnapshotsBySourceRow(snapshots) {
   const seen = new Set()
   const rows = []
   for (const snapshot of snapshots || []) {
-    const key = `${snapshot.sheetSourceId || ''}:${snapshot.sourceRow}`
+    const key = `${snapshot.sheetSourceId || ''}:${snapshot.sourceRow}:${snapshot.order?.externalKey || snapshot.orderId || ''}`
     if (seen.has(key)) continue
     seen.add(key)
     rows.push(snapshot)
@@ -7754,6 +7754,12 @@ function addCurrencyTotal(bucket, currency, amount) {
   bucket[key] = Number(((bucket[key] || 0) + Number(amount || 0)).toFixed(2))
 }
 
+function addEurTotal(row, field, amount, currency) {
+  const eur = getApproxBaseAmount(amount, currency, 'EUR')
+  if (eur === null) return
+  row[field] = Number(((row[field] || 0) + eur).toFixed(2))
+}
+
 function summarizeTrips(trips) {
   const summary = {
     total: 0,
@@ -7767,6 +7773,9 @@ function summarizeTrips(trips) {
     grossByCurrency: {},
     driverCostByCurrency: {},
     profitByCurrency: {},
+    grossEur: 0,
+    driverCostEur: 0,
+    profitEur: 0,
     roiByCurrency: {}
   }
   for (const trip of trips || []) {
@@ -7778,9 +7787,12 @@ function summarizeTrips(trips) {
     if (!String(trip.driver || '').trim()) summary.missingDriverCount += 1
     if (trip.profit !== null && trip.profit < 0) summary.priceRiskCount += 1
     addCurrencyTotal(summary.grossByCurrency, trip.currency, trip.clientPrice)
+    addEurTotal(summary, 'grossEur', trip.clientPrice, trip.currency)
     if (trip.driverPrice !== null && trip.driverPrice !== undefined) {
       addCurrencyTotal(summary.driverCostByCurrency, trip.currency, trip.driverPrice)
       addCurrencyTotal(summary.profitByCurrency, trip.currency, trip.profit)
+      addEurTotal(summary, 'driverCostEur', trip.driverPrice, trip.currency)
+      addEurTotal(summary, 'profitEur', trip.profit, trip.currency)
     }
   }
   for (const [currency, profit] of Object.entries(summary.profitByCurrency)) {
@@ -7834,6 +7846,9 @@ function groupTripStats(trips, keyName, outName) {
         grossByCurrency: {},
         driverCostByCurrency: {},
         profitByCurrency: {},
+        grossEur: 0,
+        driverCostEur: 0,
+        profitEur: 0,
         issueRate: 0
       })
     }
@@ -7846,9 +7861,12 @@ function groupTripStats(trips, keyName, outName) {
     if (trip.profit !== null && trip.profit < 0) row.priceRiskCount += 1
     addSignalCounts(row, trip)
     addCurrencyTotal(row.grossByCurrency, trip.currency, trip.clientPrice)
+    addEurTotal(row, 'grossEur', trip.clientPrice, trip.currency)
     if (trip.driverPrice !== null && trip.driverPrice !== undefined) {
       addCurrencyTotal(row.driverCostByCurrency, trip.currency, trip.driverPrice)
       addCurrencyTotal(row.profitByCurrency, trip.currency, trip.profit)
+      addEurTotal(row, 'driverCostEur', trip.driverPrice, trip.currency)
+      addEurTotal(row, 'profitEur', trip.profit, trip.currency)
     }
   }
   return [...map.values()]
@@ -7862,8 +7880,8 @@ function buildAnalyticsRankings(trips) {
   const counterparties = groupTripStats(trips, 'counterparty', 'counterparty')
   const activeDrivers = drivers.filter((row) => row.total > 0)
   const activeCounterparties = counterparties.filter((row) => row.total > 0)
-  const byGross = (a, b) => topCurrencyValue(b.grossByCurrency).amount - topCurrencyValue(a.grossByCurrency).amount
-  const byProfit = (a, b) => topCurrencyValue(b.profitByCurrency).amount - topCurrencyValue(a.profitByCurrency).amount
+  const byGross = (a, b) => Number(b.grossEur || 0) - Number(a.grossEur || 0)
+  const byProfit = (a, b) => Number(b.profitEur || 0) - Number(a.profitEur || 0)
   const byIssues = (a, b) => b.complaints - a.complaints || b.issueCount - a.issueCount || b.issueRate - a.issueRate || b.total - a.total
   return {
     topDriversByTrips: [...activeDrivers].sort((a, b) => b.completed - a.completed || b.total - a.total).slice(0, 15),
@@ -7918,6 +7936,7 @@ async function tripsForSources(tenantId, sources) {
       order: {
         select: {
           id: true,
+          externalKey: true,
           status: true,
           needsInfo: true,
           infoReason: true,
@@ -7953,6 +7972,57 @@ async function tripsForSources(tenantId, sources) {
     take: 50000
   })
   return latestSnapshotsBySourceRow(snapshots).map((snapshot) => tripRowFromSnapshot(snapshot, sourceById.get(snapshot.sheetSourceId)))
+}
+
+async function monthSummariesForSources(tenantId, sources, lang = 'ru') {
+  const sourceIds = (sources || []).map((source) => source.id).filter(Boolean)
+  if (!sourceIds.length) return []
+  const sourceById = new Map(sources.map((source) => [source.id, source]))
+  const sourcesByMonth = new Map()
+  for (const source of sources) {
+    if (!sourcesByMonth.has(source.monthLabel)) sourcesByMonth.set(source.monthLabel, [])
+    sourcesByMonth.get(source.monthLabel).push(source)
+  }
+  const snapshots = await prisma.orderSourceSnapshot.findMany({
+    where: { tenantId, sheetSourceId: { in: sourceIds } },
+    include: {
+      order: {
+        select: {
+          id: true,
+          externalKey: true,
+          status: true,
+          needsInfo: true,
+          driverNameRaw: true,
+          sourceCurrency: true,
+          hasComplaint: true,
+          issueFlagsJson: true,
+          driverPrice: true,
+          clientPrice: true
+        }
+      }
+    },
+    orderBy: [{ sheetSourceId: 'asc' }, { sourceRow: 'asc' }, { createdAt: 'desc' }]
+  })
+  const rowsByMonth = new Map()
+  for (const snapshot of latestSnapshotsBySourceRow(snapshots)) {
+    const source = sourceById.get(snapshot.sheetSourceId)
+    if (!source) continue
+    if (!rowsByMonth.has(source.monthLabel)) rowsByMonth.set(source.monthLabel, [])
+    const order = snapshot.order || {}
+    const issueFlags = issueFlagsFromRaw({}, order)
+    const driverCost = order.driverPrice
+    rowsByMonth.get(source.monthLabel).push({
+      status: order.status || 'pending',
+      hasComplaint: Boolean(order.hasComplaint),
+      issueCount: issueFlags.length,
+      driver: order.driverNameRaw || '',
+      clientPrice: Number(order.clientPrice || 0),
+      driverPrice: driverCost === null || driverCost === undefined ? null : Number(driverCost || 0),
+      profit: driverCost === null || driverCost === undefined ? null : Number((Number(order.clientPrice || 0) - Number(driverCost || 0)).toFixed(2)),
+      currency: order.sourceCurrency || 'EUR'
+    })
+  }
+  return [...sourcesByMonth.values()].map((group) => publicMonthFromSources(group, rowsByMonth.get(group[0].monthLabel) || [], lang))
 }
 
 function publicMonthFromSources(sources, trips, lang = 'ru') {
@@ -8536,11 +8606,7 @@ app.get('/api/admin/economics/order-archive/months', authenticateToken, resolveA
       if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])
       grouped.get(source.monthLabel).push(source)
     }
-    const months = []
-    for (const group of grouped.values()) {
-      const trips = await tripsForSources(tenantId, group)
-      months.push(publicMonthFromSources(group, trips, lang))
-    }
+    const months = await monthSummariesForSources(tenantId, [...grouped.values()].flat(), lang)
     months.sort((a, b) => compareMonthLabels(b.monthLabel, a.monthLabel))
     res.json({ months })
   } catch (error) {
@@ -8698,13 +8764,12 @@ app.get('/api/admin/economics/analytics/overview', authenticateToken, resolveAct
       if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])
       grouped.get(source.monthLabel).push(source)
     }
-    const months = []
-    const allTrips = []
-    for (const group of grouped.values()) {
-      const trips = await tripsForSources(tenantId, group)
-      allTrips.push(...trips)
-      months.push(publicMonthFromSources(group, trips, lang))
-    }
+    const selectedSources = [...grouped.values()].flat()
+    const [months, allTrips] = await Promise.all([
+      monthSummariesForSources(tenantId, selectedSources, lang),
+      tripsForSources(tenantId, selectedSources)
+    ])
+    months.sort((a, b) => compareMonthLabels(a.monthLabel, b.monthLabel))
     const rankings = buildAnalyticsRankings(allTrips)
     const signals = buildSignalSummary(allTrips)
     res.json({
