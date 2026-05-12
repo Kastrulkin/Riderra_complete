@@ -23,15 +23,7 @@ module.exports = {
 
     ],
     link: [
-      { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&amp;subset=cyrillic-ext' }
-    ],
-    script: [
-      {
-        hid: 'yandex-metrika',
-        innerHTML: `(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,'script','https://mc.yandex.ru/metrika/tag.js?id=108482177','ym');ym(108482177,'init',{ssr:true,webvisor:true,clickmap:true,ecommerce:'dataLayer',referrer:document.referrer,url:location.href,accurateTrackBounce:true,trackLinks:true});`,
-        type: 'text/javascript'
-      }
+      { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
     ],
     noscript: [
       {
@@ -62,7 +54,9 @@ module.exports = {
   loading: { color: '#3B8070' },
 
   plugins: [
+    { src: '~/plugins/chunk-reload.js', mode: 'client' },
     { src: '~/plugins/supabase.js', mode: 'client' },
+    { src: '~/plugins/client-head-assets.js', mode: 'client' },
     { src: '~/plugins/plugins.js', ssr: false }
   ],
   css: [
