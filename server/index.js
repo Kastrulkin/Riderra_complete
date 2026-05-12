@@ -37,13 +37,13 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
 // CORS middleware
 app.use((req, res, next) => {
   const requestOrigin = req.headers.origin
-  if (allowedOrigins.length === 0) {
+  if (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') {
     res.header('Access-Control-Allow-Origin', '*')
   } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     res.header('Access-Control-Allow-Origin', requestOrigin)
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature')
   res.header('Vary', 'Origin')
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200)
@@ -3738,6 +3738,10 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
 // Webhook для получения заказов от EasyTaxi
 app.post('/api/webhooks/easytaxi/order', resolveActorContext, requireActorContext, async (req, res) => {
   try {
+    if (process.env.EASYTAXI_WEBHOOK_SECRET && !hasValidEasyTaxiWebhookSecret(req)) {
+      return res.status(401).json({ error: 'Invalid EasyTaxi webhook secret' })
+    }
+
     const { 
       orderId, 
       fromPoint, 
@@ -7754,14 +7758,8 @@ function addCurrencyTotal(bucket, currency, amount) {
   bucket[key] = Number(((bucket[key] || 0) + Number(amount || 0)).toFixed(2))
 }
 
-function addEurTotal(row, field, amount, currency) {
-  const eur = getApproxBaseAmount(amount, currency, 'EUR')
-  if (eur === null) return
-  row[field] = Number(((row[field] || 0) + eur).toFixed(2))
-}
-
-function summarizeTrips(trips) {
-  const summary = {
+function emptyTripSummary() {
+  return {
     total: 0,
     completed: 0,
     cancelled: 0,
@@ -7778,6 +7776,16 @@ function summarizeTrips(trips) {
     profitEur: 0,
     roiByCurrency: {}
   }
+}
+
+function addEurTotal(row, field, amount, currency) {
+  const eur = getApproxBaseAmount(amount, currency, 'EUR')
+  if (eur === null) return
+  row[field] = Number(((row[field] || 0) + eur).toFixed(2))
+}
+
+function summarizeTrips(trips) {
+  const summary = emptyTripSummary()
   for (const trip of trips || []) {
     const status = String(trip.status || 'pending')
     summary.total += 1
@@ -7800,6 +7808,60 @@ function summarizeTrips(trips) {
     summary.roiByCurrency[currency] = cost ? Number((profit / cost).toFixed(3)) : null
   }
   return summary
+}
+
+function mergeAggregateCurrencyRow(target, row) {
+  const currency = String(row.currency || 'EUR')
+  const gross = Number(row.gross || 0)
+  const driverCost = Number(row.driverCost || 0)
+  const profit = Number(row.profit || 0)
+  target.total += Number(row.total || 0)
+  target.completed += Number(row.completed || 0)
+  target.cancelled += Number(row.cancelled || 0)
+  target.pending += Number(row.pending || 0)
+  target.complaints += Number(row.complaints || 0)
+  target.issueCount += Number(row.issueCount || 0)
+  target.missingDriverCount += Number(row.missingDriverCount || 0)
+  target.priceRiskCount += Number(row.priceRiskCount || 0)
+  addCurrencyTotal(target.grossByCurrency, currency, gross)
+  addCurrencyTotal(target.driverCostByCurrency, currency, driverCost)
+  addCurrencyTotal(target.profitByCurrency, currency, profit)
+  addEurTotal(target, 'grossEur', gross, currency)
+  addEurTotal(target, 'driverCostEur', driverCost, currency)
+  addEurTotal(target, 'profitEur', profit, currency)
+}
+
+function finalizeAggregateSummary(summary) {
+  for (const [currency, profit] of Object.entries(summary.profitByCurrency)) {
+    const cost = Number(summary.driverCostByCurrency[currency] || 0)
+    summary.roiByCurrency[currency] = cost ? Number((Number(profit || 0) / cost).toFixed(3)) : null
+  }
+  return summary
+}
+
+function entityRowsFromAggregate(rows, nameField) {
+  const byName = new Map()
+  for (const row of rows || []) {
+    const name = String(row.name || '').trim()
+    if (!name) continue
+    if (!byName.has(name)) {
+      byName.set(name, {
+        [nameField]: name,
+        ...emptyTripSummary(),
+        signalCounts: {},
+        topSignals: [],
+        issueRate: 0
+      })
+    }
+    mergeAggregateCurrencyRow(byName.get(name), row)
+  }
+  return [...byName.values()]
+    .map((row) => {
+      finalizeAggregateSummary(row)
+      row.issueRate = row.total ? Number((row.issueCount / row.total).toFixed(3)) : 0
+      return row
+    })
+    .sort((a, b) => b.completed - a.completed || b.total - a.total || a[nameField].localeCompare(b[nameField]))
 }
 
 function topCurrencyValue(amounts = {}) {
@@ -8069,6 +8131,117 @@ async function monthSummariesForSources(tenantId, sources, lang = 'ru') {
     })
   }
   return [...sourcesByMonth.values()].map((group) => publicMonthFromSources(group, rowsByMonth.get(group[0].monthLabel) || [], lang))
+}
+
+function sourceIdsWhereSql(sourceIds, firstParamIndex = 2) {
+  return sourceIds.map((_, index) => `$${firstParamIndex + index}`).join(', ')
+}
+
+async function aggregateArchiveOverview(tenantId, sources, lang = 'ru') {
+  const sourceIds = (sources || []).map((source) => source.id).filter(Boolean)
+  if (!sourceIds.length) {
+    return { months: [], summary: emptyTripSummary(), drivers: [], counterparties: [], rankings: buildAnalyticsRankings([]), signals: buildSignalSummary([]) }
+  }
+
+  const sourceByMonth = new Map()
+  for (const source of sources) {
+    if (!sourceByMonth.has(source.monthLabel)) sourceByMonth.set(source.monthLabel, [])
+    sourceByMonth.get(source.monthLabel).push(source)
+  }
+
+  const inSql = sourceIdsWhereSql(sourceIds)
+  const baseCte = `
+    WITH latest AS (
+      SELECT DISTINCT ON (snapshot."sheetSourceId", snapshot."sourceRow")
+        snapshot."sheetSourceId",
+        snapshot."sourceRow",
+        snapshot."orderId"
+      FROM "OrderSourceSnapshot" snapshot
+      WHERE snapshot."tenantId" = $1
+        AND snapshot."sheetSourceId" IN (${inSql})
+      ORDER BY snapshot."sheetSourceId", snapshot."sourceRow", snapshot."createdAt" DESC
+    )
+  `
+  const aggregateSelect = `
+      COUNT(*)::int AS "total",
+      SUM(CASE WHEN orders."status" = 'completed' THEN 1 ELSE 0 END)::int AS "completed",
+      SUM(CASE WHEN orders."status" = 'cancelled' THEN 1 ELSE 0 END)::int AS "cancelled",
+      SUM(CASE WHEN COALESCE(orders."status", 'pending') NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END)::int AS "pending",
+      SUM(CASE WHEN orders."hasComplaint" THEN 1 ELSE 0 END)::int AS "complaints",
+      SUM(CASE WHEN orders."needsInfo" OR COALESCE(orders."issueFlagsJson", '') NOT IN ('', '[]') THEN 1 ELSE 0 END)::int AS "issueCount",
+      SUM(CASE WHEN COALESCE(TRIM(orders."driverNameRaw"), '') = '' THEN 1 ELSE 0 END)::int AS "missingDriverCount",
+      SUM(CASE WHEN orders."driverPrice" IS NOT NULL AND (COALESCE(orders."clientPrice", 0) - COALESCE(orders."driverPrice", 0)) < 0 THEN 1 ELSE 0 END)::int AS "priceRiskCount",
+      COALESCE(SUM(COALESCE(orders."clientPrice", 0)), 0)::float AS "gross",
+      COALESCE(SUM(COALESCE(orders."driverPrice", 0)), 0)::float AS "driverCost",
+      COALESCE(SUM(CASE WHEN orders."driverPrice" IS NULL THEN 0 ELSE COALESCE(orders."clientPrice", 0) - COALESCE(orders."driverPrice", 0) END), 0)::float AS "profit"
+  `
+  const params = [tenantId, ...sourceIds]
+  const monthRows = await prisma.$queryRawUnsafe(`
+    ${baseCte}
+    SELECT
+      sources."monthLabel" AS "monthLabel",
+      COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR') AS "currency",
+      ${aggregateSelect}
+    FROM latest
+    JOIN "SheetSource" sources ON sources."id" = latest."sheetSourceId"
+    JOIN "Order" orders ON orders."id" = latest."orderId"
+    GROUP BY sources."monthLabel", COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR')
+    ORDER BY sources."monthLabel" ASC
+  `, ...params)
+
+  const entityQuery = async (fieldSql) => prisma.$queryRawUnsafe(`
+    ${baseCte}
+    SELECT
+      COALESCE(NULLIF(TRIM(${fieldSql}), ''), '') AS "name",
+      COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR') AS "currency",
+      ${aggregateSelect}
+    FROM latest
+    JOIN "Order" orders ON orders."id" = latest."orderId"
+    GROUP BY COALESCE(NULLIF(TRIM(${fieldSql}), ''), ''), COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR')
+  `, ...params)
+
+  const [driverRows, counterpartyRows] = await Promise.all([
+    entityQuery('orders."driverNameRaw"'),
+    entityQuery('orders."counterpartyName"')
+  ])
+
+  const monthAggregates = new Map()
+  const summary = emptyTripSummary()
+  for (const row of monthRows) {
+    const monthLabel = String(row.monthLabel || '')
+    if (!monthAggregates.has(monthLabel)) monthAggregates.set(monthLabel, emptyTripSummary())
+    mergeAggregateCurrencyRow(monthAggregates.get(monthLabel), row)
+    mergeAggregateCurrencyRow(summary, row)
+  }
+
+  const months = [...sourceByMonth.values()].map((group) => {
+    const source = group[0] || {}
+    const aggregate = finalizeAggregateSummary(monthAggregates.get(source.monthLabel) || emptyTripSummary())
+    return {
+      monthLabel: source.monthLabel || '',
+      displayName: monthDisplayName(source.monthLabel, lang),
+      status: sheetSourceMonthStatus(source),
+      sourceSheetName: source.name || source.monthLabel || '',
+      sourceSheetId: normalizeGoogleSheetId(source.googleSheetId),
+      sourceSheetUrl: sheetSourceUrl(source),
+      sourceCount: group.length,
+      lastSyncedAt: group.map((item) => item.lastSyncAt).filter(Boolean).sort().slice(-1)[0] || null,
+      closedAt: sheetSourceMonthStatus(source) === 'archived' ? source.updatedAt : null,
+      ...aggregate
+    }
+  }).sort((a, b) => compareMonthLabels(a.monthLabel, b.monthLabel))
+
+  const drivers = entityRowsFromAggregate(driverRows, 'driver')
+  const counterparties = entityRowsFromAggregate(counterpartyRows, 'counterparty')
+
+  return {
+    months,
+    summary: finalizeAggregateSummary(summary),
+    drivers: drivers.slice(0, 50),
+    counterparties: counterparties.slice(0, 50),
+    rankings: buildAnalyticsRankings([]),
+    signals: buildSignalSummary([])
+  }
 }
 
 function publicMonthFromSources(sources, trips, lang = 'ru') {
@@ -8811,21 +8984,7 @@ app.get('/api/admin/economics/analytics/overview', authenticateToken, resolveAct
       grouped.get(source.monthLabel).push(source)
     }
     const selectedSources = [...grouped.values()].flat()
-    const [months, allTrips] = await Promise.all([
-      monthSummariesForSources(tenantId, selectedSources, lang),
-      lightweightTripsForSources(tenantId, selectedSources)
-    ])
-    months.sort((a, b) => compareMonthLabels(a.monthLabel, b.monthLabel))
-    const rankings = buildAnalyticsRankings(allTrips)
-    const signals = buildSignalSummary(allTrips)
-    res.json({
-      months,
-      summary: summarizeTrips(allTrips),
-      drivers: groupTripStats(allTrips, 'driver', 'driver').slice(0, 50),
-      counterparties: groupTripStats(allTrips, 'counterparty', 'counterparty').slice(0, 50),
-      rankings,
-      signals
-    })
+    res.json(await aggregateArchiveOverview(tenantId, selectedSources, lang))
   } catch (error) {
     console.error('Error fetching economics analytics overview:', error)
     res.status(500).json({ error: 'Failed to fetch economics analytics overview' })
@@ -11674,6 +11833,39 @@ function verifyOpenClawSignature(payload, signature) {
   if (!normalized) return false
   try {
     return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(normalized))
+  } catch (_) {
+    return false
+  }
+}
+
+function hasValidEasyTaxiWebhookSecret(req) {
+  const secret = String(process.env.EASYTAXI_WEBHOOK_SECRET || '').trim()
+  if (!secret) return false
+
+  const providedSecret = String(
+    req.headers['x-easytaxi-webhook-secret'] ||
+    req.headers['x-webhook-secret'] ||
+    req.query?.token ||
+    req.body?.token ||
+    ''
+  ).trim()
+  if (providedSecret) {
+    try {
+      return crypto.timingSafeEqual(Buffer.from(providedSecret), Buffer.from(secret))
+    } catch (_) {
+      return false
+    }
+  }
+
+  const signature = normalizeWebhookSignature(req.headers['x-easytaxi-signature'] || req.headers['x-signature'] || '')
+  if (!signature) return false
+
+  const digest = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(req.body || {}))
+    .digest('hex')
+  try {
+    return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))
   } catch (_) {
     return false
   }
