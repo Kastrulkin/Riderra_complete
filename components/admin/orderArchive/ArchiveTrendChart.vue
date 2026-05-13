@@ -6,9 +6,15 @@
         <p>{{ subtitle }}</p>
       </div>
     </div>
-    <svg class="chart" viewBox="0 0 720 260" preserveAspectRatio="none" role="img" :aria-label="title">
-      <line x1="36" y1="216" x2="700" y2="216" stroke="#e2e8f0" />
-      <line x1="36" y1="44" x2="36" y2="216" stroke="#e2e8f0" />
+    <svg class="chart" viewBox="0 0 760 260" preserveAspectRatio="none" role="img" :aria-label="title">
+      <g class="chart-y-axis">
+        <g v-for="tick in yTicks" :key="tick.value">
+          <line :x1="chartLeft" :y1="tick.y" :x2="chartRight" :y2="tick.y" stroke="#edf2f7" />
+          <text :x="chartLeft - 10" :y="tick.y + 3" text-anchor="end" fill="#64748b" font-size="10">{{ tick.label }}</text>
+        </g>
+      </g>
+      <line :x1="chartLeft" :y1="chartBottom" :x2="chartRight" :y2="chartBottom" stroke="#dbe3ef" />
+      <line :x1="chartLeft" :y1="chartTop" :x2="chartLeft" :y2="chartBottom" stroke="#dbe3ef" />
       <polyline :points="linePoints(primaryValues)" fill="none" stroke="#2457a6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
       <polyline v-if="secondaryKey" :points="linePoints(secondaryValues)" fill="none" stroke="#c2410c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
       <g v-for="point in points(primaryValues)" :key="point.label">
@@ -34,18 +40,58 @@ export default {
     secondaryKey: { type: String, default: '' },
     secondaryLabel: { type: String, default: '' }
   },
+  data: () => ({
+    chartLeft: 72,
+    chartRight: 736,
+    chartTop: 44,
+    chartBottom: 216
+  }),
   computed: {
     primaryValues () { return this.months.map((m) => Number(m[this.primaryKey] || 0)) },
     secondaryValues () { return this.months.map((m) => Number(m[this.secondaryKey] || 0)) },
     maxValue () {
       return Math.max(...this.primaryValues, ...this.secondaryValues, 1)
+    },
+    chartMax () {
+      return this.niceMax(this.maxValue)
+    },
+    chartHeight () {
+      return this.chartBottom - this.chartTop
+    },
+    chartWidth () {
+      return this.chartRight - this.chartLeft
+    },
+    yTicks () {
+      const steps = 4
+      return Array.from({ length: steps + 1 }, (_, index) => {
+        const ratio = index / steps
+        const value = this.chartMax * (1 - ratio)
+        return {
+          value: Number(value.toFixed(2)),
+          label: this.formatAxisValue(value),
+          y: Number((this.chartTop + (ratio * this.chartHeight)).toFixed(2))
+        }
+      })
     }
   },
   methods: {
+    niceMax (value) {
+      const raw = Math.max(Number(value || 0), 1)
+      const power = Math.pow(10, Math.floor(Math.log10(raw)))
+      const fraction = raw / power
+      const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10
+      return niceFraction * power
+    },
+    formatAxisValue (value) {
+      const number = Number(value || 0)
+      if (number >= 1000000) return `${Number((number / 1000000).toFixed(1))}M`
+      if (number >= 1000) return `${Number((number / 1000).toFixed(1))}k`
+      return String(Math.round(number))
+    },
     valuePoint (value, index) {
       const count = Math.max(this.months.length - 1, 1)
-      const x = 36 + (index * (664 / count))
-      const y = 216 - ((Number(value || 0) / this.maxValue) * 172)
+      const x = this.chartLeft + (index * (this.chartWidth / count))
+      const y = this.chartBottom - ((Number(value || 0) / this.chartMax) * this.chartHeight)
       return { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }
     },
     linePoints (values) {
