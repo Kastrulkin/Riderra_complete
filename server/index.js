@@ -7527,6 +7527,18 @@ function compareMonthLabels(a, b) {
   return String(a || '').localeCompare(String(b || ''))
 }
 
+function clampPositiveInt(value, fallback, max = 120) {
+  const parsed = Number.parseInt(String(value || ''), 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return Math.min(parsed, max)
+}
+
+function latestMonthLabels(sources, limit) {
+  const labels = [...new Set((sources || []).map((source) => String(source.monthLabel || '')).filter(Boolean))]
+    .sort((a, b) => compareMonthLabels(b, a))
+  return new Set(labels.slice(0, limit))
+}
+
 function monthDisplayName(monthLabel, lang = 'ru') {
   const raw = String(monthLabel || '').trim()
   const match = raw.match(/^(\d{4})-(\d{2})$/)
@@ -8958,16 +8970,21 @@ app.get('/api/admin/economics/analytics/overview', authenticateToken, resolveAct
     const fromMonth = String(req.query.fromMonth || '').trim()
     const toMonth = String(req.query.toMonth || '').trim()
     const status = String(req.query.status || 'archived')
+    const limitMonths = clampPositiveInt(req.query.limitMonths, fromMonth || toMonth ? 120 : 36, 240)
     const sources = await prisma.sheetSource.findMany({
       where: { tenantId },
       orderBy: [{ monthLabel: 'asc' }, { updatedAt: 'desc' }]
     })
-    const filtered = sources.filter((source) => {
+    const filteredByStatus = sources.filter((source) => {
+      if (source.lastSyncStatus === 'superseded') return false
       if (status === 'archived' && sheetSourceMonthStatus(source) !== 'archived') return false
+      if (status === 'open' && sheetSourceMonthStatus(source) !== 'open') return false
       if (fromMonth && compareMonthLabels(source.monthLabel, fromMonth) < 0) return false
       if (toMonth && compareMonthLabels(source.monthLabel, toMonth) > 0) return false
       return true
     })
+    const allowedMonthLabels = latestMonthLabels(filteredByStatus, limitMonths)
+    const filtered = filteredByStatus.filter((source) => allowedMonthLabels.has(String(source.monthLabel || '')))
     const grouped = new Map()
     for (const source of filtered) {
       if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])

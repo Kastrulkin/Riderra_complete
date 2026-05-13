@@ -141,6 +141,8 @@ import MonthArchiveTable from '~/components/admin/orderArchive/MonthArchiveTable
 import EntityDetailDrawer from '~/components/admin/orderArchive/EntityDetailDrawer.vue'
 
 const archiveUtils = require('~/utils/orderArchiveDashboard')
+const ARCHIVE_OVERVIEW_LIMIT_MONTHS = 24
+const ARCHIVE_OVERVIEW_TIMEOUT_MS = 15000
 
 export default {
   middleware: 'staff',
@@ -239,8 +241,12 @@ export default {
       this.loading = true
       this.error = ''
       try {
-        const params = new URLSearchParams({ status: 'archived', lang: this.$store.state.language || 'ru' })
-        const res = await fetch(`/api/admin/economics/analytics/overview?${params.toString()}`, { headers: this.headers() })
+        const params = new URLSearchParams({
+          status: 'archived',
+          lang: this.$store.state.language || 'ru',
+          limitMonths: String(ARCHIVE_OVERVIEW_LIMIT_MONTHS)
+        })
+        const res = await this.fetchWithTimeout(`/api/admin/economics/analytics/overview?${params.toString()}`, { headers: this.headers() })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
         this.months = data.months || []
@@ -248,10 +254,28 @@ export default {
         this.counterparties = data.counterparties || []
         this.summary = data.summary || {}
       } catch (error) {
-        this.error = error?.message || 'Failed to load archive dashboard'
+        this.error = error?.message === 'Request timeout'
+          ? 'Архив загружается слишком долго. Обновите страницу или сузьте период.'
+          : (error?.message || 'Failed to load archive dashboard')
       } finally {
         this.loading = false
       }
+    },
+    fetchWithTimeout (url, options = {}) {
+      if (typeof AbortController === 'undefined') {
+        return Promise.race([
+          fetch(url, options),
+          new Promise((resolve, reject) => window.setTimeout(() => reject(new Error('Request timeout')), ARCHIVE_OVERVIEW_TIMEOUT_MS))
+        ])
+      }
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => controller.abort(), ARCHIVE_OVERVIEW_TIMEOUT_MS)
+      return fetch(url, { ...options, signal: controller.signal })
+        .catch((error) => {
+          if (error?.name === 'AbortError') throw new Error('Request timeout')
+          throw error
+        })
+        .finally(() => window.clearTimeout(timeout))
     },
     filteredEntities (rows, key) {
       const q = this.q.trim().toLowerCase()
