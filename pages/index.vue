@@ -23,7 +23,6 @@
 </template>
 
 <script>
-import maps from '~/components/maps.vue'
 import mainSection from '~/components/main/topSection.vue'
 import workSection from '~/components/main/HowWeWorks.vue'
 import sectionCities from '~/components/main/citiesSection.vue'
@@ -41,7 +40,7 @@ export default {
     }
   },
   components: {
-    maps, mainSection, workSection, sectionCities, sectionCars, questions
+    mainSection, workSection, sectionCities, sectionCars, questions
   },
   computed: {
     lang(){

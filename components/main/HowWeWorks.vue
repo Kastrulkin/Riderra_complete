@@ -18,8 +18,8 @@
               <figure class="main-slider__inner">
                 <img :src="slide.src" class="main-slider__img">
                 <figcaption class="main-slider__caption">
-                  <div class="main-slider__title h2" ref="swiperTitle" v-html="slide.title"></div>
-                  <p class="main-slider__desc" ref="swiperDesc" v-html="slide.desc"></p>
+                  <div class="main-slider__title h2" ref="swiperTitle">{{ slide.title }}</div>
+                  <p class="main-slider__desc" ref="swiperDesc">{{ slide.desc }}</p>
                 </figcaption>
               </figure>
             </div>
@@ -104,7 +104,6 @@
       this.$nextTick(() => {
         if (this.$refs.mySlider && this.$refs.mySlider.swiper) {
           this.$refs.mySlider.swiper.on('slideChange', function () {
-            console.log(this)
             /*var currentIndex = this.activeIndex;
             this.slides.forEach(function(val, currentIndex){
               val.

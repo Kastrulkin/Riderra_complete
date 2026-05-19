@@ -352,7 +352,6 @@ export default {
     },
     switchToDriver(driver) {
       // В реальном приложении здесь будет переключение на аккаунт водителя
-      console.log('Switching to driver:', driver.name)
       // Можно перенаправить на дашборд водителя с его ID
       // this.$router.push(`/driver-dashboard?driverId=${driver.id}`)
       alert(`Переключение на аккаунт водителя: ${driver.name}`)

@@ -67,13 +67,11 @@
 
 
 <script>
-  import formFeedback from '~/components/partials/form.vue'
   import slider from '~/components/partials/popupSlider.vue'
-  import calendar from '~/components/partials/calendar.vue'
 
   export default {
     components: {
-      formFeedback, slider, calendar
+      slider
     },
     computed: {
       currentCar() {

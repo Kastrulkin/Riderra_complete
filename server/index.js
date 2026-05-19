@@ -53,6 +53,53 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json())
 
+function getClientIp(req) {
+  const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+  return forwardedFor || req.ip || req.connection?.remoteAddress || 'unknown'
+}
+
+function createRateLimiter({ windowMs = 60 * 1000, max = 30, name = 'public' } = {}) {
+  const hits = new Map()
+  return (req, res, next) => {
+    const now = Date.now()
+    if (hits.size > 10000) {
+      for (const [storedKey, storedValue] of hits.entries()) {
+        if (storedValue.resetAt <= now) hits.delete(storedKey)
+      }
+    }
+    const key = `${name}:${getClientIp(req)}`
+    const current = hits.get(key)
+    if (!current || current.resetAt <= now) {
+      hits.set(key, { count: 1, resetAt: now + windowMs })
+      return next()
+    }
+    current.count += 1
+    if (current.count > max) {
+      res.setHeader('Retry-After', Math.ceil((current.resetAt - now) / 1000))
+      return res.status(429).json({ error: 'Too many requests' })
+    }
+    next()
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function normalizeText(value, maxLength = 500) {
+  if (value === undefined || value === null) return null
+  const text = String(value).trim()
+  return text ? text.slice(0, maxLength) : null
+}
+
+const publicFormLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 25, name: 'public-form' })
+const publicReviewLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20, name: 'public-review' })
+
 function renderPrivacyPolicyHtml(lang = 'ru') {
   const isEn = String(lang || '').toLowerCase() === 'en'
   const pageLang = isEn ? 'en' : 'ru'
@@ -794,30 +841,24 @@ async function sendDriverRegistrationEmail(data) {
   }
 
   try {
-    console.log('Attempting to send email...')
-    console.log('EMAIL_FROM:', EMAIL_FROM)
-    console.log('EMAIL_TO:', EMAIL_TO)
-    console.log('SMTP_HOST:', SMTP_HOST)
-    console.log('SMTP_PORT:', SMTP_PORT)
-    
     const routesText = data.routes && data.routes.length > 0
-      ? data.routes.map((r, idx) => 
-          `${idx + 1}. ${r.from || '-'} → ${r.to || '-'} | ${r.price || '-'} ${r.currency || ''}`
+      ? data.routes.map((r, idx) =>
+          `${idx + 1}. ${escapeHtml(r.from || '-')} → ${escapeHtml(r.to || '-')} | ${escapeHtml(r.price || '-')} ${escapeHtml(r.currency || '')}`
         ).join('\n')
       : 'Не указаны'
 
     const subject = `[Riderra] ${data.lang === 'ru' ? 'Регистрация водителя' : 'Driver registration'}`
     const html = `
       <h2>${data.lang === 'ru' ? 'Новая заявка на регистрацию перевозчика' : 'New driver registration request'}</h2>
-      <p><strong>${data.lang === 'ru' ? 'Имя/Компания' : 'Name/Company'}:</strong> ${data.name}</p>
-      <p><strong>Email:</strong> ${data.email}</p>
-      <p><strong>${data.lang === 'ru' ? 'Телефон' : 'Phone'}:</strong> ${data.phone}</p>
-      <p><strong>${data.lang === 'ru' ? 'Город/регион работы' : 'City/Operating region'}:</strong> ${data.city || '-'}</p>
-      <p><strong>${data.lang === 'ru' ? 'Цена за километр' : 'Price per km'}:</strong> ${data.pricePerKm || '-'}</p>
-      <p><strong>${data.lang === 'ru' ? 'Комиссия' : 'Commission'}:</strong> ${data.commissionRate || 15}%</p>
+      <p><strong>${data.lang === 'ru' ? 'Имя/Компания' : 'Name/Company'}:</strong> ${escapeHtml(data.name)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+      <p><strong>${data.lang === 'ru' ? 'Телефон' : 'Phone'}:</strong> ${escapeHtml(data.phone)}</p>
+      <p><strong>${data.lang === 'ru' ? 'Город/регион работы' : 'City/Operating region'}:</strong> ${escapeHtml(data.city || '-')}</p>
+      <p><strong>${data.lang === 'ru' ? 'Цена за километр' : 'Price per km'}:</strong> ${escapeHtml(data.pricePerKm || '-')}</p>
+      <p><strong>${data.lang === 'ru' ? 'Комиссия' : 'Commission'}:</strong> ${escapeHtml(data.commissionRate || 15)}%</p>
       <p><strong>${data.lang === 'ru' ? 'Фиксированные маршруты' : 'Fixed routes'}:</strong></p>
       <pre>${routesText}</pre>
-      ${data.comment ? `<p><strong>${data.lang === 'ru' ? 'Комментарий' : 'Comment'}:</strong> ${data.comment}</p>` : ''}
+      ${data.comment ? `<p><strong>${data.lang === 'ru' ? 'Комментарий' : 'Comment'}:</strong> ${escapeHtml(data.comment)}</p>` : ''}
     `
     const text = `
 ${data.lang === 'ru' ? 'Новая заявка на регистрацию перевозчика' : 'New driver registration request'}
@@ -841,8 +882,7 @@ ${data.comment ? `${data.lang === 'ru' ? 'Комментарий' : 'Comment'}: 
       html: html
     })
 
-    console.log('Email sent successfully! Message ID:', info.messageId)
-    console.log('Email response:', info.response)
+    console.info('Driver registration email sent:', info.messageId)
     return true
   } catch (error) {
     console.error('Error sending email:', error)
@@ -2883,17 +2923,21 @@ async function promoteStagingToCustomerCrm(tenantId) {
   return stats
 }
 
-app.post('/api/requests', resolveActorContext, requireActorContext, async (req, res) => {
+app.post('/api/requests', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { name, email, phone, fromPoint, toPoint, date, passengers, luggage, comment, lang } = req.body
     const created = await prisma.request.create({ data: {
       tenantId: req.actorContext.tenantId,
-      name, email, phone, fromPoint, toPoint,
+      name: normalizeText(name, 160),
+      email: normalizeText(email, 254),
+      phone: normalizeText(phone, 80),
+      fromPoint: normalizeText(fromPoint, 500),
+      toPoint: normalizeText(toPoint, 500),
       date: date ? new Date(date) : null,
       passengers: passengers ?? null,
       luggage: luggage ?? null,
-      comment: comment ?? null,
-      lang: lang ?? null
+      comment: normalizeText(comment, 2000),
+      lang: normalizeText(lang, 10)
     }})
     res.json(created)
   } catch (e) {
@@ -2902,7 +2946,7 @@ app.post('/api/requests', resolveActorContext, requireActorContext, async (req, 
   }
 })
 
-app.post('/api/drivers', resolveActorContext, requireActorContext, async (req, res) => {
+app.post('/api/drivers', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const {
       name,
@@ -2923,28 +2967,24 @@ app.post('/api/drivers', resolveActorContext, requireActorContext, async (req, r
       routes
     } = req.body
     
-    console.log('Received driver registration:', { name, email, phone, city })
-    
     // Сохраняем в базу данных
     const created = await prisma.driver.create({ data: {
       tenantId: req.actorContext.tenantId,
-      name, 
-      email, 
-      phone, 
-      country: country || null,
-      city,
+      name: normalizeText(name, 160),
+      email: normalizeText(email, 254),
+      phone: normalizeText(phone, 80),
+      country: normalizeText(country, 120),
+      city: normalizeText(city, 160),
       fixedRoutesJson: fixedRoutesJson || (fixedRoutes ? JSON.stringify(fixedRoutes) : null),
-      pricePerKm: (pricePerKm && pricePerKm.trim() !== '') ? pricePerKm : null,
+      pricePerKm: normalizeText(pricePerKm, 80),
       kmRate: kmRate !== undefined && kmRate !== null && kmRate !== '' ? parseFloat(kmRate) : null,
       hourlyRate: hourlyRate !== undefined && hourlyRate !== null && hourlyRate !== '' ? parseFloat(hourlyRate) : null,
       childSeatPrice: childSeatPrice !== undefined && childSeatPrice !== null && childSeatPrice !== '' ? parseFloat(childSeatPrice) : null,
       pricingCurrency: pricingCurrency ? String(pricingCurrency) : null,
-      comment: (comment && comment.trim() !== '') ? comment : null,
-      lang: lang || null,
+      comment: normalizeText(comment, 2000),
+      lang: normalizeText(lang, 10),
       commissionRate: commissionRate ? parseFloat(commissionRate) : 15.0
     }})
-
-    console.log('Driver saved to database:', created.id)
 
     // Отправляем email с заявкой (не блокируем сохранение, если email не настроен)
     let routesData = []
@@ -2960,18 +3000,18 @@ app.post('/api/drivers', resolveActorContext, requireActorContext, async (req, r
 
     try {
       const emailSent = await sendDriverRegistrationEmail({
-        name,
-        email,
-        phone,
-        city,
-        pricePerKm,
+        name: normalizeText(name, 160),
+        email: normalizeText(email, 254),
+        phone: normalizeText(phone, 80),
+        city: normalizeText(city, 160),
+        pricePerKm: normalizeText(pricePerKm, 80),
         commissionRate: commissionRate ? parseFloat(commissionRate) : 15.0,
         routes: routesData,
-        comment,
-        lang: lang || 'ru'
+        comment: normalizeText(comment, 2000),
+        lang: normalizeText(lang, 10) || 'ru'
       })
       if (emailSent) {
-        console.log('Email sent successfully')
+        console.info('Driver registration notification email sent')
       } else {
         console.warn('Email not sent (SMTP not configured)')
       }
@@ -3302,7 +3342,7 @@ app.delete('/api/admin/fleet-vehicles/:vehicleId', authenticateToken, resolveAct
 })
 
 // API для расчета приоритета водителей
-app.post('/api/drivers/priority', resolveActorContext, requireActorContext, async (req, res) => {
+app.post('/api/drivers/priority', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { fromPoint, toPoint, vehicleType } = req.body
     
@@ -3363,7 +3403,7 @@ function calculateDriverScore(driver, fromPoint, toPoint, vehicleType = null) {
 }
 
 // API для управления маршрутами водителей
-app.post('/api/drivers/:driverId/routes', resolveActorContext, requireActorContext, async (req, res) => {
+app.post('/api/drivers/:driverId/routes', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { driverId } = req.params
     const {
@@ -3382,26 +3422,29 @@ app.post('/api/drivers/:driverId/routes', resolveActorContext, requireActorConte
     } = req.body
     const driver = await prisma.driver.findFirst({
       where: { id: driverId, tenantId: req.actorContext.tenantId },
-      select: { id: true }
+      select: { id: true, userId: true }
     })
     if (!driver) return res.status(404).json({ error: 'Driver not found' })
+    if (req.user.role === 'driver' && driver.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
     
     const route = await prisma.driverRoute.create({
       data: {
         tenantId: req.actorContext.tenantId,
         driverId: driver.id,
-        fromPoint,
-        toPoint,
+        fromPoint: normalizeText(fromPoint, 500),
+        toPoint: normalizeText(toPoint, 500),
         vehicleType: vehicleType ? normalizeVehicleType(vehicleType) : null,
         driverPrice: parseFloat(driverPrice),
         ourPrice: ourPrice === null || ourPrice === '' || ourPrice === undefined ? null : parseFloat(ourPrice),
-        currency,
-        sourceType: sourceType ? String(sourceType).trim() : null,
-        sourceLabel: sourceLabel ? String(sourceLabel).trim() : null,
+        currency: normalizeText(currency, 10) || 'EUR',
+        sourceType: normalizeText(sourceType, 80),
+        sourceLabel: normalizeText(sourceLabel, 160),
         sourceQuotedAt: sourceQuotedAt ? new Date(sourceQuotedAt) : null,
-        sourceMessage: sourceMessage ? String(sourceMessage).trim() : null,
-        sourceStatus: sourceStatus ? String(sourceStatus).trim() : 'approved',
-        sourceMetaJson: sourceMetaJson ? String(sourceMetaJson) : null
+        sourceMessage: normalizeText(sourceMessage, 2000),
+        sourceStatus: normalizeText(sourceStatus, 80) || 'approved',
+        sourceMetaJson: normalizeText(sourceMetaJson, 5000)
       }
     })
     
@@ -3412,14 +3455,17 @@ app.post('/api/drivers/:driverId/routes', resolveActorContext, requireActorConte
   }
 })
 
-app.get('/api/drivers/:driverId/routes', resolveActorContext, requireActorContext, async (req, res) => {
+app.get('/api/drivers/:driverId/routes', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { driverId } = req.params
     const driver = await prisma.driver.findFirst({
       where: { id: driverId, tenantId: req.actorContext.tenantId },
-      select: { id: true }
+      select: { id: true, userId: true }
     })
     if (!driver) return res.status(404).json({ error: 'Driver not found' })
+    if (req.user.role === 'driver' && driver.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
     
     const routes = await prisma.driverRoute.findMany({
       where: { driverId: driver.id, tenantId: req.actorContext.tenantId },
@@ -3738,7 +3784,7 @@ app.put('/api/admin/drivers/:driverId', authenticateToken, resolveActorContext, 
 // Webhook для получения заказов от EasyTaxi
 app.post('/api/webhooks/easytaxi/order', resolveActorContext, requireActorContext, async (req, res) => {
   try {
-    if (process.env.EASYTAXI_WEBHOOK_SECRET && !hasValidEasyTaxiWebhookSecret(req)) {
+    if ((process.env.NODE_ENV === 'production' || process.env.EASYTAXI_WEBHOOK_SECRET) && !hasValidEasyTaxiWebhookSecret(req)) {
       return res.status(401).json({ error: 'Invalid EasyTaxi webhook secret' })
     }
 
@@ -3758,7 +3804,7 @@ app.post('/api/webhooks/easytaxi/order', resolveActorContext, requireActorContex
     req.body.idempotency_key = req.body.idempotency_key || `easytaxi:${orderId}`
     const payload = { orderId, fromPoint, toPoint, clientPrice, vehicleType, passengers, luggage, comment, lang }
     const wrapped = await withIdempotency(req, 'webhook.easytaxi.order', payload, async () => {
-      console.log('Received order from EasyTaxi:', { orderId, fromPoint, toPoint, clientPrice })
+      console.info('Received EasyTaxi order:', { orderId })
 
       // Создаем заказ в нашей базе (или обновляем при повторе)
       const order = await prisma.order.upsert({
@@ -8999,9 +9045,13 @@ app.get('/api/admin/economics/analytics/overview', authenticateToken, resolveAct
 })
 
 // API для управления отзывами
-app.post('/api/reviews', resolveActorContext, requireActorContext, async (req, res) => {
+app.post('/api/reviews', publicReviewLimiter, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { orderId, driverId, rating, comment, clientName } = req.body
+    const parsedRating = Number.parseInt(rating, 10)
+    if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' })
+    }
     
     // Проверяем, что заказ существует и принадлежит водителю
     const order = await prisma.order.findFirst({
@@ -9043,9 +9093,9 @@ app.post('/api/reviews', resolveActorContext, requireActorContext, async (req, r
         tenantId,
         orderId,
         driverId: driver.id,
-        rating: parseInt(rating),
-        comment: comment || null,
-        clientName: clientName || null
+        rating: parsedRating,
+        comment: normalizeText(comment, 2000),
+        clientName: normalizeText(clientName, 160)
       }
     })
     
@@ -9059,14 +9109,17 @@ app.post('/api/reviews', resolveActorContext, requireActorContext, async (req, r
   }
 })
 
-app.get('/api/drivers/:driverId/reviews', resolveActorContext, requireActorContext, async (req, res) => {
+app.get('/api/drivers/:driverId/reviews', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { driverId } = req.params
     const driver = await prisma.driver.findFirst({
       where: { id: driverId, tenantId: req.actorContext.tenantId },
-      select: { id: true }
+      select: { id: true, userId: true }
     })
     if (!driver) return res.status(404).json({ error: 'Driver not found' })
+    if (req.user.role === 'driver' && driver.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
     
     const reviews = await prisma.review.findMany({
       where: { driverId: driver.id, tenantId: req.actorContext.tenantId },
@@ -9116,7 +9169,7 @@ async function updateDriverRating(driverId, tenantId = null) {
       }
     })
     
-    console.log(`Updated rating for driver ${driverId}: ${avgRating.toFixed(1)} (${reviews.length} reviews)`)
+    console.info(`Updated rating for driver ${driverId}: ${avgRating.toFixed(1)} (${reviews.length} reviews)`)
   } catch (e) {
     console.error('Error updating driver rating:', e)
   }
@@ -9380,6 +9433,9 @@ app.delete('/api/admin/drivers/routes/:routeId', authenticateToken, resolveActor
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, role = 'driver', name, phone, country, city, commissionRate } = req.body
+    if (role !== 'driver') {
+      return res.status(403).json({ error: 'Public registration is only available for drivers' })
+    }
 
     // Проверяем, существует ли пользователь
     const existingUser = await prisma.user.findUnique({
@@ -11831,7 +11887,7 @@ function normalizeWebhookSignature(raw) {
 
 function verifyOpenClawSignature(payload, signature) {
   const secret = String(process.env.OPENCLAW_WEBHOOK_SECRET || '').trim()
-  if (!secret) return true
+  if (!secret) return process.env.NODE_ENV !== 'production'
   const digest = crypto
     .createHmac('sha256', secret)
     .update(JSON.stringify(payload || {}))
@@ -14014,6 +14070,9 @@ app.get('/api/admin/vpn/access/:grantId/package', authenticateToken, resolveActo
 app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET
+    if (!webhookSecret && process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Telegram webhook secret is not configured' })
+    }
     if (webhookSecret) {
       const receivedSecret = req.headers['x-telegram-bot-api-secret-token']
       if (receivedSecret !== webhookSecret) {

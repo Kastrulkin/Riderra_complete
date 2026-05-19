@@ -9,13 +9,11 @@
 </template>
 
 <script>
-  import formFeedback from '~/components/partials/form.vue'
   import cars from '~/components/partials/carSlider.vue'
-  import orderCaption from '~/components/partials/orderCaption.vue'
 
   export default {
     scrollToTop: true,
-    components: {formFeedback, cars, orderCaption},
+    components: {cars},
     data() {
       return {
         formData: {
@@ -45,5 +43,4 @@
 
 
 </style>
-
 

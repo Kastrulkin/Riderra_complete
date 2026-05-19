@@ -17,8 +17,8 @@
             <figure class="reviews__inner">
               <img :src="slide.src" class="reviews__img">
               <figcaption class="reviews__caption">
-                <div class="reviews__title" ref="swiperTitle" v-html="slide.title"></div>
-                <p class="reviews__desc" ref="swiperDesc" v-html="slide.desc"></p>
+                <div class="reviews__title" ref="swiperTitle">{{ slide.title }}</div>
+                <p class="reviews__desc" ref="swiperDesc">{{ slide.desc }}</p>
               </figcaption>
             </figure>
           </div>
@@ -185,5 +185,4 @@
     }
   }
 </script>
-
 

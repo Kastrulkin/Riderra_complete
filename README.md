@@ -24,7 +24,7 @@ docker compose up -d postgres
 3. Установите зависимости и примените схему:
 ```bash
 npm install
-npx prisma db push
+npx prisma migrate dev
 npx prisma generate
 ```
 4. Запустите приложение:
@@ -39,6 +39,9 @@ npm run dev
 - `JWT_SECRET` — обязателен
 - `ADMIN_SETUP_KEY` — ключ для одноразового bootstrap админа через `/api/auth/create-admin`
 - `CORS_ORIGIN` — список разрешённых origin через запятую
+- `EASYTAXI_WEBHOOK_SECRET` — секрет для `/api/webhooks/easytaxi/order`; в production обязателен
+- `OPENCLAW_WEBHOOK_SECRET` — секрет для `/api/webhooks/openclaw/order-draft`; в production обязателен
+- `TELEGRAM_WEBHOOK_SECRET` — секрет Telegram webhook; в production обязателен для `/api/telegram/webhook`
 - `GOOGLE_MAPS_API_KEY` — ключ Google Maps
 
 ## Полезные команды
@@ -47,9 +50,11 @@ npm run dev
 npm run build
 npm run start
 npm run lint
-npm run prisma:migrate   # prisma db push
+npm run prisma:migrate   # prisma migrate deploy
 npm run prisma:generate
 ```
+
+В production webhook endpoint'ы без настроенного секрета отклоняют запросы. EasyTaxi принимает либо заголовок `X-EasyTaxi-Webhook-Secret`, либо HMAC SHA-256 подпись в `X-EasyTaxi-Signature`.
 
 ## Где что находится
 - API: `server/index.js`

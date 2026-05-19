@@ -95,11 +95,11 @@ npm install || {
 }
 echo -e "${GREEN}✓ Зависимости установлены${NC}"
 
-# 3. Синхронизация схемы Prisma (PostgreSQL)
+# 3. Применение миграций Prisma (PostgreSQL)
 if [ -f "prisma/schema.prisma" ]; then
-  echo -e "\n${YELLOW}🗄️  Синхронизация схемы базы данных...${NC}"
-  npx prisma db push || {
-    echo -e "${RED}❌ Ошибка синхронизации Prisma schema${NC}"
+  echo -e "\n${YELLOW}🗄️  Применение миграций базы данных...${NC}"
+  npx prisma migrate deploy || {
+    echo -e "${RED}❌ Ошибка применения Prisma migrations${NC}"
     exit 1
   }
   npx prisma generate || echo -e "${YELLOW}⚠️  Prisma generate пропущен${NC}"

@@ -21,13 +21,8 @@
 
 
 <script>
-  import calendar from '~/components/partials/calendar.vue'
-
   export default {
     props: ['data'],
-    components: {
-      calendar
-    },
     computed:{
       points(){
         return this.$store.getters.getPoints;
@@ -83,7 +78,6 @@
 
       }
       /*if(this.$store.state.points.to && this.$store.state.points.from){
-        console.log('asd')
       }*/
     },
     methods: {

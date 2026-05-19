@@ -124,7 +124,6 @@
           var coef = (this.translate * 5/this.width * 1) * 100;
           coef = coef <= 30 ? 30 : (coef >= 60 ? 60 : coef);
 
-          console.log(this.translate)
           this.slides[0].style.width = `${coef}%`;
           // currentSlide.style.width = `${coef/2}%`;
           // currentSlide.style.width = (1/2) * (this.translate * 3/this.width)

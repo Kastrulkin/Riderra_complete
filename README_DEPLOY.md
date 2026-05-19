@@ -19,7 +19,7 @@ cd riderra
 cp .env.example .env
 # заполните .env
 npm install
-npx prisma db push
+npx prisma migrate deploy
 npx prisma generate
 npm run generate
 pm2 start ecosystem.config.js
@@ -48,7 +48,7 @@ docker compose up -d --build
 2. Поднимите PostgreSQL и настройте `DATABASE_URL`.
 3. Примените актуальную схему:
 ```bash
-npx prisma db push
+npx prisma migrate deploy
 npx prisma generate
 ```
 4. Перенесите данные отдельным ETL-скриптом/инструментом (например, `pgloader`) из бэкапа SQLite.
@@ -58,4 +58,5 @@ npx prisma generate
 - Установлен сильный `JWT_SECRET`
 - `ADMIN_SETUP_KEY` задан и хранится вне git
 - `CORS_ORIGIN` ограничен нужными доменами
+- `EASYTAXI_WEBHOOK_SECRET`, `OPENCLAW_WEBHOOK_SECRET` и `TELEGRAM_WEBHOOK_SECRET` заданы для включённых webhook'ов
 - В репозитории нет реальных SMTP/API ключей

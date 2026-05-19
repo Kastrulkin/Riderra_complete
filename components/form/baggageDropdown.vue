@@ -2,7 +2,7 @@
   <div class="dropdown dropdown-cities baggage-field__dropdown" ref="dropdown">
     <div class="dropdown-cities__row field" v-for="(item, i) in fields" :key="i">
       <div class="field__icon" v-bind:style="{ 'background-image': 'url(' + item.icon + ')' }"></div>
-      <div class="field__title" v-html="item.title"></div>
+      <div class="field__title">{{ item.title }}</div>
 
       <div class="field__usage-box" v-if="item.data === 'iterate'">
         <div class="field__iterate field__iterate--minus" :class="{disabled: item.myVal == 0 }" @click="iterateBack(item, i)">&ndash;</div>
@@ -372,5 +372,4 @@
     }
   }
 </style>
-
 

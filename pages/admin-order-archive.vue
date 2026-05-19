@@ -133,7 +133,7 @@
 import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 import DashboardHeader from '~/components/admin/orderArchive/DashboardHeader.vue'
-import KPIGrid from '~/components/admin/orderArchive/KPIGrid.vue'
+import KpiGrid from '~/components/admin/orderArchive/KPIGrid.vue'
 import ArchiveTrendChart from '~/components/admin/orderArchive/ArchiveTrendChart.vue'
 import RevenueChart from '~/components/admin/orderArchive/RevenueChart.vue'
 import PerformanceLeaderboard from '~/components/admin/orderArchive/PerformanceLeaderboard.vue'
@@ -150,7 +150,7 @@ export default {
     navigation,
     adminTabs,
     DashboardHeader,
-    KPIGrid,
+    KpiGrid,
     ArchiveTrendChart,
     RevenueChart,
     PerformanceLeaderboard,

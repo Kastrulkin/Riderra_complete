@@ -7,7 +7,7 @@
 cd /opt/riderra
 git pull origin master
 npm install
-npx prisma db push
+npx prisma migrate deploy
 npx prisma generate
 rm -rf .nuxt dist node_modules/.cache
 npm run generate

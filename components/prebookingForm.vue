@@ -81,7 +81,6 @@
 
 <script>
 
-  import calendar from '~/components/partials/calendar.vue'
   import cityField from '~/components/form/cityField.vue'
   import baggageDropdown from '~/components/form/baggageDropdown.vue'
   import MaskedInput from 'vue-masked-input'
@@ -94,11 +93,10 @@
 
   export default {
     components: {
-      calendar, cityField, baggageDropdown, MaskedInput, datePicker
+      cityField, baggageDropdown, MaskedInput, datePicker
     },
     watch:{
       pointTo: function(){
-        console.log(this.distanceLimit)
         this.distanceLimit;
       }
     },

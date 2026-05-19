@@ -17,7 +17,7 @@
           <span>{{ data['main'].badge }}</span>
         </div>
         
-        <h1 class="hero-title" v-html="data['main'].title"></h1>
+        <h1 class="hero-title">{{ data['main'].title }}</h1>
         
         <p class="hero-description">
           {{ data['main'].description }}
@@ -97,11 +97,6 @@
     },
     data() {
       return {}
-    },
-    watch: {
-      $route () {
-        console.log('route changed', this.$route)
-      }
     },
     methods:{
       pageLoad(){

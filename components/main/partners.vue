@@ -97,10 +97,8 @@
     mounted() {
       const that = this;
       that.$refs.mySlider.swiper.on('slideChange', function () {
-        console.log(this)
       });
     }
   }
 </script>
-
 

@@ -121,7 +121,6 @@
 
         this.formArray.push(this.formData, this.orderData)
 
-        console.log(JSON.stringify(this.formArray))
 
 
       }
