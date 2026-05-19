@@ -52,6 +52,16 @@ fi
 cd "$PROJECT_DIR"
 echo -e "${BLUE}📁 Рабочая директория: $PROJECT_DIR${NC}"
 
+if [ -f ".env" ]; then
+  echo -e "${BLUE}🔐 Загружаем переменные окружения из .env${NC}"
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+else
+  echo -e "${YELLOW}⚠️  .env не найден, используем переменные окружения shell/PM2${NC}"
+fi
+
 # 1. Обновление из Git
 if [ "$SKIP_GIT" = false ]; then
   echo -e "\n${YELLOW}📥 Обновление кода из Git...${NC}"
