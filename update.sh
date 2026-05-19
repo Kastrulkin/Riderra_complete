@@ -171,7 +171,7 @@ fi
 # 7. Финальная проверка
 echo -e "\n${BLUE}🔍 Финальная проверка...${NC}"
 if command -v pm2 &> /dev/null; then
-  STATUS=$(pm2 jlist | grep -o '"pm2_env":{"status":"[^"]*"' | grep -o 'online\|stopped\|errored' | head -1)
+  STATUS=$(pm2 jlist | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => { try { const apps = JSON.parse(input || '[]'); const app = apps.find(item => item.name === 'riderra'); process.stdout.write(app?.pm2_env?.status || 'missing'); } catch (_) { process.stdout.write('unknown'); } })")
   if [ "$STATUS" = "online" ]; then
     echo -e "${GREEN}✅ Приложение работает (статус: online)${NC}"
   else
