@@ -4212,6 +4212,55 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
     : 'Could you please clarify the missing booking details?'
 }
 
+function pickWhatsAppTemplateNameForTask(task = {}, registry = []) {
+  if (String(task?.taskType || '') === 'dispatch_info') return 'trip_confirmation'
+  const target = detectClarificationTarget(task?.order?.infoReason || '', '')
+  if (target === 'luggage') return 'baggage_request'
+  if (target === 'flightNumber') return 'flight_request'
+  if (target === 'pickupPoint') return 'pickup_request'
+  const knownNames = new Set((registry || []).map((tpl) => String(tpl?.name || '').trim()).filter(Boolean))
+  return knownNames.has('order_clarification') ? 'order_clarification' : 'baggage_request'
+}
+
+function buildWhatsAppTemplateVariables({ task = {}, messageText = '', templateName = '', registry = [] } = {}) {
+  const order = task?.order || {}
+  const variables = {
+    booking_number: order.externalKey || order.id || '',
+    route_from: order.fromPoint || '',
+    route_to: order.toPoint || '',
+    question: String(messageText || '').trim(),
+    trip_details: String(messageText || '').trim()
+  }
+  const template = (registry || []).find((tpl) => String(tpl?.name || '').trim() === String(templateName || '').trim())
+  const required = Array.isArray(template?.variables) ? template.variables : []
+  if (!required.length) return variables
+  return required.reduce((acc, key) => {
+    acc[key] = variables[key] || ''
+    return acc
+  }, {})
+}
+
+async function buildRecommendedDeliveryForTask({ tenantId, task, messageText = '' } = {}) {
+  const channel = normalizeChannelName(task?.channel || 'telegram')
+  if (channel !== 'whatsapp') return { mode: 'free_text' }
+  const registry = await loadWhatsAppTemplateRegistryForTenant(tenantId)
+  const templates = registry.templates || []
+  const templateName = pickWhatsAppTemplateNameForTask(task, templates)
+  const template = templates.find((tpl) => String(tpl?.name || '').trim() === templateName) || null
+  const language = String(template?.language || normalizeCustomerMessageLang(task?.order?.lang || 'en')).trim() || 'en'
+  return {
+    mode: 'template',
+    templateName,
+    language,
+    variables: buildWhatsAppTemplateVariables({ task, messageText, templateName, registry: templates }),
+    recommended: true,
+    source: 'policy_guard',
+    reason: task?.taskType === 'dispatch_info'
+      ? 'dispatch_info requires approved WhatsApp template for outbound confirmation'
+      : `missing_data:${detectClarificationTarget(task?.order?.infoReason || '', '') || 'generic'}`
+  }
+}
+
 async function buildTaskOwnerMap(taskRows = []) {
   const ids = [...new Set((taskRows || []).map((row) => String(row?.assignedToUserId || '').trim()).filter(Boolean))]
   if (!ids.length) return {}
@@ -6350,6 +6399,15 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
       draftText = lines.join(' ')
     }
 
+    const recommendedDelivery = await buildRecommendedDeliveryForTask({
+      tenantId,
+      task,
+      messageText: draftText
+    })
+    const messageBodyJson = recommendedDelivery && Object.keys(recommendedDelivery).length
+      ? { delivery: recommendedDelivery }
+      : null
+
     const message = await prisma.chatMessage.create({
       data: {
         tenantId,
@@ -6358,6 +6416,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
         source: runtimeResult.configured ? 'openclaw' : 'system',
         channel: task.channel || 'telegram',
         bodyText: draftText,
+        bodyJson: messageBodyJson ? JSON.stringify(messageBodyJson) : null,
         approvalStatus: task.agentConfig.requiresApproval ? 'pending_human' : 'approved',
         traceId: req.actorContext.traceId,
         idempotencyKey: req.idempotencyKey || null,
@@ -6386,12 +6445,14 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
         runtime: runtimeResult.configured ? 'openclaw' : 'local_fallback',
         runtimeOk: runtimeResult.ok,
         runtimeStatus: runtimeResult.status,
-        runtimeError: runtimeResult.error || null
+        runtimeError: runtimeResult.error || null,
+        recommendedDelivery
       }
     })
 
     res.json({
       message,
+      recommendedDelivery,
       runtime: {
         configured: runtimeResult.configured,
         ok: runtimeResult.ok,

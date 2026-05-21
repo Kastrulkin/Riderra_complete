@@ -142,6 +142,7 @@
                       <span v-if="isWhatsappMessage(message)" class="badge" :class="whatsappFreeTextAllowed ? 'badge--sla-ok' : 'badge--sla-warning'">
                         {{ whatsappFreeTextAllowed ? 'WhatsApp: free text открыт' : 'WhatsApp: нужен template' }}
                       </span>
+                      <span v-if="deliveryRecommended(message)" class="badge badge--sla-ok">Template выбран policy</span>
                     </div>
                     <div class="delivery-mode">
                       <label class="delivery-radio">
@@ -400,7 +401,7 @@ export default {
     agentTestInput: '',
     agentTestOutput: '',
     promptTemplates: [],
-    promptKeys: ['order_missing_data_prompt', 'reply_interpretation_prompt', 'esim_offer_prompt', 'followup_prompt'],
+    promptKeys: ['order_missing_data_prompt', 'reply_interpretation_prompt', 'esim_offer_prompt', 'followup_prompt', 'whatsapp_template_registry'],
     selectedPromptKey: 'order_missing_data_prompt',
     selectedPromptVersionLabel: '-',
     promptText: '',
@@ -1294,6 +1295,10 @@ export default {
     },
     isWhatsappMessage(message) {
       return this.messageChannel(message) === 'whatsapp'
+    },
+    deliveryRecommended(message) {
+      const delivery = this.parseBodyJson(message)?.delivery
+      return Boolean(delivery?.recommended || delivery?.source === 'policy_guard')
     },
     defaultDeliveryForm(message) {
       const body = this.parseBodyJson(message)
