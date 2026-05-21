@@ -21,11 +21,11 @@ async function ensurePermission(code, name = code) {
   })
 }
 
-async function requestJson(baseUrl, path, { method = 'GET', token = null, tenantCode = null, body = null } = {}) {
+async function requestJson(baseUrl, path, { method = 'GET', token = null, tenantCode = null, body = null, idempotencyKey = null } = {}) {
   const headers = { 'content-type': 'application/json' }
   if (token) headers.authorization = `Bearer ${token}`
   if (tenantCode) headers['x-tenant-code'] = tenantCode
-  headers['idempotency-key'] = `chat-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  headers['idempotency-key'] = idempotencyKey || `chat-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
   const response = await fetch(`${baseUrl}${path}`, {
     method,
@@ -209,18 +209,59 @@ async function main() {
     assert(inbound.status === 200, `expected 200 from inbound API, got ${inbound.status}`)
     assert(inbound.data?.classification?.class === 'answer', 'classification must be answer')
     assert(inbound.data?.extraction?.valid === true, 'extraction must be valid=true')
-    assert(inbound.data?.taskState === 'order_complete', `expected taskState=order_complete, got ${inbound.data?.taskState}`)
-    assert(inbound.data?.orderUpdate?.needsInfo === false, 'orderUpdate.needsInfo must be false')
+    assert(inbound.data?.taskState === 'pending_update_approval', `expected taskState=pending_update_approval, got ${inbound.data?.taskState}`)
+    assert(inbound.data?.pendingOrderPatch?.needsInfo === false, 'pendingOrderPatch.needsInfo must be false')
+    assert(inbound.data?.pendingOrderPatch?.luggage === 2, `pendingOrderPatch.luggage must be 2, got ${inbound.data?.pendingOrderPatch?.luggage}`)
 
     const orderAfter = await prisma.order.findUnique({ where: { id: order.id } })
     const taskAfter = await prisma.chatTask.findUnique({ where: { id: task.id } })
-    assert(orderAfter && orderAfter.needsInfo === false, 'order.needsInfo must be false after inbound')
-    assert(taskAfter && String(taskAfter.state) === 'order_complete', `chatTask.state must be order_complete, got ${taskAfter?.state}`)
+    assert(orderAfter && orderAfter.needsInfo === true, 'order.needsInfo must remain true before human approval')
+    assert(taskAfter && String(taskAfter.state) === 'pending_update_approval', `chatTask.state must be pending_update_approval, got ${taskAfter?.state}`)
+
+    const applyKey = `chat-e2e-apply-${crypto.randomUUID()}`
+    const applied = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/apply-inbound-update`, {
+      method: 'POST',
+      token,
+      tenantCode,
+      body: {},
+      idempotencyKey: applyKey
+    })
+    assert(applied.status === 200, `expected 200 from apply API, got ${applied.status}`)
+    assert(applied.data?.taskState === 'order_complete', `expected applied taskState=order_complete, got ${applied.data?.taskState}`)
+    assert(applied.data?.order?.needsInfo === false, 'applied order.needsInfo must be false')
+    assert(applied.data?.order?.luggage === 2, `applied order.luggage must be 2, got ${applied.data?.order?.luggage}`)
+
+    const replay = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/apply-inbound-update`, {
+      method: 'POST',
+      token,
+      tenantCode,
+      body: {},
+      idempotencyKey: applyKey
+    })
+    assert(replay.status === 200, `expected 200 from idempotent apply replay, got ${replay.status}`)
+    assert(replay.data?.idempotent === true, 'apply replay must be marked idempotent=true')
+
+    const orderApplied = await prisma.order.findUnique({ where: { id: order.id } })
+    const taskApplied = await prisma.chatTask.findUnique({ where: { id: task.id } })
+    assert(orderApplied && orderApplied.needsInfo === false, 'order.needsInfo must be false after human approval')
+    assert(orderApplied && orderApplied.luggage === 2, `order.luggage must be 2 after human approval, got ${orderApplied?.luggage}`)
+    assert(taskApplied && String(taskApplied.state) === 'order_complete', `chatTask.state must be order_complete after approval, got ${taskApplied?.state}`)
+
+    const auditApproved = await prisma.auditLog.findFirst({
+      where: {
+        tenantId: tenant.id,
+        action: 'chat_task.apply_inbound_update',
+        resourceId: task.id,
+        decision: 'human_approved'
+      }
+    })
+    assert(Boolean(auditApproved), 'human approval audit log must exist')
 
     console.log(JSON.stringify({
       ok: true,
-      checks: 7,
-      taskState: taskAfter.state,
+      checks: 15,
+      taskState: taskApplied.state,
+      idempotentReplay: replay.data?.idempotent === true,
       classification: inbound.data.classification,
       extraction: inbound.data.extraction
     }))
@@ -233,6 +274,8 @@ async function main() {
     if (previousRuntimeToken === undefined) delete process.env.OPENCLAW_RUNTIME_TOKEN
     else process.env.OPENCLAW_RUNTIME_TOKEN = previousRuntimeToken
 
+    await prisma.auditLog.deleteMany({ where: { tenantId: tenant.id, resourceId: task.id } })
+    await prisma.idempotencyKey.deleteMany({ where: { tenantId: tenant.id, key: { startsWith: 'chat-e2e-' } } })
     await prisma.chatMessage.deleteMany({ where: { chatTaskId: task.id } })
     await prisma.chatTask.deleteMany({ where: { id: task.id } })
     await prisma.chatAgentConfig.deleteMany({ where: { id: agent.id } })
