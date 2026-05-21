@@ -1545,6 +1545,25 @@ async function withIdempotency(req, action, requestPayload, operation) {
   return { replayed: false, data: result }
 }
 
+async function getCompletedIdempotencyReplay(req, action) {
+  const idempotencyKey = getIdempotencyKey(req)
+  const tenantId = req.actorContext?.tenantId
+  if (!idempotencyKey || !tenantId) return null
+  const keyRow = await prisma.idempotencyKey.findUnique({
+    where: {
+      tenantId_key_action: {
+        tenantId,
+        key: idempotencyKey,
+        action
+      }
+    }
+  })
+  if (keyRow?.status === 'completed' && keyRow.responseJson) {
+    return { replayed: true, data: JSON.parse(keyRow.responseJson) }
+  }
+  return null
+}
+
 async function ensureHumanApproval(req, {
   action,
   resource,
@@ -7515,6 +7534,9 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
 app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
+    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.apply_inbound_update')
+    if (replay) return res.json({ ...replay.data, idempotent: true })
+
     const task = await prisma.chatTask.findFirst({
       where: { id: req.params.id, tenantId },
       include: {
@@ -7612,6 +7634,9 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
 app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
+    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.reject_inbound_update')
+    if (replay) return res.json({ ...replay.data, idempotent: true })
+
     const task = await prisma.chatTask.findFirst({
       where: { id: req.params.id, tenantId },
       include: {
