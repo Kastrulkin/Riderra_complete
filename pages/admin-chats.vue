@@ -691,11 +691,12 @@ export default {
         this.agentForm.taskType = 'clarification'
         this.agentForm.requiresApproval = true
         this.agentForm.promptText = [
-          'Ты ассистент Riderra в тестовом режиме.',
-          'Задача: вежливо и коротко уточнять только недостающие данные заказа.',
-          'За одно сообщение запрашивай 1-2 критичных поля.',
-          'Не выдумывай факты, при нехватке данных — спроси уточнение.',
-          'Всегда указывай, что сообщение требует подтверждения оператором.'
+          'You are Riderra assistant working in test mode.',
+          'Default customer-facing language is English unless order.lang is explicitly ru.',
+          'Task: politely and briefly ask only for the missing booking details.',
+          'Ask for 1-2 critical fields per message.',
+          'Do not invent facts. If context is missing, ask a clarification.',
+          'Every outbound message must remain Draft -> Approval -> Execute.'
         ].join('\n')
         this.agentForm.workflowJson = JSON.stringify({
           states: ['missing_data_detected', 'request_sent', 'customer_replied', 'pending_update_approval', 'field_rejected', 'order_complete', 'handoff_human'],
@@ -719,11 +720,12 @@ export default {
         this.agentForm.taskType = 'dispatch_info'
         this.agentForm.requiresApproval = true
         this.agentForm.promptText = [
-          'Ты ассистент Riderra в тестовом режиме.',
-          'Задача: отправить клиенту подтвержденные детали поездки.',
-          'Укажи маршрут, дату/время, контакт водителя (если есть), и полезные инструкции.',
-          'Тон: коротко, делово, без давления.',
-          'Всегда добавляй дисклеймер о тестовом режиме.'
+          'You are Riderra assistant working in test mode.',
+          'Default customer-facing language is English unless order.lang is explicitly ru.',
+          'Task: send confirmed trip details to the customer.',
+          'Include route, date/time, driver contact if available, and useful instructions.',
+          'Tone: short, clear, businesslike, no pressure.',
+          'Every outbound message must remain Draft -> Approval -> Execute.'
         ].join('\n')
         this.agentForm.workflowJson = JSON.stringify({
           states: ['ready_to_notify', 'notify_draft', 'notify_sent', 'notify_ack', 'handoff_human', 'closed'],
@@ -1095,13 +1097,24 @@ export default {
       await this.openTask(this.selectedTask.id)
     },
     async sendMessage(id) {
-      await fetch(`/api/admin/chats/messages/${id}/send`, {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify({})
-      })
-      await this.openTask(this.selectedTask.id)
-      await this.loadTasks()
+      try {
+        const response = await fetch(`/api/admin/chats/messages/${id}/send`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          if (response.status === 409 && data?.code === 'WHATSAPP_TEMPLATE_REQUIRED') {
+            throw new Error('WhatsApp: свободный текст можно отправлять только в течение 24 часов после ответа клиента. Сейчас нужен approved template.')
+          }
+          throw new Error(data?.error || 'Не удалось отправить сообщение')
+        }
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка отправки сообщения'
+      }
     },
     async runPrimaryTaskAction() {
       if (!this.selectedTask) return
@@ -1311,17 +1324,31 @@ export default {
     },
     applyClarificationTemplate(template) {
       const order = this.selectedTask?.order || {}
-      const orderKey = order.externalKey ? `Номер заказа: ${order.externalKey}. ` : ''
+      const isRu = String(order.lang || '').trim().toLowerCase() === 'ru'
+      const orderKey = order.externalKey
+        ? (isRu ? `Номер заказа: ${order.externalKey}. ` : `Booking number: ${order.externalKey}. `)
+        : ''
       const route = this.routeLabel(order)
       const infoReason = String(order.infoReason || '').trim()
-      const base = 'Я помощник Riderra, работаю в тестовом режиме. '
-      const closing = 'Спасибо! После ответа сразу подтвердим детали поездки.'
-      const map = {
-        generic: `${base}${orderKey}Уточните, пожалуйста, недостающие данные по поездке${route && route !== '-' ? ` (${route})` : ''}. ${infoReason ? `Нужно уточнить: ${infoReason}. ` : ''}${closing}`,
-        luggage: `${base}${orderKey}Подскажите, пожалуйста, количество багажа и габариты (если есть крупные чемоданы). ${closing}`,
-        flight: `${base}${orderKey}Уточните, пожалуйста, номер рейса и точное время прилета. ${closing}`,
+      const base = isRu
+        ? 'Я помощник Riderra, работаю в тестовом режиме. '
+        : 'I am Riderra assistant and I am working in test mode. '
+      const closing = isRu
+        ? 'Спасибо! После ответа сразу подтвердим детали поездки.'
+        : 'Thank you. Once we receive your reply, we will confirm the trip details.'
+      const mapRu = {
+        generic: `${base}${orderKey}${infoReason ? `Подскажите, пожалуйста: ${infoReason}. ` : `Подскажите, пожалуйста, недостающие детали по поездке${route && route !== '-' ? ` (${route})` : ''}. `}${closing}`,
+        luggage: `${base}${orderKey}Подскажите, пожалуйста, сколько чемоданов и сумок будет с собой? Если есть крупный багаж, детская коляска или нестандартные вещи, напишите тоже. ${closing}`,
+        flight: `${base}${orderKey}Подскажите, пожалуйста, номер рейса и дату прилёта/вылета. Это нужно, чтобы водитель корректно отследил рейс. ${closing}`,
         pickup: `${base}${orderKey}Уточните, пожалуйста, точное место подачи (адрес/терминал/вход). ${closing}`
       }
+      const mapEn = {
+        generic: `${base}${orderKey}Could you please clarify the missing booking details${route && route !== '-' ? ` (${route})` : ''}? ${closing}`,
+        luggage: `${base}${orderKey}Could you please tell us how many suitcases and bags you will have? If you have oversized luggage, a stroller, or any non-standard items, please mention that too. ${closing}`,
+        flight: `${base}${orderKey}Could you please send us your flight number and arrival/departure date? This helps the driver track the flight correctly. ${closing}`,
+        pickup: `${base}${orderKey}Could you please confirm the exact pickup point: address, terminal, entrance, or a clear landmark? ${closing}`
+      }
+      const map = isRu ? mapRu : mapEn
       this.draftText = map[template] || map.generic
     },
     stringifyTrace(value) {

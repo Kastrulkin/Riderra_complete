@@ -43,7 +43,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', requestOrigin)
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature, X-OpenClaw-Signature')
   res.header('Vary', 'Origin')
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200)
@@ -51,7 +51,11 @@ app.use((req, res, next) => {
   next()
 })
 
-app.use(bodyParser.json())
+app.use(bodyParser.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = Buffer.from(buf || '')
+  }
+}))
 
 function getClientIp(req) {
   const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -758,6 +762,12 @@ const EMAIL_INGEST_INTERNAL_TOKEN = String(
   process.env.OPENCLAW_INTERNAL_TOKEN ||
   ''
 ).trim()
+const OPENCLAW_INTERNAL_TOKEN = String(
+  process.env.RIDERRA_CHAT_INGEST_TOKEN ||
+  process.env.OPENCLAW_INTERNAL_TOKEN ||
+  process.env.RIDERRA_EMAIL_INGEST_TOKEN ||
+  ''
+).trim()
 const STARTUP_STAFF_DIRECTORY = [
   { email: 'demyanov@riderra.com', displayName: 'Александр Демьянов', roles: ['owner'] },
   { email: 'shilin@riderra.com', displayName: 'Михаил Шилин', roles: ['financial', 'owner'] },
@@ -810,6 +820,26 @@ function hasValidEmailIngestToken(req) {
     return crypto.timingSafeEqual(
       Buffer.from(provided),
       Buffer.from(EMAIL_INGEST_INTERNAL_TOKEN)
+    )
+  } catch (_) {
+    return false
+  }
+}
+
+function hasValidOpenClawInternalToken(req) {
+  const provided = String(
+    req.headers['x-openclaw-internal-token'] ||
+    req.headers['x-riderra-internal-token'] ||
+    req.query?.token ||
+    req.body?.token ||
+    ''
+  ).trim()
+  if (!OPENCLAW_INTERNAL_TOKEN) return false
+  if (!provided) return false
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(provided),
+      Buffer.from(OPENCLAW_INTERNAL_TOKEN)
     )
   } catch (_) {
     return false
@@ -4124,23 +4154,62 @@ function buildOrderChatPrefill(order = null, taskType = 'clarification') {
   const route = [order?.fromPoint, order?.toPoint].filter(Boolean).join(' -> ')
   const orderKey = String(order?.externalKey || '').trim()
   const infoReason = String(order?.infoReason || '').trim()
+  const lang = normalizeCustomerMessageLang(order?.lang)
   if (taskType === 'dispatch_info') {
-    const lines = [
-      'Я помощник Riderra, работаю в тестовом режиме.',
-      'Подтверждаем детали поездки:'
-    ]
-    if (orderKey) lines.push(`Номер заказа: ${orderKey}.`)
-    if (route) lines.push(`Маршрут: ${route}.`)
-    lines.push('При необходимости уточните дополнительную информацию в ответ на это сообщение.')
+    const lines = lang === 'ru'
+      ? ['Я помощник Riderra, работаю в тестовом режиме.', 'Подтверждаем детали поездки:']
+      : ['I am Riderra assistant and I am working in test mode.', 'We are confirming your trip details:']
+    if (orderKey) lines.push(lang === 'ru' ? `Номер заказа: ${orderKey}.` : `Booking number: ${orderKey}.`)
+    if (route) lines.push(lang === 'ru' ? `Маршрут: ${route}.` : `Route: ${route}.`)
+    lines.push(lang === 'ru'
+      ? 'При необходимости уточните дополнительную информацию в ответ на это сообщение.'
+      : 'If anything needs to be corrected, please reply to this message.')
     return lines.join(' ')
   }
-  const lines = ['Я помощник Riderra, работаю в тестовом режиме.']
-  if (orderKey) lines.push(`Номер заказа: ${orderKey}.`)
-  if (route) lines.push(`Маршрут: ${route}.`)
-  if (infoReason) lines.push(`Нужно уточнить: ${infoReason}.`)
-  else lines.push('Уточните, пожалуйста, недостающие детали по заказу.')
-  lines.push('Спасибо! После ответа сразу подтвердим детали поездки.')
+  const lines = [lang === 'ru'
+    ? 'Я помощник Riderra, работаю в тестовом режиме.'
+    : 'I am Riderra assistant and I am working in test mode.']
+  if (orderKey) lines.push(lang === 'ru' ? `Номер заказа: ${orderKey}.` : `Booking number: ${orderKey}.`)
+  if (route) lines.push(lang === 'ru' ? `Маршрут: ${route}.` : `Route: ${route}.`)
+  lines.push(buildClarificationQuestion(infoReason, lang))
+  lines.push(lang === 'ru'
+    ? 'Спасибо! После ответа сразу подтвердим детали поездки.'
+    : 'Thank you. Once we receive your reply, we will confirm the trip details.')
   return lines.join(' ')
+}
+
+function normalizeCustomerMessageLang(value = '') {
+  return String(value || '').trim().toLowerCase() === 'ru' ? 'ru' : 'en'
+}
+
+function buildClarificationQuestion(infoReason = '', lang = 'en') {
+  const reason = String(infoReason || '').trim()
+  const target = detectClarificationTarget(reason, '')
+  const isRu = normalizeCustomerMessageLang(lang) === 'ru'
+  if (target === 'luggage' && isRu) {
+    return 'Подскажите, пожалуйста, сколько чемоданов и сумок будет с собой? Если есть крупный багаж, детская коляска или нестандартные вещи, напишите тоже.'
+  }
+  if (target === 'luggage') {
+    return 'Could you please tell us how many suitcases and bags you will have? If you have oversized luggage, a stroller, or any non-standard items, please mention that too.'
+  }
+  if (target === 'flightNumber' && isRu) {
+    return 'Подскажите, пожалуйста, номер рейса и дату прилёта/вылета. Это нужно, чтобы водитель корректно отследил рейс.'
+  }
+  if (target === 'flightNumber') {
+    return 'Could you please send us your flight number and arrival/departure date? This helps the driver track the flight correctly.'
+  }
+  if (target === 'pickupPoint' && isRu) {
+    return 'Подскажите, пожалуйста, точное место подачи: адрес, терминал, вход или ориентир.'
+  }
+  if (target === 'pickupPoint') {
+    return 'Could you please confirm the exact pickup point: address, terminal, entrance, or a clear landmark?'
+  }
+  if (reason) {
+    return isRu ? `Подскажите, пожалуйста: ${reason}.` : 'Could you please clarify the missing booking details?'
+  }
+  return isRu
+    ? 'Подскажите, пожалуйста, недостающие детали по заказу.'
+    : 'Could you please clarify the missing booking details?'
 }
 
 async function buildTaskOwnerMap(taskRows = []) {
@@ -6171,14 +6240,20 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
 
     let draftText = extractTextFromOpenClawResponse(runtimeResult.data || {})
     if (!draftText) {
-      const lines = ['Я помощник Riderra, работаю в тестовом режиме.']
+      const lang = normalizeCustomerMessageLang(task.order?.lang)
+      const lines = [lang === 'ru'
+        ? 'Я помощник Riderra, работаю в тестовом режиме.'
+        : 'I am Riderra assistant and I am working in test mode.']
       if (task.taskType === 'clarification') {
-        lines.push('Проверяю детали заказа. Уточните, пожалуйста, недостающие данные по поездке.')
+        lines.push(buildClarificationQuestion(task.order?.infoReason || '', lang))
       } else {
-        lines.push('Передаю подтвержденные детали вашей поездки.')
+        lines.push(lang === 'ru'
+          ? 'Передаю подтвержденные детали вашей поездки.'
+          : 'Here are the confirmed details of your trip.')
       }
-      if (task.order?.infoReason) lines.push(`Нужно уточнить: ${task.order.infoReason}.`)
-      if (task.order?.externalKey) lines.push(`Номер заказа: ${task.order.externalKey}.`)
+      if (task.order?.externalKey) lines.push(lang === 'ru'
+        ? `Номер заказа: ${task.order.externalKey}.`
+        : `Booking number: ${task.order.externalKey}.`)
       draftText = lines.join(' ')
     }
 
@@ -6357,6 +6432,81 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       return res.status(409).json({ error: 'Message must be approved before send' })
     }
 
+    const effectiveChannel = normalizeChannelName(message.channel || message.chatTask.channel || 'telegram')
+    const existingBodyJson = parseMessageBodyJson(message.bodyJson)
+    const requestDelivery = req.body?.delivery && typeof req.body.delivery === 'object' ? req.body.delivery : {}
+    const delivery = Object.keys(requestDelivery).length ? requestDelivery : (existingBodyJson?.delivery || {})
+    const isTemplateSend = isWhatsappTemplatePayload(delivery)
+
+    if (effectiveChannel === 'whatsapp') {
+      const lastInbound = await prisma.chatMessage.findFirst({
+        where: { tenantId, chatTaskId: message.chatTask.id, direction: 'inbound' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true }
+      })
+      const lastInboundMs = lastInbound?.createdAt ? new Date(lastInbound.createdAt).getTime() : 0
+      const freeTextWindowMs = 24 * 60 * 60 * 1000
+      const freeTextAllowed = Number.isFinite(lastInboundMs) && lastInboundMs > 0 && (Date.now() - lastInboundMs) <= freeTextWindowMs
+      if (!freeTextAllowed && !isTemplateSend) {
+        await prisma.chatMessage.create({
+          data: {
+            tenantId,
+            chatTaskId: message.chatTask.id,
+            direction: 'internal',
+            source: 'system',
+            channel: effectiveChannel,
+            bodyText: 'POLICY: WhatsApp free text is blocked outside the 24h customer service window. Use an approved template.',
+            bodyJson: JSON.stringify({
+              kind: 'policy_guard',
+              code: 'WHATSAPP_TEMPLATE_REQUIRED',
+              channel: effectiveChannel,
+              lastInboundAt: lastInbound?.createdAt || null,
+              messageId: message.id
+            }),
+            traceId: req.actorContext.traceId,
+            createdByUserId: req.user?.id || null
+          }
+        })
+        await writeAuditLog({
+          tenantId,
+          actorId: req.actorContext.actorId,
+          actorRole: req.actorContext.actorRole,
+          action: 'chat_message.send.blocked',
+          resource: 'chat_message',
+          resourceId: message.id,
+          traceId: req.actorContext.traceId,
+          decision: 'policy_blocked',
+          result: 'blocked',
+          context: {
+            code: 'WHATSAPP_TEMPLATE_REQUIRED',
+            channel: effectiveChannel,
+            lastInboundAt: lastInbound?.createdAt || null
+          }
+        })
+        return res.status(409).json({
+          error: 'WhatsApp free text is blocked outside 24h window. Use approved template.',
+          code: 'WHATSAPP_TEMPLATE_REQUIRED',
+          channel: effectiveChannel,
+          freeTextAllowed,
+          lastInboundAt: lastInbound?.createdAt || null
+        })
+      }
+      if (isTemplateSend) {
+        const templateName = String(
+          delivery.templateName ||
+          delivery.template_name ||
+          delivery.name ||
+          ''
+        ).trim()
+        if (!templateName) {
+          return res.status(400).json({
+            error: 'Template send requires templateName',
+            code: 'WHATSAPP_TEMPLATE_NAME_REQUIRED'
+          })
+        }
+      }
+    }
+
     const runtimePayload = buildOpenClawEnvelope({
       tenantId,
       traceId: req.actorContext.traceId,
@@ -6383,8 +6533,9 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         },
         message: {
           id: message.id,
-          channel: message.channel || message.chatTask.channel || 'telegram',
-          text: message.bodyText || ''
+          channel: effectiveChannel,
+          text: message.bodyText || '',
+          delivery: delivery || {}
         }
       }
     })
@@ -6414,12 +6565,18 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         ''
       ).trim() || `manual:${Date.now()}`
 
+      let nextBodyJson = existingBodyJson || {}
+      if (delivery && Object.keys(delivery).length) {
+        nextBodyJson = { ...nextBodyJson, delivery }
+      }
+
       const updated = await prisma.chatMessage.update({
         where: { id: message.id },
         data: {
           approvalStatus: 'sent',
           providerMessageId: message.providerMessageId || providerMessageId,
-          source: runtimeResult.configured ? 'openclaw' : message.source
+          source: runtimeResult.configured ? 'openclaw' : message.source,
+          bodyJson: nextBodyJson && Object.keys(nextBodyJson).length ? JSON.stringify(nextBodyJson) : null
         }
       })
 
@@ -6846,6 +7003,314 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
   } catch (error) {
     console.error('Error processing inbound chat message:', error)
     res.status(500).json({ error: 'Failed to process inbound message' })
+  }
+})
+
+app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    if (!hasValidOpenClawInternalToken(req)) {
+      return res.status(401).json({ error: 'Invalid internal token for chat inbound' })
+    }
+
+    const tenantId = req.actorContext.tenantId
+    const bodyText = String(req.body?.bodyText || req.body?.message || req.body?.text || '').trim()
+    if (!bodyText) return res.status(400).json({ error: 'bodyText is required' })
+
+    const taskId = String(req.body?.chatTaskId || req.body?.taskId || '').trim()
+    const orderId = String(req.body?.orderId || '').trim()
+    const orderExternalKey = String(req.body?.orderExternalKey || req.body?.externalKey || req.body?.bookingNumber || '').trim()
+    const providerMessageId = String(req.body?.providerMessageId || req.body?.provider_message_id || req.body?.replyToProviderMessageId || '').trim()
+    const requestedTaskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
+
+    let task = null
+    const include = {
+      agentConfig: true,
+      order: true,
+      messages: {
+        orderBy: { createdAt: 'asc' },
+        take: 20,
+        select: { id: true, direction: true, source: true, bodyText: true, createdAt: true }
+      }
+    }
+
+    if (taskId) {
+      task = await prisma.chatTask.findFirst({ where: { id: taskId, tenantId }, include })
+    }
+
+    if (!task && providerMessageId) {
+      const linkedMessage = await prisma.chatMessage.findFirst({
+        where: { tenantId, providerMessageId },
+        orderBy: { createdAt: 'desc' },
+        select: { chatTaskId: true }
+      })
+      if (linkedMessage?.chatTaskId) {
+        task = await prisma.chatTask.findFirst({ where: { id: linkedMessage.chatTaskId, tenantId }, include })
+      }
+    }
+
+    if (!task && orderId) {
+      task = await prisma.chatTask.findFirst({
+        where: { tenantId, orderId, taskType: requestedTaskType },
+        include
+      })
+    }
+
+    if (!task && orderExternalKey) {
+      const order = await prisma.order.findFirst({
+        where: { tenantId, externalKey: orderExternalKey },
+        select: { id: true }
+      })
+      if (order?.id) {
+        task = await prisma.chatTask.findFirst({
+          where: { tenantId, orderId: order.id, taskType: requestedTaskType },
+          include
+        })
+      }
+    }
+
+    if (!task) {
+      return res.status(404).json({
+        error: 'Chat task not found for inbound message',
+        lookup: { taskId, orderId, orderExternalKey, providerMessageId, taskType: requestedTaskType }
+      })
+    }
+
+    const inboundExternalId = String(
+      req.body?.externalMessageId ||
+      req.body?.providerInboundMessageId ||
+      req.body?.messageId ||
+      req.body?.id ||
+      providerMessageId ||
+      ''
+    ).trim()
+    const payload = {
+      taskId: task.id,
+      bodyText,
+      channel: normalizeChannelName(req.body?.channel || task.channel || 'whatsapp'),
+      inboundExternalId
+    }
+    ensureIdempotencyKey(req, 'internal.chat_task.inbound', payload)
+
+    const wrapped = await withIdempotency(req, 'internal.chat_task.inbound', payload, async () => {
+      const channel = normalizeChannelName(payload.channel)
+      const inboundMessage = await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'inbound',
+          source: 'customer',
+          channel,
+          bodyText,
+          bodyJson: JSON.stringify({
+            kind: 'openclaw_inbound',
+            externalMessageId: inboundExternalId || null,
+            from: req.body?.from || req.body?.phone || null,
+            raw: req.body?.raw || null
+          }),
+          providerMessageId: inboundExternalId || null,
+          traceId: req.actorContext.traceId,
+          idempotencyKey: getIdempotencyKey(req)
+        }
+      })
+
+      const runtimeConfig = getOpenClawRuntimeConfig()
+      const classifyPayload = buildOpenClawEnvelope({
+        tenantId,
+        traceId: req.actorContext.traceId,
+        idempotencyKey: getIdempotencyKey(req),
+        actor: { id: 'openclaw', role: 'system' },
+        capability: 'riderra.customer.reply.classify',
+        approval: { mode: 'not_required' },
+        billing: { mode: 'track_only', unit: 'classification' },
+        extra: {
+          task: { id: task.id, type: task.taskType, state: task.state },
+          order: {
+            id: task.order?.id || null,
+            external_key: task.order?.externalKey || null,
+            needs_info: Boolean(task.order?.needsInfo),
+            info_reason: task.order?.infoReason || null
+          },
+          message: { id: inboundMessage.id, text: bodyText, channel },
+          conversation_history: (task.messages || []).map((m) => ({
+            id: m.id,
+            role: m.direction === 'inbound' ? 'customer' : 'staff',
+            text: m.bodyText || '',
+            created_at: m.createdAt
+          }))
+        }
+      })
+
+      let classification = { class: 'unclassified', confidence: null, requiresHuman: false }
+      let classifyRuntime = { configured: false, ok: false, status: 0, error: null }
+      if (!task.agentPaused) {
+        const classifyResult = await callOpenClawRuntime({
+          path: runtimeConfig.classifyPath,
+          payload: classifyPayload,
+          kind: 'classify',
+          traceId: req.actorContext.traceId,
+          idempotencyKey: getIdempotencyKey(req)
+        })
+        classifyRuntime = {
+          configured: classifyResult.configured,
+          ok: classifyResult.ok,
+          status: classifyResult.status,
+          error: classifyResult.error || null
+        }
+        classification = classifyResult.ok
+          ? extractClassificationFromOpenClawResponse(classifyResult.data || {})
+          : {
+              ...classifyCustomerReplyFallback(bodyText),
+              fallbackReason: classifyResult.configured ? (classifyResult.error || 'OpenClaw classify failed') : 'OpenClaw runtime is not configured'
+            }
+      }
+
+      let extraction = null
+      let extractRuntime = { configured: false, ok: false, status: 0, error: null }
+      if (!task.agentPaused && task.taskType === 'clarification' && classification.class === 'answer') {
+        const extractPayload = buildOpenClawEnvelope({
+          tenantId,
+          traceId: req.actorContext.traceId,
+          idempotencyKey: getIdempotencyKey(req),
+          actor: { id: 'openclaw', role: 'system' },
+          capability: 'riderra.order.field.extract_validate',
+          approval: { mode: 'not_required' },
+          billing: { mode: 'track_only', unit: 'extraction' },
+          extra: {
+            task: { id: task.id, type: task.taskType, state: task.state },
+            order: {
+              id: task.order?.id || null,
+              external_key: task.order?.externalKey || null,
+              from: task.order?.fromPoint || null,
+              to: task.order?.toPoint || null,
+              pickup_at: task.order?.pickupAt || null,
+              info_reason: task.order?.infoReason || null
+            },
+            message: { id: inboundMessage.id, text: bodyText, channel }
+          }
+        })
+        const extractResult = await callOpenClawRuntime({
+          path: runtimeConfig.extractPath,
+          payload: extractPayload,
+          kind: 'extract',
+          traceId: req.actorContext.traceId,
+          idempotencyKey: getIdempotencyKey(req)
+        })
+        extractRuntime = {
+          configured: extractResult.configured,
+          ok: extractResult.ok,
+          status: extractResult.status,
+          error: extractResult.error || null
+        }
+        extraction = extractResult.ok
+          ? extractValidationFromOpenClawResponse(extractResult.data || {})
+          : {
+              ...extractOrderFieldFallback({ text: bodyText, infoReason: task.order?.infoReason || '' }),
+              fallbackReason: extractResult.configured ? (extractResult.error || 'OpenClaw extract failed') : 'OpenClaw runtime is not configured'
+            }
+      }
+
+      let currentState = String(task.state || '')
+      const toCustomerReplied = await transitionChatTaskIfAllowed(task.id, currentState, 'customer_replied')
+      if (toCustomerReplied.changed) currentState = toCustomerReplied.state
+
+      const candidateState = computeNextChatStateForInbound({
+        taskType: task.taskType,
+        currentState,
+        classification,
+        extraction,
+        agentPaused: task.agentPaused
+      })
+      const decisionReason = explainInboundDecision({
+        taskType: task.taskType,
+        currentState,
+        classification,
+        extraction,
+        agentPaused: task.agentPaused,
+        candidateState
+      })
+      const finalTransition = await transitionChatTaskIfAllowed(task.id, currentState, candidateState)
+      if (finalTransition.changed) currentState = finalTransition.state
+
+      let orderPatchPreview = []
+      let pendingOrderPatch = null
+      if (task.taskType === 'clarification' && currentState === 'pending_update_approval' && task.orderId) {
+        const orderPatch = buildOrderPatchFromInboundExtraction(task.order || {}, extraction, bodyText)
+        orderPatchPreview = orderPatch.preview
+        pendingOrderPatch = orderPatch.patch || null
+      }
+
+      const trace = {
+        kind: 'inbound_trace',
+        source: 'openclaw_internal',
+        taskType: task.taskType,
+        fromState: String(task.state || ''),
+        interimState: toCustomerReplied.changed ? toCustomerReplied.state : null,
+        candidateState,
+        finalState: currentState,
+        decisionReason,
+        orderPatchPreview,
+        pendingOrderPatch,
+        capabilities: [
+          { name: 'riderra.customer.reply.classify', runtime: classifyRuntime, output: classification },
+          { name: 'riderra.order.field.extract_validate', runtime: extractRuntime, output: extraction }
+        ]
+      }
+
+      await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'internal',
+          source: 'system',
+          channel,
+          bodyText: `TRACE: ${decisionReason} (${String(task.state || '')} -> ${currentState})`,
+          bodyJson: JSON.stringify(trace),
+          traceId: req.actorContext.traceId
+        }
+      })
+
+      await writeAuditLog({
+        tenantId,
+        actorId: 'openclaw',
+        actorRole: 'system',
+        action: 'chat_task.inbound.openclaw',
+        resource: 'chat_task',
+        resourceId: task.id,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { inboundMessageId: inboundMessage.id, classification, extraction, state: currentState, taskType: task.taskType }
+      })
+
+      await recordAiLearningEvent({
+        tenantId,
+        agentConfigId: task.agentConfigId || null,
+        chatTaskId: task.id,
+        chatMessageId: inboundMessage.id,
+        promptKey: task.agentConfig ? `agent:${task.agentConfig.code}` : null,
+        promptVersion: 1,
+        capability: 'riderra.customer.reply.classify',
+        intent: inferIntentFromTaskType(task.taskType),
+        outcome: 'inbound_processed',
+        context: { classification, extraction, state: currentState, source: 'openclaw_internal' }
+      })
+
+      return {
+        message: inboundMessage,
+        taskId: task.id,
+        taskState: currentState,
+        classification,
+        extraction,
+        pendingOrderPatch,
+        trace,
+        runtime: { classify: classifyRuntime, extract: extractRuntime }
+      }
+    })
+
+    res.json({ success: true, ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error processing internal inbound chat message:', error)
+    res.status(500).json({ error: 'Failed to process internal inbound message' })
   }
 })
 
@@ -11279,6 +11744,30 @@ function parseJsonSafe(raw, fallback = {}) {
   }
 }
 
+function normalizeChannelName(value = '') {
+  const raw = String(value || '').trim().toLowerCase()
+  if (!raw) return 'telegram'
+  if (raw === 'wa' || raw === 'waba') return 'whatsapp'
+  return raw
+}
+
+function parseMessageBodyJson(raw) {
+  if (!raw) return {}
+  if (typeof raw === 'object') return raw
+  return parseJsonSafe(raw, {})
+}
+
+function isWhatsappTemplatePayload(payload = {}) {
+  const mode = String(payload?.mode || '').trim().toLowerCase()
+  const templateName = String(
+    payload?.templateName ||
+    payload?.template_name ||
+    payload?.name ||
+    ''
+  ).trim()
+  return mode === 'template' || Boolean(templateName)
+}
+
 function normalizeFlightNumber(raw) {
   const value = String(raw || '').trim().toUpperCase().replace(/\s+/g, '')
   if (!value) return null
@@ -11885,12 +12374,15 @@ function normalizeWebhookSignature(raw) {
   return value.startsWith('sha256=') ? value.slice(7) : value
 }
 
-function verifyOpenClawSignature(payload, signature) {
+function verifyOpenClawSignature(payload, signature, rawBody = null) {
   const secret = String(process.env.OPENCLAW_WEBHOOK_SECRET || '').trim()
   if (!secret) return process.env.NODE_ENV !== 'production'
+  const bodyForSignature = Buffer.isBuffer(rawBody) && rawBody.length
+    ? rawBody
+    : Buffer.from(JSON.stringify(payload || {}), 'utf8')
   const digest = crypto
     .createHmac('sha256', secret)
-    .update(JSON.stringify(payload || {}))
+    .update(bodyForSignature)
     .digest('hex')
   const normalized = normalizeWebhookSignature(signature)
   if (!normalized) return false
@@ -12862,7 +13354,7 @@ async function findAvailabilityConflicts(unavailability, tenantId = null) {
 app.post('/api/webhooks/openclaw/order-draft', resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const signature = req.headers['x-openclaw-signature'] || req.headers['x-signature'] || ''
-    if (!verifyOpenClawSignature(req.body || {}, signature)) {
+    if (!verifyOpenClawSignature(req.body || {}, signature, req.rawBody)) {
       return res.status(401).json({ error: 'Invalid OpenClaw signature' })
     }
 

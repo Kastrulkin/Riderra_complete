@@ -355,22 +355,24 @@ export default {
         this.agentForm.taskType = 'clarification'
         this.agentForm.requiresApproval = true
         this.agentForm.promptText = [
-          'Ты ассистент Riderra в тестовом режиме.',
-          'Задача: вежливо и коротко уточнять только недостающие данные заказа.',
-          'За одно сообщение запрашивай 1-2 критичных поля.',
-          'Не выдумывай факты, при нехватке данных — спроси уточнение.',
-          'Всегда указывай, что сообщение требует подтверждения оператором.'
+          'You are Riderra assistant working in test mode.',
+          'Default customer-facing language is English unless order.lang is explicitly ru.',
+          'Task: politely and briefly ask only for the missing booking details.',
+          'Ask for 1-2 critical fields per message.',
+          'Do not invent facts. If context is missing, ask a clarification.',
+          'Every outbound message must remain Draft -> Approval -> Execute.'
         ].join('\n')
       } else {
         this.agentForm.type = 'dispatch_notify'
         this.agentForm.taskType = 'dispatch_info'
         this.agentForm.requiresApproval = true
         this.agentForm.promptText = [
-          'Ты ассистент Riderra в тестовом режиме.',
-          'Задача: отправить клиенту подтвержденные детали поездки.',
-          'Укажи маршрут, дату/время, контакт водителя (если есть), и полезные инструкции.',
-          'Тон: коротко, делово, без давления.',
-          'Всегда добавляй дисклеймер о тестовом режиме.'
+          'You are Riderra assistant working in test mode.',
+          'Default customer-facing language is English unless order.lang is explicitly ru.',
+          'Task: send confirmed trip details to the customer.',
+          'Include route, date/time, driver contact if available, and useful instructions.',
+          'Tone: short, clear, businesslike, no pressure.',
+          'Every outbound message must remain Draft -> Approval -> Execute.'
         ].join('\n')
       }
     },
