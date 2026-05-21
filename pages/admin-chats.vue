@@ -211,6 +211,28 @@
                         {{ templateHelp(deliveryForm(message).templateName) }}
                       </div>
                     </div>
+                    <details v-if="deliveryTrace(message)" class="policy-trace">
+                      <summary>Почему выбран этот режим</summary>
+                      <div class="policy-trace__grid">
+                        <div>
+                          <span>Правило</span>
+                          <strong>{{ deliveryTrace(message).rule || 'policy_guard' }}</strong>
+                        </div>
+                        <div>
+                          <span>Причина</span>
+                          <strong>{{ deliveryTrace(message).reason || deliveryPayload(message).reason || '-' }}</strong>
+                        </div>
+                        <div>
+                          <span>Template</span>
+                          <strong>{{ deliveryPayload(message).templateName || '-' }}</strong>
+                        </div>
+                        <div>
+                          <span>Язык</span>
+                          <strong>{{ deliveryPayload(message).language || '-' }}</strong>
+                        </div>
+                      </div>
+                      <pre class="policy-trace__json">{{ stringifyTrace(deliveryPayload(message)) }}</pre>
+                    </details>
                   </div>
                   <div class="message-actions">
                     <button class="btn btn--small" @click="approveMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Одобрить</button>
@@ -1296,8 +1318,28 @@ export default {
     isWhatsappMessage(message) {
       return this.messageChannel(message) === 'whatsapp'
     },
-    deliveryRecommended(message) {
+    deliveryPayload(message) {
       const delivery = this.parseBodyJson(message)?.delivery
+      return delivery && typeof delivery === 'object' ? delivery : {}
+    },
+    deliveryTrace(message) {
+      const delivery = this.deliveryPayload(message)
+      if (delivery?.policyTrace && typeof delivery.policyTrace === 'object') {
+        return {
+          ...delivery.policyTrace,
+          reason: delivery.reason || delivery.policyTrace.reason || ''
+        }
+      }
+      if (delivery?.recommended || delivery?.source === 'policy_guard') {
+        return {
+          rule: delivery.source || 'policy_guard',
+          reason: delivery.reason || ''
+        }
+      }
+      return null
+    },
+    deliveryRecommended(message) {
+      const delivery = this.deliveryPayload(message)
       return Boolean(delivery?.recommended || delivery?.source === 'policy_guard')
     },
     defaultDeliveryForm(message) {
@@ -1724,6 +1766,13 @@ export default {
 .delivery-template-grid__wide { grid-column: 1 / -1; }
 .delivery-vars { min-height: 74px; margin-bottom: 0; }
 .template-help { border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.35; padding: 8px; }
+.policy-trace { margin-top: 8px; border: 1px solid #dbe4f0; border-radius: 8px; background: #f8fafc; padding: 8px; }
+.policy-trace summary { cursor: pointer; font-weight: 800; color: #17233d; }
+.policy-trace__grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
+.policy-trace__grid div { border: 1px solid #e5eaf1; border-radius: 8px; background: #fff; padding: 8px; }
+.policy-trace__grid span { display: block; color: #64748b; font-size: 11px; margin-bottom: 3px; }
+.policy-trace__grid strong { color: #17233d; font-size: 12px; word-break: break-word; }
+.policy-trace__json { white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #dbeafe; border-radius: 8px; padding: 8px; font-size: 11px; max-height: 180px; overflow: auto; margin: 8px 0 0; }
 .actions { padding: 12px; }
 .focus-panel { border: 1px solid #ead7f0; border-radius: 12px; background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%); padding: 12px; margin-bottom: 10px; }
 .focus-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
@@ -1789,6 +1838,7 @@ export default {
     flex-direction: column;
     align-items: stretch;
   }
+  .policy-trace__grid { grid-template-columns: 1fr; }
 
   .page-actions .btn,
   .queue-bulk .btn,

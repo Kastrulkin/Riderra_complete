@@ -4255,6 +4255,18 @@ async function buildRecommendedDeliveryForTask({ tenantId, task, messageText = '
     variables: buildWhatsAppTemplateVariables({ task, messageText, templateName, registry: templates }),
     recommended: true,
     source: 'policy_guard',
+    policyTrace: {
+      rule: 'whatsapp_template_first',
+      registrySource: registry.source || 'default',
+      registryVersion: registry.prompt_version || null,
+      taskType: task?.taskType || null,
+      taskState: task?.state || null,
+      channel,
+      infoReason: task?.order?.infoReason || null,
+      selectedTemplate: templateName,
+      selectedLanguage: language,
+      templateVariables: Array.isArray(template?.variables) ? template.variables : []
+    },
     reason: task?.taskType === 'dispatch_info'
       ? 'dispatch_info requires approved WhatsApp template for outbound confirmation'
       : `missing_data:${detectClarificationTarget(task?.order?.infoReason || '', '') || 'generic'}`
