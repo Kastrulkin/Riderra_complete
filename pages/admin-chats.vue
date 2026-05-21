@@ -165,13 +165,17 @@
                     </div>
                     <div v-if="deliveryForm(message).mode === 'template'" class="delivery-template-grid">
                       <label>
-                        <span>templateName</span>
-                        <input
+                        <span>Шаблон</span>
+                        <select
                           class="input"
-                          :value="deliveryForm(message).templateName"
-                          placeholder="baggage_request"
-                          @input="updateDeliveryForm(message.id, 'templateName', $event.target.value)"
+                          :value="knownTemplateName(deliveryForm(message).templateName)"
+                          @change="applyTemplatePreset(message, $event.target.value)"
                         >
+                          <option v-for="tpl in whatsappTemplatePresets" :key="tpl.name" :value="tpl.name">
+                            {{ tpl.label }}
+                          </option>
+                          <option value="__custom">Другой approved template</option>
+                        </select>
                       </label>
                       <label>
                         <span>language</span>
@@ -185,6 +189,15 @@
                         </select>
                       </label>
                       <label class="delivery-template-grid__wide">
+                        <span>templateName</span>
+                        <input
+                          class="input"
+                          :value="deliveryForm(message).templateName"
+                          placeholder="baggage_request"
+                          @input="updateDeliveryForm(message.id, 'templateName', $event.target.value)"
+                        >
+                      </label>
+                      <label class="delivery-template-grid__wide">
                         <span>variables JSON</span>
                         <textarea
                           class="input textarea textarea--code delivery-vars"
@@ -193,6 +206,9 @@
                           @input="updateDeliveryForm(message.id, 'variablesText', $event.target.value)"
                         ></textarea>
                       </label>
+                      <div class="delivery-template-grid__wide template-help">
+                        {{ templateHelp(deliveryForm(message).templateName) }}
+                      </div>
                     </div>
                   </div>
                   <div class="message-actions">
@@ -400,6 +416,38 @@ export default {
     assigningAgent: false,
     lastStepTrace: null,
     deliveryForms: {},
+    whatsappTemplatePresets: [
+      {
+        name: 'baggage_request',
+        label: 'Baggage request',
+        description: 'Запросить количество чемоданов, сумок и нестандартного багажа.',
+        variables: ['booking_number', 'route_from', 'route_to']
+      },
+      {
+        name: 'flight_request',
+        label: 'Flight request',
+        description: 'Запросить номер рейса и дату прилёта/вылета.',
+        variables: ['booking_number', 'route_from', 'route_to']
+      },
+      {
+        name: 'pickup_request',
+        label: 'Pickup point request',
+        description: 'Уточнить точное место подачи: адрес, терминал, вход или ориентир.',
+        variables: ['booking_number', 'route_from', 'route_to']
+      },
+      {
+        name: 'trip_confirmation',
+        label: 'Trip confirmation',
+        description: 'Передать клиенту подтверждённые детали поездки, водителя или ссылку.',
+        variables: ['booking_number', 'route_from', 'route_to', 'trip_details']
+      },
+      {
+        name: 'order_clarification',
+        label: 'Order clarification',
+        description: 'Универсальное уточнение недостающих данных по заказу.',
+        variables: ['booking_number', 'route_from', 'route_to', 'question']
+      }
+    ],
     agentForm: {
       name: '',
       code: '',
@@ -1269,6 +1317,24 @@ export default {
         language: current.language || this.suggestMessageLanguage()
       })
     },
+    knownTemplateName(templateName) {
+      const name = String(templateName || '').trim()
+      return this.whatsappTemplatePresets.some((tpl) => tpl.name === name) ? name : '__custom'
+    },
+    applyTemplatePreset(message, templateName) {
+      if (!message?.id) return
+      const current = this.deliveryForm(message)
+      if (templateName === '__custom') {
+        this.$set(this.deliveryForms, message.id, { ...current, templateName: '' })
+        return
+      }
+      this.$set(this.deliveryForms, message.id, {
+        ...current,
+        mode: 'template',
+        templateName,
+        variablesText: JSON.stringify(this.suggestTemplateVariables(message, templateName), null, 2)
+      })
+    },
     forceTemplateMode(messageId) {
       const message = (this.selectedTask?.messages || []).find((row) => row.id === messageId)
       if (!message) return
@@ -1308,14 +1374,25 @@ export default {
       if (this.selectedTask?.taskType === 'dispatch_info') return 'trip_confirmation'
       return 'order_clarification'
     },
-    suggestTemplateVariables(message) {
+    suggestTemplateVariables(message, templateName = '') {
       const order = this.selectedTask?.order || {}
-      return {
+      const variables = {
         booking_number: order.externalKey || order.id || '',
         route_from: order.fromPoint || '',
         route_to: order.toPoint || '',
         question: String(message?.bodyText || '').trim()
       }
+      const name = String(templateName || this.suggestTemplateName(message)).trim()
+      if (name === 'trip_confirmation') {
+        variables.trip_details = String(message?.bodyText || '').trim()
+      }
+      return variables
+    },
+    templateHelp(templateName) {
+      const tpl = this.whatsappTemplatePresets.find((row) => row.name === String(templateName || '').trim())
+      if (!tpl) return 'Используйте только approved template из Meta. Если шаблон не из списка, проверьте точное имя и переменные.'
+      const variables = tpl.variables?.length ? ` Переменные: ${tpl.variables.join(', ')}.` : ''
+      return `${tpl.description}${variables}`
     },
     deliveryHint(message) {
       if (!this.isWhatsappMessage(message)) return 'Для Telegram/OpenClaw можно отправлять обычный текст.'
@@ -1627,6 +1704,7 @@ export default {
 .delivery-template-grid label { display: flex; flex-direction: column; gap: 4px; color: #475569; font-size: 12px; font-weight: 700; }
 .delivery-template-grid__wide { grid-column: 1 / -1; }
 .delivery-vars { min-height: 74px; margin-bottom: 0; }
+.template-help { border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.35; padding: 8px; }
 .actions { padding: 12px; }
 .focus-panel { border: 1px solid #ead7f0; border-radius: 12px; background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%); padding: 12px; margin-bottom: 10px; }
 .focus-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
