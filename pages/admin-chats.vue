@@ -276,6 +276,52 @@
               </div>
             </div>
 
+            <div v-if="inboundOutcome" class="outcome-panel" :class="inboundOutcome.panelClass">
+              <div class="outcome-panel__head">
+                <div>
+                  <p class="eyebrow">AI разбор ответа</p>
+                  <h4>{{ inboundOutcome.title }}</h4>
+                  <p class="hint">{{ inboundOutcome.reasonLabel }}</p>
+                </div>
+                <span class="badge badge--state">{{ stateLabel(inboundOutcome.nextState) }}</span>
+              </div>
+              <div class="outcome-panel__grid">
+                <div>
+                  <span>Класс</span>
+                  <strong>{{ inboundOutcome.classLabel }}</strong>
+                </div>
+                <div>
+                  <span>Уверенность</span>
+                  <strong>{{ inboundOutcome.confidenceLabel }}</strong>
+                </div>
+                <div>
+                  <span>Поле</span>
+                  <strong>{{ inboundOutcome.fieldLabel }}</strong>
+                </div>
+                <div>
+                  <span>Значение</span>
+                  <strong>{{ inboundOutcome.valueLabel }}</strong>
+                </div>
+              </div>
+              <div v-if="inboundOutcome.orderPatchItems.length" class="outcome-panel__patch">
+                <span>Будет изменено в заказе</span>
+                <div class="patch-chips">
+                  <span v-for="item in inboundOutcome.orderPatchItems" :key="item" class="patch-chip">{{ item }}</span>
+                </div>
+              </div>
+              <div v-if="inboundOutcome.hasPendingPatch" class="review-gate review-gate--inline">
+                <div class="hint">Заказ ещё не обновлён. Это human gate: проверьте значение и примените вручную.</div>
+                <div class="review-gate__actions">
+                  <button class="btn btn--primary" :disabled="inboundUpdateSaving" @click="applyInboundUpdate">
+                    {{ inboundUpdateSaving ? 'Применяю...' : 'Применить в заказ' }}
+                  </button>
+                  <button class="btn btn--warn" :disabled="inboundUpdateSaving" @click="rejectInboundUpdate">
+                    Отклонить
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div class="actions-block">
               <h4>Сообщение клиенту</h4>
               <div v-if="selectedTask.taskType === 'clarification'" class="quick-templates">
@@ -313,8 +359,8 @@
               </button>
             </details>
 
-            <details class="actions-block" :open="Boolean(inboundOutcome)">
-              <summary class="section-summary">Результат AI разбора</summary>
+            <details class="actions-block" :open="false">
+              <summary class="section-summary">Технические детали AI разбора</summary>
               <div v-if="inboundOutcome" class="trace-wrap">
                 <div class="trace-row"><strong>Класс ответа:</strong> {{ inboundOutcome.classLabel }}</div>
                 <div class="trace-row"><strong>Уверенность:</strong> {{ inboundOutcome.confidenceLabel }}</div>
@@ -325,17 +371,6 @@
                 <div v-if="inboundOutcome.orderPatchLabel" class="trace-row"><strong>Обновление заказа:</strong> {{ inboundOutcome.orderPatchLabel }}</div>
                 <div class="trace-row"><strong>Следующий статус:</strong> {{ stateLabel(inboundOutcome.nextState) }}</div>
                 <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
-                <div v-if="inboundOutcome.hasPendingPatch" class="review-gate">
-                  <div class="hint">Заказ ещё не обновлён. Примените изменение только после проверки.</div>
-                  <div class="review-gate__actions">
-                    <button class="btn btn--primary" :disabled="inboundUpdateSaving" @click="applyInboundUpdate">
-                      {{ inboundUpdateSaving ? 'Применяю...' : 'Применить в заказ' }}
-                    </button>
-                    <button class="btn btn--warn" :disabled="inboundUpdateSaving" @click="rejectInboundUpdate">
-                      Отклонить
-                    </button>
-                  </div>
-                </div>
               </div>
               <div v-else class="hint">Результат появится после “Обработать ответ”.</div>
             </details>
@@ -553,7 +588,24 @@ export default {
       const source = String(extractOutput?.source || classifyOutput?.source || 'OpenClaw')
       const patch = Array.isArray(this.lastStepTrace.orderPatchPreview) ? this.lastStepTrace.orderPatchPreview : []
       const hasPendingPatch = Boolean(this.lastStepTrace.pendingOrderPatch && this.selectedTask?.state === 'pending_update_approval')
+      let title = 'Ответ разобран'
+      let panelClass = 'outcome-panel--neutral'
+      if (hasPendingPatch) {
+        title = 'Проверьте и примените обновление'
+        panelClass = 'outcome-panel--attention'
+      } else if (String(this.lastStepTrace.finalState || '') === 'handoff_human') {
+        title = 'Нужен человек'
+        panelClass = 'outcome-panel--warn'
+      } else if (String(this.lastStepTrace.finalState || '') === 'order_complete') {
+        title = 'Сценарий закрыт'
+        panelClass = 'outcome-panel--success'
+      } else if (valid === false) {
+        title = 'Ответ не подтвердил поле'
+        panelClass = 'outcome-panel--warn'
+      }
       return {
+        title,
+        panelClass,
         classLabel: clsMap[cls] || cls,
         confidenceLabel,
         validationLabel,
@@ -561,6 +613,7 @@ export default {
         valueLabel: extractedValue == null || String(extractedValue).trim() === '' ? '—' : String(extractedValue),
         sourceLabel: source === 'local_fallback' ? 'Локальные правила Riderra' : source,
         orderPatchLabel: patch.length ? patch.join(', ') : '',
+        orderPatchItems: patch,
         hasPendingPatch,
         nextState: String(this.lastStepTrace.finalState || this.lastStepTrace.candidateState || ''),
         reasonLabel: String(this.lastStepTrace.decisionReason || '—')
@@ -1780,6 +1833,45 @@ export default {
 .focus-panel__meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .focus-panel__actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .focus-panel__actions .btn--primary { box-shadow: 0 10px 24px rgba(112, 34, 131, .18); }
+.outcome-panel {
+  border: 1px solid #d8e0ee;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.outcome-panel--attention { border-color: #f4d48b; background: linear-gradient(180deg, #fffdf5 0%, #fff7df 100%); }
+.outcome-panel--warn { border-color: #fecaca; background: linear-gradient(180deg, #fff 0%, #fff1f2 100%); }
+.outcome-panel--success { border-color: #bbf7d0; background: linear-gradient(180deg, #fff 0%, #f0fdf4 100%); }
+.outcome-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.outcome-panel__head h4 { margin: 0 0 4px; }
+.outcome-panel__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.outcome-panel__grid div {
+  border: 1px solid rgba(216,224,238,.8);
+  border-radius: 10px;
+  background: rgba(255,255,255,.72);
+  padding: 8px;
+}
+.outcome-panel__grid span,
+.outcome-panel__patch > span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.outcome-panel__grid strong { display: block; color: #17233d; font-size: 14px; margin-top: 3px; word-break: break-word; }
+.outcome-panel__patch { margin-bottom: 10px; }
+.patch-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.patch-chip {
+  border-radius: 999px;
+  background: #17233d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 8px;
+}
 .actions-block { border: 1px solid #e5eaf1; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
 .actions-block h4 { margin: 0 0 8px; }
 .section-summary { cursor: pointer; font-weight: 800; list-style: none; margin: -10px; padding: 10px; color: #17233d; background: #fcf7fd; }
@@ -1790,6 +1882,7 @@ export default {
 .trace-row { line-height: 1.35; }
 .trace-row--caps { margin-top: 4px; }
 .review-gate { margin-top: 10px; border: 1px solid #f4d48b; background: #fff8e6; border-radius: 10px; padding: 10px; }
+.review-gate--inline { margin-top: 0; }
 .review-gate__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .trace-cap { border: 1px solid #ead7f0; border-radius: 8px; background: #fcf7fd; padding: 8px; }
 .trace-cap-name { font-weight: 700; font-size: 12px; color: #0f172a; }
