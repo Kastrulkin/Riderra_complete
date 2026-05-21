@@ -133,6 +133,68 @@
                     <span>{{ formatDate(message.createdAt) }}</span>
                   </div>
                   <div class="message-body">{{ message.bodyText }}</div>
+                  <div v-if="canSend(message)" class="delivery-panel" :class="{ 'delivery-panel--warning': isWhatsappMessage(message) && !whatsappFreeTextAllowed }">
+                    <div class="delivery-panel__head">
+                      <div>
+                        <strong>Режим отправки</strong>
+                        <div class="hint">{{ deliveryHint(message) }}</div>
+                      </div>
+                      <span v-if="isWhatsappMessage(message)" class="badge" :class="whatsappFreeTextAllowed ? 'badge--sla-ok' : 'badge--sla-warning'">
+                        {{ whatsappFreeTextAllowed ? 'WhatsApp: free text открыт' : 'WhatsApp: нужен template' }}
+                      </span>
+                    </div>
+                    <div class="delivery-mode">
+                      <label class="delivery-radio">
+                        <input
+                          type="radio"
+                          value="free_text"
+                          :checked="deliveryForm(message).mode === 'free_text'"
+                          @change="setDeliveryMode(message, 'free_text')"
+                        >
+                        Free text
+                      </label>
+                      <label class="delivery-radio">
+                        <input
+                          type="radio"
+                          value="template"
+                          :checked="deliveryForm(message).mode === 'template'"
+                          @change="setDeliveryMode(message, 'template')"
+                        >
+                        Template
+                      </label>
+                    </div>
+                    <div v-if="deliveryForm(message).mode === 'template'" class="delivery-template-grid">
+                      <label>
+                        <span>templateName</span>
+                        <input
+                          class="input"
+                          :value="deliveryForm(message).templateName"
+                          placeholder="baggage_request"
+                          @input="updateDeliveryForm(message.id, 'templateName', $event.target.value)"
+                        >
+                      </label>
+                      <label>
+                        <span>language</span>
+                        <select
+                          class="input"
+                          :value="deliveryForm(message).language"
+                          @change="updateDeliveryForm(message.id, 'language', $event.target.value)"
+                        >
+                          <option value="en">en</option>
+                          <option value="ru">ru</option>
+                        </select>
+                      </label>
+                      <label class="delivery-template-grid__wide">
+                        <span>variables JSON</span>
+                        <textarea
+                          class="input textarea textarea--code delivery-vars"
+                          :value="deliveryForm(message).variablesText"
+                          placeholder='{"booking_number":"123","question":"How many bags?"}'
+                          @input="updateDeliveryForm(message.id, 'variablesText', $event.target.value)"
+                        ></textarea>
+                      </label>
+                    </div>
+                  </div>
                   <div class="message-actions">
                     <button class="btn btn--small" @click="approveMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Одобрить</button>
                     <button class="btn btn--small btn--warn" @click="rejectMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Отклонить</button>
@@ -337,6 +399,7 @@ export default {
     selectedTaskAgentId: '',
     assigningAgent: false,
     lastStepTrace: null,
+    deliveryForms: {},
     agentForm: {
       name: '',
       code: '',
@@ -431,6 +494,10 @@ export default {
         nextState: String(this.lastStepTrace.finalState || this.lastStepTrace.candidateState || ''),
         reasonLabel: String(this.lastStepTrace.decisionReason || '—')
       }
+    },
+    whatsappFreeTextAllowed() {
+      const lastInboundMs = this.lastInboundAtMs()
+      return lastInboundMs > 0 && (Date.now() - lastInboundMs) <= 24 * 60 * 60 * 1000
     },
     displayedTasks() {
       let rows = Array.isArray(this.tasks) ? this.tasks.slice() : []
@@ -819,6 +886,7 @@ export default {
       this.nextState = ''
       this.draftText = ''
       this.inboundText = ''
+      this.initializeDeliveryForms()
     },
     async assignAgentToTask() {
       if (!this.selectedTask?.id || this.assigningAgent) return
@@ -1098,14 +1166,16 @@ export default {
     },
     async sendMessage(id) {
       try {
+        const delivery = this.buildDeliveryPayload(id)
         const response = await fetch(`/api/admin/chats/messages/${id}/send`, {
           method: 'POST',
           headers: this.headers(),
-          body: JSON.stringify({})
+          body: JSON.stringify({ delivery })
         })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) {
           if (response.status === 409 && data?.code === 'WHATSAPP_TEMPLATE_REQUIRED') {
+            this.forceTemplateMode(id)
             throw new Error('WhatsApp: свободный текст можно отправлять только в течение 24 часов после ответа клиента. Сейчас нужен approved template.')
           }
           throw new Error(data?.error || 'Не удалось отправить сообщение')
@@ -1137,6 +1207,128 @@ export default {
     },
     canMarkManualSent(message) {
       return message.direction === 'outbound' && (message.approvalStatus === 'approved' || message.approvalStatus === null)
+    },
+    initializeDeliveryForms() {
+      const next = { ...this.deliveryForms }
+      const messages = Array.isArray(this.selectedTask?.messages) ? this.selectedTask.messages : []
+      messages.forEach((message) => {
+        if (!message?.id || message.direction !== 'outbound') return
+        next[message.id] = next[message.id] || this.defaultDeliveryForm(message)
+      })
+      this.deliveryForms = next
+    },
+    parseBodyJson(message) {
+      const raw = message?.bodyJson
+      if (!raw) return {}
+      if (typeof raw === 'object') return raw
+      try {
+        return JSON.parse(raw)
+      } catch (_) {
+        return {}
+      }
+    },
+    messageChannel(message) {
+      return String(message?.channel || this.selectedTask?.channel || '').trim().toLowerCase()
+    },
+    isWhatsappMessage(message) {
+      return this.messageChannel(message) === 'whatsapp'
+    },
+    defaultDeliveryForm(message) {
+      const body = this.parseBodyJson(message)
+      const delivery = body?.delivery && typeof body.delivery === 'object' ? body.delivery : {}
+      const templateName = String(delivery.templateName || delivery.template_name || delivery.name || '').trim()
+      const mode = String(delivery.mode || delivery.type || '').trim().toLowerCase()
+      const variables = delivery.variables && typeof delivery.variables === 'object' ? delivery.variables : this.suggestTemplateVariables(message)
+      return {
+        mode: mode === 'template' || templateName ? 'template' : (this.isWhatsappMessage(message) && !this.whatsappFreeTextAllowed ? 'template' : 'free_text'),
+        templateName: templateName || this.suggestTemplateName(message),
+        language: String(delivery.language || delivery.languageCode || delivery.lang || this.suggestMessageLanguage()).trim() || 'en',
+        variablesText: JSON.stringify(variables || {}, null, 2)
+      }
+    },
+    deliveryForm(message) {
+      const id = message?.id
+      if (!id) return { mode: 'free_text', templateName: '', language: 'en', variablesText: '{}' }
+      if (!this.deliveryForms[id]) {
+        this.$set(this.deliveryForms, id, this.defaultDeliveryForm(message))
+      }
+      return this.deliveryForms[id]
+    },
+    updateDeliveryForm(messageId, field, value) {
+      if (!messageId) return
+      const current = this.deliveryForms[messageId] || { mode: 'free_text', templateName: '', language: 'en', variablesText: '{}' }
+      this.$set(this.deliveryForms, messageId, { ...current, [field]: value })
+    },
+    setDeliveryMode(message, mode) {
+      if (!message?.id) return
+      const current = this.deliveryForm(message)
+      this.$set(this.deliveryForms, message.id, {
+        ...current,
+        mode,
+        templateName: current.templateName || this.suggestTemplateName(message),
+        language: current.language || this.suggestMessageLanguage()
+      })
+    },
+    forceTemplateMode(messageId) {
+      const message = (this.selectedTask?.messages || []).find((row) => row.id === messageId)
+      if (!message) return
+      this.setDeliveryMode(message, 'template')
+    },
+    buildDeliveryPayload(messageId) {
+      const message = (this.selectedTask?.messages || []).find((row) => row.id === messageId)
+      const form = message ? this.deliveryForm(message) : this.deliveryForms[messageId]
+      if (!form || form.mode !== 'template') return { mode: 'free_text' }
+      const templateName = String(form.templateName || '').trim()
+      if (!templateName) throw new Error('Для template-отправки укажите templateName.')
+      let variables = {}
+      const rawVariables = String(form.variablesText || '').trim()
+      if (rawVariables) {
+        try {
+          variables = JSON.parse(rawVariables)
+        } catch (_) {
+          throw new Error('variables должны быть валидным JSON.')
+        }
+      }
+      return {
+        mode: 'template',
+        templateName,
+        language: String(form.language || 'en').trim() || 'en',
+        variables
+      }
+    },
+    suggestMessageLanguage() {
+      const orderLang = String(this.selectedTask?.order?.lang || '').trim().toLowerCase()
+      return orderLang === 'ru' ? 'ru' : 'en'
+    },
+    suggestTemplateName(message) {
+      const reason = String(this.selectedTask?.order?.infoReason || message?.bodyText || '').toLowerCase()
+      if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('bag')) return 'baggage_request'
+      if (reason.includes('рейс') || reason.includes('flight')) return 'flight_request'
+      if (reason.includes('подач') || reason.includes('pickup') || reason.includes('address')) return 'pickup_request'
+      if (this.selectedTask?.taskType === 'dispatch_info') return 'trip_confirmation'
+      return 'order_clarification'
+    },
+    suggestTemplateVariables(message) {
+      const order = this.selectedTask?.order || {}
+      return {
+        booking_number: order.externalKey || order.id || '',
+        route_from: order.fromPoint || '',
+        route_to: order.toPoint || '',
+        question: String(message?.bodyText || '').trim()
+      }
+    },
+    deliveryHint(message) {
+      if (!this.isWhatsappMessage(message)) return 'Для Telegram/OpenClaw можно отправлять обычный текст.'
+      if (this.whatsappFreeTextAllowed) return 'Есть входящий ответ клиента за последние 24 часа: free text разрешён, template тоже можно выбрать вручную.'
+      return 'WhatsApp вне 24-часового окна: Meta пропустит только approved template.'
+    },
+    lastInboundAtMs() {
+      const messages = Array.isArray(this.selectedTask?.messages) ? this.selectedTask.messages : []
+      return messages.reduce((max, message) => {
+        if (message?.direction !== 'inbound') return max
+        const ms = new Date(message.createdAt || 0).getTime()
+        return Number.isFinite(ms) && ms > max ? ms : max
+      }, 0)
     },
     taskTypeLabel(code) {
       return code === 'dispatch_info' ? 'Рассылка' : 'Уточнение'
@@ -1425,7 +1617,16 @@ export default {
 .message-body { white-space: pre-wrap; color: #1f2937; }
 .quick-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .btn--tiny { padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; }
-.message-actions { margin-top: 8px; display: flex; gap: 6px; }
+.message-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.delivery-panel { margin-top: 10px; border: 1px solid #dbe4f0; border-radius: 10px; background: #fff; padding: 10px; }
+.delivery-panel--warning { border-color: #fde68a; background: #fffbeb; }
+.delivery-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.delivery-mode { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.delivery-radio { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; color: #1e2a44; cursor: pointer; }
+.delivery-template-grid { display: grid; grid-template-columns: minmax(180px, 1fr) 120px; gap: 8px; align-items: start; }
+.delivery-template-grid label { display: flex; flex-direction: column; gap: 4px; color: #475569; font-size: 12px; font-weight: 700; }
+.delivery-template-grid__wide { grid-column: 1 / -1; }
+.delivery-vars { min-height: 74px; margin-bottom: 0; }
 .actions { padding: 12px; }
 .focus-panel { border: 1px solid #ead7f0; border-radius: 12px; background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%); padding: 12px; margin-bottom: 10px; }
 .focus-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
@@ -1482,6 +1683,12 @@ export default {
   .focus-panel__actions,
   .message-actions,
   .message-draft-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .delivery-panel__head,
+  .delivery-template-grid {
+    grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
   }
