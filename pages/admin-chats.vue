@@ -610,6 +610,7 @@ export default {
   methods: {
     async initPage() {
       this.currentUserId = this.extractCurrentUserId()
+      await this.loadWhatsappTemplates()
       await this.loadTasks()
       await this.loadAgents()
       await this.openTaskFromRouteIfNeeded()
@@ -673,6 +674,7 @@ export default {
     },
     async reloadAll() {
       this.notice = ''
+      await this.loadWhatsappTemplates()
       await this.loadTasks()
       await this.loadAgents()
       if (this.selectedTask?.id) await this.openTask(this.selectedTask.id)
@@ -683,6 +685,18 @@ export default {
       this.agents = data.rows || []
       if (this.selectedAgentId && !this.agents.some((a) => a.id === this.selectedAgentId)) {
         this.startNewAgent()
+      }
+    },
+    async loadWhatsappTemplates() {
+      try {
+        const response = await fetch('/api/admin/chats/whatsapp-templates', { headers: this.headers() })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось загрузить WhatsApp templates')
+        if (Array.isArray(data.templates) && data.templates.length) {
+          this.whatsappTemplatePresets = data.templates
+        }
+      } catch (error) {
+        this.notice = error?.message || 'WhatsApp templates недоступны, использую локальный список'
       }
     },
     applyAgentSelection() {

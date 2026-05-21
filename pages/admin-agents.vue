@@ -187,7 +187,7 @@ export default {
     agentTestInput: '',
     agentTestOutput: '',
     promptTemplates: [],
-    promptKeys: ['order_missing_data_prompt', 'reply_interpretation_prompt', 'esim_offer_prompt', 'followup_prompt'],
+    promptKeys: ['order_missing_data_prompt', 'reply_interpretation_prompt', 'esim_offer_prompt', 'followup_prompt', 'whatsapp_template_registry'],
     selectedPromptKey: 'order_missing_data_prompt',
     selectedPromptVersionLabel: '-',
     promptText: '',

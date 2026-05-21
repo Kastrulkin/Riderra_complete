@@ -5263,6 +5263,99 @@ app.put('/api/admin/prompts/:promptKey', authenticateToken, resolveActorContext,
   }
 })
 
+app.get('/api/admin/chats/whatsapp-templates', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const registry = await loadWhatsAppTemplateRegistryForTenant(req.actorContext.tenantId)
+    res.json(registry)
+  } catch (error) {
+    console.error('Error loading WhatsApp template registry:', error)
+    res.status(500).json({ error: 'Failed to load WhatsApp template registry' })
+  }
+})
+
+app.put('/api/admin/chats/whatsapp-templates', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const templates = normalizeWhatsAppTemplateRegistry(req.body?.templates || req.body || [])
+    if (!templates.length) return res.status(400).json({ error: 'At least one WhatsApp template is required' })
+
+    const payload = { version: 1, templates }
+    const content = JSON.stringify(payload, null, 2)
+
+    const result = await prisma.$transaction(async (tx) => {
+      let template = await tx.promptTemplate.findFirst({
+        where: { tenantId, key: WHATSAPP_TEMPLATE_REGISTRY_KEY }
+      })
+      if (!template) {
+        template = await tx.promptTemplate.create({
+          data: {
+            tenantId,
+            key: WHATSAPP_TEMPLATE_REGISTRY_KEY,
+            title: 'WhatsApp Template Registry',
+            description: 'Approved Meta WhatsApp templates available to Riderra chat operators.',
+            isActive: true
+          }
+        })
+      } else {
+        template = await tx.promptTemplate.update({
+          where: { id: template.id },
+          data: {
+            title: 'WhatsApp Template Registry',
+            description: 'Approved Meta WhatsApp templates available to Riderra chat operators.',
+            isActive: true
+          }
+        })
+      }
+
+      const latest = await tx.promptTemplateVersion.findFirst({
+        where: { templateId: template.id },
+        orderBy: { version: 'desc' },
+        select: { version: true }
+      })
+      const version = await tx.promptTemplateVersion.create({
+        data: {
+          templateId: template.id,
+          version: (latest?.version || 0) + 1,
+          content,
+          notes: 'Updated WhatsApp template registry',
+          isActive: true,
+          createdByUserId: req.user?.id || null
+        }
+      })
+      return { template, version }
+    })
+
+    await writeAuditLog({
+      tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'whatsapp_template_registry.update',
+      resource: 'prompt_template',
+      resourceId: result.template.id,
+      traceId: req.actorContext.traceId,
+      decision: 'allowed',
+      result: 'success',
+      context: {
+        promptKey: WHATSAPP_TEMPLATE_REGISTRY_KEY,
+        promptVersion: result.version.version,
+        templates: templates.map((tpl) => tpl.name)
+      }
+    })
+
+    res.json({
+      success: true,
+      source: 'prompt_template',
+      prompt_key: result.template.key,
+      prompt_version: result.version.version,
+      templates
+    })
+  } catch (error) {
+    console.error('Error saving WhatsApp template registry:', error)
+    const status = String(error?.message || '').includes('required') || String(error?.message || '').includes('valid') ? 400 : 500
+    res.status(status).json({ error: error.message || 'Failed to save WhatsApp template registry' })
+  }
+})
+
 app.get('/api/admin/ai/learning-metrics', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
@@ -11755,6 +11848,94 @@ function parseMessageBodyJson(raw) {
   if (!raw) return {}
   if (typeof raw === 'object') return raw
   return parseJsonSafe(raw, {})
+}
+
+const WHATSAPP_TEMPLATE_REGISTRY_KEY = 'whatsapp_template_registry'
+
+function defaultWhatsAppTemplateRegistry() {
+  return [
+    {
+      name: 'baggage_request',
+      label: 'Baggage request',
+      description: 'Запросить количество чемоданов, сумок и нестандартного багажа.',
+      variables: ['booking_number', 'route_from', 'route_to']
+    },
+    {
+      name: 'flight_request',
+      label: 'Flight request',
+      description: 'Запросить номер рейса и дату прилёта/вылета.',
+      variables: ['booking_number', 'route_from', 'route_to']
+    },
+    {
+      name: 'pickup_request',
+      label: 'Pickup point request',
+      description: 'Уточнить точное место подачи: адрес, терминал, вход или ориентир.',
+      variables: ['booking_number', 'route_from', 'route_to']
+    },
+    {
+      name: 'trip_confirmation',
+      label: 'Trip confirmation',
+      description: 'Передать клиенту подтверждённые детали поездки, водителя или ссылку.',
+      variables: ['booking_number', 'route_from', 'route_to', 'trip_details']
+    },
+    {
+      name: 'order_clarification',
+      label: 'Order clarification',
+      description: 'Универсальное уточнение недостающих данных по заказу.',
+      variables: ['booking_number', 'route_from', 'route_to', 'question']
+    }
+  ]
+}
+
+function normalizeWhatsAppTemplateRegistry(raw = []) {
+  const source = Array.isArray(raw)
+    ? raw
+    : (Array.isArray(raw?.templates) ? raw.templates : [])
+  return source.map((item) => {
+    const name = String(item?.name || item?.templateName || '').trim()
+    if (!name) return null
+    const variables = Array.isArray(item?.variables)
+      ? item.variables.map((value) => String(value || '').trim()).filter(Boolean)
+      : []
+    return {
+      name,
+      label: String(item?.label || name).trim() || name,
+      description: String(item?.description || '').trim(),
+      language: String(item?.language || item?.languageCode || '').trim() || undefined,
+      category: String(item?.category || '').trim() || undefined,
+      variables
+    }
+  }).filter(Boolean)
+}
+
+async function loadWhatsAppTemplateRegistryForTenant(tenantId) {
+  const defaults = defaultWhatsAppTemplateRegistry()
+  const row = await prisma.promptTemplate.findFirst({
+    where: { tenantId, key: WHATSAPP_TEMPLATE_REGISTRY_KEY, isActive: true },
+    include: {
+      versions: {
+        where: { isActive: true },
+        orderBy: { version: 'desc' },
+        take: 1
+      }
+    }
+  })
+  if (!row?.versions?.[0]?.content) {
+    return {
+      source: 'default',
+      prompt_key: WHATSAPP_TEMPLATE_REGISTRY_KEY,
+      prompt_version: null,
+      templates: defaults
+    }
+  }
+  const parsed = parseJsonSafe(row.versions[0].content, null)
+  const templates = normalizeWhatsAppTemplateRegistry(parsed)
+  return {
+    source: templates.length ? 'prompt_template' : 'default',
+    prompt_key: WHATSAPP_TEMPLATE_REGISTRY_KEY,
+    prompt_version: row.versions[0].version,
+    templates: templates.length ? templates : defaults
+  }
 }
 
 function isWhatsappTemplatePayload(payload = {}) {
