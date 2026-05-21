@@ -6658,16 +6658,48 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         })
       }
       if (isTemplateSend) {
-        const templateName = String(
-          delivery.templateName ||
-          delivery.template_name ||
-          delivery.name ||
-          ''
-        ).trim()
-        if (!templateName) {
-          return res.status(400).json({
-            error: 'Template send requires templateName',
-            code: 'WHATSAPP_TEMPLATE_NAME_REQUIRED'
+        try {
+          await validateWhatsAppTemplateDelivery({ tenantId, delivery })
+        } catch (validationError) {
+          await prisma.chatMessage.create({
+            data: {
+              tenantId,
+              chatTaskId: message.chatTask.id,
+              direction: 'internal',
+              source: 'system',
+              channel: effectiveChannel,
+              bodyText: `POLICY: ${validationError.message}`,
+              bodyJson: JSON.stringify({
+                kind: 'policy_guard',
+                code: validationError.code || 'WHATSAPP_TEMPLATE_INVALID',
+                channel: effectiveChannel,
+                messageId: message.id,
+                details: validationError.details || null
+              }),
+              traceId: req.actorContext.traceId,
+              createdByUserId: req.user?.id || null
+            }
+          })
+          await writeAuditLog({
+            tenantId,
+            actorId: req.actorContext.actorId,
+            actorRole: req.actorContext.actorRole,
+            action: 'chat_message.send.blocked',
+            resource: 'chat_message',
+            resourceId: message.id,
+            traceId: req.actorContext.traceId,
+            decision: 'policy_blocked',
+            result: 'blocked',
+            context: {
+              code: validationError.code || 'WHATSAPP_TEMPLATE_INVALID',
+              channel: effectiveChannel,
+              details: validationError.details || null
+            }
+          })
+          return res.status(validationError.statusCode || 400).json({
+            error: validationError.message || 'WhatsApp template validation failed',
+            code: validationError.code || 'WHATSAPP_TEMPLATE_INVALID',
+            details: validationError.details || null
           })
         }
       }
@@ -11975,6 +12007,9 @@ function normalizeWhatsAppTemplateRegistry(raw = []) {
       label: String(item?.label || name).trim() || name,
       description: String(item?.description || '').trim(),
       language: String(item?.language || item?.languageCode || '').trim() || undefined,
+      languages: Array.isArray(item?.languages)
+        ? item.languages.map((value) => String(value || '').trim()).filter(Boolean)
+        : undefined,
       category: String(item?.category || '').trim() || undefined,
       variables
     }
@@ -12020,6 +12055,61 @@ function isWhatsappTemplatePayload(payload = {}) {
     ''
   ).trim()
   return mode === 'template' || Boolean(templateName)
+}
+
+async function validateWhatsAppTemplateDelivery({ tenantId, delivery = {} } = {}) {
+  const templateName = String(
+    delivery?.templateName ||
+    delivery?.template_name ||
+    delivery?.name ||
+    ''
+  ).trim()
+  if (!templateName) {
+    const error = new Error('Template send requires templateName')
+    error.statusCode = 400
+    error.code = 'WHATSAPP_TEMPLATE_NAME_REQUIRED'
+    throw error
+  }
+
+  const registry = await loadWhatsAppTemplateRegistryForTenant(tenantId)
+  const template = (registry.templates || []).find((tpl) => String(tpl?.name || '').trim() === templateName)
+  if (!template) {
+    const error = new Error(`WhatsApp template is not in registry: ${templateName}`)
+    error.statusCode = 409
+    error.code = 'WHATSAPP_TEMPLATE_NOT_REGISTERED'
+    error.details = { templateName, registrySource: registry.source || 'default' }
+    throw error
+  }
+
+  const requestedLanguage = String(delivery?.language || delivery?.languageCode || delivery?.lang || 'en').trim() || 'en'
+  const allowedLanguages = Array.isArray(template.languages) && template.languages.length
+    ? template.languages
+    : (template.language ? [template.language] : [])
+  if (allowedLanguages.length && !allowedLanguages.includes(requestedLanguage)) {
+    const error = new Error(`WhatsApp template language is not approved for ${templateName}: ${requestedLanguage}`)
+    error.statusCode = 409
+    error.code = 'WHATSAPP_TEMPLATE_LANGUAGE_NOT_APPROVED'
+    error.details = { templateName, requestedLanguage, allowedLanguages }
+    throw error
+  }
+
+  const variables = delivery?.variables && typeof delivery.variables === 'object' ? delivery.variables : {}
+  const missingVariables = (template.variables || []).filter((name) => !Object.prototype.hasOwnProperty.call(variables, name) || String(variables[name] ?? '').trim() === '')
+  if (missingVariables.length) {
+    const error = new Error(`WhatsApp template variables are missing: ${missingVariables.join(', ')}`)
+    error.statusCode = 400
+    error.code = 'WHATSAPP_TEMPLATE_VARIABLES_MISSING'
+    error.details = { templateName, missingVariables }
+    throw error
+  }
+
+  return {
+    ok: true,
+    registrySource: registry.source || 'default',
+    registryVersion: registry.prompt_version || null,
+    template,
+    language: requestedLanguage
+  }
 }
 
 function normalizeFlightNumber(raw) {
