@@ -23,6 +23,7 @@
     "security:api-idempotency": "node scripts/security_api_idempotency_smoke.js",
     "security:api-human-in-loop": "node scripts/security_api_human_in_loop_smoke.js",
     "security:api-audit-trace": "node scripts/security_api_audit_trace_smoke.js",
+    "smoke:public-ai-visibility": "node scripts/public_ai_visibility_smoke.js",
     "smoke:chat-inbound-e2e": "node scripts/chat_inbound_e2e_smoke.js",
     "smoke:chat-internal-inbound": "node scripts/chat_internal_inbound_smoke.js",
     "smoke:chat-whatsapp-template-policy": "node scripts/chat_whatsapp_template_policy_smoke.js"

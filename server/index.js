@@ -109,13 +109,19 @@ const RIDERRA_CONTACT_EMAIL = 'info@riderra.com'
 const RIDERRA_PUBLIC_PAGES = [
   { path: '/', title: 'Riderra', priority: '1.0' },
   { path: '/ai', title: 'AI agent guide', priority: '0.9' },
+  { path: '/ru/ai', title: 'Riderra для AI-агентов', priority: '0.8' },
   { path: '/about', title: 'About Riderra', priority: '0.8' },
+  { path: '/ru/about', title: 'О Riderra', priority: '0.7' },
   { path: '/services', title: 'Transfer services', priority: '0.9' },
+  { path: '/ru/services', title: 'Услуги трансфера', priority: '0.8' },
   { path: '/services/airport-transfer', title: 'Airport transfers', priority: '0.8' },
   { path: '/services/city-transfer', title: 'City transfers', priority: '0.8' },
   { path: '/prices', title: 'Prices', priority: '0.8' },
+  { path: '/ru/prices', title: 'Цены', priority: '0.7' },
   { path: '/contact', title: 'Contact', priority: '0.8' },
+  { path: '/ru/contact', title: 'Контакты', priority: '0.7' },
   { path: '/faq', title: 'FAQ', priority: '0.8' },
+  { path: '/ru/faq', title: 'Вопросы и ответы', priority: '0.7' },
   { path: '/drivers', title: 'Drivers', priority: '0.5' },
   { path: '/privacy-policy/en', title: 'Privacy Policy', priority: '0.3' },
   { path: '/terms/en', title: 'Terms and Conditions', priority: '0.3' }
@@ -156,6 +162,29 @@ const RIDERRA_FAQ = [
   {
     question: 'How do customers contact Riderra?',
     answer: `Customers and AI agents can contact Riderra at ${RIDERRA_CONTACT_EMAIL} or submit a structured request through the public order request endpoint.`
+  }
+]
+
+const RIDERRA_FAQ_RU = [
+  {
+    question: 'Что такое Riderra?',
+    answer: 'Riderra - глобальная сеть бронирования трансферов и организатор пассажирских перевозок через собственную команду и партнерские автопарки.'
+  },
+  {
+    question: 'Где работает Riderra?',
+    answer: 'Riderra организует трансферы более чем в 250 городах и 50 странах, если маршрут, класс автомобиля, время и локальная доступность подтверждены.'
+  },
+  {
+    question: 'Может ли AI-агент создать заказ?',
+    answer: 'AI-агент может отправить структурированную заявку-драфт. Riderra проверяет доступность и подтверждает финальную цену до выполнения поездки.'
+  },
+  {
+    question: 'Публикует ли Riderra полный прайс?',
+    answer: 'Нет. Финальная цена подтверждается после проверки маршрута, класса автомобиля, времени подачи, дополнительных услуг и доступности.'
+  },
+  {
+    question: 'Как связаться с Riderra?',
+    answer: `Клиенты и AI-агенты могут написать на ${RIDERRA_CONTACT_EMAIL} или отправить структурированную заявку через публичный endpoint.`
   }
 ]
 
@@ -242,6 +271,23 @@ function faqJsonLd() {
     '@type': 'FAQPage',
     '@id': `${RIDERRA_BASE_URL}/faq#faq`,
     mainEntity: RIDERRA_FAQ.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer
+      }
+    }))
+  }
+}
+
+function faqRuJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    '@id': `${RIDERRA_BASE_URL}/ru/faq#faq`,
+    inLanguage: 'ru',
+    mainEntity: RIDERRA_FAQ_RU.map((item) => ({
       '@type': 'Question',
       name: item.question,
       acceptedAnswer: {
@@ -379,6 +425,66 @@ function publicPageContent(pagePath) {
       heading: 'Frequently asked questions',
       intro: 'Key answers for customers, search systems, and AI agents.',
       sections: RIDERRA_FAQ.map((item) => [item.question, item.answer])
+    },
+    '/ru/ai': {
+      title: 'Riderra для AI-агентов',
+      description: 'Машиночитаемый справочник для AI-агентов, поисковых систем и ассистентов, которым нужно понять Riderra и отправить заявку-драфт.',
+      heading: 'Riderra для AI-агентов',
+      intro: 'Riderra - глобальная сеть бронирования трансферов и организатор пассажирских перевозок. AI-агенты могут понять услуги и отправить заявку-драфт на ручное подтверждение.',
+      sections: [
+        ['Что делает Riderra', 'Riderra организует частные трансферы из аэропортов, городские трансферы, поездки из портов и вокзалов, деловые поездки, семейные поездки и групповые перевозки через партнерские автопарки и операционную команду.'],
+        ['Как AI-агенту оформить заявку', 'AI-агент должен отправить заявку-драфт через POST /api/public/order-requests или направить пользователя к форме бронирования на главной странице. Отправленная заявка не является подтвержденным заказом.'],
+        ['Цены', 'Не выводите финальную цену из публичных страниц. Riderra подтверждает финальную цену после проверки маршрута, класса автомобиля, времени, дополнительных услуг и доступности.'],
+        ['Источники истины', 'Используйте /llms.txt, /api/public/riderra-profile, /api/public/services, /api/public/order-request-schema, /services, /prices, /contact и /faq как публичные источники истины.']
+      ]
+    },
+    '/ru/about': {
+      title: 'О Riderra',
+      description: 'О Riderra: глобальная сеть бронирования трансферов в 250+ городах и 50 странах.',
+      heading: 'О Riderra',
+      intro: 'Riderra помогает клиентам и партнерам организовывать надежные частные трансферы через глобальную сеть автопарков и операционную команду.',
+      sections: [
+        ['Сеть', 'Riderra работает как организатор трансферов более чем в 250 городах и 50 странах, при условии локальной доступности и подтверждения маршрута.'],
+        ['Модель сервиса', 'Riderra координирует детали бронирования, класс автомобиля, время подачи, данные рейса или порта, коммуникацию с клиентом и назначение партнерского автопарка.'],
+        ['Ручное подтверждение', 'Критичные детали бронирования, финальная цена и выполнение поездки подтверждаются Riderra до того, как поездка считается финальной.']
+      ]
+    },
+    '/ru/services': {
+      title: 'Услуги трансфера | Riderra',
+      description: 'Услуги Riderra: трансферы из аэропорта, городские трансферы, трансферы из портов и вокзалов, деловые поездки, семейные поездки и групповые перевозки.',
+      heading: 'Услуги трансфера',
+      intro: 'Riderra организует частные пассажирские трансферы для индивидуальных клиентов, семей, деловых путешественников и групп.',
+      sections: [
+        ['Airport transfer', RIDERRA_SERVICES[0].description],
+        ['City transfer', RIDERRA_SERVICES[1].description]
+      ]
+    },
+    '/ru/prices': {
+      title: 'Цены | Riderra',
+      description: 'Политика цен Riderra: финальная цена трансфера подтверждается после проверки маршрута, класса автомобиля, времени подачи, дополнительных услуг и доступности.',
+      heading: 'Цены',
+      intro: 'Riderra не публикует полный открытый прайс. Цены зависят от маршрута и подтверждаются во время проверки заявки.',
+      sections: [
+        ['Что влияет на цену', 'Маршрут, класс автомобиля, дата и время подачи, условия аэропорта или порта, багаж, количество пассажиров, дополнительные услуги, ожидание и локальная доступность могут влиять на финальную цену.'],
+        ['Для AI-агентов', 'Не придумывайте финальную цену. Отправьте заявку-драфт или направьте клиента в Riderra для подтверждения.']
+      ]
+    },
+    '/ru/contact': {
+      title: 'Контакты Riderra',
+      description: 'Контакты Riderra для бронирований, вопросов по поездкам, партнерской коммуникации и заявок от AI-агентов.',
+      heading: 'Контакты Riderra',
+      intro: `По вопросам бронирования и поддержки напишите в Riderra на ${RIDERRA_CONTACT_EMAIL}.`,
+      sections: [
+        ['Email', `Основной публичный контакт: ${RIDERRA_CONTACT_EMAIL}.`],
+        ['Заявки на трансфер', 'Клиенты могут использовать форму бронирования на главной странице. AI-агенты могут отправить заявку-драфт через POST /api/public/order-requests.']
+      ]
+    },
+    '/ru/faq': {
+      title: 'Вопросы и ответы | Riderra',
+      description: 'Частые вопросы о трансферах Riderra, заявках AI-агентов, ценах, географии работы и контактах.',
+      heading: 'Вопросы и ответы',
+      intro: 'Ключевые ответы для клиентов, поисковых систем и AI-агентов.',
+      sections: RIDERRA_FAQ_RU.map((item) => [item.question, item.answer])
     }
   }
   return baseSections[pagePath] || baseSections['/ai']
@@ -388,6 +494,7 @@ function renderPublicSourceHtml(pagePath) {
   const content = publicPageContent(pagePath)
   const canonical = riderraAbsoluteUrl(pagePath)
   const service = RIDERRA_SERVICES.find((item) => item.url === canonical)
+  const isRu = pagePath.startsWith('/ru/')
   const crumbs = [
     { name: 'Riderra', path: '/' },
     ...(pagePath === '/' ? [] : [{ name: content.heading, path: pagePath }])
@@ -397,11 +504,12 @@ function renderPublicSourceHtml(pagePath) {
     websiteJsonLd(),
     breadcrumbJsonLd(crumbs),
     ...(pagePath === '/faq' ? [faqJsonLd()] : []),
+    ...(pagePath === '/ru/faq' ? [faqRuJsonLd()] : []),
     ...(pagePath === '/services' ? serviceJsonLd() : []),
     ...(service ? serviceJsonLd(service) : [])
   ]
   return `<!doctype html>
-<html lang="en">
+<html lang="${isRu ? 'ru' : 'en'}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -437,6 +545,7 @@ function renderPublicSourceHtml(pagePath) {
         <a href="/prices">Prices</a>
         <a href="/contact">Contact</a>
         <a href="/faq">FAQ</a>
+        <a href="/ru/ai">RU</a>
       </nav>
       <article class="card">
         <h1>${escapeHtml(content.heading)}</h1>
@@ -466,9 +575,15 @@ function publicRiderraProfile() {
 function orderRequestSchema() {
   return {
     endpoint: `${RIDERRA_BASE_URL}/api/public/order-requests`,
+    validateEndpoint: `${RIDERRA_BASE_URL}/api/public/order-requests/validate`,
+    statusEndpoint: `${RIDERRA_BASE_URL}/api/public/order-requests/{requestId}/status?email={email}`,
     method: 'POST',
     statusCreated: 'draft_received',
     note: 'This endpoint creates a draft request, not a confirmed booking.',
+    idempotency: {
+      header: 'Idempotency-Key',
+      recommendation: 'Send a stable unique key per intended draft request. Replays return the original requestId and idempotent=true.'
+    },
     required: ['name', 'email', 'phone', 'fromPoint', 'toPoint', 'pickupAt'],
     optional: ['passengers', 'luggage', 'vehicleClass', 'flightNumber', 'comment', 'agentName', 'agentContact', 'sourceUrl'],
     fields: {
@@ -488,6 +603,68 @@ function orderRequestSchema() {
       sourceUrl: 'URL where the request context came from'
     }
   }
+}
+
+function normalizePublicOrderRequestBody(body = {}) {
+  const pickupAtRaw = normalizeText(body.pickupAt, 80)
+  const passengers = body.passengers === undefined || body.passengers === null || body.passengers === ''
+    ? null
+    : parseInt(body.passengers, 10)
+  const luggage = body.luggage === undefined || body.luggage === null || body.luggage === ''
+    ? null
+    : parseInt(body.luggage, 10)
+  return {
+    name: normalizeText(body.name, 160),
+    email: normalizeText(body.email, 254),
+    phone: normalizeText(body.phone, 80),
+    fromPoint: normalizeText(body.fromPoint, 500),
+    toPoint: normalizeText(body.toPoint, 500),
+    pickupAtRaw,
+    pickupAt: pickupAtRaw ? new Date(pickupAtRaw) : null,
+    passengers: Number.isFinite(passengers) && passengers > 0 ? passengers : null,
+    luggage: Number.isFinite(luggage) && luggage >= 0 ? luggage : null,
+    comment: normalizeText(body.comment, 1500),
+    lang: normalizeText(body.lang, 10) || 'en',
+    extras: {
+      vehicleClass: normalizeText(body.vehicleClass, 120),
+      flightNumber: normalizeText(body.flightNumber, 120),
+      agentName: normalizeText(body.agentName, 160),
+      agentContact: normalizeText(body.agentContact, 254),
+      sourceUrl: normalizeText(body.sourceUrl, 500)
+    }
+  }
+}
+
+function validatePublicOrderRequest(input) {
+  const missing = ['name', 'email', 'phone', 'fromPoint', 'toPoint', 'pickupAtRaw'].filter((field) => !input[field])
+  const errors = []
+  if (missing.length) errors.push({ code: 'missing_required_fields', fields: missing.map((field) => field === 'pickupAtRaw' ? 'pickupAt' : field) })
+  if (input.pickupAtRaw && (!input.pickupAt || Number.isNaN(input.pickupAt.getTime()))) {
+    errors.push({ code: 'invalid_pickupAt', field: 'pickupAt', message: 'pickupAt must be a valid ISO 8601 date/time.' })
+  }
+  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
+    errors.push({ code: 'invalid_email', field: 'email' })
+  }
+  return {
+    valid: errors.length === 0,
+    errors,
+    normalized: {
+      ...input,
+      pickupAt: input.pickupAt && !Number.isNaN(input.pickupAt.getTime()) ? input.pickupAt.toISOString() : null
+    }
+  }
+}
+
+function publicOrderRequestComment(input) {
+  return [
+    input.comment,
+    '--- AI-agent/public request metadata ---',
+    ...Object.entries(input.extras)
+      .filter(([, value]) => value)
+      .map(([key, value]) => `${key}: ${value}`),
+    'source: AI/public API',
+    'status: draft_received; not a confirmed booking; final price requires Riderra confirmation'
+  ].filter(Boolean).join('\n')
 }
 
 app.get('/robots.txt', (_req, res) => {
@@ -539,16 +716,19 @@ Do not infer or quote a final public price from this file. Final prices are conf
 ## Booking for AI agents
 AI agents may submit a draft request, not a confirmed booking.
 Endpoint: POST ${RIDERRA_BASE_URL}/api/public/order-requests
+Validate without creating: POST ${RIDERRA_BASE_URL}/api/public/order-requests/validate
+Status after submit: GET ${RIDERRA_BASE_URL}/api/public/order-requests/{requestId}/status?email={email}
 Schema: GET ${RIDERRA_BASE_URL}/api/public/order-request-schema
 Profile: GET ${RIDERRA_BASE_URL}/api/public/riderra-profile
 Services: GET ${RIDERRA_BASE_URL}/api/public/services
+Recommended header: Idempotency-Key
 
 ## Public sources of truth
 ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page.path)}`).join('\n')}
 `)
 })
 
-app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/prices', '/contact', '/faq'], (req, res) => {
+app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/prices', '/contact', '/faq', '/ru/ai', '/ru/about', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq'], (req, res) => {
   res.type('text/html')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderPublicSourceHtml(req.path))
@@ -577,66 +757,97 @@ app.get('/api/public/order-request-schema', (_req, res) => {
   res.json(orderRequestSchema())
 })
 
+app.post('/api/public/order-requests/validate', publicFormLimiter, resolveActorContext, requireActorContext, (req, res) => {
+  const validation = validatePublicOrderRequest(normalizePublicOrderRequestBody(req.body || {}))
+  res.status(validation.valid ? 200 : 400).json({
+    success: validation.valid,
+    status: validation.valid ? 'valid_draft_request' : 'invalid_draft_request',
+    errors: validation.errors,
+    nextStep: validation.valid
+      ? 'Submit the same payload to POST /api/public/order-requests. Riderra will review and confirm availability and final price.'
+      : 'Fix the listed fields before submitting a draft request.'
+  })
+})
+
+app.get('/api/public/order-requests/:requestId/status', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    const requestId = String(req.params.requestId || '').trim()
+    const email = normalizeText(req.query.email, 254)
+    const phone = normalizeText(req.query.phone, 80)
+    if (!email && !phone) {
+      return res.status(400).json({ error: 'contact_verification_required', message: 'Provide email or phone used in the draft request.' })
+    }
+    const row = await prisma.request.findFirst({
+      where: {
+        id: requestId,
+        tenantId: req.actorContext.tenantId,
+        ...(email ? { email } : { phone })
+      }
+    })
+    if (!row) return res.status(404).json({ error: 'request_not_found' })
+    res.json({
+      success: true,
+      requestId: row.id,
+      status: 'draft_received',
+      createdAt: row.createdAt,
+      nextStep: 'Riderra will review and confirm availability and final price.',
+      confirmedBooking: false,
+      finalPriceConfirmed: false
+    })
+  } catch (error) {
+    console.error('Error in /api/public/order-requests/:requestId/status:', error)
+    res.status(500).json({ error: 'failed' })
+  }
+})
+
 app.post('/api/public/order-requests', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
   try {
-    const required = ['name', 'email', 'phone', 'fromPoint', 'toPoint', 'pickupAt']
-    const missing = required.filter((field) => !normalizeText(req.body?.[field], 500))
-    if (missing.length) {
-      return res.status(400).json({ error: 'missing_required_fields', missing })
+    const input = normalizePublicOrderRequestBody(req.body || {})
+    const validation = validatePublicOrderRequest(input)
+    if (!validation.valid) {
+      return res.status(400).json({ error: 'invalid_draft_request', errors: validation.errors })
     }
-
-    const pickupAt = new Date(req.body.pickupAt)
-    if (Number.isNaN(pickupAt.getTime())) {
-      return res.status(400).json({ error: 'invalid_pickupAt', message: 'pickupAt must be a valid ISO 8601 date/time.' })
-    }
-
-    const extras = {
-      vehicleClass: normalizeText(req.body.vehicleClass, 120),
-      flightNumber: normalizeText(req.body.flightNumber, 120),
-      agentName: normalizeText(req.body.agentName, 160),
-      agentContact: normalizeText(req.body.agentContact, 254),
-      sourceUrl: normalizeText(req.body.sourceUrl, 500)
-    }
-    const passengers = req.body.passengers === undefined || req.body.passengers === null || req.body.passengers === ''
-      ? null
-      : parseInt(req.body.passengers, 10)
-    const luggage = req.body.luggage === undefined || req.body.luggage === null || req.body.luggage === ''
-      ? null
-      : parseInt(req.body.luggage, 10)
-    const structuredComment = [
-      normalizeText(req.body.comment, 1500),
-      '--- AI-agent/public request metadata ---',
-      ...Object.entries(extras)
-        .filter(([, value]) => value)
-        .map(([key, value]) => `${key}: ${value}`),
-      'status: draft_received; not a confirmed booking; final price requires Riderra confirmation'
-    ].filter(Boolean).join('\n')
-
-    const created = await prisma.request.create({
-      data: {
-        tenantId: req.actorContext.tenantId,
-        name: normalizeText(req.body.name, 160),
-        email: normalizeText(req.body.email, 254),
-        phone: normalizeText(req.body.phone, 80),
-        fromPoint: normalizeText(req.body.fromPoint, 500),
-        toPoint: normalizeText(req.body.toPoint, 500),
-        date: pickupAt,
-        passengers: Number.isFinite(passengers) ? passengers : null,
-        luggage: Number.isFinite(luggage) ? luggage : null,
-        comment: structuredComment.slice(0, 2000),
-        lang: normalizeText(req.body.lang, 10) || 'en'
+    ensureIdempotencyKey(req, 'public.order_request.create', {
+      name: input.name,
+      email: input.email,
+      phone: input.phone,
+      fromPoint: input.fromPoint,
+      toPoint: input.toPoint,
+      pickupAt: input.pickupAt.toISOString()
+    })
+    const wrapped = await withIdempotency(req, 'public.order_request.create', validation.normalized, async () => {
+      const created = await prisma.request.create({
+        data: {
+          tenantId: req.actorContext.tenantId,
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          fromPoint: input.fromPoint,
+          toPoint: input.toPoint,
+          date: input.pickupAt,
+          passengers: input.passengers,
+          luggage: input.luggage,
+          comment: publicOrderRequestComment(input).slice(0, 2000),
+          lang: input.lang
+        }
+      })
+      return {
+        requestId: created.id,
+        status: 'draft_received',
+        nextStep: 'Riderra will review and confirm availability and final price.',
+        confirmedBooking: false,
+        finalPriceConfirmed: false
       }
     })
 
-    res.status(201).json({
+    res.status(wrapped.replayed ? 200 : 201).json({
       success: true,
-      requestId: created.id,
-      status: 'draft_received',
-      nextStep: 'Riderra will review and confirm availability and final price.'
+      ...wrapped.data,
+      idempotent: wrapped.replayed
     })
   } catch (error) {
     console.error('Error in /api/public/order-requests:', error)
-    res.status(500).json({ error: 'failed' })
+    res.status(error.statusCode || 500).json({ error: error.message || 'failed' })
   }
 })
 
@@ -3627,7 +3838,13 @@ app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireAc
       where: { tenantId: req.actorContext.tenantId },
       orderBy: { createdAt: 'desc' }
     })
-    res.json(rows)
+    res.json(rows.map((row) => ({
+      ...row,
+      source: String(row.comment || '').includes('AI-agent/public request metadata') ? 'AI/public API' : 'public form',
+      operationalStatus: String(row.comment || '').includes('draft_received') ? 'draft_received' : 'new_request',
+      confirmedBooking: false,
+      finalPriceConfirmed: false
+    })))
   } catch (e) { res.status(500).json({ error: 'failed' }) }
 })
 
