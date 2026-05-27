@@ -39,7 +39,7 @@ async function main() {
     const { response, text } = await readText('/sitemap.xml')
     assertOk(response.status === 200, `sitemap.xml status ${response.status}`)
     assertOk(text.includes('<urlset'), 'sitemap.xml missing urlset')
-    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq']) {
+    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq']) {
       assertOk(text.includes(`${CANONICAL_URL}${path}`), `sitemap.xml missing ${path}`)
     }
   })
@@ -52,7 +52,7 @@ async function main() {
     assertOk(text.includes('Idempotency-Key'), 'llms.txt missing idempotency guidance')
   })
 
-  for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq']) {
+  for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq']) {
     await check(`page ${path}`, async () => {
       const { response, text } = await readText(path)
       assertOk(response.status === 200, `${path} status ${response.status}`)
@@ -69,7 +69,7 @@ async function main() {
   })
 
   await check('public APIs', async () => {
-    for (const path of ['/api/public/riderra-profile', '/api/public/services', '/api/public/pricing-hints', '/api/public/order-request-schema', '/api/public/openapi.json']) {
+    for (const path of ['/api/public/riderra-profile', '/api/public/services', '/api/public/pricing-hints', '/api/public/source-truth', '/api/public/order-request-schema', '/api/public/openapi.json']) {
       const { response, text } = await readText(path)
       assertOk(response.status === 200, `${path} status ${response.status}`)
       JSON.parse(text)
