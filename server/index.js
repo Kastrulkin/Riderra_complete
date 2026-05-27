@@ -43,7 +43,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', requestOrigin)
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature, X-OpenClaw-Signature')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Idempotency-Key, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature, X-OpenClaw-Signature')
   res.header('Vary', 'Origin')
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200)
@@ -572,6 +572,35 @@ function publicRiderraProfile() {
   }
 }
 
+function publicPricingHints() {
+  return {
+    policy: 'Riderra does not publish the full internal price book. Final price is confirmed by Riderra after review.',
+    safeForAgents: [
+      'Tell users that price depends on route, vehicle class, pickup time, extras, passenger/luggage count, waiting conditions, and availability.',
+      'Submit a draft request through /api/public/order-requests when a concrete route is known.',
+      'Do not invent a final price and do not promise availability.'
+    ],
+    factors: [
+      'route',
+      'vehicleClass',
+      'pickupAt',
+      'passengers',
+      'luggage',
+      'flightOrPortDetails',
+      'meetAndGreet',
+      'waitingTime',
+      'childSeats',
+      'localAvailability'
+    ],
+    prohibited: [
+      'full public price book',
+      'final quote without Riderra confirmation',
+      'confirmed booking without human/operator approval'
+    ],
+    nextStep: 'Use POST /api/public/order-requests to create a draft request for Riderra review.'
+  }
+}
+
 function orderRequestSchema() {
   return {
     endpoint: `${RIDERRA_BASE_URL}/api/public/order-requests`,
@@ -601,6 +630,119 @@ function orderRequestSchema() {
       agentName: 'Name of the AI agent or integration submitting the draft',
       agentContact: 'Contact for the submitting agent or operator',
       sourceUrl: 'URL where the request context came from'
+    }
+  }
+}
+
+function publicOpenApiSpec() {
+  const schemaProperties = Object.entries(orderRequestSchema().fields).reduce((acc, [key, description]) => {
+    acc[key] = {
+      type: ['passengers', 'luggage'].includes(key) ? 'integer' : 'string',
+      description
+    }
+    return acc
+  }, {})
+  return {
+    openapi: '3.0.3',
+    info: {
+      title: 'Riderra Public AI Agent API',
+      version: '1.0.0',
+      description: 'Public machine-readable API for understanding Riderra and submitting draft transfer requests. Draft requests are not confirmed bookings.'
+    },
+    servers: [{ url: RIDERRA_BASE_URL }],
+    paths: {
+      '/api/public/riderra-profile': {
+        get: {
+          summary: 'Get Riderra public profile',
+          responses: { 200: { description: 'Riderra public profile' } }
+        }
+      },
+      '/api/public/services': {
+        get: {
+          summary: 'List public transfer services',
+          responses: { 200: { description: 'Public services and booking policy' } }
+        }
+      },
+      '/api/public/pricing-hints': {
+        get: {
+          summary: 'Get non-disclosing pricing guidance',
+          responses: { 200: { description: 'Pricing policy and safe agent guidance' } }
+        }
+      },
+      '/api/public/order-request-schema': {
+        get: {
+          summary: 'Get order request field schema',
+          responses: { 200: { description: 'Draft request schema' } }
+        }
+      },
+      '/api/public/order-requests/validate': {
+        post: {
+          summary: 'Validate a draft request without creating it',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { '$ref': '#/components/schemas/PublicOrderRequestInput' }
+              }
+            }
+          },
+          responses: {
+            200: { description: 'Payload is valid' },
+            400: { description: 'Payload is invalid' }
+          }
+        }
+      },
+      '/api/public/order-requests': {
+        post: {
+          summary: 'Create a draft transfer request',
+          description: 'Creates a Request draft only. Riderra reviews availability and final price before execution.',
+          parameters: [{
+            in: 'header',
+            name: 'Idempotency-Key',
+            schema: { type: 'string' },
+            required: false,
+            description: 'Stable unique key per intended draft request. Replays return the original requestId.'
+          }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { '$ref': '#/components/schemas/PublicOrderRequestInput' }
+              }
+            }
+          },
+          responses: {
+            201: { description: 'Draft request created' },
+            200: { description: 'Idempotent replay of an existing draft request' },
+            400: { description: 'Invalid request' }
+          }
+        }
+      },
+      '/api/public/order-requests/{requestId}/status': {
+        get: {
+          summary: 'Check draft request status',
+          parameters: [
+            { in: 'path', name: 'requestId', required: true, schema: { type: 'string' } },
+            { in: 'query', name: 'email', required: false, schema: { type: 'string' } },
+            { in: 'query', name: 'phone', required: false, schema: { type: 'string' } }
+          ],
+          responses: {
+            200: { description: 'Draft status' },
+            400: { description: 'Missing contact verification' },
+            404: { description: 'Request not found' }
+          }
+        }
+      }
+    },
+    components: {
+      schemas: {
+        PublicOrderRequestInput: {
+          type: 'object',
+          required: orderRequestSchema().required,
+          properties: schemaProperties,
+          additionalProperties: false
+        }
+      }
     }
   }
 }
@@ -667,6 +809,71 @@ function publicOrderRequestComment(input) {
   ].filter(Boolean).join('\n')
 }
 
+function parseAiRequestMetadata(comment = '') {
+  const text = String(comment || '')
+  const lines = text.split(/\r?\n/)
+  const meta = {}
+  for (const line of lines) {
+    const match = line.match(/^([A-Za-z][A-Za-z0-9_ -]{1,40}):\s*(.+)$/)
+    if (!match) continue
+    const key = match[1].trim().replace(/\s+/g, '_')
+    meta[key] = match[2].trim()
+  }
+  const publicApi = text.includes('AI-agent/public request metadata')
+  const operatorStatuses = lines
+    .map((line) => line.match(/^operatorStatus:\s*(.+)$/))
+    .filter(Boolean)
+    .map((match) => match[1].trim())
+  return {
+    ...meta,
+    publicApi,
+    operatorStatus: operatorStatuses[operatorStatuses.length - 1] || (publicApi ? 'draft_received' : 'new_request')
+  }
+}
+
+function serializeAiDraftRequest(row) {
+  const meta = parseAiRequestMetadata(row.comment)
+  return {
+    id: row.id,
+    createdAt: row.createdAt,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    fromPoint: row.fromPoint,
+    toPoint: row.toPoint,
+    pickupAt: row.date,
+    passengers: row.passengers,
+    luggage: row.luggage,
+    lang: row.lang,
+    comment: row.comment,
+    source: meta.publicApi ? 'AI/public API' : 'public form',
+    operationalStatus: meta.operatorStatus,
+    vehicleClass: meta.vehicleClass || null,
+    flightNumber: meta.flightNumber || null,
+    agentName: meta.agentName || null,
+    agentContact: meta.agentContact || null,
+    sourceUrl: meta.sourceUrl || null,
+    orderId: meta.orderId || null,
+    confirmedBooking: false,
+    finalPriceConfirmed: false
+  }
+}
+
+function appendAiRequestOperatorNote(comment, { status, user, note, orderId } = {}) {
+  const workflowLines = [
+    '--- Riderra operator workflow ---',
+    `operatorStatus: ${status}`,
+    orderId ? `orderId: ${orderId}` : null,
+    user?.email ? `operator: ${user.email}` : null,
+    note ? `operatorNote: ${String(note).trim().slice(0, 500)}` : null,
+    `operatorUpdatedAt: ${new Date().toISOString()}`
+  ].filter(Boolean)
+  const workflowBlock = workflowLines.join('\n')
+  const maxBaseLength = Math.max(0, 1999 - workflowBlock.length)
+  const base = String(comment || '').trim().slice(0, maxBaseLength)
+  return [base, workflowBlock].filter(Boolean).join('\n').slice(0, 2000)
+}
+
 app.get('/robots.txt', (_req, res) => {
   res.type('text/plain')
   res.setHeader('Cache-Control', 'public, max-age=3600')
@@ -719,8 +926,10 @@ Endpoint: POST ${RIDERRA_BASE_URL}/api/public/order-requests
 Validate without creating: POST ${RIDERRA_BASE_URL}/api/public/order-requests/validate
 Status after submit: GET ${RIDERRA_BASE_URL}/api/public/order-requests/{requestId}/status?email={email}
 Schema: GET ${RIDERRA_BASE_URL}/api/public/order-request-schema
+OpenAPI: GET ${RIDERRA_BASE_URL}/api/public/openapi.json
 Profile: GET ${RIDERRA_BASE_URL}/api/public/riderra-profile
 Services: GET ${RIDERRA_BASE_URL}/api/public/services
+Pricing hints: GET ${RIDERRA_BASE_URL}/api/public/pricing-hints
 Recommended header: Idempotency-Key
 
 ## Public sources of truth
@@ -753,8 +962,16 @@ app.get('/api/public/services', (_req, res) => {
   })
 })
 
+app.get('/api/public/pricing-hints', (_req, res) => {
+  res.json(publicPricingHints())
+})
+
 app.get('/api/public/order-request-schema', (_req, res) => {
   res.json(orderRequestSchema())
+})
+
+app.get(['/api/public/openapi.json', '/openapi.json'], (_req, res) => {
+  res.json(publicOpenApiSpec())
 })
 
 app.post('/api/public/order-requests/validate', publicFormLimiter, resolveActorContext, requireActorContext, (req, res) => {
@@ -3840,12 +4057,199 @@ app.get('/api/admin/requests', authenticateToken, resolveActorContext, requireAc
     })
     res.json(rows.map((row) => ({
       ...row,
-      source: String(row.comment || '').includes('AI-agent/public request metadata') ? 'AI/public API' : 'public form',
-      operationalStatus: String(row.comment || '').includes('draft_received') ? 'draft_received' : 'new_request',
-      confirmedBooking: false,
-      finalPriceConfirmed: false
+      ...serializeAiDraftRequest(row)
     })))
   } catch (e) { res.status(500).json({ error: 'failed' }) }
+})
+
+app.get('/api/admin/ai-draft-requests', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order', () => ({
+  team: ['coordination', 'dispatch', 'ops_control', 'sales', 'audit']
+})), async (req, res) => {
+  try {
+    const { status = '', limit = '100' } = req.query
+    const take = Math.min(parseInt(limit, 10) || 100, 300)
+    const rows = await prisma.request.findMany({
+      where: {
+        tenantId: req.actorContext.tenantId,
+        comment: { contains: 'AI-agent/public request metadata' }
+      },
+      orderBy: { createdAt: 'desc' },
+      take
+    })
+    const serialized = rows.map(serializeAiDraftRequest)
+    res.json({
+      rows: status ? serialized.filter((row) => row.operationalStatus === status) : serialized,
+      summary: serialized.reduce((acc, row) => {
+        acc.total++
+        acc[row.operationalStatus] = (acc[row.operationalStatus] || 0) + 1
+        return acc
+      }, { total: 0 })
+    })
+  } catch (error) {
+    console.error('Error fetching AI draft requests:', error)
+    res.status(500).json({ error: 'Failed to fetch AI draft requests' })
+  }
+})
+
+app.post('/api/admin/ai-draft-requests/:requestId/clarification', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const request = await prisma.request.findFirst({
+      where: {
+        id: req.params.requestId,
+        tenantId: req.actorContext.tenantId,
+        comment: { contains: 'AI-agent/public request metadata' }
+      }
+    })
+    if (!request) return res.status(404).json({ error: 'AI draft request not found' })
+    const updated = await prisma.request.update({
+      where: { id: request.id },
+      data: {
+        comment: appendAiRequestOperatorNote(request.comment, {
+          status: 'needs_clarification',
+          user: req.user,
+          note: req.body?.comment
+        })
+      }
+    })
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'ai_draft_request.needs_clarification',
+      resource: 'request',
+      resourceId: request.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: { comment: req.body?.comment || null }
+    })
+    res.json({ success: true, request: serializeAiDraftRequest(updated) })
+  } catch (error) {
+    console.error('Error marking AI draft request for clarification:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to mark request' })
+  }
+})
+
+app.post('/api/admin/ai-draft-requests/:requestId/close', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+  try {
+    const request = await prisma.request.findFirst({
+      where: {
+        id: req.params.requestId,
+        tenantId: req.actorContext.tenantId,
+        comment: { contains: 'AI-agent/public request metadata' }
+      }
+    })
+    if (!request) return res.status(404).json({ error: 'AI draft request not found' })
+    const updated = await prisma.request.update({
+      where: { id: request.id },
+      data: {
+        comment: appendAiRequestOperatorNote(request.comment, {
+          status: 'closed',
+          user: req.user,
+          note: req.body?.comment
+        })
+      }
+    })
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'ai_draft_request.close',
+      resource: 'request',
+      resourceId: request.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: { comment: req.body?.comment || null }
+    })
+    res.json({ success: true, request: serializeAiDraftRequest(updated) })
+  } catch (error) {
+    console.error('Error closing AI draft request:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to close request' })
+  }
+})
+
+app.post('/api/admin/ai-draft-requests/:requestId/create-draft-order', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'orders.create_draft']), async (req, res) => {
+  try {
+    const request = await prisma.request.findFirst({
+      where: {
+        id: req.params.requestId,
+        tenantId: req.actorContext.tenantId,
+        comment: { contains: 'AI-agent/public request metadata' }
+      }
+    })
+    if (!request) return res.status(404).json({ error: 'AI draft request not found' })
+    const meta = parseAiRequestMetadata(request.comment)
+    const externalKey = `ai-public:${request.id}`
+    const payload = { requestId: request.id, externalKey }
+    ensureIdempotencyKey(req, 'ai_draft_request.create_draft_order', payload)
+    const wrapped = await withIdempotency(req, 'ai_draft_request.create_draft_order', payload, async () => {
+      const existing = await prisma.order.findFirst({
+        where: { tenantId: req.actorContext.tenantId, externalKey }
+      })
+      const order = existing || await prisma.order.create({
+        data: {
+          tenantId: req.actorContext.tenantId,
+          source: 'ai_public',
+          externalKey,
+          pickupAt: request.date,
+          fromPoint: request.fromPoint || 'TBD',
+          toPoint: request.toPoint || 'TBD',
+          clientPrice: 0,
+          driverPrice: null,
+          commission: null,
+          status: 'draft',
+          vehicleType: normalizeVehicleType(meta.vehicleClass || req.body?.vehicleType || 'TBD'),
+          passengers: request.passengers,
+          luggage: request.luggage,
+          needsInfo: true,
+          infoReason: 'AI/public API draft: confirm availability and final client price before execution',
+          flightNumber: meta.flightNumber || null,
+          sourceComment: `Created from AI public request ${request.id}`,
+          comment: [
+            `AI/public API draft request ${request.id}`,
+            request.comment || null,
+            req.body?.comment ? `Operator note: ${normalizeText(req.body.comment, 500)}` : null
+          ].filter(Boolean).join('\n').slice(0, 2000),
+          lang: request.lang || 'en'
+        }
+      })
+      if (!existing) {
+        await prisma.orderStatusHistory.create({
+          data: {
+            orderId: order.id,
+            tenantId: req.actorContext.tenantId,
+            fromStatus: 'new',
+            toStatus: 'draft',
+            reason: 'Created from AI public draft request after operator action',
+            actorUserId: req.user?.id || null,
+            actorEmail: req.user?.email || null,
+            source: 'ai_public_request'
+          }
+        })
+      }
+      const updatedRequest = await prisma.request.update({
+        where: { id: request.id },
+        data: {
+          comment: appendAiRequestOperatorNote(request.comment, {
+            status: 'draft_order_created',
+            user: req.user,
+            note: req.body?.comment,
+            orderId: order.id
+          })
+        }
+      })
+      return { order, request: serializeAiDraftRequest(updatedRequest), created: !existing }
+    })
+    res.status(wrapped.replayed ? 200 : 201).json({
+      success: true,
+      ...wrapped.data,
+      idempotent: wrapped.replayed
+    })
+  } catch (error) {
+    console.error('Error creating draft order from AI request:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to create draft order' })
+  }
 })
 
 app.get('/api/admin/drivers', authenticateToken, resolveActorContext, requireActorContext, requireCan('drivers.read', 'driver'), async (req, res) => {

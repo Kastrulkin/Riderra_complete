@@ -48,6 +48,7 @@ async function main() {
     const { response, text } = await readText('/llms.txt')
     assertOk(response.status === 200, `llms.txt status ${response.status}`)
     assertOk(text.includes('/api/public/order-requests'), 'llms.txt missing order request endpoint')
+    assertOk(text.includes('/api/public/openapi.json'), 'llms.txt missing OpenAPI endpoint')
     assertOk(text.includes('Idempotency-Key'), 'llms.txt missing idempotency guidance')
   })
 
@@ -68,7 +69,7 @@ async function main() {
   })
 
   await check('public APIs', async () => {
-    for (const path of ['/api/public/riderra-profile', '/api/public/services', '/api/public/order-request-schema']) {
+    for (const path of ['/api/public/riderra-profile', '/api/public/services', '/api/public/pricing-hints', '/api/public/order-request-schema', '/api/public/openapi.json']) {
       const { response, text } = await readText(path)
       assertOk(response.status === 200, `${path} status ${response.status}`)
       JSON.parse(text)
