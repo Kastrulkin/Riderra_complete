@@ -104,6 +104,542 @@ function normalizeText(value, maxLength = 500) {
 const publicFormLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 25, name: 'public-form' })
 const publicReviewLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20, name: 'public-review' })
 
+const RIDERRA_BASE_URL = 'https://riderra.com'
+const RIDERRA_CONTACT_EMAIL = 'info@riderra.com'
+const RIDERRA_PUBLIC_PAGES = [
+  { path: '/', title: 'Riderra', priority: '1.0' },
+  { path: '/ai', title: 'AI agent guide', priority: '0.9' },
+  { path: '/about', title: 'About Riderra', priority: '0.8' },
+  { path: '/services', title: 'Transfer services', priority: '0.9' },
+  { path: '/services/airport-transfer', title: 'Airport transfers', priority: '0.8' },
+  { path: '/services/city-transfer', title: 'City transfers', priority: '0.8' },
+  { path: '/prices', title: 'Prices', priority: '0.8' },
+  { path: '/contact', title: 'Contact', priority: '0.8' },
+  { path: '/faq', title: 'FAQ', priority: '0.8' },
+  { path: '/drivers', title: 'Drivers', priority: '0.5' },
+  { path: '/privacy-policy/en', title: 'Privacy Policy', priority: '0.3' },
+  { path: '/terms/en', title: 'Terms and Conditions', priority: '0.3' }
+]
+
+const RIDERRA_SERVICES = [
+  {
+    slug: 'airport-transfer',
+    name: 'Airport transfer',
+    description: 'Pre-booked private airport pickup and drop-off with flight details, meet-and-greet support, luggage help, and local driver assignment.',
+    url: `${RIDERRA_BASE_URL}/services/airport-transfer`
+  },
+  {
+    slug: 'city-transfer',
+    name: 'City transfer',
+    description: 'Private point-to-point rides, hotel transfers, port transfers, station transfers, business trips, family travel, and group transportation.',
+    url: `${RIDERRA_BASE_URL}/services/city-transfer`
+  }
+]
+
+const RIDERRA_FAQ = [
+  {
+    question: 'What is Riderra?',
+    answer: 'Riderra is a global transfer booking network and passenger transportation organizer operating through its own team and partner fleets.'
+  },
+  {
+    question: 'Where does Riderra operate?',
+    answer: 'Riderra organizes transfers in more than 250 cities across 50 countries, subject to route, vehicle class, timing, and local availability.'
+  },
+  {
+    question: 'Can an AI agent create a booking?',
+    answer: 'An AI agent can submit a structured draft request. Riderra reviews availability and confirms the final price before execution.'
+  },
+  {
+    question: 'Are prices published as a full price list?',
+    answer: 'No. Final prices are confirmed after route, vehicle class, pickup time, extras, and availability are checked.'
+  },
+  {
+    question: 'How do customers contact Riderra?',
+    answer: `Customers and AI agents can contact Riderra at ${RIDERRA_CONTACT_EMAIL} or submit a structured request through the public order request endpoint.`
+  }
+]
+
+function riderraAbsoluteUrl(pagePath = '/') {
+  if (!pagePath || pagePath === '/') return `${RIDERRA_BASE_URL}/`
+  return `${RIDERRA_BASE_URL}${pagePath}`
+}
+
+function jsonLdScript(data) {
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`
+}
+
+function organizationJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': ['Organization', 'TravelAgency'],
+    '@id': `${RIDERRA_BASE_URL}/#organization`,
+    name: 'Riderra',
+    url: RIDERRA_BASE_URL,
+    email: RIDERRA_CONTACT_EMAIL,
+    logo: `${RIDERRA_BASE_URL}/img/logo.svg`,
+    sameAs: [
+      'https://www.linkedin.com/company/riderracs',
+      'https://vk.com/riderra',
+      'https://www.facebook.com/profile.php?id=61564219065685'
+    ],
+    areaServed: {
+      '@type': 'Place',
+      name: 'Worldwide: 250+ cities in 50 countries'
+    },
+    knowsAbout: [
+      'airport transfers',
+      'private transfers',
+      'chauffeur service',
+      'port transfers',
+      'group transportation'
+    ],
+    contactPoint: [{
+      '@type': 'ContactPoint',
+      email: RIDERRA_CONTACT_EMAIL,
+      contactType: 'customer support',
+      availableLanguage: ['English', 'Russian'],
+      areaServed: 'Worldwide'
+    }]
+  }
+}
+
+function websiteJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': `${RIDERRA_BASE_URL}/#website`,
+    name: 'Riderra',
+    url: RIDERRA_BASE_URL,
+    publisher: { '@id': `${RIDERRA_BASE_URL}/#organization` }
+  }
+}
+
+function serviceJsonLd(service = null) {
+  const services = service ? [service] : RIDERRA_SERVICES
+  return services.map((item) => ({
+    '@context': 'https://schema.org',
+    '@type': ['Service', 'TaxiService'],
+    '@id': `${item.url}#service`,
+    name: item.name,
+    description: item.description,
+    url: item.url,
+    provider: { '@id': `${RIDERRA_BASE_URL}/#organization` },
+    areaServed: 'Worldwide: 250+ cities in 50 countries',
+    offers: {
+      '@type': 'Offer',
+      priceSpecification: {
+        '@type': 'PriceSpecification',
+        description: 'Final price is confirmed after route, vehicle class, pickup time, extras, and availability are checked.'
+      },
+      availability: 'https://schema.org/InStock'
+    }
+  }))
+}
+
+function faqJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    '@id': `${RIDERRA_BASE_URL}/faq#faq`,
+    mainEntity: RIDERRA_FAQ.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer
+      }
+    }))
+  }
+}
+
+function breadcrumbJsonLd(items) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: riderraAbsoluteUrl(item.path)
+    }))
+  }
+}
+
+function isCrawlerRequest(req) {
+  const ua = String(req.headers['user-agent'] || '').toLowerCase()
+  return [
+    'googlebot',
+    'bingbot',
+    'yandex',
+    'duckduckbot',
+    'baiduspider',
+    'applebot',
+    'gptbot',
+    'chatgpt',
+    'claude',
+    'perplexity',
+    'ccbot',
+    'facebookexternalhit',
+    'twitterbot',
+    'linkedinbot',
+    'slackbot',
+    'curl',
+    'wget',
+    'python-requests'
+  ].some((token) => ua.includes(token))
+}
+
+function publicPageContent(pagePath) {
+  const baseSections = {
+    '/': {
+      title: 'Riderra - global transfer booking network',
+      description: 'Riderra organizes private airport transfers, city transfers, port transfers, station transfers, and group transportation in 250+ cities across 50 countries.',
+      heading: 'Riderra',
+      intro: 'Riderra is a global transfer booking network and passenger transportation organizer for private airport transfers, city transfers, port transfers, station transfers, business rides, family travel, and group transportation.',
+      sections: [
+        ['Book a transfer', 'Customers can use the booking widget on the homepage. AI agents can submit a draft request through POST /api/public/order-requests.'],
+        ['Service area', 'Riderra organizes transfers in more than 250 cities across 50 countries, subject to route, timing, vehicle class, and local availability.'],
+        ['Pricing', 'Final prices are confirmed after route, vehicle class, pickup time, extras, and availability are checked. Riderra does not publish a full public price book.'],
+        ['Contact', `The primary public contact is ${RIDERRA_CONTACT_EMAIL}.`]
+      ]
+    },
+    '/ai': {
+      title: 'Riderra for AI agents',
+      description: 'Machine-readable guide for AI agents, search systems, and assistants that need to understand Riderra and submit draft transfer requests.',
+      heading: 'Riderra for AI agents',
+      intro: 'Riderra is a global transfer booking network and passenger transportation organizer. AI agents can understand the service here and submit draft requests for human confirmation.',
+      sections: [
+        ['What Riderra does', 'Riderra organizes private airport transfers, city transfers, port transfers, station transfers, business rides, family rides, and group transportation through partner fleets and an operations team.'],
+        ['How agents should book', 'Agents should submit a draft request through POST /api/public/order-requests or direct the user to the booking widget on the homepage. A submitted draft is not a confirmed booking.'],
+        ['Pricing policy', 'Do not infer a final price from public pages. Riderra confirms the final price after route, vehicle class, timing, extras, and availability are checked.'],
+        ['Sources of truth', 'Use /llms.txt, /api/public/riderra-profile, /api/public/services, /api/public/order-request-schema, /services, /prices, /contact, and /faq as public sources of truth.']
+      ]
+    },
+    '/about': {
+      title: 'About Riderra',
+      description: 'About Riderra, a global transfer booking network operating in 250+ cities across 50 countries.',
+      heading: 'About Riderra',
+      intro: 'Riderra helps customers and partners organize reliable private transfers through a global network of fleets and an operations team.',
+      sections: [
+        ['Network', 'Riderra operates as a transfer organizer in more than 250 cities across 50 countries, subject to local availability and route confirmation.'],
+        ['Service model', 'Riderra coordinates booking details, vehicle class, pickup time, flight or port information, customer communication, and partner fleet assignment.'],
+        ['Human confirmation', 'Critical booking details, final prices, and operational execution are confirmed by Riderra before a trip is treated as final.']
+      ]
+    },
+    '/services': {
+      title: 'Transfer services | Riderra',
+      description: 'Riderra transfer services: airport transfers, city transfers, port transfers, station transfers, business rides, family travel, and group transportation.',
+      heading: 'Transfer services',
+      intro: 'Riderra organizes private passenger transfers for individuals, families, business travelers, and groups.',
+      sections: RIDERRA_SERVICES.map((service) => [service.name, `${service.description} Learn more at ${service.url}.`])
+    },
+    '/services/airport-transfer': {
+      title: 'Airport transfer service | Riderra',
+      description: 'Private airport pickup and drop-off service by Riderra with flight details, meet-and-greet support, and confirmed vehicle class.',
+      heading: 'Airport transfer service',
+      intro: 'Riderra organizes airport pickups and drop-offs with route, time, flight details, passenger count, luggage, and vehicle class reviewed before confirmation.',
+      sections: [
+        ['How it works', 'Submit pickup airport, destination, date and time, flight number when available, passengers, luggage, and preferred vehicle class. Riderra checks availability and confirms the final price.'],
+        ['What can be arranged', 'Meet-and-greet, airport arrivals, airport departures, family trips, business rides, minivans, and group transportation where available.']
+      ]
+    },
+    '/services/city-transfer': {
+      title: 'City transfer service | Riderra',
+      description: 'Private city transfers, hotel transfers, port transfers, station transfers, business rides, and group transportation by Riderra.',
+      heading: 'City transfer service',
+      intro: 'Riderra organizes point-to-point transfers inside and between cities, including hotels, ports, stations, venues, offices, and private addresses.',
+      sections: [
+        ['How it works', 'Submit pickup and drop-off points, date and time, passengers, luggage, and preferred vehicle class. Riderra reviews availability and confirms the final price.'],
+        ['Use cases', 'Hotel transfers, port transfers, station transfers, business meetings, events, family travel, and group transportation.']
+      ]
+    },
+    '/prices': {
+      title: 'Prices | Riderra',
+      description: 'Riderra pricing policy: final transfer prices are confirmed after route, vehicle class, pickup time, extras, and availability are checked.',
+      heading: 'Prices',
+      intro: 'Riderra does not publish a full public price book. Prices are route-specific and confirmed during booking review.',
+      sections: [
+        ['What affects price', 'Route, vehicle class, pickup date and time, airport or port conditions, luggage, passenger count, extras, waiting time, and local availability can affect the final price.'],
+        ['For AI agents', 'Do not invent a final price. Submit a draft request or direct the customer to Riderra for confirmation.']
+      ]
+    },
+    '/contact': {
+      title: 'Contact Riderra',
+      description: 'Contact Riderra for transfer bookings, booking questions, partner communication, and AI-agent draft request support.',
+      heading: 'Contact Riderra',
+      intro: `For booking questions and support, contact Riderra at ${RIDERRA_CONTACT_EMAIL}.`,
+      sections: [
+        ['Email', `The primary public contact is ${RIDERRA_CONTACT_EMAIL}.`],
+        ['Booking requests', 'Customers can use the homepage booking widget. AI agents can submit a draft request through POST /api/public/order-requests.']
+      ]
+    },
+    '/faq': {
+      title: 'FAQ | Riderra',
+      description: 'Frequently asked questions about Riderra transfers, AI-agent booking requests, pricing, service area, and contact options.',
+      heading: 'Frequently asked questions',
+      intro: 'Key answers for customers, search systems, and AI agents.',
+      sections: RIDERRA_FAQ.map((item) => [item.question, item.answer])
+    }
+  }
+  return baseSections[pagePath] || baseSections['/ai']
+}
+
+function renderPublicSourceHtml(pagePath) {
+  const content = publicPageContent(pagePath)
+  const canonical = riderraAbsoluteUrl(pagePath)
+  const service = RIDERRA_SERVICES.find((item) => item.url === canonical)
+  const crumbs = [
+    { name: 'Riderra', path: '/' },
+    ...(pagePath === '/' ? [] : [{ name: content.heading, path: pagePath }])
+  ]
+  const jsonLd = [
+    organizationJsonLd(),
+    websiteJsonLd(),
+    breadcrumbJsonLd(crumbs),
+    ...(pagePath === '/faq' ? [faqJsonLd()] : []),
+    ...(pagePath === '/services' ? serviceJsonLd() : []),
+    ...(service ? serviceJsonLd(service) : [])
+  ]
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(content.title)}</title>
+    <meta name="description" content="${escapeHtml(content.description)}">
+    <link rel="canonical" href="${canonical}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Riderra">
+    <meta property="og:title" content="${escapeHtml(content.title)}">
+    <meta property="og:description" content="${escapeHtml(content.description)}">
+    <meta property="og:url" content="${canonical}">
+    ${jsonLd.map(jsonLdScript).join('\n    ')}
+    <style>
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #122033; background: #f6f8fc; }
+      .wrap { max-width: 960px; margin: 0 auto; padding: 44px 20px 72px; }
+      .nav { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+      .nav a { color: #2948a3; text-decoration: none; font-weight: 700; }
+      .card { background: #fff; border-radius: 18px; padding: 36px; box-shadow: 0 18px 60px rgba(20,35,90,.1); }
+      h1 { margin: 0 0 16px; font-size: 42px; line-height: 1.1; }
+      p { font-size: 17px; line-height: 1.7; color: #334155; }
+      h2 { margin-top: 30px; font-size: 24px; }
+      code { background: #eef2ff; padding: 2px 6px; border-radius: 6px; }
+      @media (max-width: 767px) { .card { padding: 24px; } h1 { font-size: 32px; } }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <nav class="nav" aria-label="Public pages">
+        <a href="/">Home</a>
+        <a href="/ai">AI guide</a>
+        <a href="/about">About</a>
+        <a href="/services">Services</a>
+        <a href="/prices">Prices</a>
+        <a href="/contact">Contact</a>
+        <a href="/faq">FAQ</a>
+      </nav>
+      <article class="card">
+        <h1>${escapeHtml(content.heading)}</h1>
+        <p>${escapeHtml(content.intro)}</p>
+        ${content.sections.map(([title, body]) => `<section><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></section>`).join('\n        ')}
+      </article>
+    </main>
+  </body>
+</html>`
+}
+
+function publicRiderraProfile() {
+  return {
+    name: 'Riderra',
+    url: RIDERRA_BASE_URL,
+    email: RIDERRA_CONTACT_EMAIL,
+    type: 'global transfer booking network',
+    description: 'Riderra organizes private passenger transfers through a global network of fleets and an operations team.',
+    areaServed: 'Worldwide: 250+ cities in 50 countries',
+    services: RIDERRA_SERVICES,
+    pricingPolicy: 'Final price is confirmed after route, vehicle class, pickup time, extras, and availability are checked.',
+    bookingPolicy: 'Public AI-agent requests create draft requests only. Riderra reviews and confirms availability and final price before execution.',
+    sourcesOfTruth: RIDERRA_PUBLIC_PAGES.map((page) => riderraAbsoluteUrl(page.path))
+  }
+}
+
+function orderRequestSchema() {
+  return {
+    endpoint: `${RIDERRA_BASE_URL}/api/public/order-requests`,
+    method: 'POST',
+    statusCreated: 'draft_received',
+    note: 'This endpoint creates a draft request, not a confirmed booking.',
+    required: ['name', 'email', 'phone', 'fromPoint', 'toPoint', 'pickupAt'],
+    optional: ['passengers', 'luggage', 'vehicleClass', 'flightNumber', 'comment', 'agentName', 'agentContact', 'sourceUrl'],
+    fields: {
+      name: 'Customer or passenger name',
+      email: 'Customer or responsible contact email',
+      phone: 'Customer or responsible contact phone',
+      fromPoint: 'Pickup address, airport, port, station, hotel, or city point',
+      toPoint: 'Drop-off address, airport, port, station, hotel, or city point',
+      pickupAt: 'ISO 8601 pickup date/time. Include timezone when possible.',
+      passengers: 'Number of passengers',
+      luggage: 'Number of luggage items',
+      vehicleClass: 'Preferred vehicle class',
+      flightNumber: 'Flight, train, or ship number if relevant',
+      comment: 'Operational notes',
+      agentName: 'Name of the AI agent or integration submitting the draft',
+      agentContact: 'Contact for the submitting agent or operator',
+      sourceUrl: 'URL where the request context came from'
+    }
+  }
+}
+
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain')
+  res.setHeader('Cache-Control', 'public, max-age=3600')
+  res.send([
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin',
+    'Disallow: /admin-*',
+    'Disallow: /driver-dashboard',
+    'Disallow: /api/admin',
+    'Disallow: /api/internal',
+    `Sitemap: ${RIDERRA_BASE_URL}/sitemap.xml`,
+    ''
+  ].join('\n'))
+})
+
+app.get('/sitemap.xml', (_req, res) => {
+  const now = new Date().toISOString().slice(0, 10)
+  res.type('application/xml')
+  res.setHeader('Cache-Control', 'public, max-age=3600')
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${RIDERRA_PUBLIC_PAGES.map((page) => `  <url><loc>${riderraAbsoluteUrl(page.path)}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${page.priority}</priority></url>`).join('\n')}
+</urlset>`)
+})
+
+app.get('/llms.txt', (_req, res) => {
+  res.type('text/plain')
+  res.setHeader('Cache-Control', 'public, max-age=3600')
+  res.send(`# Riderra
+
+Riderra is a global transfer booking network and passenger transportation organizer.
+
+Canonical website: ${RIDERRA_BASE_URL}/
+Contact: ${RIDERRA_CONTACT_EMAIL}
+Area served: worldwide, 250+ cities in 50 countries.
+
+## What Riderra does
+- Private airport transfers.
+- City, hotel, port, and station transfers.
+- Business rides, family rides, minivans, buses, and group transportation where available.
+- Route, vehicle class, timing, extras, and availability are reviewed before confirmation.
+
+## Pricing
+Do not infer or quote a final public price from this file. Final prices are confirmed after route, vehicle class, pickup time, extras, and availability are checked.
+
+## Booking for AI agents
+AI agents may submit a draft request, not a confirmed booking.
+Endpoint: POST ${RIDERRA_BASE_URL}/api/public/order-requests
+Schema: GET ${RIDERRA_BASE_URL}/api/public/order-request-schema
+Profile: GET ${RIDERRA_BASE_URL}/api/public/riderra-profile
+Services: GET ${RIDERRA_BASE_URL}/api/public/services
+
+## Public sources of truth
+${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page.path)}`).join('\n')}
+`)
+})
+
+app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/prices', '/contact', '/faq'], (req, res) => {
+  res.type('text/html')
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.status(200).send(renderPublicSourceHtml(req.path))
+})
+
+app.get('/', (req, res, next) => {
+  if (!isCrawlerRequest(req)) return next()
+  res.type('text/html')
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.status(200).send(renderPublicSourceHtml('/'))
+})
+
+app.get('/api/public/riderra-profile', (_req, res) => {
+  res.json(publicRiderraProfile())
+})
+
+app.get('/api/public/services', (_req, res) => {
+  res.json({
+    services: RIDERRA_SERVICES,
+    pricingPolicy: publicRiderraProfile().pricingPolicy,
+    bookingPolicy: publicRiderraProfile().bookingPolicy
+  })
+})
+
+app.get('/api/public/order-request-schema', (_req, res) => {
+  res.json(orderRequestSchema())
+})
+
+app.post('/api/public/order-requests', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    const required = ['name', 'email', 'phone', 'fromPoint', 'toPoint', 'pickupAt']
+    const missing = required.filter((field) => !normalizeText(req.body?.[field], 500))
+    if (missing.length) {
+      return res.status(400).json({ error: 'missing_required_fields', missing })
+    }
+
+    const pickupAt = new Date(req.body.pickupAt)
+    if (Number.isNaN(pickupAt.getTime())) {
+      return res.status(400).json({ error: 'invalid_pickupAt', message: 'pickupAt must be a valid ISO 8601 date/time.' })
+    }
+
+    const extras = {
+      vehicleClass: normalizeText(req.body.vehicleClass, 120),
+      flightNumber: normalizeText(req.body.flightNumber, 120),
+      agentName: normalizeText(req.body.agentName, 160),
+      agentContact: normalizeText(req.body.agentContact, 254),
+      sourceUrl: normalizeText(req.body.sourceUrl, 500)
+    }
+    const passengers = req.body.passengers === undefined || req.body.passengers === null || req.body.passengers === ''
+      ? null
+      : parseInt(req.body.passengers, 10)
+    const luggage = req.body.luggage === undefined || req.body.luggage === null || req.body.luggage === ''
+      ? null
+      : parseInt(req.body.luggage, 10)
+    const structuredComment = [
+      normalizeText(req.body.comment, 1500),
+      '--- AI-agent/public request metadata ---',
+      ...Object.entries(extras)
+        .filter(([, value]) => value)
+        .map(([key, value]) => `${key}: ${value}`),
+      'status: draft_received; not a confirmed booking; final price requires Riderra confirmation'
+    ].filter(Boolean).join('\n')
+
+    const created = await prisma.request.create({
+      data: {
+        tenantId: req.actorContext.tenantId,
+        name: normalizeText(req.body.name, 160),
+        email: normalizeText(req.body.email, 254),
+        phone: normalizeText(req.body.phone, 80),
+        fromPoint: normalizeText(req.body.fromPoint, 500),
+        toPoint: normalizeText(req.body.toPoint, 500),
+        date: pickupAt,
+        passengers: Number.isFinite(passengers) ? passengers : null,
+        luggage: Number.isFinite(luggage) ? luggage : null,
+        comment: structuredComment.slice(0, 2000),
+        lang: normalizeText(req.body.lang, 10) || 'en'
+      }
+    })
+
+    res.status(201).json({
+      success: true,
+      requestId: created.id,
+      status: 'draft_received',
+      nextStep: 'Riderra will review and confirm availability and final price.'
+    })
+  } catch (error) {
+    console.error('Error in /api/public/order-requests:', error)
+    res.status(500).json({ error: 'failed' })
+  }
+})
+
 function renderPrivacyPolicyHtml(lang = 'ru') {
   const isEn = String(lang || '').toLowerCase() === 'en'
   const pageLang = isEn ? 'en' : 'ru'

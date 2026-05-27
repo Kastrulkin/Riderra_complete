@@ -22,6 +22,9 @@
     <nav class="nav-list">
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework || 'How we work'}}</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">{{textData.park || 'Cars'}}</nuxt-link>
+      <a href="/services" class="nav-list__item">{{ $store.state.language === 'ru' ? 'Услуги' : 'Services' }}</a>
+      <a href="/prices" class="nav-list__item">{{ $store.state.language === 'ru' ? 'Цены' : 'Prices' }}</a>
+      <a href="/contact" class="nav-list__item">{{ $store.state.language === 'ru' ? 'Контакты' : 'Contact' }}</a>
       <nuxt-link to="/drivers" class="nav-list__item">{{$store.state.language === 'ru' ? 'Перевозчикам' : 'Drivers'}}</nuxt-link>
     </nav>
     <tabs-nav></tabs-nav>
