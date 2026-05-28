@@ -194,7 +194,7 @@
                         <input
                           class="input"
                           :value="deliveryForm(message).templateName"
-                          placeholder="baggage_request"
+                          placeholder="riderra_baggage_request"
                           @input="updateDeliveryForm(message.id, 'templateName', $event.target.value)"
                         >
                       </label>
@@ -476,34 +476,36 @@ export default {
     deliveryForms: {},
     whatsappTemplatePresets: [
       {
-        name: 'baggage_request',
+        name: 'riderra_baggage_request',
         label: 'Baggage request',
         description: 'Запросить количество чемоданов, сумок и нестандартного багажа.',
-        variables: ['booking_number', 'route_from', 'route_to']
+        language: 'en',
+        languages: ['en'],
+        variables: ['city', 'pickup_date']
       },
       {
-        name: 'flight_request',
+        name: 'riderra_flight_request',
         label: 'Flight request',
         description: 'Запросить номер рейса и дату прилёта/вылета.',
-        variables: ['booking_number', 'route_from', 'route_to']
+        language: 'en',
+        languages: ['en'],
+        variables: ['city', 'pickup_date']
       },
       {
-        name: 'pickup_request',
-        label: 'Pickup point request',
-        description: 'Уточнить точное место подачи: адрес, терминал, вход или ориентир.',
-        variables: ['booking_number', 'route_from', 'route_to']
+        name: 'riderra_passengers_request',
+        label: 'Passengers request',
+        description: 'Запросить количество пассажиров.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['city', 'pickup_date']
       },
       {
-        name: 'trip_confirmation',
-        label: 'Trip confirmation',
-        description: 'Передать клиенту подтверждённые детали поездки, водителя или ссылку.',
-        variables: ['booking_number', 'route_from', 'route_to', 'trip_details']
-      },
-      {
-        name: 'order_clarification',
-        label: 'Order clarification',
-        description: 'Универсальное уточнение недостающих данных по заказу.',
-        variables: ['booking_number', 'route_from', 'route_to', 'question']
+        name: 'riderra_trip_message',
+        label: 'Trip message',
+        description: 'Общее служебное сообщение о предстоящей поездке.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['city', 'pickup_date']
       }
     ],
     agentForm: {
@@ -1477,27 +1479,42 @@ export default {
       }
     },
     suggestMessageLanguage() {
-      const orderLang = String(this.selectedTask?.order?.lang || '').trim().toLowerCase()
-      return orderLang === 'ru' ? 'ru' : 'en'
+      return 'en'
+    },
+    contactReasonCode(message = null) {
+      const reason = String(this.selectedTask?.order?.infoReason || message?.bodyText || '').toLowerCase()
+      if (this.selectedTask?.taskType === 'dispatch_info') return 'trip'
+      if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('baggage') || reason.includes('bag') || reason.includes('suitcase') || reason.includes('чемодан')) return 'baggage'
+      if (reason.includes('рейс') || reason.includes('flight') || reason.includes('arrival') || reason.includes('прилет') || reason.includes('прилёт')) return 'flight'
+      if (reason.includes('пассажир') || reason.includes('passenger') || reason.includes('pax') || reason.includes('количество людей')) return 'passengers'
+      return 'trip'
     },
     suggestTemplateName(message) {
-      const reason = String(this.selectedTask?.order?.infoReason || message?.bodyText || '').toLowerCase()
-      if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('bag')) return 'baggage_request'
-      if (reason.includes('рейс') || reason.includes('flight')) return 'flight_request'
-      if (reason.includes('подач') || reason.includes('pickup') || reason.includes('address')) return 'pickup_request'
-      if (this.selectedTask?.taskType === 'dispatch_info') return 'trip_confirmation'
-      return 'order_clarification'
+      const code = this.contactReasonCode(message)
+      const byReason = {
+        baggage: 'riderra_baggage_request',
+        flight: 'riderra_flight_request',
+        passengers: 'riderra_passengers_request',
+        trip: 'riderra_trip_message'
+      }
+      return byReason[code] || 'riderra_trip_message'
     },
     suggestTemplateVariables(message, templateName = '') {
       const order = this.selectedTask?.order || {}
+      const pickupAt = order.pickupAt ? new Date(order.pickupAt) : null
+      const pickupDate = pickupAt && Number.isFinite(pickupAt.getTime())
+        ? pickupAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+        : ''
       const variables = {
         booking_number: order.externalKey || order.id || '',
         route_from: order.fromPoint || '',
         route_to: order.toPoint || '',
+        city: order.sourceCityCode || order.toPoint || order.fromPoint || 'your city',
+        pickup_date: pickupDate || 'your trip date',
         question: String(message?.bodyText || '').trim()
       }
       const name = String(templateName || this.suggestTemplateName(message)).trim()
-      if (name === 'trip_confirmation') {
+      if (name === 'riderra_trip_message') {
         variables.trip_details = String(message?.bodyText || '').trim()
       }
       return variables
