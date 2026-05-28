@@ -5440,7 +5440,7 @@ async function pickDefaultAgentIdForTaskType(tenantId, taskType) {
 
 function buildOrderChatPrefill(order = null, taskType = 'clarification') {
   const route = [order?.fromPoint, order?.toPoint].filter(Boolean).join(' -> ')
-  const orderKey = String(order?.externalKey || '').trim()
+  const orderKey = publicOrderReference(order)
   const infoReason = String(order?.infoReason || '').trim()
   const lang = normalizeCustomerMessageLang(order?.lang)
   if (taskType === 'dispatch_info') {
@@ -5464,6 +5464,33 @@ function buildOrderChatPrefill(order = null, taskType = 'clarification') {
     ? 'Спасибо! После ответа сразу подтвердим детали поездки.'
     : 'Thank you. Once we receive your reply, we will confirm the trip details.')
   return lines.join(' ')
+}
+
+function isTechnicalOrderReference(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return true
+  const lower = raw.toLowerCase()
+  if (lower.startsWith('google_sheet:')) return true
+  if (lower.includes('google_sheet')) return true
+  if (lower.includes('spreadsheets/d/')) return true
+  if (raw.split(':').length >= 4) return true
+  if (/^\d+\.0+$/.test(raw)) return true
+  if (/^\d{1,3}$/.test(raw)) return true
+  return false
+}
+
+function publicOrderReference(order = null) {
+  const candidates = [
+    order?.sourceBookingId,
+    order?.sourceOrderNumber,
+    order?.sourceInternalOrderNumber,
+    String(order?.source || '').trim() === 'google_sheet' ? '' : order?.externalKey
+  ]
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim()
+    if (value && !isTechnicalOrderReference(value)) return value
+  }
+  return ''
 }
 
 function normalizeCustomerMessageLang(value = '') {
@@ -5525,7 +5552,7 @@ function buildWhatsAppTemplateVariables({ task = {}, messageText = '', templateN
     : ''
   const city = order.sourceCityCode || order.toPoint || order.fromPoint || ''
   const variables = {
-    booking_number: order.externalKey || order.id || '',
+    booking_number: publicOrderReference(order),
     route_from: order.fromPoint || '',
     route_to: order.toPoint || '',
     city: city || 'your city',
@@ -6769,6 +6796,11 @@ app.get('/api/business/:businessId/conversations', authenticateToken, resolveAct
           select: {
             id: true,
             externalKey: true,
+            source: true,
+            sourceOrderNumber: true,
+            sourceBookingId: true,
+            sourceInternalOrderNumber: true,
+            pickupAt: true,
             fromPoint: true,
             toPoint: true,
             clientPrice: true,
@@ -6952,6 +6984,10 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
             externalKey: true,
             source: true,
             sourceRow: true,
+            sourceOrderNumber: true,
+            sourceBookingId: true,
+            sourceInternalOrderNumber: true,
+            pickupAt: true,
             fromPoint: true,
             toPoint: true,
             clientPrice: true,
@@ -7084,6 +7120,11 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
       select: {
         id: true,
         externalKey: true,
+        source: true,
+        sourceOrderNumber: true,
+        sourceBookingId: true,
+        sourceInternalOrderNumber: true,
+        pickupAt: true,
         fromPoint: true,
         toPoint: true,
         infoReason: true
@@ -7218,7 +7259,7 @@ app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorC
           },
           order: {
             id: order.id,
-            external_key: order.externalKey || null,
+            public_reference: publicOrderReference(order) || null,
             route_from: order.fromPoint || null,
             route_to: order.toPoint || null
           },
@@ -7447,6 +7488,10 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
             externalKey: true,
             source: true,
             sourceRow: true,
+            sourceOrderNumber: true,
+            sourceBookingId: true,
+            sourceInternalOrderNumber: true,
+            pickupAt: true,
             fromPoint: true,
             toPoint: true,
             clientPrice: true,
@@ -7606,6 +7651,10 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
             externalKey: true,
             source: true,
             sourceRow: true,
+            sourceOrderNumber: true,
+            sourceBookingId: true,
+            sourceInternalOrderNumber: true,
+            pickupAt: true,
             fromPoint: true,
             toPoint: true,
             clientPrice: true,
@@ -7655,9 +7704,10 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
         },
         order: {
           id: task.order?.id || null,
-          external_key: task.order?.externalKey || null,
+          public_reference: publicOrderReference(task.order) || null,
           route_from: task.order?.fromPoint || null,
           route_to: task.order?.toPoint || null,
+          pickup_at: task.order?.pickupAt || null,
           client_price: task.order?.clientPrice ?? null,
           status: task.order?.status || null,
           needs_info: !!task.order?.needsInfo,
@@ -7708,9 +7758,10 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
           ? 'Передаю подтвержденные детали вашей поездки.'
           : 'Here are the confirmed details of your trip.')
       }
-      if (task.order?.externalKey) lines.push(lang === 'ru'
-        ? `Номер заказа: ${task.order.externalKey}.`
-        : `Booking number: ${task.order.externalKey}.`)
+      const orderKey = publicOrderReference(task.order)
+      if (orderKey) lines.push(lang === 'ru'
+        ? `Номер заказа: ${orderKey}.`
+        : `Booking number: ${orderKey}.`)
       draftText = lines.join(' ')
     }
 
@@ -8028,7 +8079,7 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         },
         order: {
           id: message.chatTask.orderId || null,
-          external_key: message.chatTask.order?.externalKey || null,
+          public_reference: publicOrderReference(message.chatTask.order) || null,
           route_from: message.chatTask.order?.fromPoint || null,
           route_to: message.chatTask.order?.toPoint || null
         },
@@ -8290,7 +8341,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
           task: { id: task.id, type: task.taskType, state: task.state },
           order: {
             id: task.order?.id || null,
-            external_key: task.order?.externalKey || null,
+            public_reference: publicOrderReference(task.order) || null,
             needs_info: Boolean(task.order?.needsInfo),
             info_reason: task.order?.infoReason || null
           },
@@ -8351,7 +8402,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
             task: { id: task.id, type: task.taskType, state: task.state },
             order: {
               id: task.order?.id || null,
-              external_key: task.order?.externalKey || null,
+              public_reference: publicOrderReference(task.order) || null,
               from: task.order?.fromPoint || null,
               to: task.order?.toPoint || null,
               pickup_at: task.order?.pickupAt || null,
@@ -8627,7 +8678,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
           task: { id: task.id, type: task.taskType, state: task.state },
           order: {
             id: task.order?.id || null,
-            external_key: task.order?.externalKey || null,
+            public_reference: publicOrderReference(task.order) || null,
             needs_info: Boolean(task.order?.needsInfo),
             info_reason: task.order?.infoReason || null
           },
@@ -8680,7 +8731,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
             task: { id: task.id, type: task.taskType, state: task.state },
             order: {
               id: task.order?.id || null,
-              external_key: task.order?.externalKey || null,
+              public_reference: publicOrderReference(task.order) || null,
               from: task.order?.fromPoint || null,
               to: task.order?.toPoint || null,
               pickup_at: task.order?.pickupAt || null,

@@ -1559,7 +1559,7 @@ export default {
         ? pickupAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
         : ''
       const variables = {
-        booking_number: order.externalKey || order.id || '',
+        booking_number: this.publicOrderReference(order),
         route_from: order.fromPoint || '',
         route_to: order.toPoint || '',
         city: order.sourceCityCode || order.toPoint || order.fromPoint || 'your city',
@@ -1824,11 +1824,37 @@ export default {
       const n = Number(value)
       return Number.isFinite(n) ? `${n.toFixed(2)} EUR` : '-'
     },
+    isTechnicalOrderReference(value = '') {
+      const raw = String(value || '').trim()
+      if (!raw) return true
+      const lower = raw.toLowerCase()
+      if (lower.startsWith('google_sheet:')) return true
+      if (lower.includes('google_sheet')) return true
+      if (lower.includes('spreadsheets/d/')) return true
+      if (raw.split(':').length >= 4) return true
+      if (/^\d+\.0+$/.test(raw)) return true
+      if (/^\d{1,3}$/.test(raw)) return true
+      return false
+    },
+    publicOrderReference(order = null) {
+      const candidates = [
+        order?.sourceBookingId,
+        order?.sourceOrderNumber,
+        order?.sourceInternalOrderNumber,
+        String(order?.source || '').trim() === 'google_sheet' ? '' : order?.externalKey
+      ]
+      for (const candidate of candidates) {
+        const value = String(candidate || '').trim()
+        if (value && !this.isTechnicalOrderReference(value)) return value
+      }
+      return ''
+    },
     applyClarificationTemplate(template) {
       const order = this.selectedTask?.order || {}
       const isRu = String(order.lang || '').trim().toLowerCase() === 'ru'
-      const orderKey = order.externalKey
-        ? (isRu ? `Номер заказа: ${order.externalKey}. ` : `Booking number: ${order.externalKey}. `)
+      const publicReference = this.publicOrderReference(order)
+      const orderKey = publicReference
+        ? (isRu ? `Номер заказа: ${publicReference}. ` : `Booking number: ${publicReference}. `)
         : ''
       const route = this.routeLabel(order)
       const infoReason = String(order.infoReason || '').trim()
