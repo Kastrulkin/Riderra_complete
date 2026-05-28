@@ -17,8 +17,6 @@ const fs = require('fs/promises')
 const crypto = require('crypto')
 const os = require('os')
 const path = require('path')
-const { execFile } = require('child_process')
-const { promisify } = require('util')
 const {
   buildOpenClawEnvelope,
   validateOpenClawPayload,
@@ -27,7 +25,6 @@ const {
 
 const prisma = new PrismaClient()
 const app = express()
-const execFileAsync = promisify(execFile)
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
@@ -3011,6 +3008,115 @@ function buildVpnStopScript(platform) {
   ].join('\n')
 }
 
+const ZIP_CRC_TABLE = (() => {
+  const table = new Uint32Array(256)
+  for (let i = 0; i < 256; i += 1) {
+    let crc = i
+    for (let j = 0; j < 8; j += 1) {
+      crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1)
+    }
+    table[i] = crc >>> 0
+  }
+  return table
+})()
+
+function crc32(buffer) {
+  let crc = 0xffffffff
+  for (const byte of buffer) {
+    crc = ZIP_CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8)
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function zipDosDateTime(date = new Date()) {
+  const year = Math.max(1980, date.getFullYear())
+  const dosTime = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2)
+  const dosDate = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+  return { dosDate, dosTime }
+}
+
+async function collectZipFiles(rootDir, currentDir = rootDir) {
+  const entries = await fs.readdir(currentDir, { withFileTypes: true })
+  const files = []
+  for (const entry of entries) {
+    const absolutePath = path.join(currentDir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...await collectZipFiles(rootDir, absolutePath))
+      continue
+    }
+    if (!entry.isFile()) continue
+    const relativePath = path.relative(rootDir, absolutePath).split(path.sep).join('/')
+    files.push({ absolutePath, relativePath })
+  }
+  return files
+}
+
+async function writeZipArchiveFromDirectory(sourceDir, archivePath, rootName) {
+  const files = await collectZipFiles(sourceDir)
+  const chunks = []
+  const centralChunks = []
+  let offset = 0
+
+  for (const file of files) {
+    const data = await fs.readFile(file.absolutePath)
+    const stat = await fs.stat(file.absolutePath)
+    const { dosDate, dosTime } = zipDosDateTime(stat.mtime)
+    const nameBuffer = Buffer.from(`${rootName}/${file.relativePath}`, 'utf8')
+    const checksum = crc32(data)
+
+    const localHeader = Buffer.alloc(30)
+    localHeader.writeUInt32LE(0x04034b50, 0)
+    localHeader.writeUInt16LE(20, 4)
+    localHeader.writeUInt16LE(0x0800, 6)
+    localHeader.writeUInt16LE(0, 8)
+    localHeader.writeUInt16LE(dosTime, 10)
+    localHeader.writeUInt16LE(dosDate, 12)
+    localHeader.writeUInt32LE(checksum, 14)
+    localHeader.writeUInt32LE(data.length, 18)
+    localHeader.writeUInt32LE(data.length, 22)
+    localHeader.writeUInt16LE(nameBuffer.length, 26)
+    localHeader.writeUInt16LE(0, 28)
+
+    chunks.push(localHeader, nameBuffer, data)
+
+    const centralHeader = Buffer.alloc(46)
+    centralHeader.writeUInt32LE(0x02014b50, 0)
+    centralHeader.writeUInt16LE(20, 4)
+    centralHeader.writeUInt16LE(20, 6)
+    centralHeader.writeUInt16LE(0x0800, 8)
+    centralHeader.writeUInt16LE(0, 10)
+    centralHeader.writeUInt16LE(dosTime, 12)
+    centralHeader.writeUInt16LE(dosDate, 14)
+    centralHeader.writeUInt32LE(checksum, 16)
+    centralHeader.writeUInt32LE(data.length, 20)
+    centralHeader.writeUInt32LE(data.length, 24)
+    centralHeader.writeUInt16LE(nameBuffer.length, 28)
+    centralHeader.writeUInt16LE(0, 30)
+    centralHeader.writeUInt16LE(0, 32)
+    centralHeader.writeUInt16LE(0, 34)
+    centralHeader.writeUInt16LE(0, 36)
+    centralHeader.writeUInt32LE(0, 38)
+    centralHeader.writeUInt32LE(offset, 42)
+    centralChunks.push(centralHeader, nameBuffer)
+
+    offset += localHeader.length + nameBuffer.length + data.length
+  }
+
+  const centralOffset = offset
+  const centralSize = centralChunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const endRecord = Buffer.alloc(22)
+  endRecord.writeUInt32LE(0x06054b50, 0)
+  endRecord.writeUInt16LE(0, 4)
+  endRecord.writeUInt16LE(0, 6)
+  endRecord.writeUInt16LE(files.length, 8)
+  endRecord.writeUInt16LE(files.length, 10)
+  endRecord.writeUInt32LE(centralSize, 12)
+  endRecord.writeUInt32LE(centralOffset, 16)
+  endRecord.writeUInt16LE(0, 20)
+
+  await fs.writeFile(archivePath, Buffer.concat([...chunks, ...centralChunks, endRecord]))
+}
+
 async function buildVpnPackageArchive(profile, grant, platform) {
   const normalizedPlatform = normalizeVpnPlatform(platform)
   if (!normalizedPlatform) {
@@ -3067,7 +3173,7 @@ async function buildVpnPackageArchive(profile, grant, platform) {
   await fs.writeFile(path.join(packageRoot, 'README.txt'), buildVpnReadme(normalizedPlatform, profile, grant, connection), 'utf8')
 
   const archivePath = path.join(tempRoot, archiveName)
-  await execFileAsync('/usr/bin/zip', ['-qr', archivePath, path.basename(packageRoot)], { cwd: tempRoot })
+  await writeZipArchiveFromDirectory(packageRoot, archivePath, path.basename(packageRoot))
   return { archivePath, archiveName, tempRoot }
 }
 
