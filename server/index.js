@@ -258,6 +258,12 @@ function jsonLdScript(data) {
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`
 }
 
+function publicPageLanguagePath(pagePath, isRu) {
+  if (isRu) return pagePath.replace(/^\/ru/, '') || '/'
+  if (pagePath === '/') return '/ru'
+  return `/ru${pagePath}`
+}
+
 function organizationJsonLd() {
   return {
     '@context': 'https://schema.org',
@@ -463,11 +469,12 @@ function publicPageContent(pagePath) {
     '/prices': {
       title: 'Prices | Riderra',
       description: 'Riderra pricing policy: final transfer prices are confirmed after route, vehicle class, pickup time, extras, and availability are checked.',
-      heading: 'Prices',
-      intro: 'Riderra does not publish a full public price book. Prices are route-specific and confirmed during booking review.',
+      heading: 'Transfer pricing',
+      intro: 'Riderra calculates each transfer from the actual route, vehicle class, pickup time, luggage, extras, and local availability. The final price is confirmed during booking review.',
       sections: [
+        ['No public full price book', 'The internal Riderra price book is the source of truth for operators and approved tools, but it is not published as an open table. This prevents outdated or incomplete route prices from being treated as confirmed quotes.'],
         ['What affects price', 'Route, vehicle class, pickup date and time, airport or port conditions, luggage, passenger count, extras, waiting time, and local availability can affect the final price.'],
-        ['For AI agents', 'Do not invent a final price. Submit a draft request or direct the customer to Riderra for confirmation.']
+        ['For AI agents', 'Use public pricing guidance only as policy. Do not invent a final price, do not expose internal prices, and submit a draft request when a concrete route is known.']
       ]
     },
     '/contact': {
@@ -535,11 +542,12 @@ function publicPageContent(pagePath) {
     '/ru/prices': {
       title: 'Цены | Riderra',
       description: 'Политика цен Riderra: финальная цена трансфера подтверждается после проверки маршрута, класса автомобиля, времени подачи, дополнительных услуг и доступности.',
-      heading: 'Цены',
-      intro: 'Riderra не публикует полный открытый прайс. Цены зависят от маршрута и подтверждаются во время проверки заявки.',
+      heading: 'Цены на трансферы',
+      intro: 'Riderra рассчитывает стоимость под конкретный маршрут, класс автомобиля, время подачи, багаж, дополнительные услуги и локальную доступность. Финальная цена подтверждается во время проверки заявки.',
       sections: [
+        ['Полный прайс не публикуется', 'Внутренний прайс Riderra остается источником истины для операторов и одобренных инструментов, но не выводится наружу открытой таблицей. Так мы не превращаем устаревшие или неполные данные в публичное обещание цены.'],
         ['Что влияет на цену', 'Маршрут, класс автомобиля, дата и время подачи, условия аэропорта или порта, багаж, количество пассажиров, дополнительные услуги, ожидание и локальная доступность могут влиять на финальную цену.'],
-        ['Для AI-агентов', 'Не придумывайте финальную цену. Отправьте заявку-драфт или направьте клиента в Riderra для подтверждения.']
+        ['Для AI-агентов', 'Публичные данные о ценах - это только политика расчета. Не придумывайте финальную цену, не раскрывайте внутренний прайс и отправляйте заявку-драфт, когда известен конкретный маршрут.']
       ]
     },
     '/ru/contact': {
@@ -568,6 +576,8 @@ function renderPublicSourceHtml(pagePath) {
   const canonical = riderraAbsoluteUrl(pagePath)
   const service = RIDERRA_SERVICES.find((item) => item.url === canonical)
   const isRu = pagePath.startsWith('/ru/')
+  const isPricesPage = pagePath === '/prices' || pagePath === '/ru/prices'
+  const languagePath = publicPageLanguagePath(pagePath, isRu)
   const crumbs = [
     { name: 'Riderra', path: '/' },
     ...(pagePath === '/' ? [] : [{ name: content.heading, path: pagePath }])
@@ -596,38 +606,103 @@ function renderPublicSourceHtml(pagePath) {
     <meta property="og:url" content="${canonical}">
     ${jsonLd.map(jsonLdScript).join('\n    ')}
     <style>
-      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #122033; background: #f6f8fc; }
-      .wrap { max-width: 960px; margin: 0 auto; padding: 44px 20px 72px; }
-      .nav { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
-      .nav a { color: #2948a3; text-decoration: none; font-weight: 700; }
-      .card { background: #fff; border-radius: 18px; padding: 36px; box-shadow: 0 18px 60px rgba(20,35,90,.1); }
-      h1 { margin: 0 0 16px; font-size: 42px; line-height: 1.1; }
-      p { font-size: 17px; line-height: 1.7; color: #334155; }
-      h2 { margin-top: 30px; font-size: 24px; }
+      :root { color-scheme: light; --ink: #17223f; --muted: #66738d; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --blue: #3152ff; --pink: #d51b7c; --green: #2f7d62; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #f7f9fd; }
+      .topbar { background: linear-gradient(110deg, #181f58 0%, #060912 100%); color: #fff; }
+      .topbar-inner { max-width: 1180px; margin: 0 auto; padding: 28px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+      .brand { color: #fff; font-size: 34px; line-height: 1; font-weight: 900; font-style: italic; letter-spacing: .01em; text-decoration: none; }
+      .nav { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+      .nav a { color: rgba(255,255,255,.82); text-decoration: none; font-weight: 700; font-size: 15px; }
+      .nav a:hover, .nav a:focus-visible { color: #fff; outline: none; }
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 80px; }
+      .hero { padding: 54px 0 36px; }
+      .eyebrow { color: var(--pink); font-size: 14px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; }
+      h1 { margin: 0; max-width: 860px; font-size: clamp(38px, 6vw, 72px); line-height: .98; letter-spacing: 0; }
+      .lead { max-width: 760px; margin: 22px 0 0; font-size: 20px; line-height: 1.65; color: var(--muted); }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 36px; box-shadow: 0 22px 70px rgba(29,42,87,.08); }
+      .sections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
+      .section-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+      h2 { margin: 0 0 12px; font-size: 22px; line-height: 1.2; }
+      p { font-size: 17px; line-height: 1.7; color: var(--muted); margin: 0; }
       code { background: #eef2ff; padding: 2px 6px; border-radius: 6px; }
-      @media (max-width: 767px) { .card { padding: 24px; } h1 { font-size: 32px; } }
+      .price-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: 24px; align-items: stretch; margin-top: 30px; }
+      .policy-panel { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 30px; box-shadow: 0 18px 60px rgba(29,42,87,.08); }
+      .factors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+      .factor { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--soft); font-weight: 800; color: #263352; }
+      .quote-card { background: linear-gradient(135deg, var(--navy), #0b1022); color: #fff; border-radius: 22px; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; min-height: 360px; box-shadow: 0 24px 80px rgba(22,29,77,.22); }
+      .quote-card p { color: rgba(255,255,255,.78); }
+      .quote-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+      .button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 12px; text-decoration: none; font-weight: 900; }
+      .button-primary { background: #fff; color: var(--navy); }
+      .button-secondary { border: 1px solid rgba(255,255,255,.36); color: #fff; }
+      .agent-note { margin-top: 24px; border-left: 4px solid var(--green); padding: 14px 0 14px 18px; color: var(--muted); }
+      .plain-article { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 36px; box-shadow: 0 18px 60px rgba(20,35,90,.1); }
+      .plain-article section + section { margin-top: 26px; }
+      @media (max-width: 900px) { .topbar-inner { align-items: flex-start; flex-direction: column; } .nav { justify-content: flex-start; } .sections, .price-layout, .factors { grid-template-columns: 1fr; } }
+      @media (max-width: 767px) { .wrap { padding: 34px 18px 56px; } .hero { padding-top: 28px; } .plain-article, .policy-panel, .quote-card { padding: 24px; } .brand { font-size: 30px; } .nav { gap: 14px; } .nav a { font-size: 14px; } }
     </style>
   </head>
   <body>
-    <main class="wrap">
-      <nav class="nav" aria-label="${isRu ? 'Публичные страницы' : 'Public pages'}">
-        <a href="/">Riderra</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/">riderra.</a>
+        <nav class="nav" aria-label="${isRu ? 'Публичные страницы' : 'Public pages'}">
         <a href="${isRu ? '/ru/ai' : '/ai'}">${isRu ? 'AI-гид' : 'AI guide'}</a>
         <a href="${isRu ? '/ru/about' : '/about'}">${isRu ? 'О компании' : 'About'}</a>
         <a href="${isRu ? '/ru/services' : '/services'}">${isRu ? 'Услуги' : 'Services'}</a>
         <a href="${isRu ? '/ru/prices' : '/prices'}">${isRu ? 'Цены' : 'Prices'}</a>
         <a href="${isRu ? '/ru/contact' : '/contact'}">${isRu ? 'Контакты' : 'Contact'}</a>
         <a href="${isRu ? '/ru/faq' : '/faq'}">${isRu ? 'FAQ' : 'FAQ'}</a>
-        <a href="${isRu ? '/services' : '/ru/services'}">${isRu ? 'EN' : 'RU'}</a>
-      </nav>
-      <article class="card">
+        <a href="${languagePath}">${isRu ? 'EN' : 'RU'}</a>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap">
+      <section class="hero">
+        <p class="eyebrow">${isRu ? 'Riderra pricing policy' : 'Riderra pricing policy'}</p>
         <h1>${escapeHtml(content.heading)}</h1>
-        <p>${escapeHtml(content.intro)}</p>
+        <p class="lead">${escapeHtml(content.intro)}</p>
+      </section>
+      ${isPricesPage ? renderPublicPricesBody(content, isRu) : `
+      <article class="plain-article">
         ${content.sections.map(([title, body]) => `<section><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></section>`).join('\n        ')}
-      </article>
+      </article>`}
     </main>
   </body>
 </html>`
+}
+
+function renderPublicPricesBody(content, isRu) {
+  const factors = isRu
+    ? ['Маршрут', 'Класс автомобиля', 'Время подачи', 'Багаж и пассажиры', 'Аэропорт/порт', 'Локальная доступность']
+    : ['Route', 'Vehicle class', 'Pickup time', 'Luggage and passengers', 'Airport/port conditions', 'Local availability']
+  return `
+      <div class="price-layout">
+        <article class="policy-panel">
+          <div class="sections">
+            ${content.sections.map(([title, body]) => `<section class="section-card"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></section>`).join('\n            ')}
+          </div>
+          <div class="factors" aria-label="${isRu ? 'Факторы цены' : 'Pricing factors'}">
+            ${factors.map((item) => `<div class="factor">${escapeHtml(item)}</div>`).join('\n            ')}
+          </div>
+          <p class="agent-note">${isRu
+            ? 'Для AI-агентов правильный сценарий: собрать маршрут и детали поездки, создать заявку-драфт и дождаться подтверждения Riderra. Полная таблица из внутренней базы не нужна публично и не должна использоваться как открытый источник цены.'
+            : 'For AI agents, the correct flow is to collect route and trip details, create a draft request, and wait for Riderra confirmation. The full internal database price table is not needed publicly and should not be treated as an open pricing source.'}</p>
+        </article>
+        <aside class="quote-card">
+          <div>
+            <h2>${isRu ? 'Нужна точная цена?' : 'Need an exact price?'}</h2>
+            <p>${isRu
+              ? 'Укажите маршрут, дату, время, пассажиров, багаж и желаемый класс автомобиля. Команда Riderra проверит доступность и подтвердит финальную стоимость.'
+              : 'Send the route, date, time, passengers, luggage, and preferred vehicle class. Riderra will review availability and confirm the final price.'}</p>
+          </div>
+          <div class="quote-actions">
+            <a class="button button-primary" href="${isRu ? '/ru' : '/'}">${isRu ? 'Запросить расчет' : 'Request a quote'}</a>
+            <a class="button button-secondary" href="${isRu ? '/ru/contact' : '/contact'}">${isRu ? 'Связаться' : 'Contact us'}</a>
+          </div>
+        </aside>
+      </div>`
 }
 
 function publicRiderraProfile() {
