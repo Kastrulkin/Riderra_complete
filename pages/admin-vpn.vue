@@ -1,6 +1,5 @@
 <template>
   <div>
-    <navigation />
     <div class="page-background">
       <div class="page-background__gradient"></div>
       <div class="page-background__overlay"></div>
@@ -8,7 +7,7 @@
 
     <section class="site-section site-section--pf admin-section">
       <div class="container">
-        <admin-tabs />
+        <admin-tabs :sticky="false" />
 
         <div class="section-actions">
           <button class="btn" @click="reloadAll">{{ t.refresh }}</button>
@@ -16,6 +15,59 @@
 
         <div v-if="notice.text" class="notice" :class="notice.type === 'error' ? 'notice--error' : 'notice--ok'">
           {{ notice.text }}
+        </div>
+
+        <div class="card self-service-card">
+          <div class="section-head">
+            <div>
+              <h3>{{ t.myAccess }}</h3>
+              <p class="muted">{{ t.myAccessHint }}</p>
+            </div>
+            <span v-if="currentUserEmail" class="scope-pill">{{ currentUserEmail }}</span>
+          </div>
+
+          <div v-if="loadingAccess || loadingStaff" class="empty-state">{{ t.loading }}</div>
+          <div v-else-if="!currentStaffVpnRow" class="self-service-empty">
+            <strong>{{ t.myAccessNotFound }}</strong>
+            <p>{{ t.myAccessNotFoundHint }}</p>
+          </div>
+          <div v-else class="self-service-grid">
+            <div v-for="item in currentAccessCards" :key="item.kind" class="self-service-device">
+              <div class="self-service-device__head">
+                <div>
+                  <strong>{{ item.title }}</strong>
+                  <p>{{ item.access ? deviceNameText(item.access, item.kind) : t.noGrantYet }}</p>
+                </div>
+                <span v-if="item.access" class="status-pill" :class="`status-pill--${item.access.status}`">{{ statusLabel(item.access.status) }}</span>
+                <span v-else class="status-pill status-pill--pending">{{ t.noAccess }}</span>
+              </div>
+
+              <p class="muted self-service-device__hint">{{ item.hint }}</p>
+
+              <div v-if="item.access" class="primary-actions">
+                <button
+                  v-if="canDownloadPlatform(item.platform)"
+                  class="btn btn--small btn--primary"
+                  @click="downloadSlotPackage(currentStaffVpnRow, item.kind, item.access)"
+                >
+                  {{ t.downloadArchive }}
+                </button>
+                <button class="btn btn--small btn--ghost" @click="openInstruction(item.access)">
+                  {{ t.openInstruction }}
+                </button>
+                <button class="btn btn--small btn--ghost" @click="copyConnection(item.access)">
+                  {{ t.copyUri }}
+                </button>
+              </div>
+              <button
+                v-else
+                class="btn btn--small btn--primary"
+                @click="openCreateForSlot(currentStaffVpnRow, item.kind)"
+              >
+                {{ t.issueAccess }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="content-grid content-grid--vpn">
@@ -153,6 +205,22 @@
                     </button>
 
                     <button
+                      v-if="staff.computer"
+                      class="btn btn--small btn--ghost"
+                      @click="openInstruction(staff.computer)"
+                    >
+                      {{ t.openInstruction }}
+                    </button>
+
+                    <button
+                      v-if="staff.computer"
+                      class="btn btn--small btn--ghost"
+                      @click="copyConnection(staff.computer)"
+                    >
+                      {{ t.copyUri }}
+                    </button>
+
+                    <button
                       v-if="!staff.computer"
                       class="btn btn--small btn--primary"
                       @click="openCreateForSlot(staff, 'computer')"
@@ -164,8 +232,6 @@
                   <details v-if="staff.computer" class="more-actions">
                     <summary class="btn btn--small">{{ t.more }}</summary>
                     <div class="more-actions__menu">
-                      <button class="btn btn--small" @click="openInstruction(staff.computer)">{{ t.open }}</button>
-                      <button class="btn btn--small" @click="copyConnection(staff.computer)">{{ t.copy }}</button>
                       <button class="btn btn--small" @click="rotateGrant(staff.computer)">{{ t.rotate }}</button>
                       <button class="btn btn--small" @click="openEditGrant(staff.computer)">{{ t.edit }}</button>
                       <button
@@ -215,6 +281,22 @@
                     </button>
 
                     <button
+                      v-if="staff.phone"
+                      class="btn btn--small btn--primary"
+                      @click="openInstruction(staff.phone)"
+                    >
+                      {{ t.openInstruction }}
+                    </button>
+
+                    <button
+                      v-if="staff.phone"
+                      class="btn btn--small btn--ghost"
+                      @click="copyConnection(staff.phone)"
+                    >
+                      {{ t.copyUri }}
+                    </button>
+
+                    <button
                       v-if="!staff.phone"
                       class="btn btn--small btn--primary"
                       @click="openCreateForSlot(staff, 'phone')"
@@ -226,8 +308,6 @@
                   <details v-if="staff.phone" class="more-actions">
                     <summary class="btn btn--small">{{ t.more }}</summary>
                     <div class="more-actions__menu">
-                      <button class="btn btn--small" @click="openInstruction(staff.phone)">{{ t.open }}</button>
-                      <button class="btn btn--small" @click="copyConnection(staff.phone)">{{ t.copy }}</button>
                       <button class="btn btn--small" @click="rotateGrant(staff.phone)">{{ t.rotate }}</button>
                       <button class="btn btn--small" @click="openEditGrant(staff.phone)">{{ t.edit }}</button>
                       <button
@@ -369,7 +449,6 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 
 const emptyGrantForm = () => ({
@@ -387,9 +466,11 @@ const emptyGrantForm = () => ({
 })
 
 export default {
+  layout: 'admin',
   middleware: 'staff',
-  components: { navigation, adminTabs },
+  components: { adminTabs },
   data: () => ({
+    currentUserEmail: '',
     profile: {},
     profileDraft: {
       name: '',
@@ -498,6 +579,15 @@ export default {
             activateSuccess: 'Доступ активирован.',
             rotateSuccess: 'UUID перевыпущен.',
             serverProfileRequired: 'Для инструкции нужно заполнить сервер, publicKey, shortId и serverName.',
+            myAccess: 'Мой VPN-доступ',
+            myAccessHint: 'Здесь сотрудник скачивает конфигурацию для компьютера или открывает инструкцию для телефона.',
+            myAccessNotFound: 'Для вашей учётной записи VPN-доступ пока не найден.',
+            myAccessNotFoundHint: 'Проверьте, что email сотрудника совпадает с email входа, или выдайте доступ в таблице ниже.',
+            noGrantYet: 'Доступ ещё не выдан',
+            openInstruction: 'Открыть инструкцию',
+            copyUri: 'Скопировать URI',
+            computerSelfServiceHint: 'Для macOS и Windows доступен готовый ZIP-архив с конфигурацией и инструкцией.',
+            phoneSelfServiceHint: 'Для телефона откройте инструкцию или скопируйте URI для импорта в клиент.',
             computerLabel: 'Компьютер',
             phoneLabel: 'Телефон'
           }
@@ -573,6 +663,15 @@ export default {
             activateSuccess: 'Access activated.',
             rotateSuccess: 'UUID rotated.',
             serverProfileRequired: 'Fill server, publicKey, shortId and serverName first.',
+            myAccess: 'My VPN access',
+            myAccessHint: 'Staff can download the computer configuration or open phone setup instructions here.',
+            myAccessNotFound: 'No VPN access is linked to your account yet.',
+            myAccessNotFoundHint: 'Check that the staff email matches the login email, or issue access in the table below.',
+            noGrantYet: 'Access has not been issued yet',
+            openInstruction: 'Open instructions',
+            copyUri: 'Copy URI',
+            computerSelfServiceHint: 'macOS and Windows have a ready ZIP archive with config and instructions.',
+            phoneSelfServiceHint: 'For phones, open the instructions or copy the URI into the mobile client.',
             computerLabel: 'Computer',
             phoneLabel: 'Phone'
           }
@@ -594,6 +693,25 @@ export default {
           }
         })
         .sort((a, b) => String(a.displayName || '').localeCompare(String(b.displayName || ''), this.$store.state.language === 'ru' ? 'ru' : 'en'))
+    },
+    currentStaffVpnRow () {
+      const email = String(this.currentUserEmail || '').trim().toLowerCase()
+      if (!email) return null
+      return this.staffVpnRows.find((staff) => String(staff.email || '').trim().toLowerCase() === email) || null
+    },
+    currentAccessCards () {
+      const staff = this.currentStaffVpnRow
+      if (!staff) return []
+      return ['computer', 'phone'].map((kind) => {
+        const access = staff[kind]
+        return {
+          kind,
+          access,
+          title: kind === 'computer' ? this.t.computer : this.t.phone,
+          platform: this.selectedSlotPlatform(staff, kind, access),
+          hint: kind === 'computer' ? this.t.computerSelfServiceHint : this.t.phoneSelfServiceHint
+        }
+      })
     }
   },
   mounted () {
@@ -617,8 +735,16 @@ export default {
       return body
     },
     async reloadAll () {
-      await Promise.all([this.loadProfile(), this.loadAccess(), this.loadStaff()])
+      await Promise.all([this.loadCurrentUser(), this.loadProfile(), this.loadAccess(), this.loadStaff()])
       this.syncSlotSelections()
+    },
+    async loadCurrentUser () {
+      try {
+        const body = await this.fetchJson('/api/auth/me')
+        this.currentUserEmail = body?.user?.email || ''
+      } catch (_) {
+        this.currentUserEmail = ''
+      }
     },
     async loadProfile () {
       const body = await this.fetchJson('/api/admin/vpn/profile')
@@ -1107,6 +1233,47 @@ export default {
   box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
 }
 
+.self-service-card {
+  margin: 18px 0 20px;
+  border: 1px solid #dbe4f2;
+}
+
+.self-service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.self-service-device {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #dbe4f2;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.self-service-device__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.self-service-device__head p,
+.self-service-device__hint,
+.self-service-empty p {
+  margin: 6px 0 0;
+}
+
+.self-service-empty {
+  padding: 18px;
+  border: 1px dashed #c7d2e6;
+  border-radius: 18px;
+  background: #f8fbff;
+  color: #31456a;
+}
+
 .technical-card {
   padding: 0;
   overflow: hidden;
@@ -1312,12 +1479,18 @@ label,
 
 .slot-controls,
 .slot-actions,
+.primary-actions,
 .modal-actions {
   flex-wrap: wrap;
 }
 
 .slot-controls {
   align-items: center;
+}
+
+.primary-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .slot-controls .select-input {
@@ -1483,6 +1656,7 @@ label,
 
 @media (max-width: 1100px) {
   .content-grid--vpn,
+  .self-service-grid,
   .form-grid,
   .roster-table {
     grid-template-columns: 1fr;
@@ -1521,12 +1695,14 @@ label,
   }
 
   .slot-controls,
+  .primary-actions,
   .more-actions__menu,
   .modal-actions {
     flex-direction: column;
   }
 
   .slot-controls .btn,
+  .primary-actions .btn,
   .more-actions__menu .btn,
   .modal-actions .btn,
   .technical-card__actions .btn {
