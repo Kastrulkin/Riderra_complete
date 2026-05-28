@@ -15694,6 +15694,7 @@ app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, req
 
 app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
+    const canViewStaffRoles = String(req.user?.email || '').trim().toLowerCase() === 'demyanov@riderra.com'
     const startupEmails = STARTUP_STAFF_DIRECTORY.map((entry) => entry.email)
     const users = await prisma.user.findMany({
       where: {
@@ -15750,7 +15751,7 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
         email: u.email,
         displayName: startupEntry?.displayName || String(u.email || '').split('@')[0],
         role: u.role,
-        roles,
+        ...(canViewStaffRoles ? { roles } : {}),
         telegramLinks: u.telegramLinks,
         abacCountries: parseScopeList(u.abacCountries),
         abacCities: parseScopeList(u.abacCities),

@@ -112,18 +112,18 @@
             {{ staffNotice.text }}
           </div>
           <div class="ops-table">
-            <div class="ops-table__head ops-table__head--staff">
+            <div class="ops-table__head ops-table__head--staff" :class="{ 'ops-table__head--staff-private': !canViewStaffRoles }">
               <div>{{ t.staffMember }}</div>
-              <div>{{ t.roles }}</div>
+              <div v-if="canViewStaffRoles">{{ t.roles }}</div>
               <div>{{ t.telegramId }}</div>
               <div>{{ t.actions }}</div>
             </div>
-            <div v-for="u in staff" :key="u.id" class="ops-table__row ops-table__row--staff">
+            <div v-for="u in staff" :key="u.id" class="ops-table__row ops-table__row--staff" :class="{ 'ops-table__row--staff-private': !canViewStaffRoles }">
               <div class="staff-identity">
                 <strong>{{ u.displayName || u.email }}</strong>
                 <span class="muted">{{ u.email }}</span>
               </div>
-              <div>{{ (u.roles || []).join(', ') || '-' }}</div>
+              <div v-if="canViewStaffRoles">{{ (u.roles || []).join(', ') || '-' }}</div>
               <div>
                 <input v-model="staffDrafts[u.id]" class="input" :placeholder="t.telegramId" />
               </div>
@@ -203,6 +203,7 @@ export default {
     activeSection: 'sources',
     sheets: [],
     staff: [],
+    currentUserEmail: '',
     emailIngest: {
       technicalInbox: 'riderratech@gmail.com',
       internalUrl: '',
@@ -378,6 +379,9 @@ export default {
         { value: 'sales', label: isRu ? 'Продажи' : 'Sales' },
         { value: 'audit', label: isRu ? 'Аудит' : 'Audit' }
       ]
+    },
+    canViewStaffRoles () {
+      return String(this.currentUserEmail || '').trim().toLowerCase() === 'demyanov@riderra.com'
     }
   },
   mounted () { this.load() },
@@ -401,11 +405,13 @@ export default {
       return body
     },
     async load () {
-      const [sheets, staff, emailIngest] = await Promise.all([
+      const [me, sheets, staff, emailIngest] = await Promise.all([
+        this.jsonRequest('/api/auth/me', { headers: this.headers() }).catch(() => ({})),
         this.jsonRequest('/api/admin/sheet-sources', { headers: this.headers() }),
         this.jsonRequest('/api/admin/staff-users', { headers: this.headers() }),
         this.jsonRequest('/api/admin/email-ingest/status', { headers: this.headers() })
       ])
+      this.currentUserEmail = me?.user?.email || ''
       this.sheets = Array.isArray(sheets) ? sheets : []
       this.staff = staff.rows || []
       this.emailIngest = emailIngest || this.emailIngest
@@ -597,6 +603,7 @@ export default {
 .ops-table__row { border-bottom:1px solid #f0f2f7; color:#2f3e60; }
 .ops-table__head--sources, .ops-table__row--sources { display:grid; grid-template-columns:minmax(180px,1.1fr) minmax(120px,.8fr) minmax(180px,1fr) minmax(110px,.7fr) minmax(140px,.8fr) minmax(180px,1fr) minmax(220px,1.1fr); }
 .ops-table__head--staff, .ops-table__row--staff { display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(180px,1fr) minmax(220px,1fr) minmax(160px,.7fr); }
+.ops-table__head--staff-private, .ops-table__row--staff-private { grid-template-columns:minmax(260px,1.2fr) minmax(260px,1fr) minmax(180px,.7fr); min-width:760px; }
 .ops-table__head--access, .ops-table__row--access { display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(180px,.8fr) minmax(220px,1fr) minmax(160px,.7fr); }
 .entity-stack { display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
 .row-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
