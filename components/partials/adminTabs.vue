@@ -1,5 +1,11 @@
 <template>
-  <div class="admin-nav-shell" :class="{ 'admin-nav-shell--condensed': isCondensed }">
+  <div
+    class="admin-nav-shell"
+    :class="{
+      'admin-nav-shell--sticky': sticky,
+      'admin-nav-shell--condensed': sticky && isCondensed
+    }"
+  >
     <div class="admin-section-intro">
       <div>
         <p class="admin-section-intro__eyebrow">{{ activeSectionContext.kicker }}</p>
@@ -49,6 +55,12 @@
 
 <script>
 export default {
+  props: {
+    sticky: {
+      type: Boolean,
+      default: true
+    }
+  },
   data: () => ({
     isCondensed: false,
     selectedSectionKey: ''
@@ -195,6 +207,7 @@ export default {
     }
   },
   mounted () {
+    if (!this.sticky) return
     this.handleScroll()
     window.addEventListener('scroll', this.handleScroll, { passive: true })
   },
@@ -204,6 +217,7 @@ export default {
     }
   },
   beforeDestroy () {
+    if (!this.sticky) return
     window.removeEventListener('scroll', this.handleScroll)
   },
   methods: {
@@ -232,13 +246,16 @@ export default {
   display: grid;
   gap: 14px;
   margin-bottom: 22px;
-  position: sticky;
-  top: 92px;
-  z-index: 70;
   padding: 14px 0 10px;
   background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.94) 78%, rgba(255,255,255,0) 100%);
   backdrop-filter: blur(12px);
   transition: padding 180ms ease, gap 180ms ease, top 180ms ease;
+}
+
+.admin-nav-shell--sticky {
+  position: sticky;
+  top: 92px;
+  z-index: 70;
 }
 
 .admin-sections {
@@ -400,8 +417,8 @@ export default {
 
 @media (max-width: 980px) {
   .admin-nav-shell {
-    top: 88px;
   }
+  .admin-nav-shell--sticky { top: 88px; }
 
   .admin-sections {
     grid-template-columns: 1fr 1fr;

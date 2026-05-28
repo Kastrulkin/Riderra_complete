@@ -6,7 +6,7 @@
     </div>
     <section class="site-section site-section--pf chat-section">
       <div class="container">
-        <admin-tabs />
+        <admin-tabs :sticky="false" />
 
         <header class="page-head">
           <div>
