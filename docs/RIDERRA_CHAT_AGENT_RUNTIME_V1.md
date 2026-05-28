@@ -55,11 +55,11 @@ Business-scoped aliases:
 
 ## OpenClaw Runtime ENV
 
-- `OPENCLAW_RUNTIME_BASE_URL` (for example `http://192.168.0.177:8092`)
+- `OPENCLAW_RUNTIME_BASE_URL` (production WhatsApp runtime: `http://83.166.247.254:8094`)
 - `OPENCLAW_RUNTIME_TOKEN` (sent as `X-OpenClaw-Internal-Token`)
 - `OPENCLAW_RUNTIME_TIMEOUT_MS` (default `20000`)
 - `OPENCLAW_RUNTIME_BUILD_PATH` (default `/riderra/order-draft/build`)
-- `OPENCLAW_RUNTIME_SEND_PATH` (default `/riderra/order-draft/send`)
+- `OPENCLAW_RUNTIME_SEND_PATH` (production WhatsApp send path: `/capabilities/riderra.customer.message.send`)
 - `OPENCLAW_RUNTIME_CLASSIFY_PATH` (default `/riderra/order-draft/classify`)
 - `OPENCLAW_RUNTIME_EXTRACT_PATH` (default `/riderra/order-draft/extract-validate`)
 
