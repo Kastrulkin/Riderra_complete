@@ -1,15 +1,15 @@
 <template>
-  <div>
-    <navigation></navigation>
+  <div class="agent-page">
     <div class="page-background">
       <div class="page-background__gradient"></div>
       <div class="page-background__overlay"></div>
     </div>
-    <section class="site-section site-section--pf chat-section">
-      <div class="container">
-        <admin-tabs />
 
-        <div class="page-head">
+    <section class="site-section site-section--pf agent-section">
+      <div class="container">
+        <admin-tabs :sticky="false" />
+
+        <header class="page-head">
           <div>
             <p class="eyebrow">AI control plane</p>
             <h1>{{ t.title }}</h1>
@@ -19,203 +19,333 @@
             <strong>{{ activeAgentsCount }}/{{ agents.length }}</strong>
             <span>{{ t.activeAgents }}</span>
           </div>
-        </div>
+        </header>
 
-        <div class="section-actions">
-          <button class="btn btn--ghost" @click="startNewAgent">{{ t.newAgent }}</button>
-          <button class="btn btn--primary" @click="reloadAll">{{ t.refresh }}</button>
-        </div>
+        <div v-if="notice" class="toast" :class="{ 'toast--error': noticeType === 'error' }">{{ notice }}</div>
 
-        <div v-if="notice" class="hint">{{ notice }}</div>
-
-        <div class="mvp-grid">
-          <article
-            v-for="card in mvpAgentCards"
-            :key="card.key"
-            class="mvp-card"
-            :class="{ 'mvp-card--active': card.enabled, 'mvp-card--system': card.system }"
-          >
-            <div>
-              <p class="eyebrow">{{ card.layer }}</p>
-              <h3>{{ card.title }}</h3>
-              <p>{{ card.description }}</p>
-            </div>
-            <span class="status-pill" :class="card.enabled ? 'status-pill--active' : 'status-pill--disabled'">
-              {{ card.status }}
-            </span>
-          </article>
-        </div>
-
-        <div class="layout-grid">
-          <aside class="agent-sidebar card">
-            <div class="section-head section-head--compact">
+        <div class="agent-console">
+          <aside class="agent-list-panel">
+            <div class="panel-head">
               <div>
                 <h3>{{ t.agentList }}</h3>
-                <p class="muted">{{ t.agentListHint }}</p>
+                <p>{{ t.agentListHint }}</p>
               </div>
+              <button class="icon-action" type="button" :title="t.newAgent" @click="startNewAgent">+</button>
             </div>
+
+            <div class="agent-filters">
+              <input v-model="agentSearch" class="input" :placeholder="t.searchAgents" />
+              <select v-model="statusFilter" class="input">
+                <option value="">{{ t.allStatuses }}</option>
+                <option value="active">{{ t.active }}</option>
+                <option value="system">{{ t.system }}</option>
+                <option value="archived">{{ t.archive }}</option>
+              </select>
+              <select v-model="typeFilter" class="input">
+                <option value="">{{ t.allContours }}</option>
+                <option v-for="type in agentTypes" :key="type" :value="type">{{ contourLabel(type) }}</option>
+              </select>
+            </div>
+
             <button
-              v-for="agent in agents"
+              v-for="agent in filteredAgents"
               :key="agent.id"
               class="agent-list-item"
               :class="{ 'agent-list-item--active': agent.id === selectedAgentId }"
+              type="button"
               @click="selectAgent(agent.id)"
             >
-              <div>
-                <strong>{{ agent.name }}</strong>
-                <div class="muted">{{ agent.code }}</div>
-              </div>
-              <span class="status-pill" :class="agent.isActive ? 'status-pill--active' : 'status-pill--disabled'">
-                {{ agent.isActive ? t.active : t.inactive }}
+              <span class="agent-list-item__title">{{ agent.name }}</span>
+              <span class="agent-list-item__meta">{{ agent.code }} · v1</span>
+              <span class="agent-list-item__line">
+                <span class="status-pill" :class="statusClass(agent)">{{ statusLabel(agent) }}</span>
+                <span>{{ contourLabel(agent.type) }}</span>
               </span>
+              <span class="agent-list-item__description">{{ agent.description || t.noDescription }}</span>
             </button>
-            <div v-if="!agents.length" class="empty">{{ t.noAgents }}</div>
+
+            <div v-if="!filteredAgents.length" class="empty">{{ agents.length ? t.noFilteredAgents : t.noAgents }}</div>
           </aside>
 
-          <main class="main-stack">
-            <div class="card">
-              <div class="section-head">
-                <div>
-                  <h3>{{ selectedAgentId ? t.editAgent : t.createAgent }}</h3>
-                  <p class="muted">{{ t.agentFormHint }}</p>
-                </div>
-              </div>
-
-              <div class="agent-grid">
-                <input v-model="agentForm.name" class="input" :placeholder="t.name" />
-                <input v-model="agentForm.code" class="input" :placeholder="t.code" :disabled="Boolean(selectedAgentId)" />
-                <select v-model="agentForm.type" class="input">
-                  <option value="order_completion">order_completion</option>
-                  <option value="dispatch_notify">dispatch_notify</option>
-                  <option value="driver_ops">driver_ops</option>
-                </select>
-                <select v-model="agentForm.taskType" class="input">
-                  <option value="clarification">clarification</option>
-                  <option value="dispatch_info">dispatch_info</option>
-                </select>
-                <label class="toggle"><input type="checkbox" v-model="agentForm.isActive" /> <span>{{ t.isActive }}</span></label>
-                <label class="toggle"><input type="checkbox" v-model="agentForm.requiresApproval" /> <span>{{ t.requiresApproval }}</span></label>
-              </div>
-
-              <div class="preset-row">
-                <button class="btn btn--tiny" @click="applyAgentPreset('clarification')">{{ t.presetClarification }}</button>
-                <button class="btn btn--tiny" @click="applyAgentPreset('dispatch')">{{ t.presetDispatch }}</button>
-              </div>
-
-              <div class="agent-grid agent-grid--meta">
-                <input v-model="agentForm.description" class="input" :placeholder="t.description" />
-                <input v-model="agentForm.personality" class="input" :placeholder="t.personality" />
-                <input v-model="agentForm.identity" class="input" :placeholder="t.identity" />
-                <input v-model="agentForm.task" class="input" :placeholder="t.task" />
-                <input v-model="agentForm.speechStyle" class="input" :placeholder="t.speechStyle" />
-              </div>
-
-              <div class="state-strip">
-                <div>
-                  <strong>{{ t.workflowStates }}</strong>
-                  <p class="muted">{{ t.workflowStatesHint }}</p>
-                </div>
-                <div class="state-chips">
-                  <span v-for="state in workflowStatePreview" :key="state" class="state-chip">{{ state }}</span>
-                </div>
-              </div>
-
-              <label class="field">
-                <span>{{ t.prompt }}</span>
-                <textarea v-model="agentForm.promptText" class="input textarea" :placeholder="t.promptPlaceholder"></textarea>
-              </label>
-              <label class="field">
-                <span>{{ t.workflow }}</span>
-                <textarea v-model="agentForm.workflowJson" class="input textarea textarea--code"></textarea>
-              </label>
-              <label class="field">
-                <span>{{ t.restrictions }}</span>
-                <textarea v-model="agentForm.restrictionsJson" class="input textarea textarea--code"></textarea>
-              </label>
-              <label class="field">
-                <span>{{ t.variables }}</span>
-                <textarea v-model="agentForm.variablesJson" class="input textarea textarea--code"></textarea>
-              </label>
-
-              <div class="agent-actions">
-                <button class="btn btn--primary" :disabled="agentSaving" @click="saveAgent">
-                  {{ agentSaving ? t.saving : (selectedAgentId ? t.saveAgent : t.createAgentButton) }}
-                </button>
-                <button v-if="selectedAgentId" class="btn btn--danger" @click="deleteAgent">{{ t.deleteAgent }}</button>
-              </div>
+          <main class="agent-workspace">
+            <div v-if="!selectedAgentId && !isCreating" class="empty empty--hero">
+              <h3>{{ t.selectAgentTitle }}</h3>
+              <p>{{ t.selectAgentHint }}</p>
+              <button class="btn btn--primary" type="button" @click="startNewAgent">{{ t.newAgent }}</button>
             </div>
 
-            <div class="card">
-              <div class="section-head section-head--compact">
-                <div>
-                  <h3>{{ t.whatsappTemplates }}</h3>
-                  <p class="muted">{{ t.whatsappTemplatesHint }}</p>
+            <template v-else>
+              <section class="summary-card">
+                <div class="summary-card__main">
+                  <div class="summary-card__title-row">
+                    <h2>{{ agentForm.name || t.untitledAgent }}</h2>
+                    <span v-if="isSystemAgent" class="status-pill status-pill--system">{{ t.system }}</span>
+                    <span v-else class="status-pill" :class="agentForm.isActive ? 'status-pill--active' : 'status-pill--archived'">
+                      {{ agentForm.isActive ? t.active : t.archive }}
+                    </span>
+                  </div>
+                  <p>{{ agentForm.description || t.noDescription }}</p>
+                  <div class="summary-meta">
+                    <span>{{ t.type }}: <strong>{{ agentForm.type }}</strong></span>
+                    <span>{{ t.contour }}: <strong>{{ contourLabel(agentForm.type) }}</strong></span>
+                    <span>{{ t.taskType }}: <strong>{{ agentForm.taskType }}</strong></span>
+                  </div>
                 </div>
-                <button class="btn btn--ghost" @click="addWhatsappTemplate">{{ t.addTemplate }}</button>
-              </div>
-              <div class="template-table">
-                <div class="template-row template-row--head">
-                  <span>{{ t.templateName }}</span>
-                  <span>{{ t.templateLanguages }}</span>
-                  <span>{{ t.templateVariables }}</span>
-                  <span></span>
-                </div>
-                <div v-for="(template, index) in whatsappTemplates" :key="`template-${index}`" class="template-row">
-                  <input v-model="template.name" class="input input--compact" placeholder="baggage_request" />
-                  <input v-model="template.languagesText" class="input input--compact" placeholder="en, ru" />
-                  <input v-model="template.variablesText" class="input input--compact" placeholder="booking_number, route_from" />
-                  <button class="btn btn--tiny btn--ghost" @click="removeWhatsappTemplate(index)">{{ t.remove }}</button>
-                </div>
-                <div v-if="!whatsappTemplates.length" class="empty">{{ t.noTemplates }}</div>
-              </div>
-              <div class="agent-actions">
-                <button class="btn btn--primary" :disabled="templateSaving" @click="saveWhatsappTemplates">
-                  {{ templateSaving ? t.saving : t.saveTemplates }}
-                </button>
-                <span v-if="templateNotice" class="muted">{{ templateNotice }}</span>
-              </div>
-            </div>
 
-            <div class="card card--advanced">
-              <div class="section-head section-head--compact">
-                <div>
-                  <h3>{{ t.promptRegistry }}</h3>
-                  <p class="muted">{{ t.promptRegistryHint }}</p>
+                <div class="summary-toggles">
+                  <label class="switch">
+                    <input type="checkbox" v-model="agentForm.isActive" :disabled="isSystemAgent" />
+                    <span>{{ t.activeToggle }}</span>
+                  </label>
+                  <label class="switch">
+                    <input type="checkbox" v-model="agentForm.requiresApproval" :disabled="isSystemAgent" />
+                    <span>{{ t.approvalToggle }}</span>
+                  </label>
+                  <div class="summary-audit">
+                    <span>{{ t.lastUpdated }}: {{ formatDate(selectedAgent && selectedAgent.updatedAt) }}</span>
+                    <span>{{ t.lastPublished }}: {{ agentForm.isActive ? formatDate(selectedAgent && selectedAgent.updatedAt) : '—' }}</span>
+                    <span>{{ t.changedBy }}: {{ selectedAgent && selectedAgent.createdByUserId ? selectedAgent.createdByUserId : '—' }}</span>
+                  </div>
                 </div>
-              </div>
-              <div class="agent-grid" style="grid-template-columns: 280px 160px 1fr;">
-                <select v-model="selectedPromptKey" class="input" @change="applyPromptSelection">
-                  <option v-for="key in promptKeys" :key="key" :value="key">{{ key }}</option>
-                </select>
-                <input class="input" :value="selectedPromptVersionLabel" disabled />
-                <input v-model="promptDescription" class="input" :placeholder="t.promptDescription" />
-              </div>
-              <label class="field">
-                <span>{{ t.promptText }}</span>
-                <textarea v-model="promptText" class="input textarea textarea--code"></textarea>
-              </label>
-              <div class="agent-actions">
-                <button class="btn btn--primary" :disabled="promptSaving || !selectedPromptKey" @click="savePromptTemplate">
-                  {{ promptSaving ? t.saving : t.savePromptVersion }}
-                </button>
-              </div>
-            </div>
+              </section>
 
-            <div class="card">
-              <div class="section-head section-head--compact">
-                <div>
-                  <h3>{{ t.sandbox }}</h3>
-                  <p class="muted">{{ t.sandboxHint }}</p>
+              <nav class="settings-tabs" aria-label="Agent settings tabs">
+                <button
+                  v-for="tab in tabs"
+                  :key="tab.key"
+                  class="settings-tab"
+                  :class="{ 'settings-tab--active': activeTab === tab.key }"
+                  type="button"
+                  @click="activeTab = tab.key"
+                >
+                  {{ tab.label }}
+                </button>
+              </nav>
+
+              <section class="settings-card">
+                <div v-if="activeTab === 'overview'" class="form-grid">
+                  <field-control :label="t.name" :helper="t.nameHelp">
+                    <input v-model="agentForm.name" class="input" :disabled="isSystemAgent" />
+                  </field-control>
+                  <field-control :label="t.slugVersion" :helper="t.slugHelp">
+                    <div class="inline-grid">
+                      <input v-model="agentForm.code" class="input" :disabled="Boolean(selectedAgentId) || isSystemAgent" />
+                      <input class="input" value="v1" disabled />
+                    </div>
+                  </field-control>
+                  <field-control :label="t.type" :helper="t.typeHelp">
+                    <select v-model="agentForm.type" class="input" :disabled="isSystemAgent">
+                      <option value="order_completion">order_completion</option>
+                      <option value="dispatch_notify">dispatch_notify</option>
+                      <option value="driver_ops">driver_ops</option>
+                    </select>
+                  </field-control>
+                  <field-control :label="t.contour" :helper="t.contourHelp">
+                    <input class="input" :value="contourLabel(agentForm.type)" disabled />
+                  </field-control>
+                  <field-control class="form-grid__wide" :label="t.description" :helper="t.descriptionHelp">
+                    <textarea v-model="agentForm.description" class="input textarea textarea--small" :disabled="isSystemAgent"></textarea>
+                  </field-control>
+                  <div class="toggle-grid form-grid__wide">
+                    <label class="switch">
+                      <input type="checkbox" v-model="agentForm.isActive" :disabled="isSystemAgent" />
+                      <span>{{ t.isActive }}</span>
+                    </label>
+                    <label class="switch">
+                      <input type="checkbox" v-model="agentForm.requiresApproval" :disabled="isSystemAgent" />
+                      <span>{{ t.requiresApproval }}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div v-if="activeTab === 'behavior'" class="form-grid">
+                  <field-control :label="t.identity" :helper="t.identityHelp">
+                    <textarea v-model="agentForm.identity" class="input textarea textarea--small" :disabled="isSystemAgent"></textarea>
+                  </field-control>
+                  <field-control :label="t.task" :helper="t.taskHelp">
+                    <textarea v-model="agentForm.task" class="input textarea textarea--small" :disabled="isSystemAgent"></textarea>
+                  </field-control>
+                  <field-control :label="t.speechStyle" :helper="t.speechStyleHelp">
+                    <input v-model="agentForm.speechStyle" class="input" :disabled="isSystemAgent" />
+                  </field-control>
+                  <field-control :label="t.defaultLanguage" :helper="t.defaultLanguageHelp">
+                    <select v-model="defaultLanguage" class="input" :disabled="isSystemAgent">
+                      <option value="en">English</option>
+                      <option value="ru">Русский</option>
+                    </select>
+                  </field-control>
+                  <field-control class="form-grid__wide" :label="t.personality" :helper="t.personalityHelp">
+                    <textarea v-model="agentForm.personality" class="input textarea textarea--small" :disabled="isSystemAgent"></textarea>
+                  </field-control>
+                  <field-control class="form-grid__wide" :label="t.responseRules" :helper="t.responseRulesHelp">
+                    <textarea v-model="agentForm.promptText" class="input textarea" :disabled="isSystemAgent"></textarea>
+                  </field-control>
+                  <div class="preset-row form-grid__wide">
+                    <button class="btn btn--tiny" type="button" :disabled="isSystemAgent" @click="applyAgentPreset('clarification')">{{ t.presetClarification }}</button>
+                    <button class="btn btn--tiny" type="button" :disabled="isSystemAgent" @click="applyAgentPreset('dispatch')">{{ t.presetDispatch }}</button>
+                  </div>
+                </div>
+
+                <div v-if="activeTab === 'workflow'" class="workflow-editor">
+                  <div class="workflow-header">
+                    <div>
+                      <h3>{{ t.workflow }}</h3>
+                      <p>{{ t.workflowHint }}</p>
+                    </div>
+                    <button class="btn btn--ghost" type="button" :disabled="isSystemAgent" @click="normalizeWorkflowJson">{{ t.normalizeWorkflow }}</button>
+                  </div>
+
+                  <div class="workflow-grid">
+                    <field-control :label="t.startState" :helper="t.startStateHelp">
+                      <input v-model="workflowDraft.startState" class="input" :disabled="isSystemAgent" @input="syncWorkflowDraft" />
+                    </field-control>
+                    <field-control :label="t.finalStates" :helper="t.finalStatesHelp">
+                      <input v-model="workflowDraft.finalStatesText" class="input" :disabled="isSystemAgent" @input="syncWorkflowDraft" />
+                    </field-control>
+                  </div>
+
+                  <div class="workflow-section">
+                    <div class="workflow-section__head">
+                      <h4>{{ t.states }}</h4>
+                      <button class="btn btn--tiny" type="button" :disabled="isSystemAgent" @click="addWorkflowState">{{ t.addState }}</button>
+                    </div>
+                    <div class="state-list">
+                      <div v-for="(state, index) in workflowDraft.states" :key="`state-${index}`" class="state-row">
+                        <input v-model="workflowDraft.states[index]" class="input" :disabled="isSystemAgent" @input="syncWorkflowDraft" />
+                        <button class="btn btn--tiny btn--ghost" type="button" :disabled="isSystemAgent" @click="removeWorkflowState(index)">{{ t.remove }}</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="workflow-section">
+                    <div class="workflow-section__head">
+                      <h4>{{ t.transitions }}</h4>
+                      <button class="btn btn--tiny" type="button" :disabled="isSystemAgent" @click="addWorkflowTransition">{{ t.addTransition }}</button>
+                    </div>
+                    <div class="transition-list">
+                      <div v-for="(transition, index) in workflowDraft.transitions" :key="`transition-${index}`" class="transition-row">
+                        <input v-model="transition.from" class="input" placeholder="from" :disabled="isSystemAgent" @input="syncWorkflowDraft" />
+                        <span>→</span>
+                        <input v-model="transition.to" class="input" placeholder="to" :disabled="isSystemAgent" @input="syncWorkflowDraft" />
+                        <input v-model="transition.label" class="input" :placeholder="t.transitionLabel" :disabled="isSystemAgent" @input="syncWorkflowDraft" />
+                        <button class="btn btn--tiny btn--ghost" type="button" :disabled="isSystemAgent" @click="removeWorkflowTransition(index)">{{ t.remove }}</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="activeTab === 'templates'" class="templates-panel">
+                  <div class="workflow-header">
+                    <div>
+                      <h3>{{ t.whatsappTemplates }}</h3>
+                      <p>{{ t.whatsappTemplatesHint }}</p>
+                    </div>
+                    <button class="btn btn--ghost" type="button" @click="addWhatsappTemplate">{{ t.addTemplate }}</button>
+                  </div>
+                  <div class="template-table">
+                    <div class="template-row template-row--head">
+                      <span>{{ t.templateName }}</span>
+                      <span>{{ t.templateLanguages }}</span>
+                      <span>{{ t.templateVariables }}</span>
+                      <span>Status</span>
+                      <span></span>
+                    </div>
+                    <div v-for="(template, index) in whatsappTemplates" :key="`template-${index}`" class="template-row">
+                      <input v-model="template.name" class="input input--compact" placeholder="riderra_baggage_request" />
+                      <input v-model="template.languagesText" class="input input--compact" placeholder="en, ru" />
+                      <div class="chip-editor">
+                        <span v-for="variable in csvToArray(template.variablesText)" :key="variable" class="state-chip">{{ variable }}</span>
+                        <input v-model="template.variablesText" class="input input--compact" placeholder="booking_number, route_from" />
+                      </div>
+                      <span class="status-pill status-pill--active">Approved</span>
+                      <button class="btn btn--tiny btn--ghost" type="button" @click="removeWhatsappTemplate(index)">{{ t.remove }}</button>
+                    </div>
+                    <div v-if="!whatsappTemplates.length" class="empty">{{ t.noTemplates }}</div>
+                  </div>
+                  <div class="local-actions">
+                    <button class="btn btn--primary" type="button" :disabled="templateSaving" @click="saveWhatsappTemplates">
+                      {{ templateSaving ? t.saving : t.saveTemplates }}
+                    </button>
+                    <button class="btn btn--ghost" type="button" @click="openPromptRegistry">{{ t.openPromptRegistry }}</button>
+                    <span v-if="templateNotice" class="muted">{{ templateNotice }}</span>
+                  </div>
+                </div>
+
+                <div v-if="activeTab === 'test'" class="test-panel">
+                  <field-control :label="t.sandbox" :helper="t.sandboxHint">
+                    <textarea v-model="agentTestInput" class="input textarea" :placeholder="t.sandboxPlaceholder"></textarea>
+                  </field-control>
+                  <div class="local-actions">
+                    <button class="btn btn--primary" type="button" :disabled="agentTesting || !selectedAgentId" @click="runAgentTest">
+                      {{ agentTesting ? t.testing : t.runDryRun }}
+                    </button>
+                  </div>
+                  <pre v-if="agentTestOutput" class="test-output">{{ agentTestOutput }}</pre>
+                  <div v-else class="empty empty--inline">{{ t.noTestResult }}</div>
+                </div>
+
+                <div v-if="activeTab === 'advanced'" class="advanced-panel">
+                  <div class="registry-callout">
+                    <div>
+                      <h3>{{ t.promptRegistry }}</h3>
+                      <p>{{ t.promptRegistryHint }}</p>
+                    </div>
+                    <button class="btn btn--ghost" type="button" @click="showPromptRegistry = !showPromptRegistry">
+                      {{ showPromptRegistry ? t.hidePromptRegistry : t.openPromptRegistry }}
+                    </button>
+                  </div>
+
+                  <div v-if="showPromptRegistry" class="prompt-registry">
+                    <div class="agent-grid agent-grid--registry">
+                      <select v-model="selectedPromptKey" class="input" @change="applyPromptSelection">
+                        <option v-for="key in promptKeys" :key="key" :value="key">{{ key }}</option>
+                      </select>
+                      <input class="input" :value="selectedPromptVersionLabel" disabled />
+                      <input v-model="promptDescription" class="input" :placeholder="t.promptDescription" />
+                    </div>
+                    <field-control :label="t.promptText" :helper="t.promptRegistryHint">
+                      <textarea v-model="promptText" class="input textarea textarea--code"></textarea>
+                    </field-control>
+                    <div class="local-actions">
+                      <button class="btn btn--primary" type="button" :disabled="promptSaving || !selectedPromptKey" @click="savePromptTemplate">
+                        {{ promptSaving ? t.saving : t.savePromptVersion }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <field-control :label="t.rawWorkflow" :helper="t.rawWorkflowHelp">
+                    <textarea v-model="agentForm.workflowJson" class="input textarea textarea--code" :disabled="isSystemAgent" @input="hydrateWorkflowDraft"></textarea>
+                  </field-control>
+                  <field-control :label="t.restrictions" :helper="t.restrictionsHelp">
+                    <textarea v-model="agentForm.restrictionsJson" class="input textarea textarea--code" :disabled="isSystemAgent"></textarea>
+                  </field-control>
+                  <field-control :label="t.variables" :helper="t.variablesHelp">
+                    <textarea v-model="agentForm.variablesJson" class="input textarea textarea--code" :disabled="isSystemAgent"></textarea>
+                  </field-control>
+
+                  <details class="danger-zone">
+                    <summary>{{ t.dangerZone }}</summary>
+                    <p>{{ t.dangerZoneHint }}</p>
+                    <button class="btn btn--danger" type="button" :disabled="!selectedAgentId || isSystemAgent" @click="deleteAgent">{{ t.deleteAgent }}</button>
+                  </details>
+                </div>
+              </section>
+
+              <div class="action-bar">
+                <span class="dirty-indicator" :class="{ 'dirty-indicator--active': hasUnsavedChanges }">
+                  {{ hasUnsavedChanges ? t.unsavedChanges : t.allSaved }}
+                </span>
+                <div class="action-bar__buttons">
+                  <button class="btn btn--ghost" type="button" :disabled="agentTesting || !selectedAgentId" @click="runAgentTest">{{ t.test }}</button>
+                  <button class="btn btn--ghost" type="button" :disabled="agentSaving || isSystemAgent" @click="saveAgent('draft')">
+                    {{ agentSaving ? t.saving : t.saveDraft }}
+                  </button>
+                  <button class="btn btn--primary" type="button" :disabled="agentSaving || isSystemAgent" @click="publishAgent">
+                    {{ agentSaving ? t.saving : t.publish }}
+                  </button>
                 </div>
               </div>
-              <textarea v-model="agentTestInput" class="input textarea" :placeholder="t.sandboxPlaceholder"></textarea>
-              <div class="agent-actions">
-                <button class="btn btn--ghost" :disabled="agentTesting || !selectedAgentId" @click="runAgentTest">
-                  {{ agentTesting ? t.testing : t.runDryRun }}
-                </button>
-              </div>
-              <pre v-if="agentTestOutput" class="test-output">{{ agentTestOutput }}</pre>
-            </div>
+            </template>
           </main>
         </div>
       </div>
@@ -224,7 +354,6 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 
 const emptyAgentForm = () => ({
@@ -246,13 +375,44 @@ const emptyAgentForm = () => ({
   requiresApproval: true
 })
 
+const workflowDraftDefaults = () => ({
+  startState: 'idle',
+  finalStatesText: 'completed',
+  states: ['idle', 'triggered', 'needs_human_review', 'completed'],
+  transitions: [
+    { from: 'idle', to: 'triggered', label: 'start' },
+    { from: 'triggered', to: 'needs_human_review', label: 'approval' },
+    { from: 'needs_human_review', to: 'completed', label: 'done' }
+  ]
+})
+
 export default {
+  layout: 'admin',
   middleware: 'staff',
-  components: { navigation, adminTabs },
+  components: {
+    adminTabs,
+    FieldControl: {
+      functional: true,
+      props: { label: String, helper: String },
+      render (h, ctx) {
+        return h('label', { class: ['field-control', ctx.data.staticClass, ctx.data.class] }, [
+          h('span', { class: 'field-control__label' }, ctx.props.label),
+          h('span', { class: 'field-control__helper' }, ctx.props.helper),
+          ctx.children
+        ])
+      }
+    }
+  },
   data: () => ({
     notice: '',
+    noticeType: 'ok',
     agents: [],
     selectedAgentId: '',
+    creatingNew: false,
+    activeTab: 'overview',
+    agentSearch: '',
+    statusFilter: '',
+    typeFilter: '',
     agentSaving: false,
     agentTesting: false,
     agentTestInput: '',
@@ -267,102 +427,283 @@ export default {
     whatsappTemplates: [],
     templateSaving: false,
     templateNotice: '',
-    agentForm: emptyAgentForm()
+    showPromptRegistry: false,
+    agentForm: emptyAgentForm(),
+    workflowDraft: workflowDraftDefaults(),
+    savedSnapshot: ''
   }),
   computed: {
+    tabs () {
+      return [
+        { key: 'overview', label: this.t.tabOverview },
+        { key: 'behavior', label: this.t.tabBehavior },
+        { key: 'workflow', label: this.t.tabWorkflow },
+        { key: 'templates', label: this.t.tabTemplates },
+        { key: 'test', label: this.t.tabTest },
+        { key: 'advanced', label: this.t.tabAdvanced }
+      ]
+    },
+    isCreating () {
+      return this.creatingNew
+    },
+    selectedAgent () {
+      return (this.agents || []).find((agent) => agent.id === this.selectedAgentId) || null
+    },
+    isSystemAgent () {
+      const code = String(this.agentForm.code || this.selectedAgent?.code || '').trim().toLowerCase()
+      return code === 'policy_guard' || code.startsWith('system_')
+    },
     activeAgentsCount () {
       return (this.agents || []).filter((agent) => agent.isActive !== false).length
     },
-    mvpAgentCards () {
-      const hasType = (type) => (this.agents || []).some((agent) => agent.type === type && agent.isActive !== false)
-      return [
-        {
-          key: 'order_completion',
-          layer: this.t.customerLayer,
-          title: 'order_completion',
-          description: this.t.orderCompletionAgent,
-          enabled: hasType('order_completion'),
-          status: hasType('order_completion') ? this.t.active : this.t.inactive
-        },
-        {
-          key: 'dispatch_notify',
-          layer: this.t.deliveryLayer,
-          title: 'dispatch_notify',
-          description: this.t.dispatchNotifyAgent,
-          enabled: hasType('dispatch_notify'),
-          status: hasType('dispatch_notify') ? this.t.active : this.t.inactive
-        },
-        {
-          key: 'policy_guard',
-          layer: this.t.guardLayer,
-          title: 'policy_guard',
-          description: this.t.policyGuardAgent,
-          enabled: true,
-          system: true,
-          status: this.t.systemLayer
-        }
-      ]
+    agentTypes () {
+      return [...new Set((this.agents || []).map((agent) => agent.type).filter(Boolean))]
     },
-    workflowStatePreview () {
-      const parsed = this.parseJsonMaybe(this.agentForm.workflowJson)
-      const fallback = this.agentForm.type === 'dispatch_notify'
-        ? ['idle', 'triggered', 'template_required', 'sent', 'failed', 'completed']
-        : ['idle', 'triggered', 'template_required', 'awaiting_customer_reply', 'free_text_allowed', 'needs_human_review', 'completed']
-      if (!parsed) return fallback
-      const candidates = []
-      if (Array.isArray(parsed.states)) candidates.push(...parsed.states)
-      if (Array.isArray(parsed.steps)) candidates.push(...parsed.steps)
-      if (Array.isArray(parsed.workflow)) candidates.push(...parsed.workflow)
-      if (Array.isArray(parsed)) candidates.push(...parsed)
-      const normalized = candidates
-        .map((state) => typeof state === 'string' ? state : (state?.name || state?.state || state?.key || ''))
-        .map((state) => String(state || '').trim())
-        .filter(Boolean)
-      return normalized.length ? normalized.slice(0, 12) : fallback
+    filteredAgents () {
+      const q = String(this.agentSearch || '').trim().toLowerCase()
+      return (this.agents || []).filter((agent) => {
+        const isSystem = this.isAgentSystem(agent)
+        const status = isSystem ? 'system' : (agent.isActive !== false ? 'active' : 'archived')
+        if (this.statusFilter && this.statusFilter !== status) return false
+        if (this.typeFilter && agent.type !== this.typeFilter) return false
+        if (!q) return true
+        return [agent.name, agent.code, agent.type, agent.description].some((value) => String(value || '').toLowerCase().includes(q))
+      })
+    },
+    defaultLanguage: {
+      get () {
+        const match = String(this.agentForm.promptText || '').match(/Default customer-facing language is ([A-Za-z]+)/i)
+        return match && match[1].toLowerCase().startsWith('ru') ? 'ru' : 'en'
+      },
+      set (value) {
+        const langLine = value === 'ru'
+          ? 'Default customer-facing language is Russian unless order.lang is explicitly en.'
+          : 'Default customer-facing language is English unless order.lang is explicitly ru.'
+        const lines = String(this.agentForm.promptText || '').split('\n')
+        const index = lines.findIndex((line) => /Default customer-facing language/i.test(line))
+        if (index >= 0) lines.splice(index, 1, langLine)
+        else lines.unshift(langLine)
+        this.agentForm.promptText = lines.join('\n').trim()
+      }
+    },
+    hasUnsavedChanges () {
+      return this.snapshotForm() !== this.savedSnapshot
     },
     t () {
       return this.$store.state.language === 'ru'
         ? {
-            title: 'AI агенты', subtitle: 'Отдельный экран для настройки агентов. Чаты остаются рабочей очередью без технического шума.',
-            activeAgents: 'активно', customerLayer: 'клиентский контур', deliveryLayer: 'контур уведомлений', guardLayer: 'runtime guard',
-            orderCompletionAgent: 'Запрашивает недостающие данные заказа через шаблоны и ждёт ответ клиента.',
-            dispatchNotifyAgent: 'Отправляет подтверждённые детали поездки, водителя и полезные инструкции.',
-            policyGuardAgent: 'Обязательный системный слой: блокирует free text вне 24h, неизвестные templates и рискованные действия.',
-            systemLayer: 'Системный',
-            refresh: 'Обновить', newAgent: 'Новый агент', agentList: 'Агенты', agentListHint: 'Все активные и архивные конфиги.',
-            active: 'Активен', inactive: 'Отключён', noAgents: 'Пока нет агентов.', editAgent: 'Настройка агента', createAgent: 'Создание агента',
-            agentFormHint: 'Здесь живут prompt, workflow и ограничения. Это не ежедневный экран оператора.', name: 'Название', code: 'Код',
-            isActive: 'Активен', requiresApproval: 'Только через approval', presetClarification: 'Пресет: Уточнения', presetDispatch: 'Пресет: Рассылка',
-            description: 'Описание', personality: 'Personality', identity: 'Identity', task: 'Task', speechStyle: 'Speech style', prompt: 'Prompt',
-            workflowStates: 'Состояния workflow', workflowStatesHint: 'Быстрый предпросмотр без чтения JSON.',
-            promptPlaceholder: 'Системный prompt агента', workflow: 'Workflow (JSON)', restrictions: 'Ограничения (JSON)', variables: 'Переменные (JSON)',
-            saving: 'Сохраняю...', saveAgent: 'Сохранить агента', createAgentButton: 'Создать агента', deleteAgent: 'Удалить агента',
-            whatsappTemplates: 'WhatsApp templates', whatsappTemplatesHint: 'Только approved Meta templates. Free text разрешён только после входящего ответа в 24h окне.',
-            addTemplate: 'Добавить template', remove: 'Удалить', templateName: 'Template', templateLanguages: 'Языки', templateVariables: 'Variables',
-            noTemplates: 'Нет templates. Добавьте approved templates из Meta.', saveTemplates: 'Сохранить templates',
-            promptRegistry: 'Prompt Registry', promptRegistryHint: 'Версионные шаблоны для runtime.', promptDescription: 'Описание prompt',
-            promptText: 'Текст prompt', savePromptVersion: 'Сохранить новую версию', sandbox: 'Sandbox test', sandboxHint: 'Dry-run без отправки в боевой канал.',
-            sandboxPlaceholder: 'Тестовое сообщение для агента', testing: 'Тестирую...', runDryRun: 'Запустить dry_run тест'
+            title: 'AI агенты',
+            subtitle: 'Настройка AI-агентов: поведение, workflow, templates, тесты и публикация без raw JSON в основном сценарии.',
+            activeAgents: 'активно',
+            agentList: 'Агенты',
+            agentListHint: 'Поиск, статус и контур.',
+            searchAgents: 'Поиск по названию, slug или описанию',
+            allStatuses: 'Все статусы',
+            allContours: 'Все контуры',
+            active: 'Активен',
+            archive: 'Архив',
+            system: 'Системный',
+            noAgents: 'Пока нет агентов.',
+            noFilteredAgents: 'По фильтрам ничего не найдено.',
+            noDescription: 'Описание не заполнено.',
+            selectAgentTitle: 'Выберите агента',
+            selectAgentHint: 'Слева откройте существующего агента или создайте новый.',
+            newAgent: 'Новый агент',
+            untitledAgent: 'Новый агент',
+            type: 'Тип',
+            contour: 'Контур',
+            taskType: 'Задача',
+            activeToggle: 'Active',
+            approvalToggle: 'Human approval',
+            lastUpdated: 'Last updated',
+            lastPublished: 'Last published',
+            changedBy: 'Кто менял',
+            tabOverview: 'Обзор',
+            tabBehavior: 'Поведение',
+            tabWorkflow: 'Workflow',
+            tabTemplates: 'Templates',
+            tabTest: 'Тест',
+            tabAdvanced: 'Advanced',
+            name: 'Имя агента',
+            nameHelp: 'Понятное название для оператора и владельца процесса.',
+            slugVersion: 'Slug / version',
+            slugHelp: 'Slug используется runtime-логикой; после создания не меняется.',
+            typeHelp: 'Технический тип агента в существующей схеме.',
+            contourHelp: 'Человеческое имя контура, где работает агент.',
+            description: 'Описание',
+            descriptionHelp: 'Коротко: что агент делает и где применяется.',
+            isActive: 'Агент активен',
+            requiresApproval: 'Только через human approval',
+            identity: 'Роль',
+            identityHelp: 'Кем агент является в коммуникации.',
+            task: 'Задача',
+            taskHelp: 'Что агент должен выполнить в одном рабочем сценарии.',
+            speechStyle: 'Tone / style',
+            speechStyleHelp: 'Стиль ответа: коротко, формально, дружелюбно и т.д.',
+            defaultLanguage: 'Default language',
+            defaultLanguageHelp: 'Язык по умолчанию для customer-facing текста.',
+            personality: 'Поведенческий профиль',
+            personalityHelp: 'Небольшие правила поведения без технического JSON.',
+            responseRules: 'Правила ответа',
+            responseRulesHelp: 'Главные инструкции prompt. Это структурированный текст, не JSON.',
+            presetClarification: 'Пресет: уточнение',
+            presetDispatch: 'Пресет: рассылка',
+            workflow: 'Workflow',
+            workflowHint: 'Визуальная настройка состояний и переходов. Raw JSON оставлен в Advanced.',
+            normalizeWorkflow: 'Собрать из JSON',
+            startState: 'Стартовое состояние',
+            startStateHelp: 'Состояние, с которого начинается сценарий.',
+            finalStates: 'Финальные состояния',
+            finalStatesHelp: 'Через запятую: completed, failed.',
+            states: 'Состояния',
+            transitions: 'Допустимые переходы',
+            addState: 'Добавить состояние',
+            addTransition: 'Добавить переход',
+            transitionLabel: 'метка',
+            remove: 'Удалить',
+            whatsappTemplates: 'WhatsApp templates',
+            whatsappTemplatesHint: 'Approved Meta templates. Variables показаны chips, чтобы оператор не читал длинную строку.',
+            addTemplate: 'Добавить template',
+            templateName: 'Template',
+            templateLanguages: 'Языки',
+            templateVariables: 'Variables',
+            noTemplates: 'Нет templates.',
+            saveTemplates: 'Сохранить templates',
+            openPromptRegistry: 'Открыть Prompt Registry',
+            hidePromptRegistry: 'Скрыть Prompt Registry',
+            promptRegistry: 'Prompt Registry',
+            promptRegistryHint: 'Отдельная сущность с версионными prompt. Здесь только secondary action.',
+            promptDescription: 'Описание prompt',
+            promptText: 'Текст prompt',
+            savePromptVersion: 'Сохранить новую версию',
+            sandbox: 'Тестовый контекст',
+            sandboxHint: 'Dry-run без отправки в реальный канал.',
+            sandboxPlaceholder: 'Вставьте тестовое сообщение или JSON-контекст',
+            testing: 'Тестирую...',
+            runDryRun: 'Запустить dry run',
+            noTestResult: 'Результат появится после dry run.',
+            rawWorkflow: 'Raw workflow JSON',
+            rawWorkflowHelp: 'Fallback для сложных сценариев. Основной сценарий редактируется во вкладке Workflow.',
+            restrictions: 'Restrictions JSON',
+            restrictionsHelp: 'Ограничения runtime.',
+            variables: 'Variables JSON',
+            variablesHelp: 'Переменные агента и дефолты.',
+            dangerZone: 'Danger zone',
+            dangerZoneHint: 'Удаление необратимо. Системные агенты удалить нельзя.',
+            deleteAgent: 'Удалить агента',
+            unsavedChanges: 'Есть несохранённые изменения',
+            allSaved: 'Сохранено',
+            test: 'Протестировать',
+            saveDraft: 'Сохранить черновик',
+            publish: 'Опубликовать',
+            saving: 'Сохраняю...'
           }
         : {
-            title: 'AI agents', subtitle: 'A separate place for agent configuration. Chats stay operational and clean.',
-            activeAgents: 'active', customerLayer: 'customer flow', deliveryLayer: 'notification flow', guardLayer: 'runtime guard',
-            orderCompletionAgent: 'Requests missing order details via templates and waits for customer replies.',
-            dispatchNotifyAgent: 'Sends confirmed trip details, driver information and useful instructions.',
-            policyGuardAgent: 'Mandatory system layer: blocks free text outside 24h, unknown templates and risky actions.',
-            systemLayer: 'System',
-            refresh: 'Refresh', newAgent: 'New agent', agentList: 'Agents', agentListHint: 'All active and archived configs.', active: 'Active', inactive: 'Inactive',
-            noAgents: 'No agents yet.', editAgent: 'Edit agent', createAgent: 'Create agent', agentFormHint: 'Prompt, workflow and restrictions live here.',
-            name: 'Name', code: 'Code', isActive: 'Active', requiresApproval: 'Approval only', presetClarification: 'Preset: Clarification',
-            presetDispatch: 'Preset: Dispatch', description: 'Description', personality: 'Personality', identity: 'Identity', task: 'Task', speechStyle: 'Speech style',
-            workflowStates: 'Workflow states', workflowStatesHint: 'Quick preview without reading JSON.',
-            prompt: 'Prompt', promptPlaceholder: 'System prompt', workflow: 'Workflow (JSON)', restrictions: 'Restrictions (JSON)', variables: 'Variables (JSON)',
-            saving: 'Saving...', saveAgent: 'Save agent', createAgentButton: 'Create agent', deleteAgent: 'Delete agent', promptRegistry: 'Prompt registry',
-            whatsappTemplates: 'WhatsApp templates', whatsappTemplatesHint: 'Approved Meta templates only. Free text is allowed only after inbound reply within 24h.',
-            addTemplate: 'Add template', remove: 'Remove', templateName: 'Template', templateLanguages: 'Languages', templateVariables: 'Variables',
-            noTemplates: 'No templates yet. Add approved Meta templates.', saveTemplates: 'Save templates',
-            promptRegistryHint: 'Versioned templates for runtime.', promptDescription: 'Prompt description', promptText: 'Prompt text', savePromptVersion: 'Save new version',
-            sandbox: 'Sandbox test', sandboxHint: 'Dry-run without sending to a live channel.', sandboxPlaceholder: 'Test message for the agent', testing: 'Testing...', runDryRun: 'Run dry_run'
+            title: 'AI agents',
+            subtitle: 'Configure AI agents: behavior, workflow, templates, tests and publishing without raw JSON in the main path.',
+            activeAgents: 'active',
+            agentList: 'Agents',
+            agentListHint: 'Search, status and contour.',
+            searchAgents: 'Search by name, slug or description',
+            allStatuses: 'All statuses',
+            allContours: 'All contours',
+            active: 'Active',
+            archive: 'Archive',
+            system: 'System',
+            noAgents: 'No agents yet.',
+            noFilteredAgents: 'No agents match filters.',
+            noDescription: 'No description yet.',
+            selectAgentTitle: 'Select an agent',
+            selectAgentHint: 'Open an existing agent or create a new one.',
+            newAgent: 'New agent',
+            untitledAgent: 'New agent',
+            type: 'Type',
+            contour: 'Contour',
+            taskType: 'Task',
+            activeToggle: 'Active',
+            approvalToggle: 'Human approval',
+            lastUpdated: 'Last updated',
+            lastPublished: 'Last published',
+            changedBy: 'Changed by',
+            tabOverview: 'Overview',
+            tabBehavior: 'Behavior',
+            tabWorkflow: 'Workflow',
+            tabTemplates: 'Templates',
+            tabTest: 'Test',
+            tabAdvanced: 'Advanced',
+            name: 'Agent name',
+            nameHelp: 'Clear name for operators and process owners.',
+            slugVersion: 'Slug / version',
+            slugHelp: 'Runtime slug. Locked after creation.',
+            typeHelp: 'Technical type in the existing schema.',
+            contourHelp: 'Human-friendly contour name.',
+            description: 'Description',
+            descriptionHelp: 'Short explanation of what this agent does.',
+            isActive: 'Agent is active',
+            requiresApproval: 'Human approval only',
+            identity: 'Role',
+            identityHelp: 'Who the agent is in communication.',
+            task: 'Task',
+            taskHelp: 'What the agent does in one workflow.',
+            speechStyle: 'Tone / style',
+            speechStyleHelp: 'Response style.',
+            defaultLanguage: 'Default language',
+            defaultLanguageHelp: 'Default customer-facing language.',
+            personality: 'Behavior profile',
+            personalityHelp: 'Small behavior rules, not JSON.',
+            responseRules: 'Response rules',
+            responseRulesHelp: 'Main prompt instructions. Structured text, not JSON.',
+            presetClarification: 'Preset: clarification',
+            presetDispatch: 'Preset: dispatch',
+            workflow: 'Workflow',
+            workflowHint: 'Visual states and transitions. Raw JSON remains in Advanced.',
+            normalizeWorkflow: 'Build from JSON',
+            startState: 'Start state',
+            startStateHelp: 'Initial workflow state.',
+            finalStates: 'Final states',
+            finalStatesHelp: 'Comma-separated: completed, failed.',
+            states: 'States',
+            transitions: 'Allowed transitions',
+            addState: 'Add state',
+            addTransition: 'Add transition',
+            transitionLabel: 'label',
+            remove: 'Remove',
+            whatsappTemplates: 'WhatsApp templates',
+            whatsappTemplatesHint: 'Approved Meta templates. Variables are shown as chips.',
+            addTemplate: 'Add template',
+            templateName: 'Template',
+            templateLanguages: 'Languages',
+            templateVariables: 'Variables',
+            noTemplates: 'No templates yet.',
+            saveTemplates: 'Save templates',
+            openPromptRegistry: 'Open Prompt Registry',
+            hidePromptRegistry: 'Hide Prompt Registry',
+            promptRegistry: 'Prompt Registry',
+            promptRegistryHint: 'Separate versioned prompt entity.',
+            promptDescription: 'Prompt description',
+            promptText: 'Prompt text',
+            savePromptVersion: 'Save new version',
+            sandbox: 'Test context',
+            sandboxHint: 'Dry-run without sending to a live channel.',
+            sandboxPlaceholder: 'Paste test message or JSON context',
+            testing: 'Testing...',
+            runDryRun: 'Run dry run',
+            noTestResult: 'Result appears after dry run.',
+            rawWorkflow: 'Raw workflow JSON',
+            rawWorkflowHelp: 'Fallback for complex workflows.',
+            restrictions: 'Restrictions JSON',
+            restrictionsHelp: 'Runtime restrictions.',
+            variables: 'Variables JSON',
+            variablesHelp: 'Agent variables and defaults.',
+            dangerZone: 'Danger zone',
+            dangerZoneHint: 'Deletion is irreversible. System agents cannot be deleted.',
+            deleteAgent: 'Delete agent',
+            unsavedChanges: 'Unsaved changes',
+            allSaved: 'Saved',
+            test: 'Test',
+            saveDraft: 'Save draft',
+            publish: 'Publish',
+            saving: 'Saving...'
           }
     }
   },
@@ -383,15 +724,22 @@ export default {
       const data = await res.json()
       this.agents = data.rows || []
       if (this.selectedAgentId && !this.agents.some((a) => a.id === this.selectedAgentId)) this.startNewAgent()
-      if (!this.selectedAgentId && this.agents.length) this.selectAgent(this.agents[0].id)
+      if (!this.selectedAgentId && !this.creatingNew && this.agents.length) {
+        this.selectedAgentId = this.agents[0].id
+        this.applyAgentSelection()
+      }
     },
     selectAgent (id) {
+      if (this.hasUnsavedChanges && !window.confirm('Есть несохранённые изменения. Переключиться без сохранения?')) return
       this.selectedAgentId = id
+      this.creatingNew = false
+      this.activeTab = 'overview'
       this.applyAgentSelection()
     },
     applyAgentSelection () {
       const selected = this.agents.find((a) => a.id === this.selectedAgentId)
       if (!selected) return this.startNewAgent()
+      this.creatingNew = false
       this.agentForm = {
         name: selected.name || '',
         code: selected.code || '',
@@ -410,72 +758,193 @@ export default {
         isActive: selected.isActive !== false,
         requiresApproval: selected.requiresApproval !== false
       }
+      this.hydrateWorkflowDraft()
       this.agentTestInput = ''
       this.agentTestOutput = ''
+      this.savedSnapshot = this.snapshotForm()
     },
     startNewAgent () {
+      if (this.hasUnsavedChanges && !window.confirm('Есть несохранённые изменения. Создать нового агента без сохранения?')) return
       this.selectedAgentId = ''
+      this.creatingNew = true
+      this.activeTab = 'overview'
       this.agentForm = emptyAgentForm()
+      this.workflowDraft = workflowDraftDefaults()
+      this.syncWorkflowDraft()
       this.agentTestInput = ''
       this.agentTestOutput = ''
+      this.savedSnapshot = this.snapshotForm()
     },
-    async saveAgent () {
-      if (this.agentSaving) return
+    snapshotForm () {
+      return JSON.stringify({
+        form: this.agentForm,
+        workflow: this.workflowDraft
+      })
+    },
+    showNotice (text, type = 'ok') {
+      this.notice = text
+      this.noticeType = type
+      window.clearTimeout(this.noticeTimer)
+      this.noticeTimer = window.setTimeout(() => {
+        this.notice = ''
+      }, 4500)
+    },
+    isAgentSystem (agent) {
+      const code = String(agent?.code || '').trim().toLowerCase()
+      return code === 'policy_guard' || code.startsWith('system_')
+    },
+    statusLabel (agent) {
+      if (this.isAgentSystem(agent)) return this.t.system
+      return agent.isActive !== false ? this.t.active : this.t.archive
+    },
+    statusClass (agent) {
+      if (this.isAgentSystem(agent)) return 'status-pill--system'
+      return agent.isActive !== false ? 'status-pill--active' : 'status-pill--archived'
+    },
+    contourLabel (type) {
+      const map = {
+        order_completion: 'Customer ops',
+        dispatch_notify: 'Dispatch',
+        driver_ops: 'Driver ops',
+        policy_guard: 'Runtime guard'
+      }
+      return map[type] || type || '—'
+    },
+    formatDate (value) {
+      if (!value) return '—'
+      const date = new Date(value)
+      return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
+    },
+    buildWorkflowFromJson () {
+      const parsed = this.parseJsonMaybe(this.agentForm.workflowJson)
+      if (!parsed) return workflowDraftDefaults()
+      const rawStates = Array.isArray(parsed.states) ? parsed.states : (Array.isArray(parsed.steps) ? parsed.steps : [])
+      const states = rawStates
+        .map((state) => typeof state === 'string' ? state : (state?.name || state?.state || state?.key || ''))
+        .map((state) => String(state || '').trim())
+        .filter(Boolean)
+      const rawTransitions = Array.isArray(parsed.transitions) ? parsed.transitions : []
+      const transitions = rawTransitions.map((item) => ({
+        from: String(item?.from || item?.source || '').trim(),
+        to: String(item?.to || item?.target || '').trim(),
+        label: String(item?.label || item?.event || item?.condition || '').trim()
+      })).filter((item) => item.from || item.to)
+      return {
+        startState: String(parsed.startState || parsed.initial || states[0] || 'idle').trim(),
+        finalStatesText: (Array.isArray(parsed.finalStates) ? parsed.finalStates : (parsed.finalState ? [parsed.finalState] : ['completed'])).join(', '),
+        states: states.length ? states : workflowDraftDefaults().states,
+        transitions: transitions.length ? transitions : workflowDraftDefaults().transitions
+      }
+    },
+    hydrateWorkflowDraft () {
+      this.workflowDraft = this.buildWorkflowFromJson()
+    },
+    normalizeWorkflowJson () {
+      this.hydrateWorkflowDraft()
+      this.syncWorkflowDraft()
+    },
+    syncWorkflowDraft () {
+      const finalStates = this.csvToArray(this.workflowDraft.finalStatesText)
+      const states = (this.workflowDraft.states || []).map((state) => String(state || '').trim()).filter(Boolean)
+      const transitions = (this.workflowDraft.transitions || [])
+        .map((transition) => ({
+          from: String(transition.from || '').trim(),
+          to: String(transition.to || '').trim(),
+          label: String(transition.label || '').trim()
+        }))
+        .filter((transition) => transition.from || transition.to)
+      this.agentForm.workflowJson = JSON.stringify({
+        startState: String(this.workflowDraft.startState || '').trim() || states[0] || 'idle',
+        finalStates: finalStates.length ? finalStates : ['completed'],
+        states,
+        transitions
+      }, null, 2)
+    },
+    addWorkflowState () {
+      this.workflowDraft.states.push('')
+      this.syncWorkflowDraft()
+    },
+    removeWorkflowState (index) {
+      this.workflowDraft.states.splice(index, 1)
+      this.syncWorkflowDraft()
+    },
+    addWorkflowTransition () {
+      this.workflowDraft.transitions.push({ from: '', to: '', label: '' })
+      this.syncWorkflowDraft()
+    },
+    removeWorkflowTransition (index) {
+      this.workflowDraft.transitions.splice(index, 1)
+      this.syncWorkflowDraft()
+    },
+    buildPayload () {
+      return {
+        name: this.agentForm.name.trim(),
+        code: this.agentForm.code.trim(),
+        type: this.agentForm.type,
+        description: this.agentForm.description.trim() || null,
+        personality: this.agentForm.personality.trim() || null,
+        identity: this.agentForm.identity.trim() || null,
+        task: this.agentForm.task.trim() || null,
+        speechStyle: this.agentForm.speechStyle.trim() || null,
+        taskType: this.agentForm.taskType,
+        promptText: this.agentForm.promptText.trim(),
+        workflowJson: this.agentForm.workflowJson.trim() || null,
+        restrictions: this.agentForm.restrictionsJson.trim() || null,
+        constraintsJson: this.agentForm.constraintsJson.trim() || null,
+        variables: this.agentForm.variablesJson.trim() || null,
+        isActive: this.agentForm.isActive,
+        requiresApproval: this.agentForm.requiresApproval
+      }
+    },
+    async saveAgent (mode = 'draft') {
+      if (this.agentSaving || this.isSystemAgent) return
       this.agentSaving = true
-      this.notice = ''
       try {
         const creating = !this.selectedAgentId
-        const payload = {
-          name: this.agentForm.name.trim(),
-          code: this.agentForm.code.trim(),
-          type: this.agentForm.type,
-          description: this.agentForm.description.trim() || null,
-          personality: this.agentForm.personality.trim() || null,
-          identity: this.agentForm.identity.trim() || null,
-          task: this.agentForm.task.trim() || null,
-          speechStyle: this.agentForm.speechStyle.trim() || null,
-          taskType: this.agentForm.taskType,
-          promptText: this.agentForm.promptText.trim(),
-          workflowJson: this.agentForm.workflowJson.trim() || null,
-          restrictions: this.agentForm.restrictionsJson.trim() || null,
-          constraintsJson: this.agentForm.constraintsJson.trim() || null,
-          variables: this.agentForm.variablesJson.trim() || null,
-          isActive: this.agentForm.isActive,
-          requiresApproval: this.agentForm.requiresApproval
-        }
+        const payload = this.buildPayload()
+        if (mode === 'publish') payload.isActive = true
         const method = this.selectedAgentId ? 'PUT' : 'POST'
         const url = this.selectedAgentId ? `/api/admin/chats/agents/${this.selectedAgentId}` : '/api/admin/chats/agents'
         const res = await fetch(url, { method, headers: this.headers(), body: JSON.stringify(payload) })
         const data = await res.json()
         if (!res.ok) throw new Error(data?.error || 'Не удалось сохранить агента')
-        await this.loadAgents()
         if (!this.selectedAgentId && data?.agent?.id) this.selectedAgentId = data.agent.id
+        this.creatingNew = false
+        await this.loadAgents()
         this.applyAgentSelection()
-        this.notice = creating ? 'Агент создан' : 'Агент сохранён'
+        this.showNotice(mode === 'publish' ? 'Агент опубликован' : (creating ? 'Черновик агента создан' : 'Черновик сохранён'))
       } catch (error) {
-        this.notice = error?.message || 'Ошибка сохранения агента'
+        this.showNotice(error?.message || 'Ошибка сохранения агента', 'error')
       } finally {
         this.agentSaving = false
       }
     },
+    async publishAgent () {
+      this.agentForm.isActive = true
+      await this.saveAgent('publish')
+    },
     async deleteAgent () {
-      if (!this.selectedAgentId) return
+      if (!this.selectedAgentId || this.isSystemAgent) return
+      if (!window.confirm('Удалить агента? Это действие нельзя отменить.')) return
       const res = await fetch(`/api/admin/chats/agents/${this.selectedAgentId}`, {
         method: 'DELETE',
         headers: this.headers()
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        this.notice = data?.error || 'Не удалось удалить агента'
+        this.showNotice(data?.error || 'Не удалось удалить агента', 'error')
         return
       }
-      this.notice = 'Агент удалён'
-      this.startNewAgent()
+      this.showNotice('Агент удалён')
+      this.selectedAgentId = ''
+      this.agentForm = emptyAgentForm()
+      this.savedSnapshot = this.snapshotForm()
       await this.loadAgents()
     },
     async runAgentTest () {
       if (!this.selectedAgentId || this.agentTesting) return
       this.agentTesting = true
+      this.activeTab = 'test'
       try {
         const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/test`, {
           method: 'POST',
@@ -485,8 +954,10 @@ export default {
         const data = await response.json()
         if (!response.ok) throw new Error(data?.error || 'Ошибка dry_run теста')
         this.agentTestOutput = JSON.stringify(data, null, 2)
+        this.showNotice('Dry run выполнен')
       } catch (error) {
         this.agentTestOutput = JSON.stringify({ error: error?.message || 'Ошибка теста' }, null, 2)
+        this.showNotice(error?.message || 'Ошибка теста', 'error')
       } finally {
         this.agentTesting = false
       }
@@ -503,6 +974,9 @@ export default {
         this.agentForm.type = 'order_completion'
         this.agentForm.taskType = 'clarification'
         this.agentForm.requiresApproval = true
+        this.agentForm.identity = 'Riderra assistant working in test mode.'
+        this.agentForm.task = 'Politely ask only for missing booking details.'
+        this.agentForm.speechStyle = 'Short, clear, calm, businesslike.'
         this.agentForm.promptText = [
           'You are Riderra assistant working in test mode.',
           'Default customer-facing language is English unless order.lang is explicitly ru.',
@@ -515,6 +989,9 @@ export default {
         this.agentForm.type = 'dispatch_notify'
         this.agentForm.taskType = 'dispatch_info'
         this.agentForm.requiresApproval = true
+        this.agentForm.identity = 'Riderra trip notification assistant.'
+        this.agentForm.task = 'Send confirmed trip details to the customer.'
+        this.agentForm.speechStyle = 'Short, clear, businesslike, no pressure.'
         this.agentForm.promptText = [
           'You are Riderra assistant working in test mode.',
           'Default customer-facing language is English unless order.lang is explicitly ru.',
@@ -532,6 +1009,10 @@ export default {
         this.promptTemplates = data.prompts || []
         this.applyPromptSelection()
       } catch (_) {}
+    },
+    openPromptRegistry () {
+      this.activeTab = 'advanced'
+      this.showPromptRegistry = true
     },
     applyPromptSelection () {
       const key = this.selectedPromptKey
@@ -551,10 +1032,10 @@ export default {
         })
         const data = await response.json()
         if (!response.ok) throw new Error(data?.error || 'Не удалось сохранить prompt')
-        this.notice = `Prompt ${this.selectedPromptKey} сохранен, версия v${data.prompt_version || '?'}`
+        this.showNotice(`Prompt ${this.selectedPromptKey} сохранен, версия v${data.prompt_version || '?'}`)
         await this.loadPrompts()
       } catch (error) {
-        this.notice = error?.message || 'Ошибка сохранения prompt'
+        this.showNotice(error?.message || 'Ошибка сохранения prompt', 'error')
       } finally {
         this.promptSaving = false
       }
@@ -573,7 +1054,8 @@ export default {
         languagesText: Array.isArray(template.languages)
           ? template.languages.join(', ')
           : (template.language || ''),
-        variablesText: Array.isArray(template.variables) ? template.variables.join(', ') : ''
+        variablesText: Array.isArray(template.variables) ? template.variables.join(', ') : '',
+        status: template.status || 'approved'
       }
     },
     async loadWhatsappTemplates () {
@@ -619,9 +1101,11 @@ export default {
         if (!response.ok) throw new Error(data?.error || 'Не удалось сохранить WhatsApp templates')
         this.whatsappTemplates = (data.templates || templates).map(this.templateForUi)
         this.templateNotice = `Saved v${data.prompt_version || '?'}`
+        this.showNotice('Templates сохранены')
         await this.loadPrompts()
       } catch (error) {
         this.templateNotice = error?.message || 'Ошибка сохранения WhatsApp templates'
+        this.showNotice(this.templateNotice, 'error')
       } finally {
         this.templateSaving = false
       }
@@ -631,285 +1115,96 @@ export default {
 </script>
 
 <style scoped>
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
+.agent-section { position: relative; }
+.page-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:18px; }
+.page-subtitle { margin:6px 0 0; max-width:820px; color:#60708f; font-size:15px; line-height:1.55; }
+.eyebrow { margin:0 0 8px; color:#7a2f8f; font-size:12px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+.status-summary { min-width:132px; padding:14px 18px; border:1px solid #d8e0ee; border-radius:18px; background:rgba(255,255,255,.94); text-align:right; }
+.status-summary strong { display:block; color:#17233f; font-size:28px; line-height:1; }
+.status-summary span, .muted { color:#64748b; }
+.toast { position:sticky; top:14px; z-index:80; margin-bottom:14px; border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; border-radius:14px; padding:12px 14px; font-weight:800; }
+.toast--error { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+.agent-console { display:grid; grid-template-columns:minmax(280px,340px) minmax(0,1fr); gap:18px; align-items:start; }
+.agent-list-panel, .summary-card, .settings-card, .empty--hero { background:rgba(255,255,255,.97); border:1px solid #d8e0ee; border-radius:20px; box-shadow:0 20px 50px rgba(16,24,40,.07); }
+.agent-list-panel { display:grid; gap:12px; padding:16px; position:sticky; top:14px; max-height:calc(100vh - 28px); overflow:auto; }
+.panel-head, .workflow-header, .workflow-section__head { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; }
+.panel-head h3, .workflow-header h3, .workflow-section h4 { margin:0; color:#17233f; }
+.panel-head p, .workflow-header p, .registry-callout p, .danger-zone p { margin:4px 0 0; color:#64748b; line-height:1.45; }
+.icon-action { width:40px; height:40px; border:1px solid #d8e0ee; border-radius:12px; background:#fff; color:#17233f; cursor:pointer; font-size:24px; font-weight:800; }
+.agent-filters { display:grid; gap:8px; }
+.agent-list-item { display:grid; gap:7px; width:100%; border:1px solid #d8e0ee; border-radius:16px; background:#fff; padding:13px 14px; text-align:left; cursor:pointer; }
+.agent-list-item--active { border-color:#2b6eff; box-shadow:0 10px 24px rgba(43,110,255,.13); }
+.agent-list-item__title { color:#17233f; font-weight:900; }
+.agent-list-item__meta, .agent-list-item__description { color:#64748b; font-size:12px; line-height:1.35; }
+.agent-list-item__line { display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:#41516f; font-size:12px; font-weight:800; }
+.agent-workspace { display:grid; gap:14px; min-width:0; }
+.summary-card { display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,340px); gap:20px; padding:22px; }
+.summary-card h2 { margin:0; color:#17233f; font-size:28px; line-height:1.12; }
+.summary-card p { margin:8px 0 0; color:#64748b; line-height:1.5; }
+.summary-card__title-row, .summary-meta, .summary-toggles, .summary-audit, .local-actions, .preset-row, .action-bar__buttons { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.summary-meta { margin-top:14px; color:#64748b; }
+.summary-meta strong { color:#17233f; }
+.summary-toggles { align-content:start; align-items:stretch; flex-direction:column; }
+.summary-audit { flex-direction:column; align-items:flex-start; color:#64748b; font-size:12px; }
+.settings-tabs { display:flex; gap:8px; overflow-x:auto; padding:2px; }
+.settings-tab { border:1px solid #d8e0ee; border-radius:999px; background:#fff; color:#334155; cursor:pointer; font-weight:900; padding:10px 14px; white-space:nowrap; }
+.settings-tab--active { background:#18244a; border-color:#18244a; color:#fff; }
+.settings-card { padding:20px; }
+.form-grid, .workflow-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.form-grid__wide { grid-column:1 / -1; }
+.inline-grid { display:grid; grid-template-columns:minmax(0,1fr) 84px; gap:8px; }
+.field-control { display:grid; gap:6px; align-content:start; }
+.field-control__label { color:#17233f; font-weight:900; }
+.field-control__helper { color:#64748b; font-size:12px; line-height:1.35; }
+.input, .textarea { width:100%; box-sizing:border-box; border:1px solid #d8e0ee; border-radius:14px; background:#fff; color:#17233f; padding:12px 14px; }
+.input:focus, .textarea:focus { outline:none; border-color:#2b6eff; box-shadow:0 0 0 3px rgba(43,110,255,.12); }
+.input:disabled, .textarea:disabled { background:#f8fafc; color:#64748b; }
+.textarea { min-height:150px; resize:vertical; }
+.textarea--small { min-height:86px; }
+.textarea--code, .test-output { font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; }
+.toggle-grid { display:flex; flex-wrap:wrap; gap:12px; }
+.switch { display:inline-flex; align-items:center; gap:8px; border:1px solid #d8e0ee; border-radius:14px; background:#f8fafc; color:#17233f; font-weight:900; padding:12px 14px; }
+.workflow-editor, .templates-panel, .test-panel, .advanced-panel { display:grid; gap:18px; }
+.workflow-section { display:grid; gap:10px; border:1px solid #e6ebf5; border-radius:16px; padding:14px; background:#f8fafc; }
+.state-list, .transition-list { display:grid; gap:8px; }
+.state-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
+.transition-row { display:grid; grid-template-columns:minmax(120px,1fr) auto minmax(120px,1fr) minmax(120px,1fr) auto; gap:8px; align-items:center; }
+.template-table { display:grid; gap:8px; }
+.template-row { display:grid; grid-template-columns:minmax(170px,1fr) minmax(120px,180px) minmax(240px,1.4fr) 94px auto; gap:10px; align-items:center; }
+.template-row--head { color:#64748b; font-size:12px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }
+.chip-editor { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.chip-editor .input { min-width:180px; flex:1 1 180px; }
+.state-chip, .status-pill { display:inline-flex; align-items:center; border-radius:999px; font-size:12px; font-weight:900; padding:7px 10px; }
+.state-chip { background:#fff; border:1px solid #d8e0ee; color:#22304f; }
+.status-pill--active { background:#ecfdf3; color:#166534; }
+.status-pill--archived { background:#f8fafc; color:#475569; }
+.status-pill--system { background:#fdf2f8; color:#9d174d; }
+.registry-callout, .danger-zone { border:1px solid #e6ebf5; border-radius:16px; padding:16px; background:#f8fafc; }
+.registry-callout { display:flex; justify-content:space-between; gap:14px; align-items:center; }
+.agent-grid--registry { display:grid; grid-template-columns:280px 120px minmax(0,1fr); gap:10px; }
+.danger-zone { border-color:#fecaca; background:#fff7f7; }
+.danger-zone summary { color:#991b1b; cursor:pointer; font-weight:900; }
+.test-output { margin:0; max-height:420px; overflow:auto; border-radius:14px; background:#0f172a; color:#e2e8f0; padding:14px; white-space:pre-wrap; }
+.action-bar { position:sticky; bottom:14px; z-index:70; display:flex; justify-content:space-between; align-items:center; gap:12px; border:1px solid #d8e0ee; border-radius:18px; background:rgba(255,255,255,.96); box-shadow:0 18px 45px rgba(16,24,40,.16); padding:12px 14px; }
+.dirty-indicator { color:#166534; font-weight:900; }
+.dirty-indicator--active { color:#b45309; }
+.btn { border:1px solid transparent; border-radius:14px; padding:12px 18px; cursor:pointer; font-weight:900; background:#eef2ff; color:#1f3b70; }
+.btn:disabled { cursor:not-allowed; opacity:.55; }
+.btn--primary { background:#1f4fff; color:#fff; }
+.btn--ghost { background:#fff; border-color:#d8e0ee; }
+.btn--danger { background:#b42318; color:#fff; }
+.btn--tiny { padding:7px 10px; border-radius:999px; font-size:12px; }
+.empty { color:#64748b; padding:16px; }
+.empty--hero { display:grid; place-items:start; gap:8px; padding:28px; }
+.empty--hero h3 { margin:0; color:#17233f; }
+.empty--hero p, .empty--inline { margin:0; color:#64748b; }
+@media (max-width: 1100px) {
+  .agent-console, .summary-card { grid-template-columns:1fr; }
+  .agent-list-panel { position:relative; top:0; max-height:none; }
 }
-
-.page-subtitle {
-  margin: 6px 0 0;
-  max-width: 760px;
-  color: #60708f;
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  color: #7a2f8f;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.status-summary {
-  min-width: 132px;
-  padding: 14px 18px;
-  border: 1px solid #d8e0ee;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.92);
-  text-align: right;
-}
-
-.status-summary strong {
-  display: block;
-  color: #17233f;
-  font-size: 28px;
-  line-height: 1;
-}
-
-.status-summary span {
-  color: #64748b;
-  font-weight: 700;
-}
-
-.mvp-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin: 16px 0 20px;
-}
-
-.mvp-card {
-  display: flex;
-  min-height: 172px;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 22px;
-  border: 1px solid #d8e0ee;
-  border-radius: 24px;
-  background: rgba(255,255,255,0.94);
-  box-shadow: 0 18px 48px rgba(16,24,40,0.06);
-}
-
-.mvp-card--active {
-  border-color: rgba(45, 190, 123, 0.34);
-  background: linear-gradient(135deg, rgba(240,253,244,0.98), rgba(255,255,255,0.94));
-}
-
-.mvp-card--system {
-  border-color: rgba(219, 39, 119, 0.24);
-  background: linear-gradient(135deg, rgba(253,242,248,0.98), rgba(255,255,255,0.94));
-}
-
-.mvp-card h3 {
-  margin: 0 0 8px;
-}
-
-.mvp-card p:not(.eyebrow) {
-  margin: 0;
-  color: #64748b;
-  line-height: 1.45;
-}
-
-.layout-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-  gap: 20px;
-}
-
-.card {
-  background: rgba(255,255,255,0.96);
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: 0 24px 60px rgba(16,24,40,0.08);
-}
-
-.agent-sidebar {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-}
-
-.agent-list-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  width: 100%;
-  border: 1px solid #d8e0ee;
-  border-radius: 16px;
-  background: #fff;
-  padding: 14px 16px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.agent-list-item--active {
-  border-color: #2b6eff;
-  box-shadow: 0 10px 24px rgba(43,110,255,0.12);
-}
-
-.main-stack {
-  display: grid;
-  gap: 20px;
-}
-
-.section-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.section-head--compact {
-  margin-bottom: 12px;
-}
-
-.agent-grid {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.agent-grid--meta {
-  margin-top: 14px;
-}
-
-.state-strip {
-  display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-  margin-top: 16px;
-  padding: 16px;
-  border: 1px solid #d8e0ee;
-  border-radius: 18px;
-  background: #f8fafc;
-}
-
-.state-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.state-chip {
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: #fff;
-  border: 1px solid #d8e0ee;
-  color: #22304f;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.field {
-  display: block;
-  margin-top: 16px;
-}
-
-.field span,
-.muted {
-  color: #64748b;
-}
-
-.input,
-.textarea {
-  width: 100%;
-  margin-top: 6px;
-  padding: 14px 16px;
-  border: 1px solid #d8e0ee;
-  border-radius: 14px;
-  background: #fff;
-}
-
-.textarea {
-  min-height: 140px;
-  resize: vertical;
-}
-
-.textarea--code,
-.test-output {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.input--compact {
-  margin-top: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-}
-
-.template-table {
-  display: grid;
-  gap: 8px;
-}
-
-.template-row {
-  display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(120px, 180px) minmax(220px, 1.4fr) 100px;
-  gap: 10px;
-  align-items: center;
-}
-
-.template-row--head {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding-top: 16px;
-}
-
-.preset-row,
-.agent-actions,
-.page-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-}
-
-.test-output {
-  margin-top: 12px;
-  padding: 14px;
-  border-radius: 14px;
-  background: #0f172a;
-  color: #e2e8f0;
-  white-space: pre-wrap;
-}
-
-.btn {
-  border: none;
-  border-radius: 14px;
-  padding: 12px 18px;
-  cursor: pointer;
-  font-weight: 700;
-  background: #eef2ff;
-  color: #1f3b70;
-}
-
-.btn--primary { background: #1f4fff; color: #fff; }
-.btn--ghost { background: #fff; border: 1px solid #d8e0ee; }
-.btn--danger { background: #b42318; color: #fff; }
-.btn--tiny, .status-pill { padding: 7px 10px; border-radius: 999px; font-size: 12px; }
-.status-pill--active { background: #ecfdf3; color: #166534; }
-.status-pill--disabled { background: #fef2f2; color: #991b1b; }
-.empty, .hint { color: #64748b; }
-
-@media (max-width: 980px) {
-  .page-head, .page-actions { flex-direction: column; align-items: stretch; }
-  .layout-grid, .agent-grid, .mvp-grid, .state-strip, .template-row { grid-template-columns: 1fr; }
-  .status-summary { text-align: left; }
+@media (max-width: 760px) {
+  .page-head, .action-bar, .registry-callout { flex-direction:column; align-items:stretch; }
+  .form-grid, .workflow-grid, .transition-row, .template-row, .agent-grid--registry { grid-template-columns:1fr; }
+  .inline-grid { grid-template-columns:1fr; }
 }
 </style>
