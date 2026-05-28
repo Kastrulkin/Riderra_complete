@@ -266,6 +266,16 @@ function publicPageLanguagePath(pagePath, isRu) {
   return `/ru${pagePath}`
 }
 
+function publicPageEyebrow(pagePath, isRu) {
+  if (pagePath === '/prices' || pagePath === '/ru/prices') return isRu ? 'Политика цен Riderra' : 'Riderra pricing policy'
+  if (pagePath === '/docs' || pagePath === '/ru/docs') return isRu ? 'Документация' : 'Documentation'
+  if (pagePath === '/contact' || pagePath === '/ru/contact') return isRu ? 'Связаться с Riderra' : 'Contact Riderra'
+  if (pagePath === '/services' || pagePath === '/ru/services') return isRu ? 'Услуги Riderra' : 'Riderra services'
+  if (pagePath === '/about' || pagePath === '/ru/about') return isRu ? 'О компании' : 'About Riderra'
+  if (pagePath === '/faq' || pagePath === '/ru/faq') return isRu ? 'Вопросы и ответы' : 'FAQ'
+  return isRu ? 'Riderra' : 'Riderra'
+}
+
 function organizationJsonLd() {
   return {
     '@context': 'https://schema.org',
@@ -493,12 +503,13 @@ function publicPageContent(pagePath) {
     },
     '/contact': {
       title: 'Contact Riderra',
-      description: 'Contact Riderra for transfer bookings, booking questions, partner communication, and AI-agent draft request support.',
+      description: 'Contact Riderra for transfer bookings, booking questions, and partner communication.',
       heading: 'Contact Riderra',
-      intro: `For booking questions and support, contact Riderra at ${RIDERRA_CONTACT_EMAIL}.`,
+      intro: 'Need help with a transfer, a booking request, or a partner question? Send us the route details and the team will come back with the next step.',
       sections: [
-        ['Email', `The primary public contact is ${RIDERRA_CONTACT_EMAIL}.`],
-        ['Booking requests', 'Customers can use the homepage booking widget. AI agents can submit a draft request through POST /api/public/order-requests.']
+        ['Booking questions', 'Send the pickup point, destination, date, time, passenger count, luggage, and preferred vehicle class.'],
+        ['Existing trip', 'Include the booking reference, passenger name, date, route, and the email or phone used for the request.'],
+        ['Partners', 'For fleet, driver, or business cooperation, describe the city, vehicle classes, and contact details.']
       ]
     },
     '/faq': {
@@ -578,12 +589,13 @@ function publicPageContent(pagePath) {
     },
     '/ru/contact': {
       title: 'Контакты Riderra',
-      description: 'Контакты Riderra для бронирований, вопросов по поездкам, партнерской коммуникации и заявок от AI-агентов.',
+      description: 'Контакты Riderra для бронирований, вопросов по поездкам и партнерской коммуникации.',
       heading: 'Контакты Riderra',
-      intro: `По вопросам бронирования и поддержки напишите в Riderra на ${RIDERRA_CONTACT_EMAIL}.`,
+      intro: 'Нужна помощь с трансфером, заявкой или партнерским вопросом? Пришлите детали маршрута, и команда Riderra подскажет следующий шаг.',
       sections: [
-        ['Email', `Основной публичный контакт: ${RIDERRA_CONTACT_EMAIL}.`],
-        ['Заявки на трансфер', 'Клиенты могут использовать форму бронирования на главной странице. AI-агенты могут отправить заявку-драфт через POST /api/public/order-requests.']
+        ['Вопрос по бронированию', 'Укажите точку подачи, адрес назначения, дату, время, количество пассажиров, багаж и желаемый класс автомобиля.'],
+        ['Действующая поездка', 'Добавьте номер заявки, имя пассажира, дату, маршрут и email или телефон, которые использовались при бронировании.'],
+        ['Партнерство', 'Для автопарков, водителей и делового сотрудничества укажите город, классы автомобилей и контакты для связи.']
       ]
     },
     '/ru/faq': {
@@ -603,6 +615,7 @@ function renderPublicSourceHtml(pagePath) {
   const service = RIDERRA_SERVICES.find((item) => item.url === canonical)
   const isRu = pagePath.startsWith('/ru/')
   const isPricesPage = pagePath === '/prices' || pagePath === '/ru/prices'
+  const isContactPage = pagePath === '/contact' || pagePath === '/ru/contact'
   const languagePath = publicPageLanguagePath(pagePath, isRu)
   const crumbs = [
     { name: 'Riderra', path: '/' },
@@ -663,10 +676,20 @@ function renderPublicSourceHtml(pagePath) {
       .button-primary { background: #fff; color: var(--navy); }
       .button-secondary { border: 1px solid rgba(255,255,255,.36); color: #fff; }
       .agent-note { margin-top: 24px; border-left: 4px solid var(--green); padding: 14px 0 14px 18px; color: var(--muted); }
+      .contact-layout { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 24px; align-items: stretch; margin-top: 30px; }
+      .contact-primary { background: linear-gradient(135deg, var(--navy), #0b1022); color: #fff; border-radius: 22px; padding: 34px; box-shadow: 0 24px 80px rgba(22,29,77,.22); }
+      .contact-primary h2 { font-size: 32px; margin-bottom: 18px; }
+      .contact-primary p { color: rgba(255,255,255,.78); }
+      .contact-email { display: inline-flex; margin-top: 22px; color: #fff; font-size: 24px; font-weight: 900; text-decoration: none; word-break: break-word; }
+      .contact-email:hover, .contact-email:focus-visible { text-decoration: underline; outline: none; }
+      .contact-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+      .contact-grid { display: grid; gap: 16px; }
+      .contact-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+      .contact-card h2 { font-size: 20px; }
       .plain-article { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 36px; box-shadow: 0 18px 60px rgba(20,35,90,.1); }
       .plain-article section + section { margin-top: 26px; }
-      @media (max-width: 900px) { .topbar-inner { align-items: flex-start; flex-direction: column; } .nav { justify-content: flex-start; } .sections, .price-layout, .factors { grid-template-columns: 1fr; } }
-      @media (max-width: 767px) { .wrap { padding: 34px 18px 56px; } .hero { padding-top: 28px; } .plain-article, .policy-panel, .quote-card { padding: 24px; } .brand { font-size: 30px; } .nav { gap: 14px; } .nav a { font-size: 14px; } }
+      @media (max-width: 900px) { .topbar-inner { align-items: flex-start; flex-direction: column; } .nav { justify-content: flex-start; } .sections, .price-layout, .factors, .contact-layout { grid-template-columns: 1fr; } }
+      @media (max-width: 767px) { .wrap { padding: 34px 18px 56px; } .hero { padding-top: 28px; } .plain-article, .policy-panel, .quote-card, .contact-primary { padding: 24px; } .brand { font-size: 30px; } .nav { gap: 14px; } .nav a { font-size: 14px; } .contact-email { font-size: 20px; } }
     </style>
   </head>
   <body>
@@ -685,11 +708,11 @@ function renderPublicSourceHtml(pagePath) {
     </header>
     <main class="wrap">
       <section class="hero">
-        <p class="eyebrow">${isRu ? 'Riderra pricing policy' : 'Riderra pricing policy'}</p>
+        <p class="eyebrow">${escapeHtml(publicPageEyebrow(pagePath, isRu))}</p>
         <h1>${escapeHtml(content.heading)}</h1>
         <p class="lead">${escapeHtml(content.intro)}</p>
       </section>
-      ${isPricesPage ? renderPublicPricesBody(content, isRu) : `
+      ${isPricesPage ? renderPublicPricesBody(content, isRu) : isContactPage ? renderPublicContactBody(content, isRu) : `
       <article class="plain-article">
         ${content.sections.map(([title, body]) => `<section><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></section>`).join('\n        ')}
       </article>`}
@@ -727,6 +750,26 @@ function renderPublicPricesBody(content, isRu) {
             <a class="button button-secondary" href="${isRu ? '/ru/contact' : '/contact'}">${isRu ? 'Связаться' : 'Contact us'}</a>
           </div>
         </aside>
+      </div>`
+}
+
+function renderPublicContactBody(content, isRu) {
+  return `
+      <div class="contact-layout">
+        <aside class="contact-primary">
+          <h2>${isRu ? 'Напишите нам' : 'Write to us'}</h2>
+          <p>${isRu
+            ? 'Самый надежный способ связаться с Riderra - отправить письмо с деталями поездки или вопроса. Мы ответим с учетом маршрута, времени и доступности.'
+            : 'The best way to reach Riderra is to send an email with trip or support details. We will reply based on the route, timing, and availability.'}</p>
+          <a class="contact-email" href="mailto:${RIDERRA_CONTACT_EMAIL}">${RIDERRA_CONTACT_EMAIL}</a>
+          <div class="contact-actions">
+            <a class="button button-primary" href="${isRu ? '/ru' : '/'}">${isRu ? 'Оформить заявку' : 'Start a booking'}</a>
+            <a class="button button-secondary" href="${isRu ? '/ru/faq' : '/faq'}">${isRu ? 'Открыть FAQ' : 'Open FAQ'}</a>
+          </div>
+        </aside>
+        <section class="contact-grid" aria-label="${isRu ? 'Как подготовить обращение' : 'How to prepare a message'}">
+          ${content.sections.map(([title, body]) => `<article class="contact-card"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></article>`).join('\n          ')}
+        </section>
       </div>`
 }
 
