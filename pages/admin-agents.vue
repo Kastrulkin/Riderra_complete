@@ -11,7 +11,7 @@
 
         <header class="page-head">
           <div>
-            <p class="eyebrow">AI control plane</p>
+            <p class="eyebrow">{{ t.pageEyebrow }}</p>
             <h1>{{ t.title }}</h1>
             <p class="page-subtitle">{{ t.subtitle }}</p>
           </div>
@@ -55,13 +55,13 @@
               type="button"
               @click="selectAgent(agent.id)"
             >
-              <span class="agent-list-item__title">{{ agent.name }}</span>
-              <span class="agent-list-item__meta">{{ agent.code }} · v1</span>
+              <span class="agent-list-item__title">{{ agentDisplayName(agent) }}</span>
+              <span class="agent-list-item__meta">{{ contourLabel(agent.type) }}</span>
               <span class="agent-list-item__line">
                 <span class="status-pill" :class="statusClass(agent)">{{ statusLabel(agent) }}</span>
                 <span>{{ contourLabel(agent.type) }}</span>
               </span>
-              <span class="agent-list-item__description">{{ agent.description || t.noDescription }}</span>
+              <span class="agent-list-item__description">{{ agentDescription(agent) }}</span>
             </button>
 
             <div v-if="!filteredAgents.length" class="empty">{{ agents.length ? t.noFilteredAgents : t.noAgents }}</div>
@@ -78,17 +78,17 @@
               <section class="summary-card">
                 <div class="summary-card__main">
                   <div class="summary-card__title-row">
-                    <h2>{{ agentForm.name || t.untitledAgent }}</h2>
+                    <h2>{{ currentAgentDisplayName }}</h2>
                     <span v-if="isSystemAgent" class="status-pill status-pill--system">{{ t.system }}</span>
                     <span v-else class="status-pill" :class="agentForm.isActive ? 'status-pill--active' : 'status-pill--archived'">
                       {{ agentForm.isActive ? t.active : t.archive }}
                     </span>
                   </div>
-                  <p>{{ agentForm.description || t.noDescription }}</p>
+                  <p>{{ currentAgentDescription }}</p>
                   <div class="summary-meta">
-                    <span>{{ t.type }}: <strong>{{ agentForm.type }}</strong></span>
+                    <span>{{ t.type }}: <strong>{{ typeLabel(agentForm.type) }}</strong></span>
                     <span>{{ t.contour }}: <strong>{{ contourLabel(agentForm.type) }}</strong></span>
-                    <span>{{ t.taskType }}: <strong>{{ agentForm.taskType }}</strong></span>
+                    <span>{{ t.taskType }}: <strong>{{ taskTypeLabel(agentForm.taskType) }}</strong></span>
                   </div>
                 </div>
 
@@ -135,9 +135,9 @@
                   </field-control>
                   <field-control :label="t.type" :helper="t.typeHelp">
                     <select v-model="agentForm.type" class="input" :disabled="isSystemAgent">
-                      <option value="order_completion">order_completion</option>
-                      <option value="dispatch_notify">dispatch_notify</option>
-                      <option value="driver_ops">driver_ops</option>
+                      <option value="order_completion">{{ typeLabel('order_completion') }}</option>
+                      <option value="dispatch_notify">{{ typeLabel('dispatch_notify') }}</option>
+                      <option value="driver_ops">{{ typeLabel('driver_ops') }}</option>
                     </select>
                   </field-control>
                   <field-control :label="t.contour" :helper="t.contourHelp">
@@ -170,7 +170,7 @@
                   </field-control>
                   <field-control :label="t.defaultLanguage" :helper="t.defaultLanguageHelp">
                     <select v-model="defaultLanguage" class="input" :disabled="isSystemAgent">
-                      <option value="en">English</option>
+                      <option value="en">Английский</option>
                       <option value="ru">Русский</option>
                     </select>
                   </field-control>
@@ -247,7 +247,7 @@
                       <span>{{ t.templateName }}</span>
                       <span>{{ t.templateLanguages }}</span>
                       <span>{{ t.templateVariables }}</span>
-                      <span>Status</span>
+                      <span>{{ t.templateStatus }}</span>
                       <span></span>
                     </div>
                     <div v-for="(template, index) in whatsappTemplates" :key="`template-${index}`" class="template-row">
@@ -257,7 +257,7 @@
                         <span v-for="variable in csvToArray(template.variablesText)" :key="variable" class="state-chip">{{ variable }}</span>
                         <input v-model="template.variablesText" class="input input--compact" placeholder="booking_number, route_from" />
                       </div>
-                      <span class="status-pill status-pill--active">Approved</span>
+                      <span class="status-pill status-pill--active">{{ t.approved }}</span>
                       <button class="btn btn--tiny btn--ghost" type="button" @click="removeWhatsappTemplate(index)">{{ t.remove }}</button>
                     </div>
                     <div v-if="!whatsappTemplates.length" class="empty">{{ t.noTemplates }}</div>
@@ -280,7 +280,17 @@
                       {{ agentTesting ? t.testing : t.runDryRun }}
                     </button>
                   </div>
-                  <pre v-if="agentTestOutput" class="test-output">{{ agentTestOutput }}</pre>
+                  <div v-if="agentTestOutput" class="test-result">
+                    <div class="test-result__head">
+                      <strong>{{ t.testResult }}</strong>
+                      <span class="status-pill status-pill--active">{{ t.ready }}</span>
+                    </div>
+                    <p v-if="testResultSummary" class="test-result__message">{{ testResultSummary }}</p>
+                    <details>
+                      <summary>{{ t.showTechnicalDetails }}</summary>
+                      <pre class="test-output">{{ agentTestOutput }}</pre>
+                    </details>
+                  </div>
                   <div v-else class="empty empty--inline">{{ t.noTestResult }}</div>
                 </div>
 
@@ -489,15 +499,30 @@ export default {
     hasUnsavedChanges () {
       return this.snapshotForm() !== this.savedSnapshot
     },
+    currentAgentDisplayName () {
+      return this.agentDisplayName(this.selectedAgent || this.agentForm)
+    },
+    currentAgentDescription () {
+      return this.agentDescription(this.selectedAgent || this.agentForm)
+    },
+    testResultSummary () {
+      const parsed = this.parseJsonMaybe(this.agentTestOutput)
+      const response = parsed?.response || parsed?.result?.response || parsed?.message || parsed?.text
+      if (response) return String(response)
+      if (parsed?.success === true) return this.t.testSuccess
+      if (parsed?.error) return String(parsed.error)
+      return ''
+    },
     t () {
       return this.$store.state.language === 'ru'
         ? {
+            pageEyebrow: 'Панель AI-агентов',
             title: 'AI агенты',
-            subtitle: 'Настройка AI-агентов: поведение, workflow, templates, тесты и публикация без raw JSON в основном сценарии.',
+            subtitle: 'Настройка AI-агентов: поведение, сценарии, шаблоны, тесты и публикация без технических деталей в основном сценарии.',
             activeAgents: 'активно',
             agentList: 'Агенты',
             agentListHint: 'Поиск, статус и контур.',
-            searchAgents: 'Поиск по названию, slug или описанию',
+            searchAgents: 'Поиск по названию или описанию',
             allStatuses: 'Все статусы',
             allContours: 'Все контуры',
             active: 'Активен',
@@ -513,22 +538,22 @@ export default {
             type: 'Тип',
             contour: 'Контур',
             taskType: 'Задача',
-            activeToggle: 'Active',
-            approvalToggle: 'Human approval',
-            lastUpdated: 'Last updated',
-            lastPublished: 'Last published',
+            activeToggle: 'Активен',
+            approvalToggle: 'Только после проверки человеком',
+            lastUpdated: 'Обновлён',
+            lastPublished: 'Опубликован',
             changedBy: 'Кто менял',
             tabOverview: 'Обзор',
             tabBehavior: 'Поведение',
-            tabWorkflow: 'Workflow',
-            tabTemplates: 'Templates',
+            tabWorkflow: 'Сценарий',
+            tabTemplates: 'Шаблоны',
             tabTest: 'Тест',
-            tabAdvanced: 'Advanced',
+            tabAdvanced: 'Служебное',
             name: 'Имя агента',
             nameHelp: 'Понятное название для оператора и владельца процесса.',
-            slugVersion: 'Slug / version',
-            slugHelp: 'Slug используется runtime-логикой; после создания не меняется.',
-            typeHelp: 'Технический тип агента в существующей схеме.',
+            slugVersion: 'Внутренний код / версия',
+            slugHelp: 'Служебный код нужен системе. Обычно его не меняют после создания.',
+            typeHelp: 'Рабочий тип агента.',
             contourHelp: 'Человеческое имя контура, где работает агент.',
             description: 'Описание',
             descriptionHelp: 'Коротко: что агент делает и где применяется.',
@@ -538,9 +563,9 @@ export default {
             identityHelp: 'Кем агент является в коммуникации.',
             task: 'Задача',
             taskHelp: 'Что агент должен выполнить в одном рабочем сценарии.',
-            speechStyle: 'Tone / style',
+            speechStyle: 'Стиль общения',
             speechStyleHelp: 'Стиль ответа: коротко, формально, дружелюбно и т.д.',
-            defaultLanguage: 'Default language',
+            defaultLanguage: 'Язык по умолчанию',
             defaultLanguageHelp: 'Язык по умолчанию для customer-facing текста.',
             personality: 'Поведенческий профиль',
             personalityHelp: 'Небольшие правила поведения без технического JSON.',
@@ -548,9 +573,9 @@ export default {
             responseRulesHelp: 'Главные инструкции prompt. Это структурированный текст, не JSON.',
             presetClarification: 'Пресет: уточнение',
             presetDispatch: 'Пресет: рассылка',
-            workflow: 'Workflow',
-            workflowHint: 'Визуальная настройка состояний и переходов. Raw JSON оставлен в Advanced.',
-            normalizeWorkflow: 'Собрать из JSON',
+            workflow: 'Сценарий работы',
+            workflowHint: 'Визуальная настройка состояний и переходов. Служебный JSON оставлен во вкладке “Служебное”.',
+            normalizeWorkflow: 'Собрать из служебных данных',
             startState: 'Стартовое состояние',
             startStateHelp: 'Состояние, с которого начинается сценарий.',
             finalStates: 'Финальные состояния',
@@ -561,34 +586,40 @@ export default {
             addTransition: 'Добавить переход',
             transitionLabel: 'метка',
             remove: 'Удалить',
-            whatsappTemplates: 'WhatsApp templates',
-            whatsappTemplatesHint: 'Approved Meta templates. Variables показаны chips, чтобы оператор не читал длинную строку.',
-            addTemplate: 'Добавить template',
-            templateName: 'Template',
+            whatsappTemplates: 'Шаблоны WhatsApp',
+            whatsappTemplatesHint: 'Одобренные шаблоны Meta. Переменные показаны метками, чтобы оператор не читал длинную строку.',
+            addTemplate: 'Добавить шаблон',
+            templateName: 'Шаблон',
             templateLanguages: 'Языки',
-            templateVariables: 'Variables',
-            noTemplates: 'Нет templates.',
-            saveTemplates: 'Сохранить templates',
-            openPromptRegistry: 'Открыть Prompt Registry',
-            hidePromptRegistry: 'Скрыть Prompt Registry',
-            promptRegistry: 'Prompt Registry',
-            promptRegistryHint: 'Отдельная сущность с версионными prompt. Здесь только secondary action.',
-            promptDescription: 'Описание prompt',
-            promptText: 'Текст prompt',
+            templateVariables: 'Переменные',
+            templateStatus: 'Статус',
+            approved: 'Одобрен',
+            noTemplates: 'Нет шаблонов.',
+            saveTemplates: 'Сохранить шаблоны',
+            openPromptRegistry: 'Открыть реестр промптов',
+            hidePromptRegistry: 'Скрыть реестр промптов',
+            promptRegistry: 'Реестр промптов',
+            promptRegistryHint: 'Отдельная сущность с версиями промптов. Обычному оператору сюда обычно не нужно.',
+            promptDescription: 'Описание промпта',
+            promptText: 'Текст промпта',
             savePromptVersion: 'Сохранить новую версию',
             sandbox: 'Тестовый контекст',
-            sandboxHint: 'Dry-run без отправки в реальный канал.',
-            sandboxPlaceholder: 'Вставьте тестовое сообщение или JSON-контекст',
+            sandboxHint: 'Проверка без отправки в реальный канал.',
+            sandboxPlaceholder: 'Вставьте тестовое сообщение или контекст заказа',
             testing: 'Тестирую...',
-            runDryRun: 'Запустить dry run',
-            noTestResult: 'Результат появится после dry run.',
-            rawWorkflow: 'Raw workflow JSON',
-            rawWorkflowHelp: 'Fallback для сложных сценариев. Основной сценарий редактируется во вкладке Workflow.',
-            restrictions: 'Restrictions JSON',
+            runDryRun: 'Запустить тест',
+            noTestResult: 'Результат появится после теста.',
+            testResult: 'Результат теста',
+            testSuccess: 'Тест выполнен успешно.',
+            ready: 'Готово',
+            showTechnicalDetails: 'Показать технические детали',
+            rawWorkflow: 'Служебные данные сценария',
+            rawWorkflowHelp: 'Для сложных сценариев. Основной сценарий редактируется во вкладке “Сценарий”.',
+            restrictions: 'Служебные ограничения',
             restrictionsHelp: 'Ограничения runtime.',
-            variables: 'Variables JSON',
+            variables: 'Служебные переменные',
             variablesHelp: 'Переменные агента и дефолты.',
-            dangerZone: 'Danger zone',
+            dangerZone: 'Опасная зона',
             dangerZoneHint: 'Удаление необратимо. Системные агенты удалить нельзя.',
             deleteAgent: 'Удалить агента',
             unsavedChanges: 'Есть несохранённые изменения',
@@ -801,12 +832,54 @@ export default {
       if (this.isAgentSystem(agent)) return 'status-pill--system'
       return agent.isActive !== false ? 'status-pill--active' : 'status-pill--archived'
     },
+    agentDisplayName (agent) {
+      const code = String(agent?.code || '').trim()
+      const map = {
+        dispatch_notify: 'Уведомление о назначении водителя',
+        'dispatch-notify-v1': 'Уведомление о назначении водителя',
+        order_completion: 'Уточнение данных заказа',
+        'order-completion-v1': 'Уточнение данных заказа',
+        driver_ops: 'Помощник по водителям',
+        policy_guard: 'Проверка правил безопасности'
+      }
+      return map[code] || agent?.name || this.t.untitledAgent
+    },
+    agentDescription (agent) {
+      const code = String(agent?.code || '').trim()
+      const type = String(agent?.type || '').trim()
+      const map = {
+        dispatch_notify: 'Готовит сообщение клиенту, когда поездка подтверждена и назначен водитель.',
+        'dispatch-notify-v1': 'Готовит сообщение клиенту, когда поездка подтверждена и назначен водитель.',
+        order_completion: 'Уточняет недостающие данные заказа: багаж, рейс, место подачи и важные детали.',
+        'order-completion-v1': 'Уточняет недостающие данные заказа: багаж, рейс, место подачи и важные детали.',
+        driver_ops: 'Помогает с операционными вопросами по водителям.',
+        policy_guard: 'Проверяет, что AI-действия не нарушают правила безопасности.'
+      }
+      return map[code] || map[type] || agent?.description || this.t.noDescription
+    },
+    typeLabel (type) {
+      const map = {
+        order_completion: 'Уточнение заказа',
+        dispatch_notify: 'Уведомление клиента',
+        driver_ops: 'Операции с водителями',
+        policy_guard: 'Контроль правил'
+      }
+      return map[type] || type || '—'
+    },
+    taskTypeLabel (taskType) {
+      const map = {
+        clarification: 'Уточнить данные',
+        dispatch_info: 'Сообщить детали поездки',
+        driver_ops: 'Помочь с водителем'
+      }
+      return map[taskType] || taskType || '—'
+    },
     contourLabel (type) {
       const map = {
-        order_completion: 'Customer ops',
-        dispatch_notify: 'Dispatch',
-        driver_ops: 'Driver ops',
-        policy_guard: 'Runtime guard'
+        order_completion: 'Клиентские операции',
+        dispatch_notify: 'Диспетчеризация',
+        driver_ops: 'Водители',
+        policy_guard: 'Безопасность'
       }
       return map[type] || type || '—'
     },
@@ -1162,6 +1235,11 @@ export default {
 .textarea { min-height:150px; resize:vertical; }
 .textarea--small { min-height:86px; }
 .textarea--code, .test-output { font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; }
+.test-result { border:1px solid #dbe4f2; border-radius:18px; padding:16px; background:#f8fbff; }
+.test-result__head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+.test-result__message { margin:0 0 12px; color:#263b63; line-height:1.55; white-space:pre-wrap; }
+.test-result summary { cursor:pointer; color:#60708f; font-weight:700; }
+.test-result .test-output { margin-top:12px; max-height:280px; overflow:auto; }
 .toggle-grid { display:flex; flex-wrap:wrap; gap:12px; }
 .switch { display:inline-flex; align-items:center; gap:8px; border:1px solid #d8e0ee; border-radius:14px; background:#f8fafc; color:#17233f; font-weight:900; padding:12px 14px; }
 .workflow-editor, .templates-panel, .test-panel, .advanced-panel { display:grid; gap:18px; }
