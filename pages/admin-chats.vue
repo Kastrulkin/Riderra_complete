@@ -1,6 +1,5 @@
 <template>
-  <div>
-    <navigation></navigation>
+  <div class="admin-chat-page">
     <div class="page-background">
       <div class="page-background__gradient"></div>
       <div class="page-background__overlay"></div>
@@ -9,46 +8,31 @@
       <div class="container">
         <admin-tabs />
 
-        <div class="section-actions">
-          <button class="btn btn--ghost" @click="syncFromOrders">Синхронизировать из заказов</button>
-          <button class="btn btn--primary" @click="reloadAll">Обновить</button>
-        </div>
+        <header class="page-head">
+          <div>
+            <h1>Очередь диалогов</h1>
+            <p class="page-subtitle">Задачи, которые требуют реакции, проверки черновика или отправки</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn--ghost" @click="syncFromOrders">Синхронизировать</button>
+            <button class="btn btn--primary" @click="reloadAll">Обновить</button>
+          </div>
+        </header>
         <div v-if="notice" class="hint">{{ notice }}</div>
 
-        <div class="ops-rail">
-          <div>
-            <strong>Чаты — рабочая очередь.</strong>
-            <p class="hint">Здесь только задачи, сообщения, SLA и статусы. Настройки агентов вынесены отдельно.</p>
-          </div>
-          <button class="btn btn--ghost" @click="$router.push('/admin-agents')">К AI агентам</button>
-        </div>
-
         <div class="filters">
-          <select v-model="taskType" class="input" @change="loadTasks">
-            <option value="">Все типы</option>
-            <option value="clarification">Нужно уточнение</option>
-            <option value="dispatch_info">Готово к рассылке</option>
-          </select>
-          <select v-model="state" class="input" @change="loadTasks">
-            <option value="">Все статусы</option>
-            <option v-for="s in availableStates" :key="s" :value="s">{{ stateLabel(s) }}</option>
-          </select>
-          <select v-model="agentFilter" class="input" @change="loadTasks">
-            <option value="">Все агенты</option>
-            <option value="none">Без агента</option>
-            <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-              {{ agent.name }} ({{ agent.code }})
-            </option>
-          </select>
           <select v-model="ownerFilter" class="input">
-            <option value="">Все владельцы</option>
-            <option value="__mine">Только мои (owner)</option>
+            <option value="">Все ответственные</option>
+            <option value="__mine">Моё</option>
             <option value="__unassigned">Без владельца</option>
             <option v-for="owner in owners" :key="owner.id" :value="owner.id">
               {{ owner.email || owner.id }}
             </option>
           </select>
-          <label class="quick-filter"><input type="checkbox" v-model="myOnly" /> Только мои</label>
+          <select v-model="uiState" class="input">
+            <option value="">Все статусы</option>
+            <option v-for="s in uiStateOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
+          </select>
           <label class="quick-filter"><input type="checkbox" v-model="urgentOnly" /> Только срочные</label>
           <select v-model="sortMode" class="input">
             <option value="priority">Приоритет (SLA + важность)</option>
@@ -57,20 +41,45 @@
           </select>
         </div>
 
+        <details class="advanced-filters">
+          <summary>Дополнительно</summary>
+          <div class="advanced-filters__grid">
+            <select v-model="taskType" class="input" @change="loadTasks">
+              <option value="">Все типы</option>
+              <option value="clarification">Уточнение</option>
+              <option value="dispatch_info">Рассылка</option>
+            </select>
+            <select v-model="agentFilter" class="input" @change="loadTasks">
+              <option value="">Все агенты</option>
+              <option value="none">Без агента</option>
+              <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+                {{ agent.name }} ({{ agent.code }})
+              </option>
+            </select>
+            <select v-model="state" class="input" @change="loadTasks">
+              <option value="">Точный backend статус</option>
+              <option v-for="s in availableStates" :key="s" :value="s">{{ stateLabel(s) }} · {{ s }}</option>
+            </select>
+            <label class="quick-filter"><input type="checkbox" v-model="myOnly" /> Только мои</label>
+            <button class="btn btn--ghost" @click="$router.push('/admin-agents')">К AI агентам</button>
+          </div>
+        </details>
+
         <div class="workspace">
           <aside class="queue">
             <div class="queue-head">
               <span>Очередь ({{ displayedTasks.length }})</span>
               <span class="queue-head-meta">автообновление: 20с</span>
             </div>
-            <div class="queue-bulk">
+            <div v-if="selectedTaskIds.length" class="queue-bulk">
+              <span class="queue-bulk__count">Выбрано: {{ selectedTaskIds.length }}</span>
               <button class="btn btn--tiny" type="button" @click="selectAllDisplayed">Выбрать все</button>
               <button class="btn btn--tiny" type="button" @click="clearSelection">Снять выбор</button>
               <button class="btn btn--tiny" type="button" :disabled="!selectedTaskIds.length || bulkLoading" @click="bulkAssignToMe">
                 {{ bulkLoading ? '...' : 'Назначить на себя' }}
               </button>
               <button class="btn btn--tiny" type="button" :disabled="!selectedTaskIds.length || bulkLoading" @click="bulkMoveToHandoff">
-                {{ bulkLoading ? '...' : 'В handoff' }}
+                {{ bulkLoading ? '...' : 'Передать человеку' }}
               </button>
             </div>
             <button
@@ -87,45 +96,57 @@
                   @click.stop
                   @change="toggleTaskSelection(task.id, $event.target.checked)"
                 />
-                <span>в выборке</span>
+                <span>выбрать</span>
               </label>
-              <div class="queue-title">
-                <span>{{ orderLabel(task.order) }}</span>
+              <div class="queue-title-row">
                 <span class="badge">{{ taskTypeLabel(task.taskType) }}</span>
+                <span class="badge" :class="slaBadgeClass(task)">{{ slaLabel(task) }}</span>
               </div>
               <div class="queue-route">{{ routeLabel(task.order) }}</div>
-              <div class="queue-agent">{{ agentLabel(task) }}</div>
-              <div class="queue-owner">Владелец: {{ ownerLabel(task) }}</div>
+              <div class="queue-status">{{ stateLabel(task.state) }}</div>
               <div class="queue-meta">
                 <span class="badge badge--state">{{ stateLabel(task.state) }}</span>
-                <span v-if="isTaskMine(task)" class="badge badge--mine">Моё</span>
-                <span class="badge" :class="slaBadgeClass(task)">{{ slaLabel(task) }}</span>
-                <span>{{ formatDate(task.updatedAt) }}</span>
-                <span>msg: {{ task._count?.messages || 0 }}</span>
+                <span class="badge" :class="{ 'badge--mine': isTaskMine(task) }">{{ ownerDisplayLabel(task) }}</span>
+                <span class="badge">{{ messageCountLabel(task) }}</span>
+              </div>
+              <div class="queue-card-action">
+                <button
+                  class="btn btn--small"
+                  :class="{ 'btn--primary': !cardActionDisabled(task) }"
+                  type="button"
+                  :disabled="cardActionDisabled(task)"
+                  @click.stop="runCardAction(task)"
+                >
+                  {{ cardActionLabel(task) }}
+                </button>
               </div>
             </button>
-            <div v-if="!displayedTasks.length" class="empty">Нет задач по выбранным фильтрам</div>
+            <div v-if="!displayedTasks.length" class="empty empty--queue">Нет задач, требующих реакции</div>
           </aside>
 
-          <main class="dialog">
+          <main class="detail-pane">
             <div v-if="!selectedTask" class="empty empty--center">Выберите задачу в очереди</div>
             <template v-else>
-              <div class="dialog-head">
-                <div>
-                  <h3>{{ orderLabel(selectedTask.order) }}</h3>
-                  <div class="hint">{{ routeLabel(selectedTask.order) }} | {{ formatMoney(selectedTask.order?.clientPrice) }}</div>
-                  <div class="hint">{{ agentLabel(selectedTask) }}</div>
+              <div class="dialog">
+                <div class="dialog-head">
+                  <div>
+                    <h3>{{ routeLabel(selectedTask.order) }}</h3>
+                    <div class="hint">{{ taskTypeLabel(selectedTask.taskType) }} · {{ formatMoney(selectedTask.order && selectedTask.order.clientPrice) }}</div>
+                    <div class="dialog-status-row">
+                      <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
+                      <span class="badge" :class="slaBadgeClass(selectedTask)">{{ slaLabel(selectedTask) }}</span>
+                      <span class="badge">Ответственный: {{ ownerDisplayLabel(selectedTask) }}</span>
+                    </div>
+                  </div>
+                  <div class="dialog-head-actions">
+                    <button class="btn btn--small" @click="toggleConversationAgent(selectedTask)">
+                      {{ selectedTask.agentPaused ? 'Возобновить агента' : 'Пауза агента' }}
+                    </button>
+                  </div>
                 </div>
-                <div class="dialog-head-actions">
-                  <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
-                  <button class="btn btn--small" @click="toggleConversationAgent(selectedTask)">
-                    {{ selectedTask.agentPaused ? 'Возобновить агента' : 'Пауза агента' }}
-                  </button>
-                </div>
-              </div>
 
-              <div class="messages">
-                <div v-for="message in selectedTask.messages || []" :key="message.id" class="message" :class="`message--${message.direction}`">
+                <div class="messages">
+                  <div v-for="message in selectedTask.messages || []" :key="message.id" class="message" :class="`message--${message.direction}`">
                   <div class="message-head">
                     <span>{{ directionLabel(message.direction) }}</span>
                     <span>{{ sourceLabel(message.source) }}</span>
@@ -241,14 +262,13 @@
                     <button class="btn btn--small btn--primary" @click="markManualSent(message.id)" v-if="canMarkManualSent(message)">Отметить отправленным вручную</button>
                     <button class="btn btn--small btn--ghost" @click="sendMessage(message.id)" v-if="canSend(message)">Отправить через OpenClaw</button>
                   </div>
+                  </div>
+                  <div v-if="!(selectedTask.messages || []).length" class="empty">Сообщений пока нет</div>
                 </div>
-                <div v-if="!(selectedTask.messages || []).length" class="empty">Сообщений пока нет</div>
               </div>
-            </template>
-          </main>
 
-          <aside class="actions" v-if="selectedTask">
-            <div class="focus-panel">
+              <div class="actions">
+                <div class="focus-panel">
               <div class="focus-panel__head">
                 <div>
                   <h4>{{ taskFocusTitle }}</h4>
@@ -259,8 +279,7 @@
               <div class="focus-panel__meta">
                 <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
                 <span class="badge">{{ taskTypeLabel(selectedTask.taskType) }}</span>
-                <span class="badge">{{ agentLabel(selectedTask) }}</span>
-                <span class="badge">Владелец: {{ ownerLabel(selectedTask) }}</span>
+                <span class="badge">Ответственный: {{ ownerDisplayLabel(selectedTask) }}</span>
               </div>
               <div class="focus-panel__actions">
                 <button
@@ -274,9 +293,9 @@
                   {{ selectedTask.agentPaused ? 'Возобновить агента' : 'Пауза агента' }}
                 </button>
               </div>
-            </div>
+                </div>
 
-            <div v-if="inboundOutcome" class="outcome-panel" :class="inboundOutcome.panelClass">
+                <div v-if="inboundOutcome" class="outcome-panel" :class="inboundOutcome.panelClass">
               <div class="outcome-panel__head">
                 <div>
                   <p class="eyebrow">AI разбор ответа</p>
@@ -320,9 +339,9 @@
                   </button>
                 </div>
               </div>
-            </div>
+                </div>
 
-            <div class="actions-block">
+                <div class="actions-block">
               <h4>Сообщение клиенту</h4>
               <div v-if="selectedTask.taskType === 'clarification'" class="quick-templates">
                 <button class="btn btn--tiny" @click="applyClarificationTemplate('generic')">Общее уточнение</button>
@@ -349,17 +368,17 @@
                 </button>
                 <button class="btn btn--primary" @click="createDraft">Сохранить черновик</button>
               </div>
-            </div>
+                </div>
 
-            <details class="actions-block" :open="selectedTask && selectedTask.state === 'customer_replied'">
+                <details class="actions-block" :open="selectedTask && selectedTask.state === 'customer_replied'">
               <summary class="section-summary">Ответ клиента</summary>
               <textarea v-model="inboundText" class="input textarea" placeholder="Вставьте входящее сообщение клиента"></textarea>
               <button class="btn btn--ghost" :disabled="inboundProcessing || !inboundText.trim()" @click="processInboundMessage">
                 {{ inboundProcessing ? 'Обрабатываю...' : 'Разобрать ответ' }}
               </button>
-            </details>
+                </details>
 
-            <details class="actions-block" :open="false">
+                <details class="actions-block" :open="false">
               <summary class="section-summary">Технические детали AI разбора</summary>
               <div v-if="inboundOutcome" class="trace-wrap">
                 <div class="trace-row"><strong>Класс ответа:</strong> {{ inboundOutcome.classLabel }}</div>
@@ -373,18 +392,30 @@
                 <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
               </div>
               <div v-else class="hint">Результат появится после “Обработать ответ”.</div>
-            </details>
+                </details>
 
-            <details class="actions-block">
+                <details class="actions-block">
               <summary class="section-summary">Смена статуса</summary>
               <select v-model="nextState" class="input">
                 <option value="">Выберите статус</option>
                 <option v-for="s in transitionTargets" :key="s" :value="s">{{ stateLabel(s) }}</option>
               </select>
               <button class="btn btn--ghost" :disabled="!nextState" @click="applyTransition">Применить</button>
-            </details>
+                </details>
 
-            <details class="actions-block">
+                <details class="actions-block">
+              <summary class="section-summary">Технические детали</summary>
+              <div class="trace-wrap">
+                <div class="trace-row"><strong>Задача:</strong> {{ selectedTask.id }}</div>
+                <div class="trace-row"><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</div>
+                <div class="trace-row"><strong>Backend статус:</strong> {{ selectedTask.state }}</div>
+                <div class="trace-row"><strong>Тип:</strong> {{ selectedTask.taskType }}</div>
+                <div class="trace-row"><strong>Агент:</strong> {{ agentLabel(selectedTask) }}</div>
+                <div class="trace-row"><strong>Ответственный:</strong> {{ ownerLabel(selectedTask) }}</div>
+              </div>
+                </details>
+
+                <details class="actions-block">
               <summary class="section-summary">Агент задачи</summary>
               <select v-model="selectedTaskAgentId" class="input">
                 <option value="">Без агента</option>
@@ -395,9 +426,9 @@
               <button class="btn btn--ghost" :disabled="assigningAgent || !selectedTask" @click="assignAgentToTask">
                 {{ assigningAgent ? 'Сохраняю...' : 'Применить агента' }}
               </button>
-            </details>
+                </details>
 
-            <details class="actions-block">
+                <details class="actions-block">
               <summary class="section-summary">Трейс шага</summary>
               <div v-if="lastStepTrace" class="trace-wrap">
                 <div class="trace-row"><strong>Откуда:</strong> {{ stateLabel(lastStepTrace.fromState) }}</div>
@@ -417,8 +448,10 @@
                 <div class="trace-row trace-time">{{ formatDate(lastStepTrace.createdAt) }}</div>
               </div>
               <div v-else class="hint">Трейс появится после обработки входящего ответа.</div>
-            </details>
-          </aside>
+                </details>
+              </div>
+            </template>
+          </main>
         </div>
       </div>
     </section>
@@ -426,17 +459,18 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 
 export default {
+  layout: 'admin',
   middleware: 'staff',
-  components: { navigation, adminTabs },
+  components: { adminTabs },
   data: () => ({
     tasks: [],
     selectedTask: null,
     taskType: '',
     state: '',
+    uiState: '',
     agentFilter: '',
     ownerFilter: '',
     owners: [],
@@ -546,6 +580,15 @@ export default {
         'closed'
       ]
     },
+    uiStateOptions() {
+      return [
+        { value: 'needs_reply', label: 'Нужно ответить' },
+        { value: 'draft_ready', label: 'Черновик готов' },
+        { value: 'waiting_customer', label: 'Ждём клиента' },
+        { value: 'handoff_human', label: 'Передано человеку' },
+        { value: 'closed', label: 'Закрыто' }
+      ]
+    },
     transitionTargets() {
       const map = {
         missing_data_detected: ['request_sent', 'handoff_human', 'closed'],
@@ -634,11 +677,12 @@ export default {
       } else if (this.ownerFilter) {
         rows = rows.filter((task) => String(task?.assignedToUserId || '').trim() === this.ownerFilter)
       }
+      if (this.uiState) rows = rows.filter((task) => this.uiStateKey(task?.state) === this.uiState)
       if (this.myOnly) rows = rows.filter((task) => this.isTaskMine(task))
       if (this.urgentOnly) {
         rows = rows.filter((task) => {
           const code = this.getSlaMeta(task).code
-          return code === 'overdue' || code === 'no_reply'
+          return code === 'overdue' || code === 'warning'
         })
       }
       rows.sort((a, b) => this.compareBySortMode(a, b))
@@ -664,8 +708,10 @@ export default {
     },
     primaryTaskActionLabel() {
       if (!this.selectedTask) return 'Действие'
+      if (this.isWaitingForCustomer(this.selectedTask)) return 'Ждём клиента'
       if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving ? 'Применяю...' : 'Применить обновление'
       if (this.selectedTask.state === 'customer_replied') return 'Разобрать ответ'
+      if (this.hasReadyDraft(this.selectedTask)) return 'Отправить'
       if (this.selectedTask.taskType === 'dispatch_info') {
         return this.quickDispatchLoading ? 'Готовлю...' : 'Подготовить детали'
       }
@@ -673,8 +719,10 @@ export default {
     },
     primaryTaskActionDisabled() {
       if (!this.selectedTask) return true
+      if (this.isWaitingForCustomer(this.selectedTask)) return true
       if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving || !this.inboundOutcome?.hasPendingPatch
       if (this.selectedTask.state === 'customer_replied') return !this.inboundText.trim() || this.inboundProcessing
+      if (this.hasReadyDraft(this.selectedTask)) return false
       if (this.selectedTask.taskType === 'dispatch_info') return this.quickDispatchLoading
       return this.quickSendLoading
     }
@@ -1328,6 +1376,11 @@ export default {
     },
     async runPrimaryTaskAction() {
       if (!this.selectedTask) return
+      if (this.hasReadyDraft(this.selectedTask)) {
+        const message = this.readyDraftMessage(this.selectedTask)
+        if (message?.id) await this.sendMessage(message.id)
+        return
+      }
       if (this.selectedTask.state === 'pending_update_approval') {
         await this.applyInboundUpdate()
         return
@@ -1541,24 +1594,35 @@ export default {
     taskTypeLabel(code) {
       return code === 'dispatch_info' ? 'Рассылка' : 'Уточнение'
     },
+    uiStateKey(code) {
+      const value = String(code || '')
+      if (this.isWaitingState(value)) return 'waiting_customer'
+      if (value === 'handoff_human') return 'handoff_human'
+      if (value === 'closed') return 'closed'
+      if (['order_complete', 'ready_to_notify', 'notify_draft'].includes(value)) return 'draft_ready'
+      return 'needs_reply'
+    },
     stateLabel(code) {
+      if (this.isWaitingState(code)) return 'Ждём клиента'
       const map = {
-        missing_data_detected: 'Нужно уточнить',
-        request_sent: 'Запрос отправлен',
-        customer_replied: 'Клиент ответил',
-        pending_update_approval: 'Ждёт применения',
-        field_validated: 'Поле подтверждено',
-        field_rejected: 'Поле отклонено',
-        order_complete: 'Заказ заполнен',
-        ready_to_notify: 'Готово к рассылке',
-        notify_draft: 'Черновик рассылки',
-        notify_sent: 'Рассылка отправлена',
-        notify_ack: 'Клиент подтвердил',
-        notify_no_reply: 'Нет ответа',
+        missing_data_detected: 'Нужно ответить',
+        customer_replied: 'Нужно ответить',
+        pending_update_approval: 'Нужно ответить',
+        field_validated: 'Нужно ответить',
+        field_rejected: 'Нужно ответить',
+        order_complete: 'Черновик готов',
+        ready_to_notify: 'Черновик готов',
+        notify_draft: 'Черновик готов',
         handoff_human: 'Передано человеку',
         closed: 'Закрыто'
       }
       return map[code] || code
+    },
+    isWaitingState(code) {
+      return ['request_sent', 'notify_sent', 'notify_ack', 'notify_no_reply'].includes(String(code || ''))
+    },
+    isWaitingForCustomer(task) {
+      return this.isWaitingState(task?.state)
     },
     directionLabel(code) {
       const map = { inbound: 'Входящее', outbound: 'Исходящее', internal: 'Внутреннее' }
@@ -1584,6 +1648,43 @@ export default {
       if (!owner?.id) return '—'
       if (this.isTaskMine(task)) return `${owner.email || owner.id} (я)`
       return owner.email || owner.id
+    },
+    ownerDisplayLabel(task) {
+      const owner = task?.assignedOwner
+      if (this.isTaskMine(task)) return 'Моё'
+      if (!owner?.id) return 'Без владельца'
+      return owner.email || owner.id
+    },
+    messageCountLabel(task) {
+      const count = Number(task?._count?.messages || task?.messages?.length || 0)
+      if (count === 1) return '1 новое сообщение'
+      if (count > 1 && count < 5) return `${count} новых сообщения`
+      return `${count} новых сообщений`
+    },
+    readyDraftMessage(task) {
+      const messages = Array.isArray(task?.messages) ? task.messages : []
+      return messages.find((message) => this.canSend(message)) || null
+    },
+    hasReadyDraft(task) {
+      return Boolean(this.readyDraftMessage(task))
+    },
+    cardActionLabel(task) {
+      if (this.isWaitingForCustomer(task)) return 'Ждём клиента'
+      if (String(task?.state || '') === 'notify_draft') return 'Проверить черновик'
+      if (this.hasReadyDraft(task)) return 'Отправить'
+      if (['ready_to_notify', 'order_complete'].includes(String(task?.state || ''))) return 'Проверить черновик'
+      return 'Открыть'
+    },
+    cardActionDisabled(task) {
+      return this.isWaitingForCustomer(task)
+    },
+    async runCardAction(task) {
+      if (!task?.id || this.cardActionDisabled(task)) return
+      await this.openTask(task.id)
+      if (this.hasReadyDraft(this.selectedTask) && this.cardActionLabel(this.selectedTask) === 'Отправить') {
+        const message = this.readyDraftMessage(this.selectedTask)
+        if (message?.id) await this.sendMessage(message.id)
+      }
     },
     isTaskSelected(taskId) {
       return this.selectedTaskIds.includes(taskId)
@@ -1636,8 +1737,8 @@ export default {
           })
         })
         const data = await response.json()
-        if (!response.ok) throw new Error(data?.error || 'Не удалось перевести задачи в handoff')
-        this.notice = `В handoff: ${data.updated || 0}, пропущено: ${data.skipped || 0}`
+        if (!response.ok) throw new Error(data?.error || 'Не удалось передать задачи человеку')
+        this.notice = `Передано человеку: ${data.updated || 0}, пропущено: ${data.skipped || 0}`
         await this.loadTasks()
         if (this.selectedTask?.id) await this.openTask(this.selectedTask.id)
       } catch (error) {
@@ -1648,13 +1749,12 @@ export default {
     },
     getSlaMeta(task) {
       const updatedMs = new Date(task?.updatedAt || 0).getTime()
-      if (!Number.isFinite(updatedMs) || updatedMs <= 0) return { code: 'unknown', label: 'SLA: —', weight: 0 }
+      if (!Number.isFinite(updatedMs) || updatedMs <= 0) return { code: 'unknown', label: 'Без SLA', weight: 0 }
       const elapsedMin = Math.floor((Date.now() - updatedMs) / 60000)
       const state = String(task?.state || '')
       const taskType = String(task?.taskType || '')
 
-      if (state === 'request_sent' && elapsedMin >= 60) return { code: 'no_reply', label: `Нет ответа ${elapsedMin}м`, weight: 4 }
-      if (state === 'notify_sent' && elapsedMin >= 30) return { code: 'no_reply', label: `Нет ответа ${elapsedMin}м`, weight: 4 }
+      if (this.isWaitingState(state)) return { code: 'waiting', label: 'Ждём клиента', weight: 0 }
 
       const dueByState = {
         missing_data_detected: 15,
@@ -1664,9 +1764,10 @@ export default {
         handoff_human: 20
       }
       const due = dueByState[state] || (taskType === 'clarification' ? 45 : 60)
-      if (elapsedMin > due) return { code: 'overdue', label: `Просрочка +${elapsedMin - due}м`, weight: 3 }
-      if (elapsedMin > Math.floor(due * 0.7)) return { code: 'warning', label: `SLA скоро (${elapsedMin}/${due}м)`, weight: 2 }
-      return { code: 'ok', label: `SLA ок (${elapsedMin}м)`, weight: 1 }
+      if (elapsedMin > due) return { code: 'overdue', label: `Просрочено на ${elapsedMin - due} мин`, weight: 3 }
+      const left = Math.max(due - elapsedMin, 0)
+      if (elapsedMin > Math.floor(due * 0.7)) return { code: 'warning', label: `Ответить за ${left} мин`, weight: 2 }
+      return { code: 'ok', label: `Ответить за ${left} мин`, weight: 1 }
     },
     slaLabel(task) {
       return this.getSlaMeta(task).label
@@ -1675,6 +1776,7 @@ export default {
       const code = this.getSlaMeta(task).code
       if (code === 'no_reply' || code === 'overdue') return 'badge--sla-critical'
       if (code === 'warning') return 'badge--sla-warning'
+      if (code === 'waiting') return ''
       if (code === 'ok') return 'badge--sla-ok'
       return ''
     },
@@ -1769,11 +1871,17 @@ export default {
 </script>
 
 <style scoped>
-.chat-section { padding-top: 140px; padding-bottom: 40px; }
+.admin-chat-page { min-height: 100vh; color: #17233d; }
+.chat-section { padding-top: 26px; padding-bottom: 40px; }
+.container { max-width: 1480px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+.page-head h1 { margin: 0; font-size: 34px; line-height: 1.1; color: #17233d; }
 .page-subtitle { margin: 6px 0 0; max-width: 760px; color: #60708f; font-size: 15px; line-height: 1.55; }
 .page-actions { display: flex; gap: 8px; }
 .filters { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; align-items: center; }
+.advanced-filters { border: 1px solid #d8d9e6; border-radius: 12px; background: #fff; padding: 10px 12px; margin-bottom: 14px; }
+.advanced-filters summary { cursor: pointer; font-weight: 800; color: #17233d; }
+.advanced-filters__grid { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; align-items: center; }
 .quick-filter {
   display: inline-flex;
   align-items: center;
@@ -1800,23 +1908,31 @@ export default {
 .textarea--code { font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; min-height: 96px; }
 .agent-actions { display: flex; justify-content: flex-end; }
 .test-output { white-space: pre-wrap; background: #0b1220; color: #e2e8f0; border-radius: 8px; padding: 10px; font-size: 12px; max-height: 220px; overflow: auto; }
-.workspace { display: grid; grid-template-columns: 340px 1fr 320px; gap: 12px; }
-.queue, .dialog, .actions { background: #fff; border: 1px solid #d8d9e6; border-radius: 12px; min-height: 620px; }
-.queue { padding: 10px; overflow: auto; }
+.workspace { display: grid; grid-template-columns: minmax(340px, 420px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.queue, .detail-pane { background: #fff; border: 1px solid #d8d9e6; border-radius: 12px; min-height: 680px; }
+.queue { padding: 10px; overflow: auto; max-height: calc(100vh - 190px); position: sticky; top: 14px; }
 .queue-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 700; margin-bottom: 10px; }
 .queue-head-meta { font-size: 12px; font-weight: 500; color: #64748b; }
-.queue-bulk { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.queue-item { width: 100%; border: 1px solid #d6dceb; border-radius: 10px; background: #f8fbff; padding: 10px; margin-bottom: 8px; text-align: left; }
+.queue-bulk { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; padding: 8px; border: 1px solid #dbe4f0; border-radius: 10px; background: #f8fafc; }
+.queue-bulk__count { display: inline-flex; align-items: center; color: #475569; font-size: 12px; font-weight: 800; padding: 0 4px; }
+.queue-item { width: 100%; border: 1px solid #d6dceb; border-radius: 10px; background: #f8fbff; padding: 12px; margin-bottom: 8px; text-align: left; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+.queue-item:hover { border-color: #b9c5dc; background: #fff; }
 .queue-item--active { border-color: #702283; box-shadow: 0 0 0 1px #702283 inset; background: #fcf7fd; }
-.queue-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; margin-bottom: 6px; }
+.queue-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; margin-bottom: 8px; }
 .queue-owner { color: #334155; margin-bottom: 6px; font-size: 12px; }
 .queue-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 700; }
-.queue-route { color: #31456f; margin-bottom: 6px; font-size: 13px; }
+.queue-title-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.queue-route { color: #17233d; margin-bottom: 5px; font-size: 16px; line-height: 1.28; font-weight: 900; }
+.queue-status { color: #60708f; margin-bottom: 8px; font-size: 13px; line-height: 1.35; }
 .queue-agent { color: #475569; margin-bottom: 6px; font-size: 12px; }
 .queue-meta { display: flex; gap: 8px; flex-wrap: wrap; color: #64748b; font-size: 12px; }
-.dialog { padding: 12px; display: flex; flex-direction: column; }
+.queue-card-action { margin-top: 10px; display: flex; justify-content: flex-end; }
+.detail-pane { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.dialog { border: 1px solid #e5eaf1; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; min-height: 320px; }
 .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid #edf1f6; padding-bottom: 10px; margin-bottom: 10px; }
+.dialog-head h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.25; color: #17233d; }
 .dialog-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.dialog-status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .messages { overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .message { border: 1px solid #e5eaf1; border-radius: 10px; padding: 8px 10px; background: #fff; }
 .message--outbound { background: #f0f9ff; border-color: #bae6fd; }
@@ -1843,7 +1959,7 @@ export default {
 .policy-trace__grid span { display: block; color: #64748b; font-size: 11px; margin-bottom: 3px; }
 .policy-trace__grid strong { color: #17233d; font-size: 12px; word-break: break-word; }
 .policy-trace__json { white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #dbeafe; border-radius: 8px; padding: 8px; font-size: 11px; max-height: 180px; overflow: auto; margin: 8px 0 0; }
-.actions { padding: 12px; }
+.actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .focus-panel { border: 1px solid #ead7f0; border-radius: 12px; background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%); padding: 12px; margin-bottom: 10px; }
 .focus-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
 .focus-panel__head h4 { margin: 0 0 4px; }
@@ -1917,7 +2033,8 @@ export default {
 .badge--sla-critical { border-color: #fecaca; background: #fee2e2; color: #991b1b; }
 .hint { color: #64748b; }
 .empty { color: #64748b; padding: 14px; }
-.empty--center { margin: auto; }
+.empty--center { margin: auto; text-align: center; font-size: 18px; font-weight: 800; color: #60708f; }
+.empty--queue { border: 1px dashed #cbd5e1; border-radius: 10px; text-align: center; background: #f8fafc; }
 @media (max-width: 1300px) {
   .agent-grid { grid-template-columns: 1fr; }
   .agent-grid--meta { grid-template-columns: 1fr; }
@@ -1925,8 +2042,9 @@ export default {
   .agent-head-actions { width: 100%; flex-direction: column; align-items: stretch; }
   .compact { min-width: 0; width: 100%; }
   .workspace { grid-template-columns: 1fr; }
-  .queue, .dialog, .actions { min-height: auto; }
-  .filters { grid-template-columns: 1fr; }
+  .queue, .detail-pane, .dialog { min-height: auto; }
+  .queue { position: static; max-height: none; }
+  .filters, .advanced-filters__grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -1961,7 +2079,7 @@ export default {
   .actions-block,
   .dialog,
   .queue,
-  .actions {
+  .detail-pane {
     padding-left: 10px;
     padding-right: 10px;
   }
