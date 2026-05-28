@@ -4,7 +4,8 @@ export const data = {
       "Почему выбирают нас?", "Классы машин"
     ],
         "main":{
-          "title": "Путешествуй<br><span style='color: #FFFFFF;'>с комфортом</span>",
+          "title": "Путешествуй",
+          "titleAccent": "с комфортом",
           "badge": "Новое поколение поездок",
           "description": "Современная платформа для быстрого и удобного заказа поездок. Безопасно, надежно, доступно.",
           "orderButton": "Заказать поездку",
@@ -117,7 +118,8 @@ export const data = {
       "title": "Why choose us?"
     },
         "main": {
-          "title": "Travel<br><span style='color: #FFFFFF;'>with comfort</span>",
+          "title": "Travel",
+          "titleAccent": "with comfort",
           "badge": "New generation of rides",
           "description": "Modern platform for fast and convenient ride booking. Safe, reliable, accessible.",
           "orderButton": "Order a ride",

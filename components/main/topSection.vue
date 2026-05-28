@@ -17,7 +17,10 @@
           <span>{{ data['main'].badge }}</span>
         </div>
         
-        <h1 class="hero-title">{{ data['main'].title }}</h1>
+        <h1 class="hero-title">
+          {{ data['main'].title }}
+          <span v-if="data['main'].titleAccent" class="hero-title__accent">{{ data['main'].titleAccent }}</span>
+        </h1>
         
         <p class="hero-description">
           {{ data['main'].description }}
@@ -177,6 +180,11 @@
       margin-bottom: 24px;
       color: #fff;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .hero-title__accent {
+      display: block;
+      color: #fff;
     }
 
     .hero-title .subtitle {
