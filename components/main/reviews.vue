@@ -4,8 +4,7 @@
       <div class="row">
         <div class="col-sm-6">
           <h2 class="h2 site-section__title">
-            <span v-if="$store.state.language === 'ru'">Отзывы</span>
-            <span v-else>Reviews</span>
+            <span>{{ textData.reviews.title }}</span>
           </h2>
         </div>
       </div>
@@ -136,6 +135,11 @@
 
   export default {
     components: {},
+    computed: {
+      textData(){
+        return this.$store.getters.textData;
+      }
+    },
     data() {
       return {
         swiperData: {
@@ -185,4 +189,3 @@
     }
   }
 </script>
-

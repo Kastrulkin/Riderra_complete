@@ -18,17 +18,22 @@
     props: ['data'],
     data() {
       return {
-        current: null,
-        tabs: [
+        current: null
+      }
+    },
+    computed: {
+      tabs(){
+        const tabs = (this.$store.getters.textData && this.$store.getters.textData.bookingTabs) || {};
+        return [
           {
-            title: 'Откуда и куда',
+            title: tabs.route || 'Route',
             href: '/'
           },
           {
-            title: 'Транспорт',
+            title: tabs.transport || 'Transport',
             href: '/transport'
           }
-        ]
+        ];
       }
     },
     methods: {

@@ -12,14 +12,14 @@
       </div>
       </div>
       <ul class="footer__col col-xs-12 col-sm-3 ">
-        <li><a href="/about" class="footer__link">{{ $store.state.language === 'ru' ? 'О компании' : 'About' }}</a></li>
-        <li><a href="/services" class="footer__link">{{ $store.state.language === 'ru' ? 'Услуги' : 'Services' }}</a></li>
-        <li><a href="/prices" class="footer__link">{{ $store.state.language === 'ru' ? 'Цены' : 'Prices' }}</a></li>
-        <li><a href="/contact" class="footer__link">{{ $store.state.language === 'ru' ? 'Контакты' : 'Contact' }}</a></li>
-        <li><a href="/faq" class="footer__link">FAQ</a></li>
-        <li><nuxt-link to="/transport" class="footer__link">Условия перевозки</nuxt-link></li>
-        <li><nuxt-link to="/privacy-policy" class="footer__link">Политика конфиденциальности</nuxt-link></li>
-            <li><nuxt-link to="/drivers" class="footer__link">{{$store.state.language === 'ru' ? 'Водителям' : 'Drivers'}}</nuxt-link></li>
+        <li><a href="/about" class="footer__link">{{ publicLinks.about }}</a></li>
+        <li><a href="/services" class="footer__link">{{ publicLinks.services }}</a></li>
+        <li><a href="/prices" class="footer__link">{{ publicLinks.prices }}</a></li>
+        <li><a href="/contact" class="footer__link">{{ publicLinks.contact }}</a></li>
+        <li><a href="/faq" class="footer__link">{{ publicLinks.faq }}</a></li>
+        <li><nuxt-link to="/transport" class="footer__link">{{ publicLinks.terms }}</nuxt-link></li>
+        <li><nuxt-link to="/privacy-policy" class="footer__link">{{ publicLinks.privacy }}</nuxt-link></li>
+            <li><nuxt-link to="/drivers" class="footer__link">{{ publicLinks.drivers }}</nuxt-link></li>
       </ul>
       <ul class="footer__col footer__col--contacts col-xs-12 col-sm-3 col-md-push-1">
         <li><a class="footer__link" href="mailto:info@riderra.com">info@riderra.com</a></li>
@@ -74,6 +74,11 @@
   export default {
     components:{
       language
+    },
+    computed: {
+      publicLinks(){
+        return (this.$store.getters.textData && this.$store.getters.textData.publicLinks) || {};
+      }
     },
     data(){
       return {

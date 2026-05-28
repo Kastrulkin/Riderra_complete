@@ -6,7 +6,7 @@
       <div class="container">
         <div class="row">
           <div class="col-sm-6">
-            <h2 class="h2 site-section__title">{{ $store.state.siteData[$store.state.language].orderTitle }}</h2>
+            <h2 class="h2 site-section__title">{{ textData.orderTitle }}</h2>
           </div>
         </div>
         <div class="widget" id="booking-widget">
@@ -47,7 +47,10 @@ export default {
       return this.$store.state.language;
     },
     siteData(){
-      return this.data[this.lang];
+      return this.data[this.lang] || this.data.en || this.data.ru;
+    },
+    textData(){
+      return this.$store.getters.textData;
     },
     bookingWidgetSrc() {
       const supportedLanguages = ['ru', 'en', 'es', 'de', 'fr', 'el', 'th', 'ar']

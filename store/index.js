@@ -197,8 +197,8 @@ const createStore = () => {
       getDistance: state => {
         return state.distance;
       },
-	    textData: state => {
-        return state.siteData[state.language];
+      textData: state => {
+        return state.siteData[state.language] || state.siteData.en || state.siteData.ru;
       }
     },
     mutations: {

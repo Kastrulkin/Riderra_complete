@@ -20,7 +20,7 @@
             <p class="cars__desc" ref="swiperDesc">{{ slide.desc }}</p>
 
             <div @click.self="chooseCar(i)" class="cars__button" ref="chooseButton">
-              <nuxt-link to="/transport" class="cars__button-link white-button">Выбрать</nuxt-link>
+              <nuxt-link to="/transport" class="cars__button-link white-button">{{ chooseText }}</nuxt-link>
             </div>
           </figcaption>
         </figure>
@@ -31,11 +31,25 @@
 </template>
 <script>
 
-  import { mapState } from 'vuex'
-
-
   export default {
-    computed: mapState(['cars']),
+    computed: {
+      storeCars(){
+        return this.$store.state.cars;
+      },
+      textData(){
+        return this.$store.getters.textData;
+      },
+      cars(){
+        const fleetCars = this.textData.fleetCars || {};
+        return this.storeCars.map((car) => ({
+          ...car,
+          ...(fleetCars[car.name] || {})
+        }));
+      },
+      chooseText(){
+        return (this.textData.publicLinks && this.textData.publicLinks.choose) || 'Choose';
+      }
+    },
     props: ['data'],
     filters: {
       toUSD (value) {

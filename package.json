@@ -25,6 +25,7 @@
     "security:api-audit-trace": "node scripts/security_api_audit_trace_smoke.js",
     "smoke:public-ai-visibility": "node scripts/public_ai_visibility_smoke.js",
     "smoke:public-structured-data": "node scripts/public_structured_data_smoke.js",
+    "smoke:public-languages": "node scripts/public_language_smoke.mjs",
     "smoke:chat-inbound-e2e": "node scripts/chat_inbound_e2e_smoke.js",
     "smoke:chat-internal-inbound": "node scripts/chat_internal_inbound_smoke.js",
     "smoke:chat-whatsapp-template-policy": "node scripts/chat_whatsapp_template_policy_smoke.js"

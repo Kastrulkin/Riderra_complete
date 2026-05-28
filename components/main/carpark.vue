@@ -4,8 +4,7 @@
       <div class="row">
         <div class="col-sm-6">
           <h2 class="h2 site-section__title">
-            <span v-if="$store.state.language === 'ru'">Классы машин</span>
-            <span v-else>Car Classes</span>
+            <span>{{ textData.park }}</span>
           </h2>
         </div>
       </div>
@@ -20,6 +19,11 @@
 
   export default {
     components: {cars},
+    computed: {
+      textData(){
+        return this.$store.getters.textData;
+      }
+    },
     data(){
       return {
         carsData:{

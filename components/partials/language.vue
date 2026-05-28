@@ -2,8 +2,8 @@
   <div class="lang-select" :class="data.class">
     <div class="lang-select__wrap" v-click-outside="hideList">
       <div class="lang-select__current" @click="toggleList" :class="{'active': state}">
-        <span class="lang-select__flag">{{current ? current.flag : languages[0].flag}}</span>
-        <span class="lang-select__name">{{media === 'mobile' ? (current ? current.country : languages[0].country) : (current ? current.name : languages[0].name)}}</span>
+        <span class="lang-select__flag">{{selectedLanguage.flag}}</span>
+        <span class="lang-select__name">{{media === 'mobile' ? selectedLanguage.country : selectedLanguage.name}}</span>
         <svg class="lang-select__arrow" width="10" height="6" viewBox="0 0 13 8" fill="none"
              xmlns="http://www.w3.org/2000/svg">
           <path d="M1 1L6.5 6L12 1" stroke-width="2" stroke-linecap="round"/>
@@ -11,10 +11,10 @@
       </div>
       <transition name="list-fade">
         <div class="lang-select__list" v-show="state">
-          <div class="lang-select__list-item" v-for="(item, i) in languages" :key="i" @click="chooseLang(item)" :class="{'active': current && current.shortcut === item.shortcut}">
+          <div class="lang-select__list-item" v-for="(item, i) in languages" :key="i" @click="chooseLang(item)" :class="{'active': selectedLanguage.shortcut === item.shortcut}">
             <span class="lang-select__list-flag">{{item.flag}}</span>
             <span class="lang-select__list-name">{{item.country}}</span>
-            <span v-if="current && current.shortcut === item.shortcut" class="lang-select__check">✓</span>
+            <span v-if="selectedLanguage.shortcut === item.shortcut" class="lang-select__check">✓</span>
           </div>
         </div>
       </transition>
@@ -30,6 +30,9 @@
 		computed: {
 			media() {
 				return this.$store.state.media;
+			},
+			selectedLanguage() {
+				return this.languages.find((item) => item.shortcut === this.$store.state.language) || this.languages[0];
 			},
 		},
 		watch: {

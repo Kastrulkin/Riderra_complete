@@ -22,10 +22,10 @@
     <nav class="nav-list">
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework || 'How we work'}}</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">{{textData.park || 'Cars'}}</nuxt-link>
-      <a href="/services" class="nav-list__item">{{ $store.state.language === 'ru' ? 'Услуги' : 'Services' }}</a>
-      <a href="/prices" class="nav-list__item">{{ $store.state.language === 'ru' ? 'Цены' : 'Prices' }}</a>
-      <a href="/contact" class="nav-list__item">{{ $store.state.language === 'ru' ? 'Контакты' : 'Contact' }}</a>
-      <nuxt-link to="/drivers" class="nav-list__item">{{$store.state.language === 'ru' ? 'Перевозчикам' : 'Drivers'}}</nuxt-link>
+      <a href="/services" class="nav-list__item">{{ publicLinks.services }}</a>
+      <a href="/prices" class="nav-list__item">{{ publicLinks.prices }}</a>
+      <a href="/contact" class="nav-list__item">{{ publicLinks.contact }}</a>
+      <nuxt-link to="/drivers" class="nav-list__item">{{ publicLinks.drivers }}</nuxt-link>
     </nav>
     <tabs-nav></tabs-nav>
     <div class="header__right">
@@ -39,12 +39,12 @@
             CRM
           </nuxt-link>
           <span class="user-name">{{ $store.state.user?.email }}</span>
-          <button @click="logout" class="logout-btn">{{ $store.state.language === 'ru' ? 'Выйти' : 'Logout' }}</button>
+          <button @click="logout" class="logout-btn">{{ publicLinks.logout }}</button>
         </div>
       </template>
       <template v-else>
         <div class="auth-links">
-          <nuxt-link to="/login" class="header__signin">{{ $store.state.language === 'ru' ? 'Войти' : 'Sign in' }}</nuxt-link>
+          <nuxt-link to="/login" class="header__signin">{{ publicLinks.signin }}</nuxt-link>
         </div>
       </template>
     </div>
@@ -83,10 +83,14 @@
 	        return {
 	          howwework: 'How we work',
 	          park: 'Cars',
-	          enter: 'Sign in'
+	          enter: 'Sign in',
+	          publicLinks: {}
 	        };
 	      }
 	      return data;
+      },
+      publicLinks(){
+        return this.textData.publicLinks || {};
       }
 
     },
