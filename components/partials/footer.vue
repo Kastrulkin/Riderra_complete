@@ -12,11 +12,11 @@
       </div>
       </div>
       <ul class="footer__col col-xs-12 col-sm-3 ">
-        <li><a href="/about" class="footer__link">{{ publicLinks.about }}</a></li>
-        <li><a href="/services" class="footer__link">{{ publicLinks.services }}</a></li>
-        <li><a href="/prices" class="footer__link">{{ publicLinks.prices }}</a></li>
-        <li><a href="/contact" class="footer__link">{{ publicLinks.contact }}</a></li>
-        <li><a href="/faq" class="footer__link">{{ publicLinks.faq }}</a></li>
+        <li><a :href="publicPath('/about')" class="footer__link">{{ publicLinks.about }}</a></li>
+        <li><a :href="publicPath('/services')" class="footer__link">{{ publicLinks.services }}</a></li>
+        <li><a :href="publicPath('/prices')" class="footer__link">{{ publicLinks.prices }}</a></li>
+        <li><a :href="publicPath('/contact')" class="footer__link">{{ publicLinks.contact }}</a></li>
+        <li><a :href="publicPath('/faq')" class="footer__link">{{ publicLinks.faq }}</a></li>
         <li><nuxt-link to="/transport" class="footer__link">{{ publicLinks.terms }}</nuxt-link></li>
         <li><nuxt-link to="/privacy-policy" class="footer__link">{{ publicLinks.privacy }}</nuxt-link></li>
             <li><nuxt-link to="/drivers" class="footer__link">{{ publicLinks.drivers }}</nuxt-link></li>
@@ -78,6 +78,11 @@
     computed: {
       publicLinks(){
         return (this.$store.getters.textData && this.$store.getters.textData.publicLinks) || {};
+      }
+    },
+    methods: {
+      publicPath(path) {
+        return this.$store.state.language === 'ru' ? `/ru${path}` : path;
       }
     },
     data(){

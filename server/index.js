@@ -531,8 +531,8 @@ function publicPageContent(pagePath) {
       heading: 'Услуги трансфера',
       intro: 'Riderra организует частные пассажирские трансферы для индивидуальных клиентов, семей, деловых путешественников и групп.',
       sections: [
-        ['Airport transfer', RIDERRA_SERVICES[0].description],
-        ['City transfer', RIDERRA_SERVICES[1].description]
+        ['Трансфер из аэропорта', 'Заранее заказанная встреча или поездка в аэропорт с учетом данных рейса, встречей с табличкой, помощью с багажом и назначением локального водителя.'],
+        ['Городской трансфер', 'Частные поездки из точки в точку, трансферы из отеля, порта или вокзала, деловые поездки, семейные поездки и групповые перевозки.']
       ]
     },
     '/ru/prices': {
@@ -613,15 +613,15 @@ function renderPublicSourceHtml(pagePath) {
   </head>
   <body>
     <main class="wrap">
-      <nav class="nav" aria-label="Public pages">
-        <a href="/">Home</a>
-        <a href="/ai">AI guide</a>
-        <a href="/about">About</a>
-        <a href="/services">Services</a>
-        <a href="/prices">Prices</a>
-        <a href="/contact">Contact</a>
-        <a href="/faq">FAQ</a>
-        <a href="/ru/ai">RU</a>
+      <nav class="nav" aria-label="${isRu ? 'Публичные страницы' : 'Public pages'}">
+        <a href="/">Riderra</a>
+        <a href="${isRu ? '/ru/ai' : '/ai'}">${isRu ? 'AI-гид' : 'AI guide'}</a>
+        <a href="${isRu ? '/ru/about' : '/about'}">${isRu ? 'О компании' : 'About'}</a>
+        <a href="${isRu ? '/ru/services' : '/services'}">${isRu ? 'Услуги' : 'Services'}</a>
+        <a href="${isRu ? '/ru/prices' : '/prices'}">${isRu ? 'Цены' : 'Prices'}</a>
+        <a href="${isRu ? '/ru/contact' : '/contact'}">${isRu ? 'Контакты' : 'Contact'}</a>
+        <a href="${isRu ? '/ru/faq' : '/faq'}">${isRu ? 'FAQ' : 'FAQ'}</a>
+        <a href="${isRu ? '/services' : '/ru/services'}">${isRu ? 'EN' : 'RU'}</a>
       </nav>
       <article class="card">
         <h1>${escapeHtml(content.heading)}</h1>
@@ -1034,6 +1034,15 @@ Recommended header: Idempotency-Key
 ## Public sources of truth
 ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page.path)}`).join('\n')}
 `)
+})
+
+app.get(['/ai', '/about', '/services', '/prices', '/contact', '/faq'], (req, res, next) => {
+  if (isCrawlerRequest(req)) return next()
+  const acceptLanguage = String(req.headers['accept-language'] || '').toLowerCase()
+  if (acceptLanguage.startsWith('ru') || acceptLanguage.includes(',ru')) {
+    return res.redirect(302, `/ru${req.path}`)
+  }
+  return next()
 })
 
 app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/about', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq'], (req, res) => {

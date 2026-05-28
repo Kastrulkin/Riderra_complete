@@ -22,9 +22,9 @@
     <nav class="nav-list">
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework || 'How we work'}}</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">{{textData.park || 'Cars'}}</nuxt-link>
-      <a href="/services" class="nav-list__item">{{ publicLinks.services }}</a>
-      <a href="/prices" class="nav-list__item">{{ publicLinks.prices }}</a>
-      <a href="/contact" class="nav-list__item">{{ publicLinks.contact }}</a>
+      <a :href="publicPath('/services')" class="nav-list__item">{{ publicLinks.services }}</a>
+      <a :href="publicPath('/prices')" class="nav-list__item">{{ publicLinks.prices }}</a>
+      <a :href="publicPath('/contact')" class="nav-list__item">{{ publicLinks.contact }}</a>
       <nuxt-link to="/drivers" class="nav-list__item">{{ publicLinks.drivers }}</nuxt-link>
     </nav>
     <tabs-nav></tabs-nav>
@@ -153,6 +153,9 @@
       logout() {
         this.$store.dispatch('logout')
         this.$router.push('/')
+      },
+      publicPath(path) {
+        return this.$store.state.language === 'ru' ? `/ru${path}` : path;
       }
     },
     beforeMount(){
