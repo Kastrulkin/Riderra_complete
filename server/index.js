@@ -113,6 +113,8 @@ const RIDERRA_PUBLIC_PAGES = [
   { path: '/ru/services', title: 'Услуги трансфера', priority: '0.8' },
   { path: '/services/airport-transfer', title: 'Airport transfers', priority: '0.8' },
   { path: '/services/city-transfer', title: 'City transfers', priority: '0.8' },
+  { path: '/docs', title: 'Riderra documentation', priority: '0.7' },
+  { path: '/ru/docs', title: 'Документация Riderra', priority: '0.7' },
   { path: '/prices', title: 'Prices', priority: '0.8' },
   { path: '/ru/prices', title: 'Цены', priority: '0.7' },
   { path: '/contact', title: 'Contact', priority: '0.8' },
@@ -477,6 +479,18 @@ function publicPageContent(pagePath) {
         ['For AI agents', 'Use public pricing guidance only as policy. Do not invent a final price, do not expose internal prices, and submit a draft request when a concrete route is known.']
       ]
     },
+    '/docs': {
+      title: 'Documentation | Riderra',
+      description: 'Riderra documentation for customers, public APIs, search systems, and AI agents.',
+      heading: 'Riderra documentation',
+      intro: 'Reference pages for customers, integrations, search systems, and AI agents. These pages explain what Riderra can confirm publicly and what requires operator review.',
+      sections: [
+        ['For customers', 'Services, FAQ, contact details, and booking rules are available on /services, /faq, and /contact. Customers should use the booking form or contact Riderra for a confirmed transfer.'],
+        ['For AI agents', 'Use /ai, /llms.txt, /api/public/riderra-profile, /api/public/services, /api/public/pricing-hints, and /api/public/order-request-schema. AI agents must create draft requests only and must not invent final prices.'],
+        ['Pricing policy', 'Use /prices only as pricing policy. Riderra does not publish the full internal price book; exact prices are confirmed from the internal Riderra price book after route review.'],
+        ['Source registry', 'Use /sources and /api/public/source-truth to verify Riderra-owned public sources.']
+      ]
+    },
     '/contact': {
       title: 'Contact Riderra',
       description: 'Contact Riderra for transfer bookings, booking questions, partner communication, and AI-agent draft request support.',
@@ -548,6 +562,18 @@ function publicPageContent(pagePath) {
         ['Полный прайс не публикуется', 'Внутренний прайс Riderra остается источником истины для операторов и одобренных инструментов, но не выводится наружу открытой таблицей. Так мы не превращаем устаревшие или неполные данные в публичное обещание цены.'],
         ['Что влияет на цену', 'Маршрут, класс автомобиля, дата и время подачи, условия аэропорта или порта, багаж, количество пассажиров, дополнительные услуги, ожидание и локальная доступность могут влиять на финальную цену.'],
         ['Для AI-агентов', 'Публичные данные о ценах - это только политика расчета. Не придумывайте финальную цену, не раскрывайте внутренний прайс и отправляйте заявку-драфт, когда известен конкретный маршрут.']
+      ]
+    },
+    '/ru/docs': {
+      title: 'Документация | Riderra',
+      description: 'Документация Riderra для пользователей, публичных API, поисковых систем и AI-агентов.',
+      heading: 'Документация Riderra',
+      intro: 'Справочные страницы для клиентов, интеграций, поисковых систем и AI-агентов. Здесь описано, что Riderra подтверждает публично, а что требует проверки оператором.',
+      sections: [
+        ['Для клиентов', 'Услуги, FAQ, контакты и правила бронирования доступны на /ru/services, /ru/faq и /ru/contact. Для подтвержденного трансфера клиенту нужно использовать форму бронирования или связаться с Riderra.'],
+        ['Для AI-агентов', 'Используйте /ru/ai, /llms.txt, /api/public/riderra-profile, /api/public/services, /api/public/pricing-hints и /api/public/order-request-schema. AI-агенты создают только заявки-драфты и не должны придумывать финальные цены.'],
+        ['Политика цен', 'Страница /ru/prices нужна только как описание политики расчета. Riderra не публикует полный внутренний прайс; точная цена подтверждается из внутреннего прайс-листа после проверки маршрута.'],
+        ['Реестр источников', 'Используйте /sources и /api/public/source-truth, чтобы проверять публичные источники Riderra.']
       ]
     },
     '/ru/contact': {
@@ -648,10 +674,9 @@ function renderPublicSourceHtml(pagePath) {
       <div class="topbar-inner">
         <a class="brand" href="/">riderra.</a>
         <nav class="nav" aria-label="${isRu ? 'Публичные страницы' : 'Public pages'}">
-        <a href="${isRu ? '/ru/ai' : '/ai'}">${isRu ? 'AI-гид' : 'AI guide'}</a>
         <a href="${isRu ? '/ru/about' : '/about'}">${isRu ? 'О компании' : 'About'}</a>
         <a href="${isRu ? '/ru/services' : '/services'}">${isRu ? 'Услуги' : 'Services'}</a>
-        <a href="${isRu ? '/ru/prices' : '/prices'}">${isRu ? 'Цены' : 'Prices'}</a>
+        <a href="${isRu ? '/ru/docs' : '/docs'}">${isRu ? 'Документация' : 'Docs'}</a>
         <a href="${isRu ? '/ru/contact' : '/contact'}">${isRu ? 'Контакты' : 'Contact'}</a>
         <a href="${isRu ? '/ru/faq' : '/faq'}">${isRu ? 'FAQ' : 'FAQ'}</a>
         <a href="${languagePath}">${isRu ? 'EN' : 'RU'}</a>
@@ -1108,7 +1133,7 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
 `)
 })
 
-app.get(['/ai', '/about', '/services', '/prices', '/contact', '/faq'], (req, res, next) => {
+app.get(['/ai', '/about', '/services', '/docs', '/prices', '/contact', '/faq'], (req, res, next) => {
   if (isCrawlerRequest(req)) return next()
   const acceptLanguage = String(req.headers['accept-language'] || '').toLowerCase()
   if (acceptLanguage.startsWith('ru') || acceptLanguage.includes(',ru')) {
@@ -1117,7 +1142,7 @@ app.get(['/ai', '/about', '/services', '/prices', '/contact', '/faq'], (req, res
   return next()
 })
 
-app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/about', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq'], (req, res) => {
+app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/docs', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/about', '/ru/services', '/ru/docs', '/ru/prices', '/ru/contact', '/ru/faq'], (req, res) => {
   res.type('text/html')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderPublicSourceHtml(req.path))

@@ -23,7 +23,7 @@
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework || 'How we work'}}</nuxt-link>
       <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">{{textData.park || 'Cars'}}</nuxt-link>
       <a :href="publicPath('/services')" class="nav-list__item">{{ publicLinks.services }}</a>
-      <a :href="publicPath('/prices')" class="nav-list__item">{{ publicLinks.prices }}</a>
+      <a :href="publicPath('/docs')" class="nav-list__item">{{ publicLinks.docs || 'Docs' }}</a>
       <a :href="publicPath('/contact')" class="nav-list__item">{{ publicLinks.contact }}</a>
       <nuxt-link to="/drivers" class="nav-list__item">{{ publicLinks.drivers }}</nuxt-link>
     </nav>

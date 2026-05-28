@@ -24,6 +24,7 @@ const requiredPaths = [
   'park',
   'publicLinks.services',
   'publicLinks.prices',
+  'publicLinks.docs',
   'publicLinks.contact',
   'publicLinks.drivers',
   'publicLinks.choose',

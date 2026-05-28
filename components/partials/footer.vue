@@ -14,7 +14,7 @@
       <ul class="footer__col col-xs-12 col-sm-3 ">
         <li><a :href="publicPath('/about')" class="footer__link">{{ publicLinks.about }}</a></li>
         <li><a :href="publicPath('/services')" class="footer__link">{{ publicLinks.services }}</a></li>
-        <li><a :href="publicPath('/prices')" class="footer__link">{{ publicLinks.prices }}</a></li>
+        <li><a :href="publicPath('/docs')" class="footer__link">{{ publicLinks.docs || 'Docs' }}</a></li>
         <li><a :href="publicPath('/contact')" class="footer__link">{{ publicLinks.contact }}</a></li>
         <li><a :href="publicPath('/faq')" class="footer__link">{{ publicLinks.faq }}</a></li>
         <li><nuxt-link to="/transport" class="footer__link">{{ publicLinks.terms }}</nuxt-link></li>
