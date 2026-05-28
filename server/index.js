@@ -2868,6 +2868,19 @@ function resolveVpnBinaryPath(platform) {
   return null
 }
 
+function vpnGrantBelongsToCurrentUser(req, grant) {
+  const actorEmail = String(req.user?.email || '').trim().toLowerCase()
+  if (!actorEmail || !grant) return false
+  return [grant.employeeEmail, grant.employeeLogin]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+    .includes(actorEmail)
+}
+
+function canReadVpnGrant(req, grant) {
+  return hasPermission(req, 'settings.manage') || vpnGrantBelongsToCurrentUser(req, grant)
+}
+
 function buildVpnClientConfig(profile, grant) {
   ensureVpnProfileReady(profile)
   return {
@@ -2920,16 +2933,19 @@ function buildVpnClientConfig(profile, grant) {
 function buildVpnReadme(platform, profile, grant, connection) {
   const isWindows = platform === 'windows'
   const intro = isWindows ? 'Riderra VPN package for Windows' : 'Riderra VPN package for macOS'
+  const binaryFileName = isWindows ? 'sing-box.exe' : 'sing-box'
   const runOn = isWindows
     ? [
         '1. Unzip the archive to a writable folder.',
-        '2. Run "Включить VPN.bat" as Administrator.',
-        '3. To stop the tunnel, run "Выключить VPN.bat".'
+        `2. If ${binaryFileName} is missing, download sing-box for Windows and place ${binaryFileName} next to client.json.`,
+        '3. Run "Включить VPN.bat" as Administrator.',
+        '4. To stop the tunnel, run "Выключить VPN.bat".'
       ]
     : [
         '1. Unzip the archive into Applications or any writable folder.',
-        '2. If needed, allow execution in System Settings and run "Включить VPN.command".',
-        '3. To stop the tunnel, run "Выключить VPN.command".'
+        `2. If ${binaryFileName} is missing, download sing-box for macOS and place ${binaryFileName} next to client.json.`,
+        '3. If needed, allow execution in System Settings and run "Включить VPN.command".',
+        '4. To stop the tunnel, run "Выключить VPN.command".'
       ]
 
   return [
@@ -2955,8 +2971,8 @@ function buildVpnReadme(platform, profile, grant, connection) {
     '',
     'Files included:',
     isWindows
-      ? '- sing-box.exe\n- client.json\n- Включить VPN.bat\n- Выключить VPN.bat\n- README.txt'
-      : '- sing-box\n- client.json\n- Включить VPN.command\n- Выключить VPN.command\n- README.txt'
+      ? '- client.json\n- Включить VPN.bat\n- Выключить VPN.bat\n- README.txt\n- sing-box.exe, if configured on the Riderra server'
+      : '- client.json\n- Включить VPN.command\n- Выключить VPN.command\n- README.txt\n- sing-box, if configured on the Riderra server'
   ].join('\n')
 }
 
@@ -3005,13 +3021,6 @@ async function buildVpnPackageArchive(profile, grant, platform) {
 
   ensureVpnProfileReady(profile)
   const binaryPath = resolveVpnBinaryPath(normalizedPlatform)
-  if (!binaryPath) {
-    const error = new Error(`VPN binary path is not configured for ${normalizedPlatform}. Set ${normalizedPlatform === 'macos' ? 'VPN_SINGBOX_MACOS_PATH' : 'VPN_SINGBOX_WINDOWS_PATH'}.`)
-    error.statusCode = 409
-    throw error
-  }
-
-  await fs.access(binaryPath)
   const connection = buildVpnConnectionBundle(profile, grant)
   const archiveName = `${slugifyVpnValue(grant.employeeName, 'employee')}-${normalizedPlatform}-vpn.zip`
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'riderra-vpn-'))
@@ -3019,10 +3028,27 @@ async function buildVpnPackageArchive(profile, grant, platform) {
   await fs.mkdir(packageRoot, { recursive: true })
 
   const binaryFileName = normalizedPlatform === 'windows' ? 'sing-box.exe' : 'sing-box'
-  const binaryTargetPath = path.join(packageRoot, binaryFileName)
-  await fs.copyFile(binaryPath, binaryTargetPath)
-  if (normalizedPlatform === 'macos') {
-    await fs.chmod(binaryTargetPath, 0o755)
+  if (binaryPath) {
+    try {
+      await fs.access(binaryPath)
+      const binaryTargetPath = path.join(packageRoot, binaryFileName)
+      await fs.copyFile(binaryPath, binaryTargetPath)
+      if (normalizedPlatform === 'macos') {
+        await fs.chmod(binaryTargetPath, 0o755)
+      }
+    } catch (error) {
+      await fs.writeFile(
+        path.join(packageRoot, `${binaryFileName}.missing.txt`),
+        `The ${binaryFileName} binary was configured but could not be copied from ${binaryPath}.\nDownload sing-box for ${normalizedPlatform} and place it in this folder next to client.json.\nOriginal error: ${error.message || error}\n`,
+        'utf8'
+      )
+    }
+  } else {
+    await fs.writeFile(
+      path.join(packageRoot, `${binaryFileName}.missing.txt`),
+      `The ${binaryFileName} binary is not bundled yet.\nDownload sing-box for ${normalizedPlatform} and place it in this folder next to client.json.\n`,
+      'utf8'
+    )
   }
 
   await fs.writeFile(path.join(packageRoot, 'client.json'), JSON.stringify(buildVpnClientConfig(profile, grant), null, 2), 'utf8')
@@ -15940,6 +15966,42 @@ app.get('/api/admin/vpn/access', authenticateToken, resolveActorContext, require
   }
 })
 
+app.get('/api/admin/vpn/my-access', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const actorEmail = String(req.user?.email || '').trim().toLowerCase()
+    if (!actorEmail) return res.status(403).json({ error: 'User email is required for VPN self-service' })
+
+    const [profile, rows] = await Promise.all([
+      prisma.vpnProfile.findUnique({ where: { tenantId } }),
+      prisma.vpnAccessGrant.findMany({
+        where: {
+          tenantId,
+          OR: [
+            { employeeEmail: { equals: actorEmail, mode: 'insensitive' } },
+            { employeeLogin: { equals: actorEmail, mode: 'insensitive' } }
+          ]
+        },
+        include: { profile: true },
+        orderBy: [{ updatedAt: 'desc' }],
+        take: 20
+      })
+    ])
+
+    const effectiveProfile = profile || buildDefaultVpnProfile(tenantId)
+    res.json({
+      profile: effectiveProfile,
+      rows: rows.map((row) => ({
+        ...row,
+        connection: buildVpnConnectionBundle(row.profile || effectiveProfile, row)
+      }))
+    })
+  } catch (error) {
+    console.error('Error loading own vpn access list:', error)
+    res.status(500).json({ error: 'Failed to load VPN access list' })
+  }
+})
+
 app.post('/api/admin/vpn/access', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
@@ -16208,7 +16270,7 @@ app.post('/api/admin/vpn/access/:grantId/activate', authenticateToken, resolveAc
   }
 })
 
-app.get('/api/admin/vpn/access/:grantId/instruction', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+app.get('/api/admin/vpn/access/:grantId/instruction', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const row = await prisma.vpnAccessGrant.findFirst({
@@ -16216,6 +16278,7 @@ app.get('/api/admin/vpn/access/:grantId/instruction', authenticateToken, resolve
       include: { profile: true }
     })
     if (!row) return res.status(404).json({ error: 'VPN access not found' })
+    if (!canReadVpnGrant(req, row)) return res.status(403).json({ error: 'You can open only your own VPN instructions' })
     const profile = row.profile || await prisma.vpnProfile.findUnique({ where: { tenantId } }) || buildDefaultVpnProfile(tenantId)
     res.json({
       row,
@@ -16228,7 +16291,7 @@ app.get('/api/admin/vpn/access/:grantId/instruction', authenticateToken, resolve
   }
 })
 
-app.get('/api/admin/vpn/access/:grantId/package', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+app.get('/api/admin/vpn/access/:grantId/package', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   let tempRoot = null
   try {
     const tenantId = req.actorContext.tenantId
@@ -16240,6 +16303,7 @@ app.get('/api/admin/vpn/access/:grantId/package', authenticateToken, resolveActo
       include: { profile: true }
     })
     if (!row) return res.status(404).json({ error: 'VPN access not found' })
+    if (!canReadVpnGrant(req, row)) return res.status(403).json({ error: 'You can download only your own VPN package' })
 
     const profile = row.profile || await prisma.vpnProfile.findUnique({ where: { tenantId } }) || buildDefaultVpnProfile(tenantId)
     const pkg = await buildVpnPackageArchive(profile, row, platform)

@@ -48,9 +48,10 @@
                 <button
                   v-if="canDownloadPlatform(item.platform)"
                   class="btn btn--small btn--primary"
+                  :disabled="isPackageDownloading(item.access, item.platform)"
                   @click="downloadSlotPackage(currentStaffVpnRow, item.kind, item.access)"
                 >
-                  {{ t.downloadArchive }}
+                  {{ isPackageDownloading(item.access, item.platform) ? t.downloading : t.downloadArchive }}
                 </button>
                 <button class="btn btn--small btn--ghost" @click="openInstruction(item.access)">
                   {{ t.openInstruction }}
@@ -60,17 +61,18 @@
                 </button>
               </div>
               <button
-                v-else
+                v-else-if="canManageVpn"
                 class="btn btn--small btn--primary"
                 @click="openCreateForSlot(currentStaffVpnRow, item.kind)"
               >
                 {{ t.issueAccess }}
               </button>
+              <span v-else class="muted">{{ t.askAdminForAccess }}</span>
             </div>
           </div>
         </div>
 
-        <div class="content-grid content-grid--vpn">
+        <div v-if="canManageVpn" class="content-grid content-grid--vpn">
           <details class="card technical-card">
             <summary class="technical-card__summary">
               <div>
@@ -199,9 +201,10 @@
                     <button
                       v-if="staff.computer && canDownloadPlatform(selectedSlotPlatform(staff, 'computer', staff.computer))"
                       class="btn btn--small btn--primary"
+                      :disabled="isPackageDownloading(staff.computer, selectedSlotPlatform(staff, 'computer', staff.computer))"
                       @click="downloadSlotPackage(staff, 'computer', staff.computer)"
                     >
-                      {{ t.downloadArchive }}
+                      {{ isPackageDownloading(staff.computer, selectedSlotPlatform(staff, 'computer', staff.computer)) ? t.downloading : t.downloadArchive }}
                     </button>
 
                     <button
@@ -221,7 +224,7 @@
                     </button>
 
                     <button
-                      v-if="!staff.computer"
+                      v-if="!staff.computer && canManageVpn"
                       class="btn btn--small btn--primary"
                       @click="openCreateForSlot(staff, 'computer')"
                     >
@@ -297,7 +300,7 @@
                     </button>
 
                     <button
-                      v-if="!staff.phone"
+                      v-if="!staff.phone && canManageVpn"
                       class="btn btn--small btn--primary"
                       @click="openCreateForSlot(staff, 'phone')"
                     >
@@ -471,6 +474,8 @@ export default {
   components: { adminTabs },
   data: () => ({
     currentUserEmail: '',
+    canManageVpn: false,
+    downloadingPackages: {},
     profile: {},
     profileDraft: {
       name: '',
@@ -513,6 +518,8 @@ export default {
             subtitle: 'Список сотрудников такой же, как в настройках: на каждого отдельно ведём доступ для компьютера и телефона.',
             refresh: 'Обновить',
             saving: 'Сохраняем...',
+            downloading: 'Готовим архив...',
+            downloadReady: 'Архив готов к скачиванию.',
             serverProfile: 'Профиль VPN-сервера',
             serverProfileHint: 'Общие параметры VLESS + REALITY для всех сотрудников.',
             saveProfile: 'Сохранить профиль',
@@ -584,6 +591,7 @@ export default {
             myAccessNotFound: 'Для вашей учётной записи VPN-доступ пока не найден.',
             myAccessNotFoundHint: 'Проверьте, что email сотрудника совпадает с email входа, или выдайте доступ в таблице ниже.',
             noGrantYet: 'Доступ ещё не выдан',
+            askAdminForAccess: 'Попросите администратора выдать доступ.',
             openInstruction: 'Открыть инструкцию',
             copyUri: 'Скопировать URI',
             computerSelfServiceHint: 'Для macOS и Windows доступен готовый ZIP-архив с конфигурацией и инструкцией.',
@@ -597,6 +605,8 @@ export default {
             subtitle: 'The staff list mirrors Settings: each employee has dedicated computer and phone access slots.',
             refresh: 'Refresh',
             saving: 'Saving...',
+            downloading: 'Preparing archive...',
+            downloadReady: 'Archive is ready to download.',
             serverProfile: 'VPN server profile',
             serverProfileHint: 'Shared VLESS + REALITY parameters for all staff.',
             saveProfile: 'Save profile',
@@ -668,6 +678,7 @@ export default {
             myAccessNotFound: 'No VPN access is linked to your account yet.',
             myAccessNotFoundHint: 'Check that the staff email matches the login email, or issue access in the table below.',
             noGrantYet: 'Access has not been issued yet',
+            askAdminForAccess: 'Ask an administrator to issue access.',
             openInstruction: 'Open instructions',
             copyUri: 'Copy URI',
             computerSelfServiceHint: 'macOS and Windows have a ready ZIP archive with config and instructions.',
@@ -731,11 +742,16 @@ export default {
         }
       })
       const body = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`)
+      if (!response.ok) {
+        const error = new Error(body.error || `HTTP ${response.status}`)
+        error.status = response.status
+        throw error
+      }
       return body
     },
     async reloadAll () {
-      await Promise.all([this.loadCurrentUser(), this.loadProfile(), this.loadAccess(), this.loadStaff()])
+      await this.loadCurrentUser()
+      await Promise.all([this.loadProfile(), this.loadAccess(), this.loadStaff()])
       this.syncSlotSelections()
     },
     async loadCurrentUser () {
@@ -747,7 +763,13 @@ export default {
       }
     },
     async loadProfile () {
-      const body = await this.fetchJson('/api/admin/vpn/profile')
+      let body
+      try {
+        body = await this.fetchJson('/api/admin/vpn/profile')
+      } catch (error) {
+        if (error.status !== 403) throw error
+        body = await this.fetchJson('/api/admin/vpn/my-access')
+      }
       this.profile = body.profile || {}
       this.profileDraft = {
         name: this.profile.name || '',
@@ -761,7 +783,15 @@ export default {
     async loadAccess () {
       this.loadingAccess = true
       try {
-        const body = await this.fetchJson('/api/admin/vpn/access')
+        let body
+        try {
+          body = await this.fetchJson('/api/admin/vpn/access')
+          this.canManageVpn = true
+        } catch (error) {
+          if (error.status !== 403) throw error
+          body = await this.fetchJson('/api/admin/vpn/my-access')
+          this.canManageVpn = false
+        }
         this.rows = Array.isArray(body.rows) ? body.rows : []
         if (body.profile) this.profile = body.profile
       } finally {
@@ -771,7 +801,17 @@ export default {
     async loadStaff () {
       this.loadingStaff = true
       try {
-        const body = await this.fetchJson('/api/admin/staff-users')
+        let body
+        try {
+          body = await this.fetchJson('/api/admin/staff-users')
+        } catch (error) {
+          if (error.status !== 403) throw error
+          body = {
+            rows: this.currentUserEmail
+              ? [{ id: this.currentUserEmail, displayName: this.currentUserEmail.split('@')[0], email: this.currentUserEmail, roles: [] }]
+              : []
+          }
+        }
         this.staffOptions = (body.rows || []).map((row) => ({
           id: row.id,
           displayName: row.displayName || row.email,
@@ -848,6 +888,12 @@ export default {
     },
     canDownloadPlatform (platform) {
       return ['macos', 'windows'].includes(String(platform || '').trim().toLowerCase())
+    },
+    packageKey (row, platform) {
+      return `${row?.id || 'unknown'}:${platform || 'default'}`
+    },
+    isPackageDownloading (row, platform) {
+      return Boolean(this.downloadingPackages[this.packageKey(row, platform)])
     },
     deviceKindLabel (kind) {
       return kind === 'phone' ? this.t.phoneLabel : this.t.computerLabel
@@ -999,6 +1045,8 @@ export default {
       }
     },
     async downloadPackage (row, platform) {
+      const key = this.packageKey(row, platform)
+      this.$set(this.downloadingPackages, key, true)
       try {
         const token = localStorage.getItem('authToken')
         const response = await fetch(`/api/admin/vpn/access/${row.id}/package?platform=${encodeURIComponent(platform)}`, {
@@ -1019,8 +1067,11 @@ export default {
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
+        this.setNotice('ok', this.t.downloadReady)
       } catch (error) {
         this.setNotice('error', error.message)
+      } finally {
+        this.$delete(this.downloadingPackages, key)
       }
     },
     async rotateGrant (row) {
@@ -1383,10 +1434,16 @@ label,
 }
 
 .notice {
-  margin: 16px 0;
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 80;
+  max-width: min(480px, calc(100vw - 48px));
+  margin: 0;
   padding: 14px 16px;
   border-radius: 14px;
   font-weight: 600;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
 }
 
 .notice--ok {
