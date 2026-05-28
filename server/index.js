@@ -15753,9 +15753,13 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
         role: u.role,
         ...(canViewStaffRoles ? { roles } : {}),
         telegramLinks: u.telegramLinks,
-        abacCountries: parseScopeList(u.abacCountries),
-        abacCities: parseScopeList(u.abacCities),
-        abacTeams: sanitizeTeamScopes(u.abacTeams)
+        ...(canViewStaffRoles
+          ? {
+              abacCountries: parseScopeList(u.abacCountries),
+              abacCities: parseScopeList(u.abacCities),
+              abacTeams: sanitizeTeamScopes(u.abacTeams)
+            }
+          : {})
       }
     })
 
@@ -15768,6 +15772,9 @@ app.get('/api/admin/staff-users', authenticateToken, resolveActorContext, requir
 
 app.put('/api/admin/staff-users/:userId/abac', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
+    if (String(req.user?.email || '').trim().toLowerCase() !== 'demyanov@riderra.com') {
+      return res.status(403).json({ error: 'Only owner can manage access scopes' })
+    }
     const userId = String(req.params.userId || '').trim()
     if (!userId) return res.status(400).json({ error: 'Invalid user id' })
 

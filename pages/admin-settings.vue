@@ -134,7 +134,7 @@
           </div>
         </div>
 
-        <div v-if="activeSection === 'access'" class="settings-card">
+        <div v-if="activeSection === 'access' && canViewStaffRoles" class="settings-card">
           <div class="card-head">
             <div>
               <h3>{{ t.accessScopes }}</h3>
@@ -224,7 +224,7 @@ export default {
   }),
   computed: {
     sections () {
-      return this.$store.state.language === 'ru'
+      const list = this.$store.state.language === 'ru'
         ? [
             { key: 'sources', label: 'Источники', hint: 'Google Sheets и маппинг' },
             { key: 'staff', label: 'Сотрудники и Telegram', hint: 'Привязка людей' },
@@ -235,6 +235,7 @@ export default {
             { key: 'staff', label: 'Staff and Telegram', hint: 'Link people' },
             { key: 'access', label: 'Access', hint: 'Teams and scope' }
           ]
+      return this.canViewStaffRoles ? list : list.filter((section) => section.key !== 'access')
     },
     overviewCards () {
       const activeSheets = this.sheets.filter((sheet) => sheet.isActive).length
@@ -244,7 +245,7 @@ export default {
         const teams = Array.isArray(user.abacTeams) ? user.abacTeams : []
         return teams.length && teams[0] !== 'all'
       }).length
-      return this.$store.state.language === 'ru'
+      const cards = this.$store.state.language === 'ru'
         ? [
             { key: 'sheets', value: this.sheets.length, label: 'Источников', hint: 'Подключённые месячные таблицы', tone: 'neutral' },
             { key: 'active', value: activeSheets, label: 'Активных', hint: 'Сейчас участвуют в синхронизации', tone: activeSheets ? 'ok' : 'warn' },
@@ -261,6 +262,7 @@ export default {
             { key: 'telegram', value: telegramLinked, label: 'With Telegram ID', hint: 'Ready for commands and alerts', tone: telegramLinked ? 'ok' : 'warn' },
             { key: 'scoped', value: teamScoped, label: 'Scoped', hint: 'Team-specific access', tone: teamScoped ? 'info' : 'neutral' }
           ]
+      return this.canViewStaffRoles ? cards : cards.filter((card) => card.key !== 'scoped')
     },
     mappingFields () {
       return [
@@ -412,6 +414,7 @@ export default {
         this.jsonRequest('/api/admin/email-ingest/status', { headers: this.headers() })
       ])
       this.currentUserEmail = me?.user?.email || ''
+      if (this.activeSection === 'access' && !this.canViewStaffRoles) this.activeSection = 'sources'
       this.sheets = Array.isArray(sheets) ? sheets : []
       this.staff = staff.rows || []
       this.emailIngest = emailIngest || this.emailIngest
