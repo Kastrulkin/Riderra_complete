@@ -5492,6 +5492,12 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
   if (target === 'pickupPoint') {
     return 'Could you please confirm the exact pickup point: address, terminal, entrance, or a clear landmark?'
   }
+  if (target === 'passengers' && isRu) {
+    return 'Подскажите, пожалуйста, сколько пассажиров будет в поездке?'
+  }
+  if (target === 'passengers') {
+    return 'Could you please clarify how many passengers will be traveling?'
+  }
   if (reason) {
     return isRu ? `Подскажите, пожалуйста: ${reason}.` : 'Could you please clarify the missing booking details?'
   }
@@ -5501,21 +5507,29 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
 }
 
 function pickWhatsAppTemplateNameForTask(task = {}, registry = []) {
-  if (String(task?.taskType || '') === 'dispatch_info') return 'trip_confirmation'
+  if (String(task?.taskType || '') === 'dispatch_info') return 'riderra_trip_message'
   const target = detectClarificationTarget(task?.order?.infoReason || '', '')
-  if (target === 'luggage') return 'baggage_request'
-  if (target === 'flightNumber') return 'flight_request'
-  if (target === 'pickupPoint') return 'pickup_request'
+  if (target === 'luggage') return 'riderra_baggage_request'
+  if (target === 'flightNumber') return 'riderra_flight_request'
+  if (target === 'passengers') return 'riderra_passengers_request'
+  if (target === 'pickupPoint') return 'riderra_trip_message'
   const knownNames = new Set((registry || []).map((tpl) => String(tpl?.name || '').trim()).filter(Boolean))
-  return knownNames.has('order_clarification') ? 'order_clarification' : 'baggage_request'
+  return knownNames.has('riderra_trip_message') ? 'riderra_trip_message' : 'riderra_baggage_request'
 }
 
 function buildWhatsAppTemplateVariables({ task = {}, messageText = '', templateName = '', registry = [] } = {}) {
   const order = task?.order || {}
+  const pickupAt = order.pickupAt ? new Date(order.pickupAt) : null
+  const pickupDate = pickupAt && Number.isFinite(pickupAt.getTime())
+    ? pickupAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : ''
+  const city = order.sourceCityCode || order.toPoint || order.fromPoint || ''
   const variables = {
     booking_number: order.externalKey || order.id || '',
     route_from: order.fromPoint || '',
     route_to: order.toPoint || '',
+    city: city || 'your city',
+    pickup_date: pickupDate || 'your trip date',
     question: String(messageText || '').trim(),
     trip_details: String(messageText || '').trim()
   }
@@ -6056,6 +6070,7 @@ function detectClarificationTarget(infoReason = '', text = '') {
   const combined = `${infoReason || ''} ${text || ''}`.toLowerCase()
   if (/(рейс|flight|авиа|arrival|прилет|прил[её]т)/i.test(combined)) return 'flightNumber'
   if (/(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(combined)) return 'luggage'
+  if (/(пассажир|passenger|passengers|pax|количеств[оа]\s+людей)/i.test(combined)) return 'passengers'
   if (/(подач|pickup|адрес|address|terminal|терминал|entrance|вход|hotel|отель)/i.test(combined)) return 'pickupPoint'
   return 'generic'
 }
@@ -13254,34 +13269,36 @@ const WHATSAPP_TEMPLATE_REGISTRY_KEY = 'whatsapp_template_registry'
 function defaultWhatsAppTemplateRegistry() {
   return [
     {
-      name: 'baggage_request',
+      name: 'riderra_baggage_request',
       label: 'Baggage request',
       description: 'Запросить количество чемоданов, сумок и нестандартного багажа.',
-      variables: ['booking_number', 'route_from', 'route_to']
+      language: 'en',
+      languages: ['en'],
+      variables: ['city', 'pickup_date']
     },
     {
-      name: 'flight_request',
+      name: 'riderra_flight_request',
       label: 'Flight request',
       description: 'Запросить номер рейса и дату прилёта/вылета.',
-      variables: ['booking_number', 'route_from', 'route_to']
+      language: 'en',
+      languages: ['en'],
+      variables: ['city', 'pickup_date']
     },
     {
-      name: 'pickup_request',
-      label: 'Pickup point request',
-      description: 'Уточнить точное место подачи: адрес, терминал, вход или ориентир.',
-      variables: ['booking_number', 'route_from', 'route_to']
+      name: 'riderra_passengers_request',
+      label: 'Passengers request',
+      description: 'Запросить количество пассажиров.',
+      language: 'en',
+      languages: ['en'],
+      variables: ['city', 'pickup_date']
     },
     {
-      name: 'trip_confirmation',
-      label: 'Trip confirmation',
-      description: 'Передать клиенту подтверждённые детали поездки, водителя или ссылку.',
-      variables: ['booking_number', 'route_from', 'route_to', 'trip_details']
-    },
-    {
-      name: 'order_clarification',
-      label: 'Order clarification',
-      description: 'Универсальное уточнение недостающих данных по заказу.',
-      variables: ['booking_number', 'route_from', 'route_to', 'question']
+      name: 'riderra_trip_message',
+      label: 'Trip message',
+      description: 'Общее служебное сообщение о предстоящей поездке.',
+      language: 'en',
+      languages: ['en'],
+      variables: ['city', 'pickup_date']
     }
   ]
 }

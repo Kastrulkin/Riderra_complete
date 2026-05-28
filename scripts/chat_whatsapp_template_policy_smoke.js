@@ -179,10 +179,10 @@ async function main() {
         content: JSON.stringify({
           templates: [
             {
-              name: 'baggage_request',
+              name: 'riderra_baggage_request',
               label: 'Baggage request',
               languages: ['en'],
-              variables: ['booking_number', 'route_from', 'route_to']
+              variables: ['city', 'pickup_date']
             }
           ]
         })
@@ -285,12 +285,11 @@ async function main() {
       body: {
         delivery: {
           mode: 'template',
-          templateName: 'baggage_request',
+          templateName: 'riderra_baggage_request',
           language: 'ru',
           variables: {
-            booking_number: order.externalKey,
-            route_from: order.fromPoint,
-            route_to: order.toPoint
+            city: 'Los Angeles',
+            pickup_date: '2 June'
           }
         }
       }
@@ -306,10 +305,10 @@ async function main() {
       body: {
         delivery: {
           mode: 'template',
-          templateName: 'baggage_request',
+          templateName: 'riderra_baggage_request',
           language: 'en',
           variables: {
-            booking_number: order.externalKey
+            city: 'Los Angeles'
           }
         }
       }
@@ -325,12 +324,11 @@ async function main() {
       body: {
         delivery: {
           mode: 'template',
-          templateName: 'baggage_request',
+          templateName: 'riderra_baggage_request',
           language: 'en',
           variables: {
-            booking_number: order.externalKey,
-            route_from: order.fromPoint,
-            route_to: order.toPoint
+            city: 'Los Angeles',
+            pickup_date: '2 June'
           }
         }
       }
