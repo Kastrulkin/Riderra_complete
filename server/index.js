@@ -672,6 +672,9 @@ function renderPublicSourceHtml(pagePath) {
     <title>${escapeHtml(content.title)}</title>
     <meta name="description" content="${escapeHtml(content.description)}">
     <link rel="canonical" href="${canonical}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&subset=cyrillic-ext">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Riderra">
     <meta property="og:title" content="${escapeHtml(content.title)}">
@@ -681,7 +684,7 @@ function renderPublicSourceHtml(pagePath) {
     <style>
       :root { color-scheme: light; --ink: #17223f; --muted: #66738d; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --blue: #3152ff; --pink: #d51b7c; --green: #2f7d62; }
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #f7f9fd; }
+      body { margin: 0; font-family: 'Montserrat', sans-serif; color: var(--ink); background: #f7f9fd; }
       ${staticSiteHeaderCss()}
       .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 80px; }
       .hero { padding: 54px 0 36px; }
@@ -955,7 +958,9 @@ function renderStaticSiteHeader(isRu = false, pagePath = '/') {
   return `
     <header class="header active">
       <div class="header__container container">
-        <a class="logo__link" href="/"><img class="logo__img--main" src="/img/logo.svg" alt="riderra"></a>
+        <div class="logo">
+          <a class="logo__link" href="/"><img class="logo__img--main" src="/img/logo.svg" alt="riderra"></a>
+        </div>
         <div class="lang-select">
           <button class="lang-select__current" type="button" aria-haspopup="true" aria-expanded="false">
             <span class="lang-select__flag">${currentLanguage[1]}</span>
@@ -979,16 +984,20 @@ function renderStaticSiteHeader(isRu = false, pagePath = '/') {
 function staticSiteHeaderCss() {
   return `
       body { padding-top: 72px; }
-      .container { width: 1190px; max-width: calc(100% - 30px); margin: 0 auto; padding-left: 15px; padding-right: 15px; }
-      .header { display: block; visibility: visible; opacity: 1; transform: translate3d(0, 0, 0); position: fixed; z-index: 1000; top: 0; left: 0; right: 0; color: #fff; padding: 20px 15px; background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%); }
-      .header__container { display: flex; align-items: center; gap: 0; }
+      .container { margin-right: auto; margin-left: auto; padding-left: 15px; padding-right: 15px; }
+      @media (min-width: 992px) { .container { width: 93%; } }
+      @media (min-width: 1200px) { .container { width: 1190px; } }
+      @media (max-width: 991px) and (min-width: 768px) { .container { width: 90%; padding-right: 0; padding-left: 0; } }
+      .header { display: block !important; visibility: visible !important; opacity: 1 !important; transform: translate3d(0, 0, 0) !important; position: fixed !important; z-index: 1000 !important; top: 0 !important; left: 0 !important; right: 0 !important; color: #fff !important; font-weight: 300; padding: 20px 15px; background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%) !important; transition: 400ms all ease 400ms; will-change: transform, opacity; }
+      .header__container { display: flex; align-items: center; margin: 0 auto; }
       .logo__link { display: inline-flex; align-items: center; flex: 0 0 auto; }
-      .logo__img--main { display: block; width: 108px; height: auto; }
+      .logo__img--main { display: block; height: auto; }
       .lang-select { margin-left: 25px; position: relative; cursor: pointer; }
       .lang-select__current { appearance: none; border: 0; background: transparent; color: #fff; display: flex; align-items: center; gap: 6px; padding: 0; font: inherit; cursor: pointer; white-space: nowrap; }
-      .lang-select__flag, .lang-select__list-flag { font-size: 18px; line-height: 1; }
-      .lang-select__arrow { margin-left: 2px; font-size: 13px; line-height: 1; transition: transform 180ms ease; }
-      .lang-select__list { position: absolute; top: 100%; left: 0; min-width: 168px; padding: 10px; background: #fff; border-radius: 0 0 5px 5px; color: #000; box-shadow: 0 5px 12px rgba(0,0,0,.28); opacity: 0; pointer-events: none; transform: translateY(4px); transition: 150ms all ease; z-index: 1002; }
+      .lang-select__flag { font-size: 18px; margin-right: 6px; line-height: 1; }
+      .lang-select__list-flag { font-size: 18px; line-height: 1; }
+      .lang-select__arrow { margin-left: 4px; font-size: 13px; line-height: 1; transition: all 250ms ease; }
+      .lang-select__list { position: absolute; top: 100%; left: 100%; min-width: 168px; padding: 10px; background: #fff; border-radius: 0 0 5px 5px; color: #000; box-shadow: 0 5px 12px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transform: translateY(4px); transition: 150ms all ease; z-index: 1002; }
       .lang-select:hover .lang-select__list, .lang-select:focus-within .lang-select__list { opacity: 1; pointer-events: auto; transform: translateY(0); }
       .lang-select:hover .lang-select__arrow, .lang-select:focus-within .lang-select__arrow { transform: rotateX(180deg); }
       .lang-select__list-item { display: flex; align-items: center; line-height: 40px; white-space: nowrap; transition: 150ms all ease; padding: 0 10px; border-radius: 5px; gap: 8px; color: #000; text-decoration: none; }
@@ -996,16 +1005,16 @@ function staticSiteHeaderCss() {
       .lang-select__list-item.active { background: rgba(47,128,237,.1); }
       .lang-select__list-name { flex: 1; }
       .lang-select__check { color: #FF6B35; font-weight: 800; font-size: 16px; }
-      .nav-list { display: flex; margin-left: clamp(36px, 8vw, 132px); align-items: center; flex-wrap: nowrap; gap: clamp(22px, 2.6vw, 42px); }
-      .nav-list__item { color: #fff; text-decoration: none; font-size: 16px; line-height: 1.2; font-weight: 400; position: relative; white-space: normal; }
+      .nav-list { display: flex; margin-left: 16%; align-items: center; flex-wrap: nowrap; }
+      .nav-list__item { color: #fff; text-decoration: none; font-size: 16px; line-height: 1.2; font-weight: 300; position: relative; white-space: normal; margin-right: 42px; }
       .nav-list__item:after { content: ''; display: block; height: 1px; background: #fff; width: 0; bottom: -7px; position: absolute; transition: 250ms width; }
       .nav-list__item:hover:after, .nav-list__item:focus-visible:after { width: 100%; }
       .header__right { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
-      .header__signin { display: inline-block; line-height: 40px; border: 1px solid #fff; border-radius: 20px; padding: 0 16px; color: #fff; text-decoration: none; font-weight: 800; transition: all 250ms; white-space: nowrap; }
-      .header__signin:hover, .header__signin:focus-visible { color: #000; background: #fff; outline: none; }
-      @media (max-width: 1180px) { .nav-list { margin-left: clamp(24px, 4vw, 48px); gap: 24px; } .nav-list__item { font-size: 15px; } }
+      .header__signin { display: inline-block; line-height: 40px; color: #fff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 16px; border: 1px solid rgba(255,255,255,.3); border-radius: 6px; transition: all .2s ease; white-space: nowrap; }
+      .header__signin:hover, .header__signin:focus-visible { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.5); color: #fff; outline: none; }
+      @media (max-width: 1180px) { .nav-list { margin-left: 8%; } .nav-list__item { margin-right: 24px; font-size: 15px; } }
       @media (max-width: 1024px) { body { padding-top: 84px; } .header { padding-top: 30px; padding-bottom: 30px; } .nav-list { display: none; } }
-      @media (max-width: 767px) { body { padding-top: 73px; } .header { padding-top: 25px; padding-bottom: 25px; } .logo__img--main { max-width: 96px; } .header__right { display: none; } .lang-select { margin-left: auto; } }`
+      @media (max-width: 767px) { body { padding-top: 73px; } .header { padding-top: 25px; padding-bottom: 25px; padding-left: 0; padding-right: 0; } .logo__img--main { max-width: 96px; } .header__right { display: none; } .lang-select { display: none; } }`
 }
 
 function seoTransferUrl(pagePath) {
@@ -1163,6 +1172,9 @@ function renderSeoTransferPage(pagePath, isRu = false) {
     <title>${escapeHtml(title)}</title>
     <meta name="description" content="${escapeHtml(description)}">
     <link rel="canonical" href="${canonical}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&subset=cyrillic-ext">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Riderra">
     <meta property="og:title" content="${escapeHtml(title)}">
@@ -1172,7 +1184,7 @@ function renderSeoTransferPage(pagePath, isRu = false) {
     <style>
       :root { color-scheme: light; --ink: #17223f; --muted: #65728a; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --pink: #d51b7c; --green: #2f7d62; }
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #f7f9fd; }
+      body { margin: 0; font-family: 'Montserrat', sans-serif; color: var(--ink); background: #f7f9fd; }
       a { color: #2549d8; }
       ${staticSiteHeaderCss()}
       .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 80px; }
