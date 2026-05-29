@@ -46,9 +46,37 @@ export default {
         en: {
           title: 'Login or registration for clients',
           subtitle: 'Login or registration for clients'
+        },
+        es: {
+          title: 'Inicio de sesion o registro para clientes',
+          subtitle: 'Inicio de sesion o registro para clientes'
+        },
+        de: {
+          title: 'Login oder Registrierung fur Kunden',
+          subtitle: 'Login oder Registrierung fur Kunden'
+        },
+        fr: {
+          title: 'Connexion ou inscription pour les clients',
+          subtitle: 'Connexion ou inscription pour les clients'
+        },
+        el: {
+          title: 'Συνδεση ή εγγραφη για πελατες',
+          subtitle: 'Συνδεση ή εγγραφη για πελατες'
+        },
+        th: {
+          title: 'เข้าสู่ระบบหรือลงทะเบียนสำหรับลูกค้า',
+          subtitle: 'เข้าสู่ระบบหรือลงทะเบียนสำหรับลูกค้า'
+        },
+        ar: {
+          title: 'تسجيل الدخول أو التسجيل للعملاء',
+          subtitle: 'تسجيل الدخول أو التسجيل للعملاء'
+        },
+        ha: {
+          title: 'Shiga ko rajista ga abokan ciniki',
+          subtitle: 'Shiga ko rajista ga abokan ciniki'
         }
       }
-      return dict[this.lang]
+      return dict[this.lang] || dict.en
     }
   },
   head() {
