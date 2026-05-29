@@ -764,9 +764,6 @@ function renderPublicContactBody(content, isRu) {
 }
 
 function renderStaticSiteHeader(isRu = false, pagePath = '/') {
-  const switchPath = isRu
-    ? (pagePath.replace(/^\/ru/, '') || '/')
-    : (pagePath.startsWith('/transfers') ? '/ru/services' : `/ru${pagePath === '/' ? '' : pagePath}`)
   const links = isRu
     ? [
       ['/#howWorks', 'Как мы работаем'],
@@ -774,8 +771,7 @@ function renderStaticSiteHeader(isRu = false, pagePath = '/') {
       ['/ru/services', 'Услуги'],
       ['/ru/docs', 'Документация'],
       ['/ru/contact', 'Контакты'],
-      ['/drivers', 'Водителям'],
-      [switchPath, 'EN']
+      ['/drivers', 'Водителям']
     ]
     : [
       ['/#howWorks', 'How we work'],
@@ -783,16 +779,52 @@ function renderStaticSiteHeader(isRu = false, pagePath = '/') {
       ['/services', 'Services'],
       ['/docs', 'Docs'],
       ['/contact', 'Contact'],
-      ['/drivers', 'Drivers'],
-      [switchPath, 'RU']
+      ['/drivers', 'Drivers']
     ]
+  const languagePath = (shortcut) => {
+    if (shortcut === 'ru') {
+      if (pagePath.startsWith('/ru/')) return pagePath
+      if (pagePath.startsWith('/transfers')) return '/ru/services'
+      return `/ru${pagePath === '/' ? '' : pagePath}`
+    }
+    if (shortcut === 'en') {
+      if (pagePath.startsWith('/ru/')) return pagePath.replace(/^\/ru/, '') || '/'
+      return pagePath
+    }
+    return `/?lang=${shortcut}`
+  }
+  const languages = [
+    ['ru', '🇷🇺', 'Русский'],
+    ['en', '🇬🇧', 'English'],
+    ['es', '🇪🇸', 'Español'],
+    ['de', '🇩🇪', 'Deutsch'],
+    ['fr', '🇫🇷', 'Français'],
+    ['el', '🇬🇷', 'Ελληνικά'],
+    ['th', '🇹🇭', 'ไทย'],
+    ['ar', '🇸🇦', 'العربية'],
+    ['ha', '🇳🇬', 'Hausa']
+  ]
+  const currentLanguage = isRu ? languages[0] : languages[1]
   return `
     <header class="header active">
       <div class="header__container container">
         <a class="logo__link" href="/"><img class="logo__img--main" src="/img/logo.svg" alt="riderra"></a>
+        <div class="lang-select">
+          <button class="lang-select__current" type="button" aria-haspopup="true" aria-expanded="false">
+            <span class="lang-select__flag">${currentLanguage[1]}</span>
+            <span class="lang-select__name">${escapeHtml(currentLanguage[2])}</span>
+            <span class="lang-select__arrow" aria-hidden="true">⌄</span>
+          </button>
+          <div class="lang-select__list" role="menu">
+            ${languages.map(([shortcut, flag, name]) => `<a class="lang-select__list-item${shortcut === currentLanguage[0] ? ' active' : ''}" href="${escapeHtml(languagePath(shortcut))}" role="menuitem"><span class="lang-select__list-flag">${flag}</span><span class="lang-select__list-name">${escapeHtml(name)}</span>${shortcut === currentLanguage[0] ? '<span class="lang-select__check">✓</span>' : ''}</a>`).join('\n            ')}
+          </div>
+        </div>
         <nav class="nav-list" aria-label="${isRu ? 'Навигация' : 'Navigation'}">
           ${links.map(([href, label]) => `<a href="${href}" class="nav-list__item">${escapeHtml(label)}</a>`).join('\n          ')}
         </nav>
+        <div class="header__right">
+          <a href="/login" class="header__signin">${isRu ? 'Войти' : 'Sign in'}</a>
+        </div>
       </div>
     </header>`
 }
@@ -805,12 +837,27 @@ function staticSiteHeaderCss() {
       .header__container { display: flex; align-items: center; }
       .logo__link { display: inline-flex; align-items: center; flex: 0 0 auto; }
       .logo__img--main { display: block; width: 108px; height: auto; }
+      .lang-select { margin-left: 25px; position: relative; cursor: pointer; }
+      .lang-select__current { appearance: none; border: 0; background: transparent; color: #fff; display: flex; align-items: center; gap: 6px; padding: 0; font: inherit; cursor: pointer; white-space: nowrap; }
+      .lang-select__flag, .lang-select__list-flag { font-size: 18px; line-height: 1; }
+      .lang-select__arrow { margin-left: 2px; font-size: 13px; line-height: 1; transition: transform 180ms ease; }
+      .lang-select__list { position: absolute; top: calc(100% + 12px); left: 0; min-width: 168px; padding: 10px; background: #fff; border-radius: 0 0 5px 5px; color: #000; box-shadow: 0 5px 12px rgba(0,0,0,.28); opacity: 0; pointer-events: none; transform: translateY(-4px); transition: 150ms all ease; z-index: 1002; }
+      .lang-select:hover .lang-select__list, .lang-select:focus-within .lang-select__list { opacity: 1; pointer-events: auto; transform: translateY(0); }
+      .lang-select:hover .lang-select__arrow, .lang-select:focus-within .lang-select__arrow { transform: rotateX(180deg); }
+      .lang-select__list-item { display: flex; align-items: center; line-height: 40px; white-space: nowrap; transition: 150ms all ease; padding: 0 10px; border-radius: 5px; gap: 8px; color: #000; text-decoration: none; }
+      .lang-select__list-item:hover, .lang-select__list-item:focus-visible { background: #2F80ED; color: #fff; outline: none; }
+      .lang-select__list-item.active { background: rgba(47,128,237,.1); }
+      .lang-select__list-name { flex: 1; }
+      .lang-select__check { color: #FF6B35; font-weight: 800; font-size: 16px; }
       .nav-list { display: flex; margin-left: 16%; align-items: center; flex-wrap: wrap; gap: 0; }
       .nav-list__item { margin-right: 42px; color: #fff; text-decoration: none; font-size: 16px; line-height: 1.2; font-weight: 400; position: relative; white-space: nowrap; }
       .nav-list__item:after { content: ''; display: block; height: 1px; background: #fff; width: 0; bottom: -7px; position: absolute; transition: 250ms width; }
       .nav-list__item:hover:after, .nav-list__item:focus-visible:after { width: 100%; }
+      .header__right { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
+      .header__signin { display: inline-block; line-height: 40px; border: 1px solid #fff; border-radius: 20px; padding: 0 16px; color: #fff; text-decoration: none; font-weight: 800; transition: all 250ms; white-space: nowrap; }
+      .header__signin:hover, .header__signin:focus-visible { color: #000; background: #fff; outline: none; }
       @media (max-width: 1024px) { body { padding-top: 84px; } .header { padding-top: 30px; padding-bottom: 30px; } .nav-list { display: none; } }
-      @media (max-width: 767px) { body { padding-top: 73px; } .header { padding-top: 25px; padding-bottom: 25px; } .logo__img--main { max-width: 96px; } }`
+      @media (max-width: 767px) { body { padding-top: 73px; } .header { padding-top: 25px; padding-bottom: 25px; } .logo__img--main { max-width: 96px; } .header__right { display: none; } .lang-select { margin-left: auto; } }`
 }
 
 function seoTransferUrl(pagePath) {
