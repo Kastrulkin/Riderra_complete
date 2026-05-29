@@ -20,6 +20,15 @@ const countryMeta = {
   Cyprus: { slug: 'cyprus', name: 'Cyprus', adjective: 'Cyprus', meeting: 'For airport arrivals, the driver meets passengers with a name sign or follows the confirmed pickup point instructions.' }
 }
 
+function countryMetadata(country) {
+  return countryMeta[country] || {
+    slug: slugify(country),
+    name: country,
+    adjective: country,
+    meeting: 'Riderra sends pickup instructions before the ride and confirms the exact meeting point for the selected airport or city.'
+  }
+}
+
 const priorityAirportCodes = new Set([
   'HKT', 'BKK', 'DMK', 'USM', 'KBV',
   'AYT', 'DLM',
@@ -192,7 +201,6 @@ function buildData() {
   const routeMap = new Map()
 
   for (const row of rows) {
-    if (!countryMeta[row.country]) continue
     const code = airportCode(row.routeFrom)
     if (!code) continue
     const key = `${row.country}|${row.routeFrom}|${row.routeTo}`
@@ -209,11 +217,12 @@ function buildData() {
 
   const airportsByKey = new Map()
   for (const route of routeMap.values()) {
+    const meta = countryMetadata(route.country)
     const airportKey = `${route.country}|${route.routeFrom}`
     const airport = airportsByKey.get(airportKey) || {
       country: route.country,
-      countrySlug: countryMeta[route.country].slug,
-      countryName: countryMeta[route.country].name,
+      countrySlug: meta.slug,
+      countryName: meta.name,
       airportName: route.routeFrom,
       airportCode: route.airportCode,
       routes: []
@@ -230,7 +239,6 @@ function buildData() {
   }
 
   const airports = Array.from(airportsByKey.values())
-    .filter((airport) => priorityAirportCodes.has(airport.airportCode) || airport.routes.length >= 6)
     .map((airport) => {
       const airportSlug = `${slugify(airport.airportName.replace(/\([A-Z0-9]{3}\)/, ''))}-${airport.airportCode.toLowerCase()}`
       const routes = airport.routes
@@ -250,7 +258,7 @@ function buildData() {
         minPriceText: formatPrice(routes[0].minPrice),
         routes,
         popularRoutes: popularRoutes.length ? popularRoutes : routes.slice(0, 8),
-        meeting: countryMeta[airport.country].meeting
+        meeting: countryMetadata(airport.country).meeting
       }
     })
     .sort((a, b) => a.countryName.localeCompare(b.countryName) || b.routeCount - a.routeCount || a.airportName.localeCompare(b.airportName))
@@ -263,7 +271,7 @@ function buildData() {
   }
 
   const countries = Array.from(airportsByCountry.entries()).map(([country, countryAirports]) => {
-    const meta = countryMeta[country]
+    const meta = countryMetadata(country)
     const routes = countryAirports.flatMap((airport) => airport.routes.map((route) => ({ ...route, airportName: airport.airportName, airportCode: airport.airportCode, airportPath: airport.path })))
     routes.sort((a, b) => a.minPrice - b.minPrice || a.airportName.localeCompare(b.airportName))
     return {
