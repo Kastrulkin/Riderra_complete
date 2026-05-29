@@ -624,6 +624,7 @@ function renderPublicSourceHtml(pagePath) {
   const isRu = pagePath.startsWith('/ru/')
   const isPricesPage = pagePath === '/prices' || pagePath === '/ru/prices'
   const isContactPage = pagePath === '/contact' || pagePath === '/ru/contact'
+  const isServicesPage = pagePath === '/services' || pagePath === '/ru/services'
   const crumbs = [
     { name: 'Riderra', path: '/' },
     ...(pagePath === '/' ? [] : [{ name: content.heading, path: pagePath }])
@@ -690,7 +691,24 @@ function renderPublicSourceHtml(pagePath) {
       .contact-card h2 { font-size: 20px; }
       .plain-article { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 36px; box-shadow: 0 18px 60px rgba(20,35,90,.1); }
       .plain-article section + section { margin-top: 26px; }
-      @media (max-width: 900px) { .topbar-inner { align-items: flex-start; flex-direction: column; } .nav { justify-content: flex-start; } .sections, .price-layout, .factors, .contact-layout { grid-template-columns: 1fr; } }
+      .transfer-catalog { margin-top: 30px; }
+      .transfer-catalog__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+      .transfer-catalog__head h2 { font-size: 34px; margin: 0 0 8px; }
+      .transfer-catalog__head p { max-width: 760px; }
+      .transfer-catalog__all { color: var(--blue); font-weight: 900; text-decoration: none; white-space: nowrap; }
+      .transfer-catalog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+      .country-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: 0 18px 60px rgba(20,35,90,.08); }
+      .country-card__top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 14px; }
+      .country-card h3 { margin: 0; font-size: 24px; line-height: 1.2; }
+      .country-card h3 a { color: var(--ink); text-decoration: none; }
+      .country-card h3 a:hover, .country-card h3 a:focus-visible { color: var(--blue); outline: none; }
+      .country-card__price { color: var(--pink); font-weight: 900; white-space: nowrap; }
+      .country-card__meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 18px; }
+      .country-card__meta span { background: var(--soft); color: #263352; border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: 14px; font-weight: 800; }
+      .airport-links { display: flex; flex-wrap: wrap; gap: 10px; }
+      .airport-links a { display: inline-flex; min-height: 34px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 0 12px; color: #2549d8; background: #fff; text-decoration: none; font-weight: 800; font-size: 14px; }
+      .airport-links a:hover, .airport-links a:focus-visible { background: #eef2ff; outline: none; }
+      @media (max-width: 900px) { .topbar-inner { align-items: flex-start; flex-direction: column; } .nav { justify-content: flex-start; } .sections, .price-layout, .factors, .contact-layout, .transfer-catalog__grid { grid-template-columns: 1fr; } .transfer-catalog__head { align-items: flex-start; flex-direction: column; } }
       @media (max-width: 767px) { .wrap { padding: 34px 18px 56px; } .hero { padding-top: 28px; } .plain-article, .policy-panel, .quote-card, .contact-primary { padding: 24px; } .brand { font-size: 30px; } .nav { gap: 14px; } .nav a { font-size: 14px; } .contact-email { font-size: 20px; } }
     </style>
   </head>
@@ -702,13 +720,70 @@ function renderPublicSourceHtml(pagePath) {
         <h1>${escapeHtml(content.heading)}</h1>
         <p class="lead">${escapeHtml(content.intro)}</p>
       </section>
-      ${isPricesPage ? renderPublicPricesBody(content, isRu) : isContactPage ? renderPublicContactBody(content, isRu) : `
+      ${isPricesPage ? renderPublicPricesBody(content, isRu) : isContactPage ? renderPublicContactBody(content, isRu) : isServicesPage ? renderPublicServicesBody(content, isRu) : `
       <article class="plain-article">
         ${content.sections.map(([title, body]) => `<section><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></section>`).join('\n        ')}
       </article>`}
     </main>
   </body>
 </html>`
+}
+
+function renderPublicServicesBody(content, isRu) {
+  return `
+      <article class="plain-article">
+        ${content.sections.map(([title, body]) => `<section><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></section>`).join('\n        ')}
+      </article>
+      ${renderServicesTransferCatalog(isRu)}`
+}
+
+function renderServicesTransferCatalog(isRu) {
+  const countries = RIDERRA_SEO_TRANSFERS.countries || []
+  if (!countries.length) return ''
+  return `
+      <section class="transfer-catalog" aria-label="${isRu ? 'Направления трансферов' : 'Transfer destinations'}">
+        <div class="transfer-catalog__head">
+          <div>
+            <h2>${isRu ? 'Направления трансферов' : 'Transfer destinations'}</h2>
+            <p>${isRu
+              ? 'Каталог аэропортов и популярных маршрутов из прайс-листа Riderra. На страницах направлений доступны цены от, классы машин и варианты трансфера.'
+              : 'Browse Riderra airport transfer destinations from the internal price book, with starting prices, airports, vehicle classes, and popular routes.'}</p>
+          </div>
+          <a class="transfer-catalog__all" href="/transfers">${isRu ? 'Открыть весь каталог' : 'Open full catalog'}</a>
+        </div>
+        <div class="transfer-catalog__grid">
+          ${countries.map((country) => renderServicesTransferCountry(country, isRu)).join('\n          ')}
+        </div>
+      </section>`
+}
+
+function renderServicesTransferCountry(country, isRu) {
+  const airportLinks = (country.airports || []).slice(0, 6)
+  return `<article class="country-card">
+            <div class="country-card__top">
+              <h3><a href="${escapeHtml(country.path)}">${escapeHtml(isRu ? countryLabelRu(country.countryName) : country.countryName)}</a></h3>
+              <span class="country-card__price">${isRu ? 'от' : 'from'} ${escapeHtml(country.minPriceText)}</span>
+            </div>
+            <div class="country-card__meta">
+              <span>${escapeHtml(country.airportCount)} ${isRu ? 'аэропортов' : 'airports'}</span>
+              <span>${escapeHtml(country.routeCount)} ${isRu ? 'маршрутов' : 'routes'}</span>
+            </div>
+            <div class="airport-links">
+              ${airportLinks.map((airport) => `<a href="${escapeHtml(airport.path)}">${escapeHtml(airport.airportName)}</a>`).join('\n              ')}
+            </div>
+          </article>`
+}
+
+function countryLabelRu(countryName) {
+  return {
+    Canada: 'Канада',
+    Cyprus: 'Кипр',
+    Finland: 'Финляндия',
+    Morocco: 'Марокко',
+    Thailand: 'Таиланд',
+    Turkey: 'Турция',
+    'United States': 'США'
+  }[countryName] || countryName
 }
 
 function renderPublicPricesBody(content, isRu) {
@@ -767,11 +842,11 @@ function renderStaticSiteHeader(isRu = false, pagePath = '/') {
   const links = isRu
     ? [
       ['/#howWorks', 'Как мы работаем'],
-      ['/#park', 'Автопарк'],
+      ['/#park', 'Классы машин'],
       ['/ru/services', 'Услуги'],
       ['/ru/docs', 'Документация'],
       ['/ru/contact', 'Контакты'],
-      ['/drivers', 'Водителям']
+      ['/drivers', 'Перевозчикам']
     ]
     : [
       ['/#howWorks', 'How we work'],
@@ -834,7 +909,7 @@ function staticSiteHeaderCss() {
       body { padding-top: 72px; }
       .container { width: 1190px; max-width: calc(100% - 30px); margin: 0 auto; padding-left: 15px; padding-right: 15px; }
       .header { display: block; visibility: visible; opacity: 1; transform: translate3d(0, 0, 0); position: fixed; z-index: 1000; top: 0; left: 0; right: 0; color: #fff; padding: 20px 15px; background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%); }
-      .header__container { display: flex; align-items: center; }
+      .header__container { display: flex; align-items: center; gap: 0; }
       .logo__link { display: inline-flex; align-items: center; flex: 0 0 auto; }
       .logo__img--main { display: block; width: 108px; height: auto; }
       .lang-select { margin-left: 25px; position: relative; cursor: pointer; }
@@ -849,13 +924,14 @@ function staticSiteHeaderCss() {
       .lang-select__list-item.active { background: rgba(47,128,237,.1); }
       .lang-select__list-name { flex: 1; }
       .lang-select__check { color: #FF6B35; font-weight: 800; font-size: 16px; }
-      .nav-list { display: flex; margin-left: 16%; align-items: center; flex-wrap: wrap; gap: 0; }
-      .nav-list__item { margin-right: 42px; color: #fff; text-decoration: none; font-size: 16px; line-height: 1.2; font-weight: 400; position: relative; white-space: nowrap; }
+      .nav-list { display: flex; margin-left: clamp(36px, 8vw, 132px); align-items: center; flex-wrap: nowrap; gap: clamp(22px, 2.6vw, 42px); }
+      .nav-list__item { color: #fff; text-decoration: none; font-size: 16px; line-height: 1.2; font-weight: 400; position: relative; white-space: normal; }
       .nav-list__item:after { content: ''; display: block; height: 1px; background: #fff; width: 0; bottom: -7px; position: absolute; transition: 250ms width; }
       .nav-list__item:hover:after, .nav-list__item:focus-visible:after { width: 100%; }
       .header__right { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
       .header__signin { display: inline-block; line-height: 40px; border: 1px solid #fff; border-radius: 20px; padding: 0 16px; color: #fff; text-decoration: none; font-weight: 800; transition: all 250ms; white-space: nowrap; }
       .header__signin:hover, .header__signin:focus-visible { color: #000; background: #fff; outline: none; }
+      @media (max-width: 1180px) { .nav-list { margin-left: clamp(24px, 4vw, 48px); gap: 24px; } .nav-list__item { font-size: 15px; } }
       @media (max-width: 1024px) { body { padding-top: 84px; } .header { padding-top: 30px; padding-bottom: 30px; } .nav-list { display: none; } }
       @media (max-width: 767px) { body { padding-top: 73px; } .header { padding-top: 25px; padding-bottom: 25px; } .logo__img--main { max-width: 96px; } .header__right { display: none; } .lang-select { margin-left: auto; } }`
 }
