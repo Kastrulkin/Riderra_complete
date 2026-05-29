@@ -48,6 +48,18 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use((req, res, next) => {
+  const lang = String(req.query?.lang || '').toLowerCase()
+  if (/^(ru|en|es|de|fr|el|th|ar|ha)$/.test(lang)) {
+    res.cookie('riderra_lang', lang, {
+      maxAge: 365 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax',
+      path: '/'
+    })
+  }
+  next()
+})
+
 app.use(bodyParser.json({
   verify: (req, _res, buf) => {
     req.rawBody = Buffer.from(buf || '')
@@ -272,6 +284,20 @@ function publicPageLanguagePath(pagePath, isRu) {
   if (isRu) return pagePath.replace(/^\/ru/, '') || '/'
   if (pagePath === '/') return '/ru'
   return `/ru${pagePath}`
+}
+
+function preferredLanguageFromRequest(req) {
+  const queryLang = String(req.query?.lang || '').toLowerCase()
+  if (queryLang) return queryLang
+  const cookie = String(req.headers?.cookie || '')
+    .split(';')
+    .map((item) => item.trim().split('='))
+    .find(([name]) => name === 'riderra_lang')
+  return cookie ? String(cookie[1] || '').toLowerCase() : ''
+}
+
+function withLangQuery(pagePath, lang) {
+  return `${pagePath}${pagePath.includes('?') ? '&' : '?'}lang=${lang}`
 }
 
 function publicPageEyebrow(pagePath, isRu) {
@@ -749,7 +775,7 @@ function renderServicesTransferCatalog(isRu) {
               ? 'Каталог аэропортов и популярных маршрутов из прайс-листа Riderra. На страницах направлений доступны цены от, классы машин и варианты трансфера.'
               : 'Browse Riderra airport transfer destinations from the internal price book, with starting prices, airports, vehicle classes, and popular routes.'}</p>
           </div>
-          <a class="transfer-catalog__all" href="/transfers">${isRu ? 'Открыть весь каталог' : 'Open full catalog'}</a>
+          <a class="transfer-catalog__all" href="${isRu ? '/ru/transfers' : '/transfers'}">${isRu ? 'Открыть весь каталог' : 'Open full catalog'}</a>
         </div>
         <div class="transfer-catalog__grid">
           ${countries.map((country) => renderServicesTransferCountry(country, isRu)).join('\n          ')}
@@ -761,7 +787,7 @@ function renderServicesTransferCountry(country, isRu) {
   const airportLinks = (country.airports || []).slice(0, 6)
   return `<article class="country-card">
             <div class="country-card__top">
-              <h3><a href="${escapeHtml(country.path)}">${escapeHtml(isRu ? countryLabelRu(country.countryName) : country.countryName)}</a></h3>
+              <h3><a href="${escapeHtml(localizedTransferPath(country.path, isRu))}">${escapeHtml(isRu ? countryLabelRu(country.countryName) : country.countryName)}</a></h3>
               <span class="country-card__price">${isRu ? 'от' : 'from'} ${escapeHtml(country.minPriceText)}</span>
             </div>
             <div class="country-card__meta">
@@ -769,7 +795,7 @@ function renderServicesTransferCountry(country, isRu) {
               <span>${escapeHtml(country.routeCount)} ${isRu ? 'маршрутов' : 'routes'}</span>
             </div>
             <div class="airport-links">
-              ${airportLinks.map((airport) => `<a href="${escapeHtml(airport.path)}">${escapeHtml(airport.airportName)}</a>`).join('\n              ')}
+              ${airportLinks.map((airport) => `<a href="${escapeHtml(localizedTransferPath(airport.path, isRu))}">${escapeHtml(airport.airportName)}</a>`).join('\n              ')}
             </div>
           </article>`
 }
@@ -904,13 +930,13 @@ function renderStaticSiteHeader(isRu = false, pagePath = '/') {
     ]
   const languagePath = (shortcut) => {
     if (shortcut === 'ru') {
-      if (pagePath.startsWith('/ru/')) return pagePath
-      if (pagePath.startsWith('/transfers')) return '/ru/services'
-      return `/ru${pagePath === '/' ? '' : pagePath}`
+      if (pagePath.startsWith('/ru/')) return withLangQuery(pagePath, 'ru')
+      if (pagePath.startsWith('/transfers')) return withLangQuery(`/ru${pagePath}`, 'ru')
+      return withLangQuery(`/ru${pagePath === '/' ? '' : pagePath}`, 'ru')
     }
     if (shortcut === 'en') {
-      if (pagePath.startsWith('/ru/')) return pagePath.replace(/^\/ru/, '') || '/'
-      return pagePath
+      if (pagePath.startsWith('/ru/')) return withLangQuery(pagePath.replace(/^\/ru/, '') || '/', 'en')
+      return withLangQuery(pagePath, 'en')
     }
     return `/?lang=${shortcut}`
   }
@@ -987,6 +1013,7 @@ function seoTransferUrl(pagePath) {
 }
 
 function seoTransferByPath(pagePath) {
+  pagePath = normalizedTransferPath(pagePath)
   if (pagePath === '/transfers') return { kind: 'index' }
   const country = RIDERRA_SEO_TRANSFERS.countries.find((item) => item.path === pagePath)
   if (country) return { kind: 'country', item: country }
@@ -997,10 +1024,19 @@ function seoTransferByPath(pagePath) {
   return null
 }
 
-function renderSeoTransferRows(routes, { includeAirport = false, limit = 40 } = {}) {
+function normalizedTransferPath(pagePath = '/transfers') {
+  return String(pagePath || '/transfers').replace(/^\/ru(?=\/transfers(?:\/|$))/, '') || '/transfers'
+}
+
+function localizedTransferPath(pagePath, isRu = false) {
+  const normalized = normalizedTransferPath(pagePath)
+  return isRu && normalized.startsWith('/transfers') ? `/ru${normalized}` : normalized
+}
+
+function renderSeoTransferRows(routes, { includeAirport = false, limit = 40, isRu = false } = {}) {
   return routes.slice(0, limit).map((route) => `
             <tr>
-              ${includeAirport ? `<td><a href="${escapeHtml(route.airportPath)}">${escapeHtml(route.airportName)}</a></td>` : ''}
+              ${includeAirport ? `<td><a href="${escapeHtml(localizedTransferPath(route.airportPath, isRu))}">${escapeHtml(route.airportName)}</a></td>` : ''}
               <td>${escapeHtml(route.destination)}</td>
               <td>${escapeHtml(route.minPriceText)}</td>
               <td>${escapeHtml((route.vehicles || []).slice(0, 4).map((item) => item.label || item.vehicleType).join(', ') || 'Private transfer')}</td>
@@ -1073,8 +1109,9 @@ function seoTransferJsonLd(page, crumbs, faq) {
   ]
 }
 
-function renderSeoTransferPage(pagePath) {
-  const page = seoTransferByPath(pagePath)
+function renderSeoTransferPage(pagePath, isRu = false) {
+  const normalizedPath = normalizedTransferPath(pagePath)
+  const page = seoTransferByPath(normalizedPath)
   if (!page) return null
   const title = page.kind === 'index'
     ? 'Airport transfers by country | Riderra'
@@ -1092,34 +1129,34 @@ function renderSeoTransferPage(pagePath) {
       : page.kind === 'country'
         ? `Browse Riderra airport transfers in ${page.item.countryName}. Compare airports, popular destinations, vehicle classes, and prices from ${page.item.minPriceText}.`
         : 'Browse priority Riderra airport transfer pages grouped by country and airport.'
-  const canonical = seoTransferUrl(pagePath)
+  const canonical = seoTransferUrl(localizedTransferPath(normalizedPath, isRu))
   const faq = seoTransferFaq(page)
   const crumbs = [
     { name: 'Riderra', path: '/' },
-    { name: 'Transfers', path: '/transfers' },
-    ...(page.kind === 'country' ? [{ name: page.item.countryName, path: page.item.path }] : []),
+    { name: isRu ? 'Трансферы' : 'Transfers', path: localizedTransferPath('/transfers', isRu) },
+    ...(page.kind === 'country' ? [{ name: page.item.countryName, path: localizedTransferPath(page.item.path, isRu) }] : []),
     ...(page.kind === 'airport' ? [
-      { name: page.item.countryName, path: `/transfers/${page.item.countrySlug}` },
-      { name: page.item.airportName, path: page.item.path }
+      { name: page.item.countryName, path: localizedTransferPath(`/transfers/${page.item.countrySlug}`, isRu) },
+      { name: page.item.airportName, path: localizedTransferPath(page.item.path, isRu) }
     ] : []),
     ...(page.kind === 'route' ? [
-      { name: page.item.countryName, path: `/transfers/${page.item.countrySlug}` },
-      { name: page.item.airportName, path: page.item.airportPath },
-      { name: page.item.destination, path: page.item.path }
+      { name: page.item.countryName, path: localizedTransferPath(`/transfers/${page.item.countrySlug}`, isRu) },
+      { name: page.item.airportName, path: localizedTransferPath(page.item.airportPath, isRu) },
+      { name: page.item.destination, path: localizedTransferPath(page.item.path, isRu) }
     ] : [])
   ]
   const jsonLd = seoTransferJsonLd(page, crumbs, faq)
 
   const body = page.kind === 'index'
-    ? renderSeoTransferIndexBody()
+    ? renderSeoTransferIndexBody(isRu)
     : page.kind === 'country'
-      ? renderSeoTransferCountryBody(page.item)
+      ? renderSeoTransferCountryBody(page.item, isRu)
       : page.kind === 'airport'
-        ? renderSeoTransferAirportBody(page.item)
-        : renderSeoTransferRouteBody(page.item)
+        ? renderSeoTransferAirportBody(page.item, isRu)
+        : renderSeoTransferRouteBody(page.item, isRu)
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${isRu ? 'ru' : 'en'}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1168,11 +1205,11 @@ function renderSeoTransferPage(pagePath) {
     </style>
   </head>
   <body>
-    ${renderStaticSiteHeader(false, pagePath)}
+    ${renderStaticSiteHeader(isRu, localizedTransferPath(normalizedPath, isRu))}
     <main class="wrap">
       <nav class="breadcrumbs" aria-label="Breadcrumb">${crumbs.map((crumb, index) => index === crumbs.length - 1 ? escapeHtml(crumb.name) : `<a href="${escapeHtml(crumb.path)}">${escapeHtml(crumb.name)}</a> / `).join('')}</nav>
       <section class="hero">
-        <p class="eyebrow">Riderra airport transfers</p>
+        <p class="eyebrow">${isRu ? 'Трансферы Riderra' : 'Riderra airport transfers'}</p>
         <h1>${escapeHtml(heading)}</h1>
         <p class="lead">${escapeHtml(lead)}</p>
       </section>
@@ -1181,22 +1218,22 @@ function renderSeoTransferPage(pagePath) {
         ${faq.map(([question, answer]) => `<article><h2>${escapeHtml(question)}</h2><p>${escapeHtml(answer)}</p></article>`).join('\n        ')}
       </section>
       <section class="cta">
-        <div><h2>Need a confirmed transfer?</h2><p>Send route, pickup time, passengers, luggage, and preferred vehicle class. Riderra checks availability and confirms the final price.</p></div>
-        <a class="button" href="/">Request a quote</a>
+        <div><h2>${isRu ? 'Нужен подтвержденный трансфер?' : 'Need a confirmed transfer?'}</h2><p>${isRu ? 'Отправьте маршрут, время подачи, пассажиров, багаж и желаемый класс машины. Riderra проверит доступность и подтвердит финальную цену.' : 'Send route, pickup time, passengers, luggage, and preferred vehicle class. Riderra checks availability and confirms the final price.'}</p></div>
+        <a class="button" href="${isRu ? '/ru' : '/'}">${isRu ? 'Запросить расчет' : 'Request a quote'}</a>
       </section>
     </main>
   </body>
 </html>`
 }
 
-function renderSeoTransferIndexBody() {
+function renderSeoTransferIndexBody(isRu = false) {
   return `
       <section class="grid">
-        ${RIDERRA_SEO_TRANSFERS.countries.map((country) => `<article class="card"><h2><a href="${escapeHtml(country.path)}">${escapeHtml(country.countryName)}</a></h2><p>${escapeHtml(country.airportCount)} airports and ${escapeHtml(country.routeCount)} priced routes.</p><span class="metric">from ${escapeHtml(country.minPriceText)}</span></article>`).join('\n        ')}
+        ${RIDERRA_SEO_TRANSFERS.countries.map((country) => `<article class="card"><h2><a href="${escapeHtml(localizedTransferPath(country.path, isRu))}">${escapeHtml(isRu ? countryLabelRu(country.countryName) : country.countryName)}</a></h2><p>${escapeHtml(country.airportCount)} ${isRu ? 'аэропортов и' : 'airports and'} ${escapeHtml(country.routeCount)} ${isRu ? 'маршрутов с ценами' : 'priced routes'}.</p><span class="metric">${isRu ? 'от' : 'from'} ${escapeHtml(country.minPriceText)}</span></article>`).join('\n        ')}
       </section>`
 }
 
-function renderSeoTransferCountryBody(country) {
+function renderSeoTransferCountryBody(country, isRu = false) {
   return `
       <section class="grid">
         <article class="card"><h2>Airports</h2><p>Priority airport transfer pages in ${escapeHtml(country.countryName)}.</p><span class="metric">${escapeHtml(country.airportCount)}</span></article>
@@ -1204,12 +1241,12 @@ function renderSeoTransferCountryBody(country) {
         <article class="card"><h2>Pickup</h2><p>${escapeHtml(country.meeting)}</p></article>
       </section>
       <div class="two-col">
-        <section class="panel"><h2>${escapeHtml(country.countryName)} airports</h2><table><thead><tr><th>Airport</th><th>Routes</th><th>Prices</th></tr></thead><tbody>${country.airports.map((airport) => `<tr><td><a href="${escapeHtml(airport.path)}">${escapeHtml(airport.airportName)}</a></td><td>${escapeHtml(airport.routeCount)}</td><td>from ${escapeHtml(airport.minPriceText)}</td></tr>`).join('')}</tbody></table></section>
-        <aside class="panel"><h2>Popular routes</h2><table><thead><tr><th>Airport</th><th>Destination</th><th>From</th></tr></thead><tbody>${country.popularRoutes.map((route) => `<tr><td><a href="${escapeHtml(route.airportPath)}">${escapeHtml(route.airportCode)}</a></td><td>${escapeHtml(route.destination)}</td><td>${escapeHtml(route.minPriceText)}</td></tr>`).join('')}</tbody></table></aside>
+        <section class="panel"><h2>${escapeHtml(isRu ? countryLabelRu(country.countryName) : country.countryName)} airports</h2><table><thead><tr><th>Airport</th><th>Routes</th><th>Prices</th></tr></thead><tbody>${country.airports.map((airport) => `<tr><td><a href="${escapeHtml(localizedTransferPath(airport.path, isRu))}">${escapeHtml(airport.airportName)}</a></td><td>${escapeHtml(airport.routeCount)}</td><td>from ${escapeHtml(airport.minPriceText)}</td></tr>`).join('')}</tbody></table></section>
+        <aside class="panel"><h2>Popular routes</h2><table><thead><tr><th>Airport</th><th>Destination</th><th>From</th></tr></thead><tbody>${country.popularRoutes.map((route) => `<tr><td><a href="${escapeHtml(localizedTransferPath(route.airportPath, isRu))}">${escapeHtml(route.airportCode)}</a></td><td>${escapeHtml(route.destination)}</td><td>${escapeHtml(route.minPriceText)}</td></tr>`).join('')}</tbody></table></aside>
       </div>`
 }
 
-function renderSeoTransferAirportBody(airport) {
+function renderSeoTransferAirportBody(airport, isRu = false) {
   return `
       <section class="grid">
         <article class="card"><h2>Destinations</h2><p>Priced routes from ${escapeHtml(airport.airportName)}.</p><span class="metric">${escapeHtml(airport.routeCount)}</span></article>
@@ -1217,10 +1254,10 @@ function renderSeoTransferAirportBody(airport) {
         <article class="card"><h2>Airport pickup</h2><p>${escapeHtml(airport.meeting)}</p></article>
       </section>
       <div class="two-col">
-        <section class="panel"><h2>Popular destinations</h2><table><thead><tr><th>Destination</th><th>From</th><th>Vehicle options</th></tr></thead><tbody>${renderSeoTransferRows(airport.popularRoutes, { limit: 12 })}</tbody></table></section>
+        <section class="panel"><h2>Popular destinations</h2><table><thead><tr><th>Destination</th><th>From</th><th>Vehicle options</th></tr></thead><tbody>${renderSeoTransferRows(airport.popularRoutes, { limit: 12, isRu })}</tbody></table></section>
         <aside class="panel"><h2>Vehicle classes</h2><div class="vehicle-list">${compactVehicleSummary(airport.routes).map((item) => `<div class="vehicle"><span>${escapeHtml(item.label)}</span><strong>from ${escapeHtml(item.priceText)}</strong></div>`).join('')}</div></aside>
       </div>
-      <section class="panel"><h2>All priced routes from ${escapeHtml(airport.airportName)}</h2><table><thead><tr><th>Destination</th><th>From</th><th>Vehicle options</th></tr></thead><tbody>${renderSeoTransferRows(airport.routes, { limit: 80 })}</tbody></table></section>`
+      <section class="panel"><h2>All priced routes from ${escapeHtml(airport.airportName)}</h2><table><thead><tr><th>Destination</th><th>From</th><th>Vehicle options</th></tr></thead><tbody>${renderSeoTransferRows(airport.routes, { limit: 80, isRu })}</tbody></table></section>`
 }
 
 function compactVehicleSummary(routes) {
@@ -1234,7 +1271,7 @@ function compactVehicleSummary(routes) {
   return Array.from(best.values()).sort((a, b) => a.price - b.price).slice(0, 10)
 }
 
-function renderSeoTransferRouteBody(route) {
+function renderSeoTransferRouteBody(route, isRu = false) {
   return `
       <section class="grid">
         <article class="card"><h2>Route price</h2><p>Current starting price from Riderra's internal price book.</p><span class="metric">${escapeHtml(route.minPriceText)}</span></article>
@@ -1243,7 +1280,7 @@ function renderSeoTransferRouteBody(route) {
       </section>
       <div class="two-col">
         <section class="panel"><h2>Vehicle options</h2><div class="vehicle-list">${route.vehicles.map((item) => `<div class="vehicle"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.priceText)}</strong></div>`).join('')}</div></section>
-        <aside class="panel"><h2>Related routes</h2><table><thead><tr><th>Destination</th><th>From</th></tr></thead><tbody>${route.relatedRoutes.map((item) => `<tr><td><a href="${escapeHtml(item.path)}">${escapeHtml(item.destination)}</a></td><td>${escapeHtml(item.minPriceText)}</td></tr>`).join('')}</tbody></table></aside>
+        <aside class="panel"><h2>Related routes</h2><table><thead><tr><th>Destination</th><th>From</th></tr></thead><tbody>${route.relatedRoutes.map((item) => `<tr><td><a href="${escapeHtml(localizedTransferPath(item.path, isRu))}">${escapeHtml(item.destination)}</a></td><td>${escapeHtml(item.minPriceText)}</td></tr>`).join('')}</tbody></table></aside>
       </div>`
 }
 
@@ -1663,6 +1700,7 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
 
 app.get(['/ai', '/about', '/services', '/docs', '/prices', '/contact', '/faq'], (req, res, next) => {
   if (isCrawlerRequest(req)) return next()
+  if (preferredLanguageFromRequest(req) === 'en') return next()
   const acceptLanguage = String(req.headers['accept-language'] || '').toLowerCase()
   if (acceptLanguage.startsWith('ru') || acceptLanguage.includes(',ru')) {
     return res.redirect(302, `/ru${req.path}`)
@@ -1676,9 +1714,9 @@ app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/
   res.status(200).send(renderPublicSourceHtml(req.path))
 })
 
-app.get(/^\/transfers(?:\/[a-z0-9-]+){0,3}\/?$/, (req, res, next) => {
+app.get(/^\/(?:ru\/)?transfers(?:\/[a-z0-9-]+){0,3}\/?$/, (req, res, next) => {
   const pagePath = req.path.replace(/\/$/, '') || '/transfers'
-  const html = renderSeoTransferPage(pagePath)
+  const html = renderSeoTransferPage(pagePath, pagePath.startsWith('/ru/transfers'))
   if (!html) return next()
   res.type('text/html')
   res.setHeader('Cache-Control', 'public, max-age=300')

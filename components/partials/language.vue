@@ -116,9 +116,23 @@
 				this.state = false;
 
 				this.$store.commit('setLang', lang.shortcut)
+				if (process.browser) {
+					localStorage.setItem('riderra_language', lang.shortcut)
+					document.cookie = `riderra_lang=${lang.shortcut}; path=/; max-age=31536000; SameSite=Lax`
+				}
 			}
 		},
 		mounted() {
+			const path = window.location.pathname || '/'
+			const requested = new URLSearchParams(window.location.search || '').get('lang')
+			const saved = localStorage.getItem('riderra_language')
+			const nextLang = path.startsWith('/ru') ? 'ru' : (requested || saved || this.$store.state.language)
+			if (nextLang && nextLang !== this.$store.state.language) {
+				this.$store.commit('setLang', nextLang)
+			}
+			if (nextLang) {
+				document.cookie = `riderra_lang=${nextLang}; path=/; max-age=31536000; SameSite=Lax`
+			}
 		}
 	}
 </script>
