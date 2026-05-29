@@ -962,7 +962,7 @@ function staticSiteHeaderCss() {
       .lang-select__current { appearance: none; border: 0; background: transparent; color: #fff; display: flex; align-items: center; gap: 6px; padding: 0; font: inherit; cursor: pointer; white-space: nowrap; }
       .lang-select__flag, .lang-select__list-flag { font-size: 18px; line-height: 1; }
       .lang-select__arrow { margin-left: 2px; font-size: 13px; line-height: 1; transition: transform 180ms ease; }
-      .lang-select__list { position: absolute; top: calc(100% + 12px); left: 0; min-width: 168px; padding: 10px; background: #fff; border-radius: 0 0 5px 5px; color: #000; box-shadow: 0 5px 12px rgba(0,0,0,.28); opacity: 0; pointer-events: none; transform: translateY(-4px); transition: 150ms all ease; z-index: 1002; }
+      .lang-select__list { position: absolute; top: 100%; left: 0; min-width: 168px; padding: 10px; background: #fff; border-radius: 0 0 5px 5px; color: #000; box-shadow: 0 5px 12px rgba(0,0,0,.28); opacity: 0; pointer-events: none; transform: translateY(4px); transition: 150ms all ease; z-index: 1002; }
       .lang-select:hover .lang-select__list, .lang-select:focus-within .lang-select__list { opacity: 1; pointer-events: auto; transform: translateY(0); }
       .lang-select:hover .lang-select__arrow, .lang-select:focus-within .lang-select__arrow { transform: rotateX(180deg); }
       .lang-select__list-item { display: flex; align-items: center; line-height: 40px; white-space: nowrap; transition: 150ms all ease; padding: 0 10px; border-radius: 5px; gap: 8px; color: #000; text-decoration: none; }
