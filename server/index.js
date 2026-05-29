@@ -103,6 +103,13 @@ const publicReviewLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 2
 
 const RIDERRA_BASE_URL = 'https://riderra.com'
 const RIDERRA_CONTACT_EMAIL = 'info@riderra.com'
+const RIDERRA_SEO_TRANSFERS = (() => {
+  try {
+    return require('./seo_transfers.json')
+  } catch (_error) {
+    return { countries: [], airports: [], routePages: [] }
+  }
+})()
 const RIDERRA_PUBLIC_PAGES = [
   { path: '/', title: 'Riderra', priority: '1.0' },
   { path: '/ai', title: 'AI agent guide', priority: '0.9' },
@@ -110,6 +117,7 @@ const RIDERRA_PUBLIC_PAGES = [
   { path: '/about', title: 'About Riderra', priority: '0.8' },
   { path: '/ru/about', title: 'О Riderra', priority: '0.7' },
   { path: '/services', title: 'Transfer services', priority: '0.9' },
+  { path: '/transfers', title: 'Airport transfers by country', priority: '0.9' },
   { path: '/ru/services', title: 'Услуги трансфера', priority: '0.8' },
   { path: '/services/airport-transfer', title: 'Airport transfers', priority: '0.8' },
   { path: '/services/city-transfer', title: 'City transfers', priority: '0.8' },
@@ -616,7 +624,6 @@ function renderPublicSourceHtml(pagePath) {
   const isRu = pagePath.startsWith('/ru/')
   const isPricesPage = pagePath === '/prices' || pagePath === '/ru/prices'
   const isContactPage = pagePath === '/contact' || pagePath === '/ru/contact'
-  const languagePath = publicPageLanguagePath(pagePath, isRu)
   const crumbs = [
     { name: 'Riderra', path: '/' },
     ...(pagePath === '/' ? [] : [{ name: content.heading, path: pagePath }])
@@ -648,12 +655,7 @@ function renderPublicSourceHtml(pagePath) {
       :root { color-scheme: light; --ink: #17223f; --muted: #66738d; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --blue: #3152ff; --pink: #d51b7c; --green: #2f7d62; }
       * { box-sizing: border-box; }
       body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #f7f9fd; }
-      .topbar { background: linear-gradient(110deg, #181f58 0%, #060912 100%); color: #fff; }
-      .topbar-inner { max-width: 1180px; margin: 0 auto; padding: 28px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-      .brand { color: #fff; font-size: 34px; line-height: 1; font-weight: 900; font-style: italic; letter-spacing: .01em; text-decoration: none; }
-      .nav { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
-      .nav a { color: rgba(255,255,255,.82); text-decoration: none; font-weight: 700; font-size: 15px; }
-      .nav a:hover, .nav a:focus-visible { color: #fff; outline: none; }
+      ${staticSiteHeaderCss()}
       .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 80px; }
       .hero { padding: 54px 0 36px; }
       .eyebrow { color: var(--pink); font-size: 14px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; }
@@ -693,19 +695,7 @@ function renderPublicSourceHtml(pagePath) {
     </style>
   </head>
   <body>
-    <header class="topbar">
-      <div class="topbar-inner">
-        <a class="brand" href="/">riderra.</a>
-        <nav class="nav" aria-label="${isRu ? 'Публичные страницы' : 'Public pages'}">
-        <a href="${isRu ? '/ru/about' : '/about'}">${isRu ? 'О компании' : 'About'}</a>
-        <a href="${isRu ? '/ru/services' : '/services'}">${isRu ? 'Услуги' : 'Services'}</a>
-        <a href="${isRu ? '/ru/docs' : '/docs'}">${isRu ? 'Документация' : 'Docs'}</a>
-        <a href="${isRu ? '/ru/contact' : '/contact'}">${isRu ? 'Контакты' : 'Contact'}</a>
-        <a href="${isRu ? '/ru/faq' : '/faq'}">${isRu ? 'FAQ' : 'FAQ'}</a>
-        <a href="${languagePath}">${isRu ? 'EN' : 'RU'}</a>
-        </nav>
-      </div>
-    </header>
+    ${renderStaticSiteHeader(isRu, pagePath)}
     <main class="wrap">
       <section class="hero">
         <p class="eyebrow">${escapeHtml(publicPageEyebrow(pagePath, isRu))}</p>
@@ -770,6 +760,321 @@ function renderPublicContactBody(content, isRu) {
         <section class="contact-grid" aria-label="${isRu ? 'Как подготовить обращение' : 'How to prepare a message'}">
           ${content.sections.map(([title, body]) => `<article class="contact-card"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p></article>`).join('\n          ')}
         </section>
+      </div>`
+}
+
+function renderStaticSiteHeader(isRu = false, pagePath = '/') {
+  const switchPath = isRu
+    ? (pagePath.replace(/^\/ru/, '') || '/')
+    : (pagePath.startsWith('/transfers') ? '/ru/services' : `/ru${pagePath === '/' ? '' : pagePath}`)
+  const links = isRu
+    ? [
+      ['/#howWorks', 'Как мы работаем'],
+      ['/#park', 'Автопарк'],
+      ['/ru/services', 'Услуги'],
+      ['/ru/docs', 'Документация'],
+      ['/ru/contact', 'Контакты'],
+      ['/drivers', 'Водителям'],
+      [switchPath, 'EN']
+    ]
+    : [
+      ['/#howWorks', 'How we work'],
+      ['/#park', 'Cars'],
+      ['/services', 'Services'],
+      ['/docs', 'Docs'],
+      ['/contact', 'Contact'],
+      ['/drivers', 'Drivers'],
+      [switchPath, 'RU']
+    ]
+  return `
+    <header class="header active">
+      <div class="header__container container">
+        <a class="logo__link" href="/"><img class="logo__img--main" src="/img/logo.svg" alt="riderra"></a>
+        <nav class="nav-list" aria-label="${isRu ? 'Навигация' : 'Navigation'}">
+          ${links.map(([href, label]) => `<a href="${href}" class="nav-list__item">${escapeHtml(label)}</a>`).join('\n          ')}
+        </nav>
+      </div>
+    </header>`
+}
+
+function staticSiteHeaderCss() {
+  return `
+      body { padding-top: 72px; }
+      .container { width: 1190px; max-width: calc(100% - 30px); margin: 0 auto; padding-left: 15px; padding-right: 15px; }
+      .header { display: block; visibility: visible; opacity: 1; transform: translate3d(0, 0, 0); position: fixed; z-index: 1000; top: 0; left: 0; right: 0; color: #fff; padding: 20px 15px; background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%); }
+      .header__container { display: flex; align-items: center; }
+      .logo__link { display: inline-flex; align-items: center; flex: 0 0 auto; }
+      .logo__img--main { display: block; width: 108px; height: auto; }
+      .nav-list { display: flex; margin-left: 16%; align-items: center; flex-wrap: wrap; gap: 0; }
+      .nav-list__item { margin-right: 42px; color: #fff; text-decoration: none; font-size: 16px; line-height: 1.2; font-weight: 400; position: relative; white-space: nowrap; }
+      .nav-list__item:after { content: ''; display: block; height: 1px; background: #fff; width: 0; bottom: -7px; position: absolute; transition: 250ms width; }
+      .nav-list__item:hover:after, .nav-list__item:focus-visible:after { width: 100%; }
+      @media (max-width: 1024px) { body { padding-top: 84px; } .header { padding-top: 30px; padding-bottom: 30px; } .nav-list { display: none; } }
+      @media (max-width: 767px) { body { padding-top: 73px; } .header { padding-top: 25px; padding-bottom: 25px; } .logo__img--main { max-width: 96px; } }`
+}
+
+function seoTransferUrl(pagePath) {
+  return riderraAbsoluteUrl(pagePath)
+}
+
+function seoTransferByPath(pagePath) {
+  if (pagePath === '/transfers') return { kind: 'index' }
+  const country = RIDERRA_SEO_TRANSFERS.countries.find((item) => item.path === pagePath)
+  if (country) return { kind: 'country', item: country }
+  const airport = RIDERRA_SEO_TRANSFERS.airports.find((item) => item.path === pagePath)
+  if (airport) return { kind: 'airport', item: airport }
+  const route = RIDERRA_SEO_TRANSFERS.routePages.find((item) => item.path === pagePath)
+  if (route) return { kind: 'route', item: route }
+  return null
+}
+
+function renderSeoTransferRows(routes, { includeAirport = false, limit = 40 } = {}) {
+  return routes.slice(0, limit).map((route) => `
+            <tr>
+              ${includeAirport ? `<td><a href="${escapeHtml(route.airportPath)}">${escapeHtml(route.airportName)}</a></td>` : ''}
+              <td>${escapeHtml(route.destination)}</td>
+              <td>${escapeHtml(route.minPriceText)}</td>
+              <td>${escapeHtml((route.vehicles || []).slice(0, 4).map((item) => item.label || item.vehicleType).join(', ') || 'Private transfer')}</td>
+            </tr>`).join('')
+}
+
+function seoTransferFaq(page) {
+  if (page.kind === 'route') {
+    const item = page.item
+    return [
+      [`How much is a transfer from ${item.airportName} to ${item.destination}?`, `Prices start from ${item.minPriceText}. The final price depends on vehicle class, pickup time, passenger count, luggage, extras, and local availability.`],
+      [`How do I meet the driver at ${item.airportName}?`, item.meeting],
+      ['Can I book the return transfer?', `Yes. Riderra can arrange the return route from ${item.destination} to ${item.airportName}, subject to availability.`]
+    ]
+  }
+  const label = page.kind === 'airport' ? page.item.airportName : page.kind === 'country' ? page.item.countryName : 'Riderra'
+  return [
+    [`Are Riderra ${label} transfer prices fixed?`, 'The route price is fixed after Riderra confirms route details, vehicle class, pickup time, passenger count, luggage, extras, and availability.'],
+    ['What vehicle classes are available?', 'Availability depends on the route. Common options include standard cars, MPVs, business cars, minivans, minibuses, SUVs, and coaches where available.'],
+    ['How does airport pickup work?', page.item?.meeting || 'Riderra sends pickup instructions before the ride and confirms the exact meeting point.']
+  ]
+}
+
+function seoTransferJsonLd(page, crumbs, faq) {
+  const canonical = seoTransferUrl(page.item?.path || '/transfers')
+  const serviceName = page.kind === 'route'
+    ? `${page.item.airportName} to ${page.item.destination} transfer`
+    : page.kind === 'airport'
+      ? `${page.item.airportName} transfers`
+      : page.kind === 'country'
+        ? `Airport transfers in ${page.item.countryName}`
+        : 'Riderra airport transfers'
+  const description = page.item?.description || 'Private airport transfers with Riderra.'
+  const offer = page.item?.minPrice ? {
+    '@type': 'Offer',
+    price: String(Math.round(page.item.minPrice)),
+    priceCurrency: 'EUR',
+    availability: 'https://schema.org/InStock',
+    url: canonical
+  } : {
+    '@type': 'Offer',
+    availability: 'https://schema.org/InStock',
+    url: canonical
+  }
+  return [
+    organizationJsonLd(),
+    websiteJsonLd(),
+    breadcrumbJsonLd(crumbs),
+    {
+      '@context': 'https://schema.org',
+      '@type': ['Service', 'TaxiService'],
+      '@id': `${canonical}#service`,
+      name: serviceName,
+      description,
+      url: canonical,
+      provider: { '@id': `${RIDERRA_BASE_URL}/#organization` },
+      areaServed: page.item?.countryName || 'Worldwide',
+      offers: offer
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      '@id': `${canonical}#faq`,
+      mainEntity: faq.map(([question, answer]) => ({
+        '@type': 'Question',
+        name: question,
+        acceptedAnswer: { '@type': 'Answer', text: answer }
+      }))
+    }
+  ]
+}
+
+function renderSeoTransferPage(pagePath) {
+  const page = seoTransferByPath(pagePath)
+  if (!page) return null
+  const title = page.kind === 'index'
+    ? 'Airport transfers by country | Riderra'
+    : `${page.item.title} | Riderra`
+  const description = page.kind === 'index'
+    ? 'Browse Riderra airport transfer pages by country, airport, and popular route. Compare fixed route prices and vehicle classes.'
+    : page.item.description
+  const heading = page.kind === 'index'
+    ? 'Airport transfers by country'
+    : page.item.title
+  const lead = page.kind === 'route'
+    ? `Private transfer from ${page.item.airportName} to ${page.item.destination}, with fixed route pricing from ${page.item.minPriceText} and vehicle options for solo travelers, families, business trips, and groups.`
+    : page.kind === 'airport'
+      ? `Book private transfers from ${page.item.airportName}. Compare popular destinations, vehicle classes, pickup instructions, and fixed prices from ${page.item.minPriceText}.`
+      : page.kind === 'country'
+        ? `Browse Riderra airport transfers in ${page.item.countryName}. Compare airports, popular destinations, vehicle classes, and prices from ${page.item.minPriceText}.`
+        : 'Browse priority Riderra airport transfer pages grouped by country and airport.'
+  const canonical = seoTransferUrl(pagePath)
+  const faq = seoTransferFaq(page)
+  const crumbs = [
+    { name: 'Riderra', path: '/' },
+    { name: 'Transfers', path: '/transfers' },
+    ...(page.kind === 'country' ? [{ name: page.item.countryName, path: page.item.path }] : []),
+    ...(page.kind === 'airport' ? [
+      { name: page.item.countryName, path: `/transfers/${page.item.countrySlug}` },
+      { name: page.item.airportName, path: page.item.path }
+    ] : []),
+    ...(page.kind === 'route' ? [
+      { name: page.item.countryName, path: `/transfers/${page.item.countrySlug}` },
+      { name: page.item.airportName, path: page.item.airportPath },
+      { name: page.item.destination, path: page.item.path }
+    ] : [])
+  ]
+  const jsonLd = seoTransferJsonLd(page, crumbs, faq)
+
+  const body = page.kind === 'index'
+    ? renderSeoTransferIndexBody()
+    : page.kind === 'country'
+      ? renderSeoTransferCountryBody(page.item)
+      : page.kind === 'airport'
+        ? renderSeoTransferAirportBody(page.item)
+        : renderSeoTransferRouteBody(page.item)
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <meta name="description" content="${escapeHtml(description)}">
+    <link rel="canonical" href="${canonical}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Riderra">
+    <meta property="og:title" content="${escapeHtml(title)}">
+    <meta property="og:description" content="${escapeHtml(description)}">
+    <meta property="og:url" content="${canonical}">
+    ${jsonLd.map(jsonLdScript).join('\n    ')}
+    <style>
+      :root { color-scheme: light; --ink: #17223f; --muted: #65728a; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --pink: #d51b7c; --green: #2f7d62; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #f7f9fd; }
+      a { color: #2549d8; }
+      ${staticSiteHeaderCss()}
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 80px; }
+      .hero { padding: 44px 0 30px; }
+      .eyebrow { color: var(--pink); font-size: 14px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; }
+      h1 { margin: 0; max-width: 940px; font-size: clamp(38px, 6vw, 70px); line-height: 1; letter-spacing: 0; }
+      .lead { max-width: 820px; margin: 22px 0 0; font-size: 20px; line-height: 1.65; color: var(--muted); }
+      .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 28px 0; }
+      .card, .panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 24px; box-shadow: 0 18px 60px rgba(20,35,90,.08); }
+      .card h2, .panel h2 { margin: 0 0 12px; font-size: 22px; }
+      p { font-size: 16px; line-height: 1.7; color: var(--muted); margin: 0; }
+      .metric { display: block; margin-top: 12px; color: var(--ink); font-size: 26px; font-weight: 900; }
+      table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+      th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 15px; }
+      th { background: var(--soft); color: #243253; font-weight: 900; }
+      tr:last-child td { border-bottom: 0; }
+      .two-col { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: 22px; margin-top: 28px; }
+      .vehicle-list { display: grid; gap: 10px; margin-top: 14px; }
+      .vehicle { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+      .cta { margin-top: 28px; background: linear-gradient(135deg, var(--navy), #0b1022); color: #fff; border-radius: 8px; padding: 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+      .cta p { color: rgba(255,255,255,.78); }
+      .button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 0 18px; border-radius: 8px; background: #fff; color: var(--navy); text-decoration: none; font-weight: 900; white-space: nowrap; }
+      .faq { display: grid; gap: 14px; margin-top: 28px; }
+      .faq article { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+      .faq h2, .faq h3 { margin: 0 0 10px; font-size: 20px; }
+      .breadcrumbs { color: var(--muted); margin-bottom: 20px; font-size: 14px; }
+      .breadcrumbs a { color: var(--muted); text-decoration: none; }
+      @media (max-width: 900px) { .topbar-inner { flex-direction: column; align-items: flex-start; } .nav { justify-content: flex-start; } .grid, .two-col { grid-template-columns: 1fr; } .cta { align-items: flex-start; flex-direction: column; } }
+      @media (max-width: 767px) { .wrap { padding: 34px 18px 56px; } th, td { padding: 12px 10px; font-size: 14px; } .brand { font-size: 30px; } .nav { gap: 14px; } }
+    </style>
+  </head>
+  <body>
+    ${renderStaticSiteHeader(false, pagePath)}
+    <main class="wrap">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">${crumbs.map((crumb, index) => index === crumbs.length - 1 ? escapeHtml(crumb.name) : `<a href="${escapeHtml(crumb.path)}">${escapeHtml(crumb.name)}</a> / `).join('')}</nav>
+      <section class="hero">
+        <p class="eyebrow">Riderra airport transfers</p>
+        <h1>${escapeHtml(heading)}</h1>
+        <p class="lead">${escapeHtml(lead)}</p>
+      </section>
+      ${body}
+      <section class="faq" aria-label="FAQ">
+        ${faq.map(([question, answer]) => `<article><h2>${escapeHtml(question)}</h2><p>${escapeHtml(answer)}</p></article>`).join('\n        ')}
+      </section>
+      <section class="cta">
+        <div><h2>Need a confirmed transfer?</h2><p>Send route, pickup time, passengers, luggage, and preferred vehicle class. Riderra checks availability and confirms the final price.</p></div>
+        <a class="button" href="/">Request a quote</a>
+      </section>
+    </main>
+  </body>
+</html>`
+}
+
+function renderSeoTransferIndexBody() {
+  return `
+      <section class="grid">
+        ${RIDERRA_SEO_TRANSFERS.countries.map((country) => `<article class="card"><h2><a href="${escapeHtml(country.path)}">${escapeHtml(country.countryName)}</a></h2><p>${escapeHtml(country.airportCount)} airports and ${escapeHtml(country.routeCount)} priced routes.</p><span class="metric">from ${escapeHtml(country.minPriceText)}</span></article>`).join('\n        ')}
+      </section>`
+}
+
+function renderSeoTransferCountryBody(country) {
+  return `
+      <section class="grid">
+        <article class="card"><h2>Airports</h2><p>Priority airport transfer pages in ${escapeHtml(country.countryName)}.</p><span class="metric">${escapeHtml(country.airportCount)}</span></article>
+        <article class="card"><h2>Priced routes</h2><p>Grouped airport-to-destination routes from Riderra's internal price book.</p><span class="metric">${escapeHtml(country.routeCount)}</span></article>
+        <article class="card"><h2>Pickup</h2><p>${escapeHtml(country.meeting)}</p></article>
+      </section>
+      <div class="two-col">
+        <section class="panel"><h2>${escapeHtml(country.countryName)} airports</h2><table><thead><tr><th>Airport</th><th>Routes</th><th>Prices</th></tr></thead><tbody>${country.airports.map((airport) => `<tr><td><a href="${escapeHtml(airport.path)}">${escapeHtml(airport.airportName)}</a></td><td>${escapeHtml(airport.routeCount)}</td><td>from ${escapeHtml(airport.minPriceText)}</td></tr>`).join('')}</tbody></table></section>
+        <aside class="panel"><h2>Popular routes</h2><table><thead><tr><th>Airport</th><th>Destination</th><th>From</th></tr></thead><tbody>${country.popularRoutes.map((route) => `<tr><td><a href="${escapeHtml(route.airportPath)}">${escapeHtml(route.airportCode)}</a></td><td>${escapeHtml(route.destination)}</td><td>${escapeHtml(route.minPriceText)}</td></tr>`).join('')}</tbody></table></aside>
+      </div>`
+}
+
+function renderSeoTransferAirportBody(airport) {
+  return `
+      <section class="grid">
+        <article class="card"><h2>Destinations</h2><p>Priced routes from ${escapeHtml(airport.airportName)}.</p><span class="metric">${escapeHtml(airport.routeCount)}</span></article>
+        <article class="card"><h2>Starting price</h2><p>Lowest available route price in the current price book.</p><span class="metric">${escapeHtml(airport.minPriceText)}</span></article>
+        <article class="card"><h2>Airport pickup</h2><p>${escapeHtml(airport.meeting)}</p></article>
+      </section>
+      <div class="two-col">
+        <section class="panel"><h2>Popular destinations</h2><table><thead><tr><th>Destination</th><th>From</th><th>Vehicle options</th></tr></thead><tbody>${renderSeoTransferRows(airport.popularRoutes, { limit: 12 })}</tbody></table></section>
+        <aside class="panel"><h2>Vehicle classes</h2><div class="vehicle-list">${compactVehicleSummary(airport.routes).map((item) => `<div class="vehicle"><span>${escapeHtml(item.label)}</span><strong>from ${escapeHtml(item.priceText)}</strong></div>`).join('')}</div></aside>
+      </div>
+      <section class="panel"><h2>All priced routes from ${escapeHtml(airport.airportName)}</h2><table><thead><tr><th>Destination</th><th>From</th><th>Vehicle options</th></tr></thead><tbody>${renderSeoTransferRows(airport.routes, { limit: 80 })}</tbody></table></section>`
+}
+
+function compactVehicleSummary(routes) {
+  const best = new Map()
+  for (const route of routes) {
+    for (const vehicle of route.vehicles || []) {
+      const current = best.get(vehicle.label)
+      if (!current || vehicle.price < current.price) best.set(vehicle.label, vehicle)
+    }
+  }
+  return Array.from(best.values()).sort((a, b) => a.price - b.price).slice(0, 10)
+}
+
+function renderSeoTransferRouteBody(route) {
+  return `
+      <section class="grid">
+        <article class="card"><h2>Route price</h2><p>Current starting price from Riderra's internal price book.</p><span class="metric">${escapeHtml(route.minPriceText)}</span></article>
+        <article class="card"><h2>Pickup</h2><p>${escapeHtml(route.meeting)}</p></article>
+        <article class="card"><h2>Return transfer</h2><p>Riderra can arrange ${escapeHtml(route.destination)} to ${escapeHtml(route.airportName)} as a return transfer after route review.</p></article>
+      </section>
+      <div class="two-col">
+        <section class="panel"><h2>Vehicle options</h2><div class="vehicle-list">${route.vehicles.map((item) => `<div class="vehicle"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.priceText)}</strong></div>`).join('')}</div></section>
+        <aside class="panel"><h2>Related routes</h2><table><thead><tr><th>Destination</th><th>From</th></tr></thead><tbody>${route.relatedRoutes.map((item) => `<tr><td><a href="${escapeHtml(item.path)}">${escapeHtml(item.destination)}</a></td><td>${escapeHtml(item.minPriceText)}</td></tr>`).join('')}</tbody></table></aside>
       </div>`
 }
 
@@ -1130,11 +1435,17 @@ app.get('/robots.txt', (_req, res) => {
 
 app.get('/sitemap.xml', (_req, res) => {
   const now = new Date().toISOString().slice(0, 10)
+  const seoTransferPages = [
+    ...RIDERRA_SEO_TRANSFERS.countries.map((page) => ({ path: page.path, priority: '0.8' })),
+    ...RIDERRA_SEO_TRANSFERS.airports.map((page) => ({ path: page.path, priority: '0.7' })),
+    ...RIDERRA_SEO_TRANSFERS.routePages.map((page) => ({ path: page.path, priority: '0.5' }))
+  ]
   res.type('application/xml')
   res.setHeader('Cache-Control', 'public, max-age=3600')
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${RIDERRA_PUBLIC_PAGES.map((page) => `  <url><loc>${riderraAbsoluteUrl(page.path)}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${page.priority}</priority></url>`).join('\n')}
+${seoTransferPages.map((page) => `  <url><loc>${riderraAbsoluteUrl(page.path)}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${page.priority}</priority></url>`).join('\n')}
 </urlset>`)
 })
 
@@ -1173,6 +1484,11 @@ Recommended header: Idempotency-Key
 
 ## Public sources of truth
 ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page.path)}`).join('\n')}
+
+## SEO transfer pages
+- Transfer index: ${RIDERRA_BASE_URL}/transfers
+- Countries: ${RIDERRA_SEO_TRANSFERS.countries.map((page) => riderraAbsoluteUrl(page.path)).join(', ')}
+- Airport pages are generated only for priority airport hubs and sizeable route groups. Route pages are limited to selected popular routes to avoid thin-page generation.
 `)
 })
 
@@ -1189,6 +1505,15 @@ app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/
   res.type('text/html')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderPublicSourceHtml(req.path))
+})
+
+app.get(/^\/transfers(?:\/[a-z0-9-]+){0,3}\/?$/, (req, res, next) => {
+  const pagePath = req.path.replace(/\/$/, '') || '/transfers'
+  const html = renderSeoTransferPage(pagePath)
+  if (!html) return next()
+  res.type('text/html')
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.status(200).send(html)
 })
 
 app.get('/', (req, res, next) => {
