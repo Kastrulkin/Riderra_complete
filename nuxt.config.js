@@ -71,6 +71,11 @@ module.exports = {
 ** Build configuration
 */
   build: {
+    filenames: {
+      app: ({ isDev }) => isDev ? '[name].js' : '[contenthash:8].js',
+      chunk: ({ isDev }) => isDev ? '[name].js' : '[contenthash:8].js',
+      css: ({ isDev }) => isDev ? '[name].css' : '[contenthash:8].css'
+    },
     optimization: {
       splitChunks: {
         chunks: 'all',

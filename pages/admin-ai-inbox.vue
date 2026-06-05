@@ -14,6 +14,9 @@
           <button class="btn btn--ghost" :disabled="cleanupSaving" @click="cleanupSmokeDrafts">
             {{ cleanupSaving ? 'Убираю...' : 'Убрать тестовые' }}
           </button>
+          <button class="btn btn--ghost" :disabled="bulkDeleting || !selectedDraftIds.length" @click="deleteSelectedDrafts">
+            {{ bulkDeleting ? 'Удаляю...' : `Удалить выбранные (${selectedDraftIds.length})` }}
+          </button>
         </div>
 
         <div class="ops-rail">
@@ -79,6 +82,15 @@
 
         <div class="table-wrap">
           <div class="table-head">
+            <div>
+              <input
+                type="checkbox"
+                :checked="allVisibleSelected"
+                :disabled="!selectableRows.length"
+                aria-label="Выбрать все видимые черновики"
+                @change="toggleAllVisible"
+              />
+            </div>
             <div>Создан</div>
             <div>Поездка</div>
             <div>Тип</div>
@@ -89,6 +101,15 @@
             <div>Действия</div>
           </div>
           <div v-for="row in rows" :key="row.id" class="table-row">
+            <div>
+              <input
+                v-model="selectedDraftIds"
+                type="checkbox"
+                :value="row.id"
+                :disabled="row.status !== 'pending'"
+                :aria-label="`Выбрать черновик ${row.id}`"
+              />
+            </div>
             <div>{{ formatDate(row.createdAt) }}</div>
             <div>{{ formatPickup(row) }}</div>
             <div>{{ row.parsedType }}</div>
@@ -296,6 +317,7 @@ export default {
     period: 'future',
     fromPickup: '',
     toPickup: '',
+    selectedDraftIds: [],
     rows: [],
     draft: null,
     reviewComment: '',
@@ -306,6 +328,7 @@ export default {
     flightCheckError: '',
     manualSaving: false,
     cleanupSaving: false,
+    bulkDeleting: false,
     manualResult: '',
     manualEmail: {
       fromEmail: '',
@@ -352,6 +375,12 @@ export default {
         const payload = this.parsePayload(row.payloadJson)
         return row.status === 'pending' && !(Array.isArray(payload.missingFields) && payload.missingFields.length) && !String(payload.infoReason || '').trim()
       }).length
+    },
+    selectableRows () {
+      return this.rows.filter((row) => row.status === 'pending')
+    },
+    allVisibleSelected () {
+      return this.selectableRows.length > 0 && this.selectableRows.every((row) => this.selectedDraftIds.includes(row.id))
     },
     focusSummary () {
       if (this.payload.infoReason) return `Нужно уточнить: ${this.payload.infoReason}`
@@ -516,6 +545,41 @@ export default {
       const res = await fetch(`/api/admin/ops/drafts?${params.toString()}`, { headers: this.headers() })
       const data = await res.json()
       this.rows = data.rows || []
+      const visible = new Set(this.rows.map((row) => row.id))
+      this.selectedDraftIds = this.selectedDraftIds.filter((id) => visible.has(id))
+    },
+    toggleAllVisible (event) {
+      const checked = Boolean(event?.target?.checked)
+      const ids = this.selectableRows.map((row) => row.id)
+      if (checked) {
+        this.selectedDraftIds = [...new Set([...this.selectedDraftIds, ...ids])]
+      } else {
+        const removing = new Set(ids)
+        this.selectedDraftIds = this.selectedDraftIds.filter((id) => !removing.has(id))
+      }
+    },
+    async deleteSelectedDrafts () {
+      if (!this.selectedDraftIds.length) return
+      this.bulkDeleting = true
+      this.actionResult = ''
+      try {
+        const res = await fetch('/api/admin/ops/drafts/bulk-delete', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ ids: this.selectedDraftIds })
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось удалить выбранные черновики')
+        this.actionResult = data.updated
+          ? `Удалено выбранных черновиков: ${data.updated}.`
+          : 'Выбранные черновики уже не были в Pending.'
+        this.selectedDraftIds = []
+        await this.load()
+      } catch (error) {
+        this.actionResult = error.message || 'Не удалось удалить выбранные черновики'
+      } finally {
+        this.bulkDeleting = false
+      }
     },
     setPeriod (period) {
       this.period = period
@@ -702,7 +766,7 @@ export default {
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; }
 .input--date { min-width: 150px; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
-.table-head, .table-row { display: grid; grid-template-columns: 170px 170px 180px 1fr 1.2fr 180px 120px 240px; gap: 12px; padding: 10px 12px; min-width: 1380px; }
+.table-head, .table-row { display: grid; grid-template-columns: 42px 170px 170px 180px 1fr 1.2fr 180px 120px 240px; gap: 12px; padding: 10px 12px; min-width: 1440px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }
 .table-row { border-bottom: 1px solid #f1f3f8; align-items: center; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }

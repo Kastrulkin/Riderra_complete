@@ -42,6 +42,11 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Idempotency-Key, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature, X-OpenClaw-Signature, X-OpenClaw-Internal-Token, X-Riderra-Internal-Token')
   res.header('Vary', 'Origin')
+  if (String(req.path || req.url || '').startsWith('/_nuxt/')) {
+    res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.header('Pragma', 'no-cache')
+    res.header('Expires', '0')
+  }
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200)
   }
@@ -16627,6 +16632,52 @@ app.post('/api/admin/ops/drafts/cleanup', authenticateToken, resolveActorContext
   } catch (error) {
     console.error('Error cleaning up ops drafts:', error)
     res.status(500).json({ error: 'Failed to clean up ops drafts' })
+  }
+})
+
+app.post('/api/admin/ops/drafts/bulk-delete', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft'), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids)
+      ? [...new Set(req.body.ids.map((id) => String(id || '').trim()).filter(Boolean))]
+      : []
+    if (!ids.length) return res.status(400).json({ error: 'ids are required' })
+    if (ids.length > 200) return res.status(400).json({ error: 'Too many drafts selected' })
+
+    const payload = { ids }
+    ensureIdempotencyKey(req, 'ops.draft.bulk_delete', payload)
+    const wrapped = await withIdempotency(req, 'ops.draft.bulk_delete', payload, async () => {
+      const result = await prisma.opsEventDraft.updateMany({
+        where: {
+          tenantId: req.actorContext.tenantId,
+          id: { in: ids },
+          status: 'pending'
+        },
+        data: {
+          status: 'rejected',
+          reviewerUserId: req.user.id,
+          reviewerEmail: req.user.email,
+          reviewedAt: new Date(),
+          reviewComment: 'Deleted from AI Inbox by bulk selection'
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'ops.draft.bulk_delete',
+        resource: 'ops_draft',
+        resourceId: null,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { requested: ids.length, updated: result.count }
+      })
+      return { updated: result.count }
+    })
+    res.json({ success: true, ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error bulk deleting ops drafts:', error)
+    res.status(500).json({ error: 'Failed to delete selected drafts' })
   }
 })
 
