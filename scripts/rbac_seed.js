@@ -33,6 +33,7 @@ const PERMISSION_DEFS = [
   { code: 'directions.manage', name: 'Manage directions/routes' },
   { code: 'ops.read', name: 'Read ops drafts/unavailability' },
   { code: 'ops.manage', name: 'Manage ops drafts/unavailability' },
+  { code: 'ops.drafts.resolve', name: 'Approve or reject ops drafts' },
   { code: 'orders.create_draft', name: 'Create order drafts from inbound sources' },
   { code: 'orders.validate', name: 'Validate draft order core fields' },
   { code: 'orders.assign', name: 'Assign drivers to orders' },
@@ -76,11 +77,11 @@ const ROLE_PERMISSIONS = {
     'integrations.settings',
     'approvals.resolve'
   ],
-  coordinator: ['orders.read', 'orders.create_draft', 'orders.validate', 'crm.read', 'drivers.read', 'pricing.read', 'ops.read'],
+  coordinator: ['orders.read', 'orders.create_draft', 'orders.validate', 'crm.read', 'drivers.read', 'pricing.read', 'ops.read', 'ops.drafts.resolve'],
   dispatcher: ['orders.read', 'orders.assign', 'orders.reassign', 'drivers.read', 'drivers.manage', 'crm.read', 'pricing.read', 'ops.read'],
   ops_control: ['orders.read', 'orders.confirmation.manage', 'incidents.manage', 'claims.compose', 'ops.read', 'ops.manage', 'drivers.read', 'crm.read'],
   financial: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'reconciliation.run', 'payouts.manage', 'finance.report.export'],
-  operator: ['orders.read', 'orders.create_draft', 'orders.validate', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read'],
+  operator: ['orders.read', 'orders.create_draft', 'orders.validate', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read', 'ops.drafts.resolve'],
   audit: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'ops.read'],
   pricing_admin: ['orders.read', 'drivers.read', 'crm.read', 'pricing.read', 'pricing.manage', 'directions.read', 'directions.manage', 'integrations.settings', 'ops.read', 'ops.manage']
 }

@@ -285,14 +285,19 @@ export default {
     selectKpi (card) {
       if (card.key === 'grossByCurrency' || card.key === 'profitByCurrency') this.$router.push('/admin-order-analytics')
     },
+    monthLabelFromPayload (month) {
+      return typeof month === 'string' ? month : String(month?.monthLabel || '').trim()
+    },
     openMonth (month) {
-      if (month?.monthLabel) this.$router.push(`/admin-order-archive/${month.monthLabel}`)
+      const monthLabel = this.monthLabelFromPayload(month)
+      if (monthLabel) this.$router.push({ path: `/admin-order-archive/${encodeURIComponent(monthLabel)}` })
     },
     openTrips (month) {
       this.openMonth(month)
     },
     openAnalytics (month) {
-      const query = month?.monthLabel ? { fromMonth: month.monthLabel, toMonth: month.monthLabel } : {}
+      const monthLabel = this.monthLabelFromPayload(month)
+      const query = monthLabel ? { fromMonth: monthLabel, toMonth: monthLabel } : {}
       this.$router.push({ path: '/admin-order-analytics', query })
     },
     openEntity (entity, type) {

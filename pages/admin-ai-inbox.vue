@@ -11,6 +11,9 @@
 
         <div class="section-actions">
           <button class="btn btn--primary" @click="load">Обновить</button>
+          <button class="btn btn--ghost" :disabled="cleanupSaving" @click="cleanupSmokeDrafts">
+            {{ cleanupSaving ? 'Убираю...' : 'Убрать тестовые' }}
+          </button>
         </div>
 
         <div class="ops-rail">
@@ -30,7 +33,7 @@
             <textarea
               v-model="manualEmail.rawText"
               class="input manual-import__text"
-              placeholder="Вставьте текст письма или сырой заказ. AI Inbox создаст черновик, проверит обязательные поля, рейс, адреса и цену."
+              placeholder="Вставьте текст письма или сырой заказ. AI Inbox создаст подготовленный черновик, проверит обязательные поля, адреса и цену."
             ></textarea>
             <div class="manual-import__actions">
               <button class="btn btn--small btn--primary" :disabled="manualSaving || manualEmail.rawText.trim().length < 10" @click="createManualEmailDraft">
@@ -63,11 +66,21 @@
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
+          <div class="period-buttons" role="group" aria-label="Период поездки">
+            <button class="btn btn--small" :class="{ 'btn--primary': period === 'future' }" type="button" @click="setPeriod('future')">Будущие</button>
+            <button class="btn btn--small" :class="{ 'btn--primary': period === 'week' }" type="button" @click="setPeriod('week')">7 дней</button>
+            <button class="btn btn--small" :class="{ 'btn--primary': period === 'month' }" type="button" @click="setPeriod('month')">30 дней</button>
+          </div>
+          <input v-model="fromPickup" class="input input--date" type="date" aria-label="Дата поездки от" @change="applyCustomPeriod" />
+          <input v-model="toPickup" class="input input--date" type="date" aria-label="Дата поездки до" @change="applyCustomPeriod" />
+          <button class="btn btn--small btn--ghost" type="button" @click="resetPeriod">Сбросить</button>
         </div>
+        <div v-if="actionResult && !draft" class="hint result-block page-result">{{ actionResult }}</div>
 
         <div class="table-wrap">
           <div class="table-head">
             <div>Создан</div>
+            <div>Поездка</div>
             <div>Тип</div>
             <div>Контрагент</div>
             <div>Маршрут</div>
@@ -77,6 +90,7 @@
           </div>
           <div v-for="row in rows" :key="row.id" class="table-row">
             <div>{{ formatDate(row.createdAt) }}</div>
+            <div>{{ formatPickup(row) }}</div>
             <div>{{ row.parsedType }}</div>
             <div>{{ summarize(row).customer }}</div>
             <div>{{ summarize(row).route }}</div>
@@ -85,8 +99,10 @@
               <span class="status-pill" :class="`status-pill--${row.status}`">{{ row.status }}</span>
               <div class="row-hint">{{ draftStateLabel(row) }}</div>
             </div>
-            <div>
+            <div class="row-actions">
               <button class="btn btn--small btn--primary" @click="openDraft(row.id)">{{ draftActionLabel(row) }}</button>
+              <button class="btn btn--small btn--ghost" type="button" @click="copyDraftRow(row)">Скопировать</button>
+              <button class="btn btn--small btn--ghost" type="button" @click="hideDraft(row)">Убрать</button>
             </div>
           </div>
           <div v-if="!rows.length" class="empty">Пока пусто</div>
@@ -136,6 +152,13 @@
               @click="reject"
             >
               Отклонить
+            </button>
+            <button
+              class="btn btn--small btn--ghost"
+              type="button"
+              @click="copyCurrentDraftRow"
+            >
+              Скопировать строку
             </button>
             <button
               class="btn btn--small btn--ghost"
@@ -216,6 +239,9 @@
 
         <details class="section-card" v-if="sheetRowPreview && Object.keys(sheetRowPreview).length">
           <summary class="section-summary">Строка для таблицы</summary>
+          <div class="section-tools">
+            <button class="btn btn--small btn--ghost" type="button" @click="copyCurrentDraftRow">Скопировать строку для таблицы</button>
+          </div>
           <div class="meta-grid">
             <div><strong>Контрагент:</strong> {{ sheetRowPreview.contractor || '-' }}</div>
             <div><strong>Номер заказа:</strong> {{ sheetRowPreview.orderNumber || '-' }}</div>
@@ -252,6 +278,7 @@
         </div>
 
         <div v-if="actionResult" class="hint result-block">{{ actionResult }}</div>
+        <div v-if="copyNotice" class="hint result-block">{{ copyNotice }}</div>
       </div>
     </div>
   </div>
@@ -266,14 +293,19 @@ export default {
   components: { navigation, adminTabs },
   data: () => ({
     status: 'pending',
+    period: 'future',
+    fromPickup: '',
+    toPickup: '',
     rows: [],
     draft: null,
     reviewComment: '',
     actionResult: '',
+    copyNotice: '',
     saving: false,
     flightChecking: false,
     flightCheckError: '',
     manualSaving: false,
+    cleanupSaving: false,
     manualResult: '',
     manualEmail: {
       fromEmail: '',
@@ -325,11 +357,11 @@ export default {
       if (this.payload.infoReason) return `Нужно уточнить: ${this.payload.infoReason}`
       if (this.missingFields.length) return `Перед подтверждением нужно проверить: ${this.missingFields.join(', ')}`
       if (this.pricing.conflict) return 'Найдено расхождение по цене, лучше проверить перед созданием заказа.'
-      return 'Черновик выглядит целостным. Можно подтвердить и создать заказ.'
+      return 'Черновик выглядит целостным. Можно перенести в базу.'
     },
     primaryDraftAction () {
-      if (this.payload.infoReason || this.missingFields.length || this.pricing.conflict) return 'Проверить и подтвердить'
-      return 'Подтвердить и создать заказ'
+      if (this.payload.infoReason || this.missingFields.length || this.pricing.conflict) return 'Проверить и перенести в базу'
+      return 'Перенести в базу'
     }
   },
   mounted () {
@@ -356,6 +388,74 @@ export default {
         )
       }
     },
+    sheetRowFromPayload (payload = {}) {
+      const orderDraft = payload.orderDraft || {}
+      const pricing = payload.pricing || {}
+      const preview = payload.sheetRowPreview || {}
+      const price = pricing.authoritativeClientPrice != null ? pricing.authoritativeClientPrice : orderDraft.clientPrice
+      const currency = pricing.authoritativeCurrency || orderDraft.currency || 'EUR'
+      return {
+        contractor: preview.contractor || orderDraft.customerName || '',
+        orderNumber: preview.orderNumber || orderDraft.orderNumber || '',
+        date: preview.date || (orderDraft.pickupAt ? String(orderDraft.pickupAt).replace('T', ' ').slice(0, 16) : ''),
+        fromPoint: preview.fromPoint || orderDraft.fromPoint || '',
+        toPoint: preview.toPoint || orderDraft.toPoint || '',
+        sum: preview.sum || (Number.isFinite(Number(price)) ? `${Number(price).toFixed(2)} ${currency}` : ''),
+        driver: preview.driver || '',
+        internalOrderNumber: preview.internalOrderNumber || orderDraft.externalMessageId || '',
+        comment: preview.comment || orderDraft.comment || ''
+      }
+    },
+    sheetRowToTsv (row = {}) {
+      const values = [
+        row.contractor,
+        row.orderNumber,
+        row.date,
+        row.fromPoint,
+        row.toPoint,
+        row.sum,
+        row.driver,
+        row.internalOrderNumber,
+        row.comment
+      ]
+      return values.map((value) => String(value || '').replace(/\r?\n/g, ' ').replace(/\t/g, ' ').trim()).join('\t')
+    },
+    async copyText (text) {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+        return
+      }
+      if (typeof document === 'undefined') throw new Error('Clipboard is not available')
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-9999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    },
+    async copyDraftRow (row) {
+      try {
+        const payload = this.parsePayload(row.payloadJson)
+        const sheetRow = this.sheetRowFromPayload(payload)
+        await this.copyText(this.sheetRowToTsv(sheetRow))
+        this.copyNotice = 'Строка скопирована. Можно вставить в таблицу.'
+      } catch (error) {
+        this.copyNotice = error.message || 'Не удалось скопировать строку'
+      }
+    },
+    async copyCurrentDraftRow () {
+      if (!this.draft) return
+      try {
+        const sheetRow = this.sheetRowFromPayload(this.payload)
+        await this.copyText(this.sheetRowToTsv(sheetRow))
+        this.copyNotice = 'Строка скопирована. Можно вставить в таблицу.'
+      } catch (error) {
+        this.copyNotice = error.message || 'Не удалось скопировать строку'
+      }
+    },
     draftStateLabel (row) {
       const payload = this.parsePayload(row.payloadJson)
       if (row.status === 'approved') return 'Уже подтверждён'
@@ -366,7 +466,7 @@ export default {
       return 'Можно проверять и подтверждать'
     },
     draftActionLabel (row) {
-      return this.draftStateLabel(row).includes('Можно') ? 'Подтвердить' : 'Разобрать'
+      return this.draftStateLabel(row).includes('Можно') ? 'Проверить' : 'Разобрать'
     },
     parsePayload (raw) {
       try {
@@ -387,6 +487,13 @@ export default {
       if (!Number.isFinite(n)) return '-'
       return `${n.toFixed(2)} ${currency || 'EUR'}`
     },
+    pickupValue (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      return payload?.orderDraft?.pickupAt || payload?.sheetRowPreview?.date || ''
+    },
+    formatPickup (row) {
+      return this.formatDate(this.pickupValue(row))
+    },
     checkLevelLabel (level) {
       const map = { ok: 'OK', warn: 'Warn', error: 'Error' }
       return map[level] || level || '-'
@@ -402,9 +509,29 @@ export default {
       const params = new URLSearchParams()
       if (this.status) params.set('status', this.status)
       params.set('parsedType', 'openclaw_order_draft')
+      params.set('sort', 'pickup_future')
+      if (this.period) params.set('period', this.period)
+      if (this.fromPickup) params.set('fromPickup', this.fromPickup)
+      if (this.toPickup) params.set('toPickup', this.toPickup)
       const res = await fetch(`/api/admin/ops/drafts?${params.toString()}`, { headers: this.headers() })
       const data = await res.json()
       this.rows = data.rows || []
+    },
+    setPeriod (period) {
+      this.period = period
+      this.fromPickup = ''
+      this.toPickup = ''
+      this.load()
+    },
+    applyCustomPeriod () {
+      this.period = ''
+      this.load()
+    },
+    resetPeriod () {
+      this.period = ''
+      this.fromPickup = ''
+      this.toPickup = ''
+      this.load()
     },
     async createManualEmailDraft () {
       this.manualSaving = true
@@ -433,18 +560,57 @@ export default {
         this.manualSaving = false
       }
     },
+    async cleanupSmokeDrafts () {
+      this.cleanupSaving = true
+      this.actionResult = ''
+      try {
+        const res = await fetch('/api/admin/ops/drafts/cleanup', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ mode: 'smoke' })
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось убрать тестовые черновики')
+        this.actionResult = data.updated
+          ? `Убрано тестовых черновиков: ${data.updated}.`
+          : 'Тестовых черновиков не найдено.'
+        await this.load()
+      } catch (error) {
+        this.actionResult = error.message || 'Не удалось убрать тестовые черновики'
+      } finally {
+        this.cleanupSaving = false
+      }
+    },
+    async hideDraft (row) {
+      if (!row?.id) return
+      try {
+        const res = await fetch(`/api/admin/ops/drafts/${row.id}/reject`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ comment: 'Hidden from AI Inbox as old/unneeded draft' })
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось убрать черновик')
+        this.actionResult = 'Черновик убран из Pending.'
+        await this.load()
+      } catch (error) {
+        this.actionResult = error.message || 'Не удалось убрать черновик'
+      }
+    },
     async openDraft (id) {
       const res = await fetch(`/api/admin/ops/drafts/${id}`, { headers: this.headers() })
       const data = await res.json()
       this.draft = data
       this.reviewComment = ''
       this.actionResult = ''
+      this.copyNotice = ''
       this.flightCheckError = ''
     },
     closeDraft () {
       this.draft = null
       this.reviewComment = ''
       this.actionResult = ''
+      this.copyNotice = ''
       this.saving = false
       this.flightChecking = false
       this.flightCheckError = ''
@@ -480,8 +646,8 @@ export default {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Approve failed')
         this.actionResult = data.order
-          ? `Черновик подтверждён. Создан заказ ${data.order.id} со статусом ${data.order.status}.`
-          : 'Черновик подтверждён.'
+          ? `Черновик перенесён в базу. Заказ ${data.order.id}, статус ${data.order.status}.`
+          : 'Черновик перенесён в базу.'
         await this.openDraft(this.draft.id)
         await this.load()
       } catch (error) {
@@ -531,12 +697,15 @@ export default {
 .overview-card { background: #fff; border: 1px solid #d8d8e6; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .overview-card strong { font-size: 24px; color: #0f172a; }
 .overview-card__label { color: #64748b; font-size: 13px; }
-.toolbar { display: flex; gap: 10px; margin-bottom: 12px; }
+.toolbar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.period-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; }
+.input--date { min-width: 150px; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
-.table-head, .table-row { display: grid; grid-template-columns: 170px 180px 1fr 1.2fr 180px 120px 120px; gap: 12px; padding: 10px 12px; min-width: 1100px; }
+.table-head, .table-row { display: grid; grid-template-columns: 170px 170px 180px 1fr 1.2fr 180px 120px 240px; gap: 12px; padding: 10px 12px; min-width: 1380px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }
 .table-row { border-bottom: 1px solid #f1f3f8; align-items: center; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .row-hint { color: #64748b; font-size: 12px; margin-top: 6px; }
 .empty { padding: 16px; color: #64748b; }
 .status-pill { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
@@ -558,6 +727,7 @@ export default {
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
 .section-card { margin-top: 14px; border: 1px solid #e5e7ef; border-radius: 12px; padding: 14px; }
 .section-card[open] { background: #fff; }
+.section-tools { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .section-summary { cursor: pointer; font-weight: 800; list-style: none; margin: -14px; padding: 14px; color: #17233d; background: #fcf7fd; }
 .section-summary::-webkit-details-marker { display: none; }
 .section-card[open] .section-summary { border-bottom: 1px solid #e5e7ef; }
@@ -576,6 +746,7 @@ export default {
 .comment-input { flex: 1; min-width: 280px; }
 .hint { color: #64748b; }
 .result-block { margin-top: 10px; }
+.page-result { margin: -4px 0 12px; }
 @media (max-width: 900px) {
   .page-head, .toolbar, .actions, .ops-rail, .focus-card__head, .focus-actions { flex-direction: column; align-items: stretch; }
   .overview-grid,

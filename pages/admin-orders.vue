@@ -23,6 +23,7 @@
             <span class="month-workbar__label">{{ t.openMonths }}</span>
             <select v-model="selectedMonth" class="input month-select" @change="load">
               <option value="">{{ t.defaultMonth }}</option>
+              <option v-if="!openMonths.length" value="" disabled>{{ t.noOpenMonths }}</option>
               <option v-for="month in openMonths" :key="month.monthLabel" :value="month.monthLabel">
                 {{ month.displayName || month.monthLabel }} · {{ month.total || 0 }}
               </option>
@@ -31,7 +32,7 @@
           <div class="month-workbar__meta">
             <span>{{ t.currentSource }}:</span>
             <strong>{{ currentSourceLabel }}</strong>
-            <button class="btn btn--small btn--danger" :disabled="!selectedMonth || archiveSaving" @click="archiveSelectedMonth">
+            <button v-if="canArchiveMonth" class="btn btn--small btn--danger" :disabled="!selectedMonth || archiveSaving" @click="archiveSelectedMonth">
               {{ archiveSaving ? t.archivingMonth : t.archiveMonth }}
             </button>
           </div>
@@ -588,6 +589,7 @@ export default {
             loading: 'Загрузка...',
             openMonths: 'Открытые месяцы',
             defaultMonth: 'Автовыбор месяца',
+            noOpenMonths: 'Нет открытых месяцев',
             currentSource: 'Источник',
             archiveMonth: 'Закрыть месяц',
             archivingMonth: 'Закрываю...',
@@ -714,6 +716,7 @@ export default {
             loading: 'Loading...',
             openMonths: 'Open months',
             defaultMonth: 'Auto-select month',
+            noOpenMonths: 'No open months',
             currentSource: 'Source',
             archiveMonth: 'Close month',
             archivingMonth: 'Closing...',
@@ -897,6 +900,19 @@ export default {
       const source = this.currentSource || {}
       return [source.name, source.monthLabel].filter(Boolean).join(' · ') || '-'
     },
+    currentUserEmail () {
+      const fromStore = String(this.$store.state.user?.email || '').trim().toLowerCase()
+      if (fromStore) return fromStore
+      if (typeof window === 'undefined') return ''
+      try {
+        return String(JSON.parse(window.localStorage.getItem('user') || '{}')?.email || '').trim().toLowerCase()
+      } catch (_) {
+        return ''
+      }
+    },
+    canArchiveMonth () {
+      return ['demyanov@riderra.com', 'shilin@riderra.com'].includes(this.currentUserEmail)
+    },
     rawGridStyle () {
       const cols = Math.max(this.rawHeaders.length, 1)
       return { gridTemplateColumns: `170px 120px 80px repeat(${cols}, minmax(180px, 1fr))` }
@@ -919,7 +935,11 @@ export default {
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`)
         this.openMonths = data.months || []
-        if (!this.selectedMonth && this.openMonths.length) this.selectedMonth = this.openMonths[0].monthLabel
+        const available = new Set(this.openMonths.map((month) => month.monthLabel))
+        if (this.openMonths.length && (!this.selectedMonth || !available.has(this.selectedMonth))) {
+          this.selectedMonth = this.openMonths[0].monthLabel
+        }
+        if (!this.openMonths.length) this.selectedMonth = ''
       } catch (_) {
         this.openMonths = []
       }
@@ -942,9 +962,11 @@ export default {
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`)
         this.queueNotice = this.t.archiveDone
+        const archivedMonth = this.selectedMonth
         this.selectedMonth = ''
         await this.loadOpenMonths()
         await this.load()
+        if (archivedMonth) this.$router.push(`/admin-order-archive/${encodeURIComponent(archivedMonth)}`)
       } catch (error) {
         this.queueNotice = error?.message || 'Failed to close month'
       } finally {

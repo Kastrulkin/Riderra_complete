@@ -16,7 +16,7 @@
           <span>{{ group.rows.length }} мес.</span>
         </button>
         <div v-if="!closedYears[group.year]">
-          <div v-for="month in group.rows" :key="month.monthLabel" class="month-row">
+          <div v-for="month in group.rows" :key="month.monthLabel" class="month-row" role="button" tabindex="0" @click="openMonth(month)" @keyup.enter="openMonth(month)">
             <div>
               <strong>{{ month.displayName || month.monthLabel }}</strong>
               <span>{{ month.monthLabel }} · {{ month.sourceSheetId || 'sheet id не указан' }}</span>
@@ -30,10 +30,10 @@
               <span>{{ month.complaints || 0 }} жалоб · {{ month.issueCount || 0 }} рисков</span>
             </div>
             <div class="month-row__actions">
-              <button class="icon-action" type="button" title="Открыть дашборд месяца" @click="$emit('open-month', month)">↗</button>
-              <button class="icon-action" type="button" title="Открыть поездки" @click="$emit('open-trips', month)">≡</button>
-              <button class="icon-action" type="button" title="Открыть аналитику" @click="$emit('open-analytics', month)">⌁</button>
-              <a v-if="month.sourceSheetUrl" class="icon-action" :href="month.sourceSheetUrl" target="_blank" rel="noopener" title="Открыть Google Sheet">G</a>
+              <a class="icon-action" :href="monthUrl(month)" title="Открыть дашборд месяца" @click.stop>↗</a>
+              <a class="icon-action" :href="monthUrl(month, { tab: 'trips' })" title="Открыть поездки" @click.stop>≡</a>
+              <a class="icon-action" :href="analyticsUrl(month)" title="Открыть аналитику" @click.stop>⌁</a>
+              <a v-if="month.sourceSheetUrl" class="icon-action" :href="month.sourceSheetUrl" target="_blank" rel="noopener" title="Открыть Google Sheet" @click.stop>G</a>
             </div>
           </div>
         </div>
@@ -70,6 +70,47 @@ export default {
   methods: {
     eur (value) {
       return archiveUtils.formatEur(archiveUtils.totalEur(value))
+    },
+    monthLabel (month) {
+      return String(month?.monthLabel || '').trim()
+    },
+    monthUrl (month, query = {}) {
+      const monthLabel = this.monthLabel(month)
+      if (!monthLabel) return '#'
+      const params = new URLSearchParams(query)
+      const queryString = params.toString()
+      return `/admin-order-archive/${encodeURIComponent(monthLabel)}${queryString ? `?${queryString}` : ''}`
+    },
+    analyticsUrl (month) {
+      const monthLabel = this.monthLabel(month)
+      if (!monthLabel) return '#'
+      const params = new URLSearchParams({ fromMonth: monthLabel, toMonth: monthLabel })
+      return `/admin-order-analytics?${params.toString()}`
+    },
+    navigateToMonth (monthLabel, query = {}) {
+      if (!monthLabel) return
+      const target = { path: `/admin-order-archive/${encodeURIComponent(monthLabel)}`, query }
+      if (this.$router) this.$router.push(target).catch(() => {})
+    },
+    openMonth (month) {
+      const monthLabel = this.monthLabel(month)
+      if (!monthLabel) return
+      this.navigateToMonth(monthLabel)
+    },
+    openTrips (month) {
+      const monthLabel = this.monthLabel(month)
+      if (!monthLabel) return
+      this.navigateToMonth(monthLabel, { tab: 'trips' })
+    },
+    openAnalytics (month) {
+      const monthLabel = this.monthLabel(month)
+      if (!monthLabel) return
+      if (this.$router) {
+        this.$router.push({
+          path: '/admin-order-analytics',
+          query: { fromMonth: monthLabel, toMonth: monthLabel }
+        }).catch(() => {})
+      }
     },
     toggleYear (year) {
       this.$set(this.closedYears, year, !this.closedYears[year])
@@ -120,7 +161,9 @@ export default {
   align-items: center;
   padding: 14px 16px;
   border-top: 1px solid #eef2f7;
+  cursor: pointer;
 }
+.month-row:hover { background: #f8fbff; }
 .month-row strong {
   display: block;
   color: #17233d;

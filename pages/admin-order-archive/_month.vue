@@ -273,7 +273,13 @@ export default {
     }
   },
   mounted () {
+    this.applyTabFromRoute()
     this.loadAll()
+  },
+  watch: {
+    '$route.query.tab' () {
+      this.applyTabFromRoute()
+    }
   },
   methods: {
     headers () {
@@ -285,6 +291,10 @@ export default {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
       return data
+    },
+    applyTabFromRoute () {
+      const tab = String(this.$route.query.tab || '').trim()
+      if (this.tabs.some((item) => item.key === tab)) this.tab = tab
     },
     async loadAll () {
       this.loading = true

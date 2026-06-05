@@ -40,9 +40,13 @@
 
         <div v-if="tab === 'months'" class="table-wrap">
           <div class="table-head month-grid">
-            <div>{{ t.month }}</div><div>{{ t.trips }}</div><div>{{ t.quality }}</div><div>{{ t.gross }}</div><div>{{ t.profit }}</div><div>ROI</div>
+            <button class="sortable-head" type="button" @click="toggleMonthSort">
+              <span>{{ t.month }}</span>
+              <span class="sort-indicator">{{ monthSortDir === 'asc' ? '↑' : '↓' }}</span>
+            </button>
+            <div>{{ t.trips }}</div><div>{{ t.quality }}</div><div>{{ t.gross }}</div><div>{{ t.profit }}</div><div>ROI</div>
           </div>
-          <div v-for="row in months" :key="row.monthLabel" class="table-row month-grid">
+          <div v-for="row in sortedMonths" :key="row.monthLabel" class="table-row month-grid">
             <div><strong>{{ row.displayName || row.monthLabel }}</strong><span class="muted">{{ row.monthLabel }}</span></div>
             <div><strong>{{ row.total || 0 }}</strong><span class="muted">{{ t.completed }} {{ row.completed || 0 }}</span></div>
             <div><strong>{{ t.complaints }} {{ row.complaints || 0 }}</strong><span class="muted">{{ t.issues }} {{ row.issueCount || 0 }}</span></div>
@@ -148,6 +152,7 @@ export default {
     fromMonth: '',
     toMonth: '',
     status: 'archived',
+    monthSortDir: 'asc',
     loading: false,
     error: ''
   }),
@@ -228,6 +233,14 @@ export default {
         { key: 'gross', value: this.moneyMap(this.summary.grossByCurrency), label: this.t.gross, hint: this.t.months, tone: 'ok' },
         { key: 'risks', value: this.summary.issueCount || 0, label: this.t.quality, hint: this.t.complaints + ' ' + (this.summary.complaints || 0), tone: this.summary.issueCount ? 'warn' : 'ok' }
       ]
+    },
+    sortedMonths () {
+      const direction = this.monthSortDir === 'desc' ? -1 : 1
+      return [...(this.months || [])].sort((a, b) => {
+        const left = String(a?.monthLabel || '')
+        const right = String(b?.monthLabel || '')
+        return left.localeCompare(right) * direction
+      })
     }
   },
   mounted () {
@@ -270,6 +283,9 @@ export default {
       if (!entries.length) return '-'
       return entries.map(([currency, amount]) => `${currency} ${Math.round(Number(amount || 0) * 100)}%`).join(' · ')
     },
+    toggleMonthSort () {
+      this.monthSortDir = this.monthSortDir === 'asc' ? 'desc' : 'asc'
+    },
     signalLabel (value) {
       const labels = {
         complaint: this.$store.state.language === 'ru' ? 'Жалоба' : 'Complaint',
@@ -310,6 +326,9 @@ export default {
 .table-head, .table-row { display: grid; gap: 14px; align-items: center; min-width: 1080px; }
 .table-head { padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #d8d8e6; font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; }
 .table-row { padding: 14px 16px; border-bottom: 1px solid #eef2f7; color: #1f2b46; }
+.sortable-head { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-transform: inherit; cursor: pointer; }
+.sortable-head:hover { color: #17233d; }
+.sort-indicator { font-size: 13px; line-height: 1; }
 .month-grid { grid-template-columns: minmax(170px, 1fr) minmax(150px, .8fr) minmax(160px, .8fr) minmax(210px, 1.2fr) minmax(210px, 1.2fr) minmax(120px, .7fr); }
 .stats-grid { grid-template-columns: minmax(250px, 1.5fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(220px, 1.2fr) minmax(220px, 1.2fr); }
 .ranking-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }

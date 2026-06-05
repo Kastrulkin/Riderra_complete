@@ -40,7 +40,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', requestOrigin)
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Idempotency-Key, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature, X-OpenClaw-Signature')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Idempotency-Key, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature, X-OpenClaw-Signature, X-OpenClaw-Internal-Token, X-Riderra-Internal-Token')
   res.header('Vary', 'Origin')
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200)
@@ -2517,6 +2517,8 @@ const TECHNICAL_INBOX_EMAIL = String(
   process.env.RIDERRA_TECHNICAL_INBOX ||
   'riderratech@gmail.com'
 ).trim()
+const EMAIL_INGEST_AUTO_PROMOTE = String(process.env.RIDERRA_EMAIL_INGEST_AUTO_PROMOTE || '').trim().toLowerCase() === 'true'
+const AUTO_FLIGHT_CHECK_ENABLED = String(process.env.RIDERRA_AUTO_FLIGHT_CHECK || '').trim().toLowerCase() === 'true'
 const EMAIL_INGEST_INTERNAL_TOKEN = String(
   process.env.RIDERRA_EMAIL_INGEST_TOKEN ||
   process.env.OPENCLAW_INTERNAL_TOKEN ||
@@ -2562,7 +2564,9 @@ function getEmailIngestStatus(req = null) {
     internalUrl: `${protocol}://${host}/api/internal/ops/email-draft`,
     acceptedHeaders: ['X-OpenClaw-Internal-Token', 'X-Riderra-Internal-Token'],
     acceptedSourceTypes: ['gmail_forward', 'technical_inbox', 'manual_email'],
-    note: 'Forwarded email should be posted here as raw text + metadata and will appear in AI Inbox as a pending draft.'
+    autoPromote: EMAIL_INGEST_AUTO_PROMOTE,
+    autoFlightCheck: AUTO_FLIGHT_CHECK_ENABLED,
+    note: 'Forwarded email is saved as a prepared AI Inbox draft. A staff member reviews and approves it before creating or updating Riderra orders.'
   }
 }
 
@@ -2881,7 +2885,7 @@ function inferTeamScopeForAction(action) {
     'directions.manage': ['pricing'],
     'ops.read': ['ops_control'],
     'ops.manage': ['ops_control'],
-    'ops.drafts.resolve': ['ops_control'],
+    'ops.drafts.resolve': ['ops_control', 'coordination'],
     'approvals.resolve': ['ops_control'],
     'drivers.read': ['dispatch', 'ops_control', 'coordination'],
     'drivers.manage': ['dispatch', 'ops_control', 'coordination'],
@@ -2975,7 +2979,7 @@ function can(actor, action, resource, context = {}) {
     'pricing.manage': ['pricing.manage'],
     'ops.read': ['ops.read'],
     'ops.manage': ['ops.manage'],
-    'ops.drafts.resolve': ['ops.manage', 'approvals.resolve'],
+    'ops.drafts.resolve': ['ops.drafts.resolve', 'ops.manage', 'approvals.resolve'],
     'telegram.links.manage': ['telegram.link.manage']
   }
 
@@ -3951,6 +3955,8 @@ function isKnownOrderStatus(status) {
 function normalizeIncomingOrderStatus(status, fallback = 'pending') {
   const normalized = normalizeOrderStatus(status)
   if (!normalized) return fallback
+  if (/^(вып|выполнено|выполнен|done|complete|completed)$/i.test(normalized)) return 'completed'
+  if (/^(отмена|отмен[её]н|отменена|отменено|cancel|canceled|cancelled|cancelled order)$/i.test(normalized)) return 'cancelled'
   return isKnownOrderStatus(normalized) ? normalized : fallback
 }
 
@@ -4587,8 +4593,11 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         internal_order_number: sourceInternalOrderNumberRaw,
         currency: parsePriceCurrency(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), null)
       })
+      sourceData.driverNameRaw = normalizeDriverNameForStats(sourceData.driverNameRaw)
       const incomingStatus = normalizeIncomingOrderStatus(
-        pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending',
+        isCancellationMarker(pickField(raw, aliasesWithMapping(['driver', 'водитель'], mapping, 'driver')))
+          ? 'cancelled'
+          : (pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending'),
         'pending'
       )
       const orderPayload = {
@@ -10445,9 +10454,8 @@ function sheetSourceUrl(source) {
 }
 
 function sheetSourceMonthStatus(source) {
-  const monthLabel = String(source?.monthLabel || '')
   if (!source?.isActive) return 'archived'
-  return compareMonthLabels(monthLabel, currentMonthLabel()) >= 0 ? 'open' : 'archived'
+  return 'open'
 }
 
 function latestSnapshotsBySourceRow(snapshots) {
@@ -10538,7 +10546,7 @@ function normalizedOrderSourceDataFromRaw(raw) {
   const hasComplaint = boolRaw(raw, ['has_complaint', 'complaint']) || /жалоб|претензи|complaint|no[\s-]?show|did not show|не приех|не встрет/i.test(sourceComment)
   return {
     counterpartyName: String(rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '') || null,
-    driverNameRaw: String(rawFirst(raw, ['driver', 'водитель'], '') || '') || null,
+    driverNameRaw: normalizeDriverNameForStats(rawFirst(raw, ['driver', 'водитель'], '')) || null,
     sourceComment: sourceComment || null,
     sourceCurrency: String(rawFirst(raw, ['currency', 'валюта'], '') || '') || null,
     sourceCityCode: String(rawFirst(raw, ['city_code', 'cityCode'], meta.cityCode) || '') || null,
@@ -10550,6 +10558,30 @@ function normalizedOrderSourceDataFromRaw(raw) {
     hasComplaint,
     issueFlagsJson: JSON.stringify(issueFlags)
   }
+}
+
+function normalizeCounterpartyName(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/rideways/i.test(raw)) return 'Rideways'
+  return raw
+}
+
+function isCancellationMarker(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return false
+  return /^(отмена|отмен[её]н[ао]?|cancel|canceled|cancelled|cancelled order)$/i.test(raw)
+}
+
+function normalizeDriverNameForStats(value) {
+  const raw = String(value || '').trim()
+  if (!raw || isCancellationMarker(raw)) return ''
+  return raw
+}
+
+function effectiveOrderStatusFromFields(status, fields = {}) {
+  if (isCancellationMarker(fields.driverNameRaw) || isCancellationMarker(fields.driver)) return 'cancelled'
+  return normalizeIncomingOrderStatus(status, 'pending')
 }
 
 function classifyOrderQualitySignals(data) {
@@ -10611,11 +10643,14 @@ function tripRowFromSnapshot(snapshot, source = null) {
   const amount = order?.clientPrice ?? numericRaw(raw, ['client_price', 'clientPrice', 'sum', 'сумма', 'price'], 0)
   const driverCost = order?.driverPrice ?? numericRaw(raw, ['driver_price', 'driverPrice', 'supplier_price'], null)
   const currency = String(order?.sourceCurrency || rawFirst(raw, ['currency', 'валюта'], parsePriceCurrency(rawFirst(raw, ['sum', 'сумма'], ''), 'EUR')) || 'EUR')
-  const status = String(order?.status || rawFirst(raw, ['status', 'статус'], 'pending') || 'pending')
+  const rawDriver = String(order?.driverNameRaw || rawFirst(raw, ['driver', 'водитель'], '') || '')
+  const status = effectiveOrderStatusFromFields(order?.status || rawFirst(raw, ['status', 'статус'], 'pending') || 'pending', {
+    driverNameRaw: rawDriver
+  })
   const issueFlags = issueFlagsFromRaw(raw, order)
   const hasComplaint = Boolean(order?.hasComplaint) || boolRaw(raw, ['has_complaint', 'complaint']) || issueFlags.some((flag) => String(flag).toLowerCase().includes('complaint'))
-  const driver = String(order?.driverNameRaw || rawFirst(raw, ['driver', 'водитель'], '') || '')
-  const counterparty = String(order?.counterpartyName || rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '')
+  const driver = normalizeDriverNameForStats(rawDriver)
+  const counterparty = normalizeCounterpartyName(order?.counterpartyName || rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '')
   const profit = driverCost === null || driverCost === undefined ? null : Number((Number(amount || 0) - Number(driverCost || 0)).toFixed(2))
   return {
     id: order?.id || '',
@@ -10742,7 +10777,9 @@ function finalizeAggregateSummary(summary) {
 function entityRowsFromAggregate(rows, nameField) {
   const byName = new Map()
   for (const row of rows || []) {
-    const name = String(row.name || '').trim()
+    const name = nameField === 'counterparty'
+      ? normalizeCounterpartyName(row.name)
+      : normalizeDriverNameForStats(row.name)
     if (!name) continue
     if (!byName.has(name)) {
       byName.set(name, {
@@ -10791,7 +10828,10 @@ function finalizeSignalCounts(signalCounts = {}, limit = 5) {
 function groupTripStats(trips, keyName, outName) {
   const map = new Map()
   for (const trip of trips || []) {
-    const name = String(trip[keyName] || '(empty)').trim() || '(empty)'
+    const rawName = String(trip[keyName] || '(empty)').trim() || '(empty)'
+    const name = keyName === 'counterparty'
+      ? (normalizeCounterpartyName(rawName) || '(empty)')
+      : (normalizeDriverNameForStats(rawName) || '(empty)')
     if (!map.has(name)) {
       map.set(name, {
         [outName]: name,
@@ -11019,11 +11059,12 @@ async function monthSummariesForSources(tenantId, sources, lang = 'ru') {
     const order = snapshot.order || {}
     const issueFlags = issueFlagsFromRaw({}, order)
     const driverCost = order.driverPrice
+    const driver = normalizeDriverNameForStats(order.driverNameRaw)
     rowsByMonth.get(source.monthLabel).push({
-      status: order.status || 'pending',
+      status: effectiveOrderStatusFromFields(order.status || 'pending', { driverNameRaw: order.driverNameRaw }),
       hasComplaint: Boolean(order.hasComplaint),
       issueCount: issueFlags.length,
-      driver: order.driverNameRaw || '',
+      driver,
       clientPrice: Number(order.clientPrice || 0),
       driverPrice: driverCost === null || driverCost === undefined ? null : Number(driverCost || 0),
       profit: driverCost === null || driverCost === undefined ? null : Number((Number(order.clientPrice || 0) - Number(driverCost || 0)).toFixed(2)),
@@ -11057,14 +11098,16 @@ async function aggregateArchiveOverview(tenantId, sources, lang = 'ru') {
     WHERE snapshot."tenantId" = $1
       AND snapshot."sheetSourceId" IN (${inSql})
   `
+  const cancellationDriverSql = `LOWER(TRIM(COALESCE(orders."driverNameRaw", ''))) IN ('отмена', 'отменен', 'отменён', 'отменена', 'отменено', 'cancel', 'canceled', 'cancelled', 'cancelled order')`
+  const effectiveStatusSql = `CASE WHEN ${cancellationDriverSql} THEN 'cancelled' ELSE COALESCE(orders."status", 'pending') END`
   const aggregateSelect = `
       COUNT(*)::int AS "total",
-      SUM(CASE WHEN orders."status" = 'completed' THEN 1 ELSE 0 END)::int AS "completed",
-      SUM(CASE WHEN orders."status" = 'cancelled' THEN 1 ELSE 0 END)::int AS "cancelled",
-      SUM(CASE WHEN COALESCE(orders."status", 'pending') NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END)::int AS "pending",
+      SUM(CASE WHEN ${effectiveStatusSql} = 'completed' THEN 1 ELSE 0 END)::int AS "completed",
+      SUM(CASE WHEN ${effectiveStatusSql} = 'cancelled' THEN 1 ELSE 0 END)::int AS "cancelled",
+      SUM(CASE WHEN ${effectiveStatusSql} NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END)::int AS "pending",
       SUM(CASE WHEN orders."hasComplaint" THEN 1 ELSE 0 END)::int AS "complaints",
       SUM(CASE WHEN orders."needsInfo" OR COALESCE(orders."issueFlagsJson", '') NOT IN ('', '[]') THEN 1 ELSE 0 END)::int AS "issueCount",
-      SUM(CASE WHEN COALESCE(TRIM(orders."driverNameRaw"), '') = '' THEN 1 ELSE 0 END)::int AS "missingDriverCount",
+      SUM(CASE WHEN COALESCE(TRIM(orders."driverNameRaw"), '') = '' OR ${cancellationDriverSql} THEN 1 ELSE 0 END)::int AS "missingDriverCount",
       SUM(CASE WHEN orders."driverPrice" IS NOT NULL AND (COALESCE(orders."clientPrice", 0) - COALESCE(orders."driverPrice", 0)) < 0 THEN 1 ELSE 0 END)::int AS "priceRiskCount",
       COALESCE(SUM(COALESCE(orders."clientPrice", 0)), 0)::float AS "gross",
       COALESCE(SUM(COALESCE(orders."driverPrice", 0)), 0)::float AS "driverCost",
@@ -11081,18 +11124,25 @@ async function aggregateArchiveOverview(tenantId, sources, lang = 'ru') {
     ORDER BY sources."monthLabel" ASC
   `, ...params)
 
-  const entityQuery = async (fieldSql) => prisma.$queryRawUnsafe(`
+  const entityQuery = async (fieldSql, options = {}) => {
+    const normalizedFieldSql = options.normalizeCounterparty
+      ? `CASE WHEN ${fieldSql} ILIKE '%rideways%' THEN 'Rideways' ELSE ${fieldSql} END`
+      : options.normalizeDriver
+        ? `CASE WHEN ${cancellationDriverSql} THEN '' ELSE ${fieldSql} END`
+      : fieldSql
+    return prisma.$queryRawUnsafe(`
     SELECT
-      COALESCE(NULLIF(TRIM(${fieldSql}), ''), '') AS "name",
+      COALESCE(NULLIF(TRIM(${normalizedFieldSql}), ''), '') AS "name",
       COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR') AS "currency",
       ${aggregateSelect}
     ${aggregateFromSql}
-    GROUP BY COALESCE(NULLIF(TRIM(${fieldSql}), ''), ''), COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR')
+    GROUP BY COALESCE(NULLIF(TRIM(${normalizedFieldSql}), ''), ''), COALESCE(NULLIF(orders."sourceCurrency", ''), 'EUR')
   `, ...params)
+  }
 
   const [driverRows, counterpartyRows] = await Promise.all([
-    entityQuery('orders."driverNameRaw"'),
-    entityQuery('orders."counterpartyName"')
+    entityQuery('orders."driverNameRaw"', { normalizeDriver: true }),
+    entityQuery('orders."counterpartyName"', { normalizeCounterparty: true })
   ])
 
   const monthAggregates = new Map()
@@ -11157,7 +11207,7 @@ app.get('/api/admin/orders/open-months', authenticateToken, resolveActorContext,
     const lang = String(req.query.lang || 'ru')
     const sources = await prisma.sheetSource.findMany({
       where: { tenantId, isActive: true },
-      orderBy: [{ monthLabel: 'asc' }, { updatedAt: 'desc' }]
+      orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }]
     })
     const openSources = sources.filter((source) => sheetSourceMonthStatus(source) === 'open')
     const grouped = new Map()
@@ -11177,10 +11227,14 @@ app.get('/api/admin/orders/open-months', authenticateToken, resolveActorContext,
   }
 })
 
-app.post('/api/admin/orders/months/:monthLabel/archive', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/orders/months/:monthLabel/archive', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     const { monthLabel } = req.params
     const tenantId = req.actorContext.tenantId
+    const actorEmail = String(req.user?.email || '').trim().toLowerCase()
+    if (!['demyanov@riderra.com', 'shilin@riderra.com'].includes(actorEmail)) {
+      return res.status(403).json({ error: 'Only demyanov@riderra.com and shilin@riderra.com can close order months' })
+    }
     const sources = await prisma.sheetSource.findMany({ where: { tenantId, monthLabel } })
     if (!sources.length) return res.status(404).json({ error: 'Order month not found' })
     const payload = { monthLabel }
@@ -11231,7 +11285,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
     } else {
       const activeSources = await prisma.sheetSource.findMany({
         where: { isActive: true, tenantId },
-        orderBy: [{ monthLabel: 'asc' }, { updatedAt: 'desc' }]
+        orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }]
       })
       source = activeSources.find((item) => sheetSourceMonthStatus(item) === 'open') || activeSources[0] || null
     }
@@ -11611,11 +11665,11 @@ app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requir
       if (seenRows.has(snapshot.sourceRow)) continue
       seenRows.add(snapshot.sourceRow)
       const row = parseJsonSafe(snapshot.rawPayload || '{}', {})
-      const status = String(row.status || 'pending')
+      const status = effectiveOrderStatusFromFields(row.status || 'pending', { driver: row.driver })
       const amount = Number(row.client_price || 0)
       const currency = String(row.currency || 'EUR')
-      const driverName = String(row.driver || '(empty)')
-      const counterpartyName = String(row.counterparty || '(empty)')
+      const driverName = normalizeDriverNameForStats(row.driver) || '(empty)'
+      const counterpartyName = normalizeCounterpartyName(row.counterparty || '(empty)') || '(empty)'
       const issueFlags = Array.isArray(row.issue_flags) ? row.issue_flags : []
 
       summary.total += 1
@@ -14617,6 +14671,7 @@ async function maybeAutoAttachFlightCheck(payload = {}) {
   const flightNumber = normalizeFlightNumber(orderDraft.flightNumber)
   const pickupAt = orderDraft.pickupAt || null
   if (!flightNumber) return payload
+  if (!AUTO_FLIGHT_CHECK_ENABLED) return payload
   if (!getAviationStackConfig().configured) return payload
   try {
     const flightCheck = await fetchAviationStackFlightCheck({ flightNumber, pickupAt })
@@ -15266,6 +15321,9 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     contractVersion: String(payload.contractVersion || 'v1').trim() || 'v1',
     customerName: String(draft.customerName || payload.customerName || '').trim() || null,
     orderNumber: String(draft.orderNumber || payload.orderNumber || '').trim() || null,
+    eventType: ['new', 'change', 'cancel'].includes(String(draft.eventType || payload.eventType || '').trim().toLowerCase())
+      ? String(draft.eventType || payload.eventType).trim().toLowerCase()
+      : 'new',
     city: String(draft.city || payload.city || draft.destinationCity || '').trim() || null,
     fromPoint: String(draft.fromPoint || payload.fromPoint || draft.routeFrom || '').trim() || null,
     toPoint: String(draft.toPoint || payload.toPoint || draft.routeTo || '').trim() || null,
@@ -15451,6 +15509,22 @@ function parseManualEmailPrice(text) {
   }
 }
 
+function normalizeExternalOrderRef(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[^\p{L}\p{N}_./:-]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120)
+}
+
+function detectManualEmailOrderEventType({ subject = '', rawText = '' } = {}) {
+  const haystack = `${subject}\n${rawText}`.toLowerCase()
+  if (/(cancelled|canceled|cancellation|cancel\b|отмен[аеуы]|аннулир|снят[ао]?)/i.test(haystack)) return 'cancel'
+  if (/(changed|change|updated|update|modified|amended|измен|обнов|коррект|поменя)/i.test(haystack)) return 'change'
+  return 'new'
+}
+
 function looksLikeEmailHeaderValue(value) {
   const raw = String(value || '').trim()
   if (!raw) return false
@@ -15470,6 +15544,7 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
   const text = String(rawText || '').trim()
   const price = parseManualEmailPrice(text)
   const flightNumber = extractManualEmailFlightNumber(text)
+  const eventType = detectManualEmailOrderEventType({ subject, rawText: text })
   const externalMessageId = crypto
     .createHash('sha256')
     .update([subject, fromEmail, text].join('\n'))
@@ -15496,6 +15571,7 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
     rawText: text,
     customerName,
     orderNumber: orderNumber || null,
+    eventType,
     city,
     fromPoint,
     toPoint,
@@ -15542,9 +15618,9 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
   }
 }
 
-async function saveOpsDraftFromOpenClaw({ tenantId, payload }) {
+async function saveOpsDraftFromOpenClaw({ tenantId, payload, skipFlightCheck = false }) {
   const basePayload = await buildOpenClawDraftPayload(payload, tenantId)
-  const withFlightPayload = await maybeAutoAttachFlightCheck(basePayload)
+  const withFlightPayload = skipFlightCheck ? basePayload : await maybeAutoAttachFlightCheck(basePayload)
   const normalizedPayload = await maybeAutoAttachAddressVerification(withFlightPayload)
   const orderDraft = normalizedPayload.orderDraft || {}
   return prisma.opsEventDraft.create({
@@ -15593,6 +15669,108 @@ function buildOrderAddressPersistence(payload = {}) {
   }
 }
 
+function monthLabelFromDate(value = null) {
+  const date = value ? new Date(value) : new Date()
+  const safe = Number.isNaN(date.getTime()) ? new Date() : date
+  return `${safe.getUTCFullYear()}-${String(safe.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function buildEmailOrderExternalKey(orderDraft = {}) {
+  const orderRef = normalizeExternalOrderRef(orderDraft.orderNumber)
+  if (orderRef) return `email_order:${orderRef}`
+  const messageRef = normalizeExternalOrderRef(orderDraft.externalMessageId)
+  if (messageRef) return `email_message:${messageRef}`
+  return ''
+}
+
+function buildEmailOrderSourceRaw({ order, orderDraft = {}, payload = {}, eventType = 'new' }) {
+  const currency = String(order?.sourceCurrency || orderDraft.currency || payload?.pricing?.authoritativeCurrency || 'EUR')
+  const clientPrice = Number(order?.clientPrice ?? orderDraft.clientPrice ?? payload?.pricing?.authoritativeClientPrice ?? 0)
+  const issueFlags = []
+  if (order?.needsInfo) issueFlags.push('needs_info')
+  if (eventType === 'change') issueFlags.push('email_change')
+  if (eventType === 'cancel') issueFlags.push('email_cancel')
+  return {
+    source: 'email_inbox',
+    source_type: orderDraft.sourceType || payload.sourceType || 'technical_inbox',
+    status: order?.status || (eventType === 'cancel' ? 'cancelled' : 'draft'),
+    counterparty: orderDraft.customerName || order?.counterpartyName || '',
+    contractor: orderDraft.customerName || order?.counterpartyName || '',
+    orderNumber: orderDraft.orderNumber || order?.sourceOrderNumber || '',
+    booking_id: orderDraft.orderNumber || order?.sourceBookingId || '',
+    date: orderDraft.pickupAt || order?.pickupAt || '',
+    from: orderDraft.fromPoint || order?.fromPoint || '',
+    to: orderDraft.toPoint || order?.toPoint || '',
+    price: clientPrice,
+    client_price: clientPrice,
+    currency,
+    driver: order?.driverNameRaw || '',
+    comment: orderDraft.comment || order?.comment || '',
+    internalOrderNumber: order?.sourceInternalOrderNumber || orderDraft.externalMessageId || '',
+    event_type: eventType,
+    gmail_message_id: orderDraft.externalMessageId || '',
+    raw_text: payload.rawText || '',
+    issue_flags: issueFlags,
+    has_complaint: false
+  }
+}
+
+async function ensureEmailMonthSheetSource(tenantId, monthLabel) {
+  const existing = await prisma.sheetSource.findFirst({
+    where: {
+      tenantId,
+      monthLabel,
+      googleSheetId: `email-inbox-${monthLabel}`,
+      tabName: 'email'
+    },
+    orderBy: { createdAt: 'asc' }
+  })
+  const data = {
+    tenantId,
+    name: `Email inbox ${monthLabel}`,
+    monthLabel,
+    googleSheetId: `email-inbox-${monthLabel}`,
+    tabName: 'email',
+    detailsTabName: 'details',
+    isActive: true,
+    syncEnabled: false,
+    lastSyncAt: new Date(),
+    lastSyncStatus: 'success',
+    lastSyncError: null
+  }
+  return existing
+    ? prisma.sheetSource.update({ where: { id: existing.id }, data })
+    : prisma.sheetSource.create({ data })
+}
+
+async function upsertEmailOrderMonthSnapshot({ tenantId, order, orderDraft = {}, payload = {}, eventType = 'new' }) {
+  if (!order?.id) return null
+  const monthLabel = monthLabelFromDate(order.pickupAt || orderDraft.pickupAt || order.createdAt)
+  const source = await ensureEmailMonthSheetSource(tenantId, monthLabel)
+  const existing = await prisma.orderSourceSnapshot.findFirst({
+    where: {
+      tenantId,
+      sheetSourceId: source.id,
+      orderId: order.id
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+  const sourceRow = existing?.sourceRow || ((await prisma.orderSourceSnapshot.count({ where: { sheetSourceId: source.id } })) + 1)
+  const raw = buildEmailOrderSourceRaw({ order, orderDraft, payload, eventType })
+  const rowHash = crypto.createHash('sha256').update(JSON.stringify(raw)).digest('hex')
+  if (existing?.rowHash === rowHash) return existing
+  return prisma.orderSourceSnapshot.create({
+    data: {
+      tenantId,
+      orderId: order.id,
+      sheetSourceId: source.id,
+      sourceRow,
+      rowHash,
+      rawPayload: JSON.stringify(raw)
+    }
+  })
+}
+
 async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user, comment }) {
   const parsedPayload = parseJsonSafe(draft.payloadJson || '{}', {})
   const orderDraft = parsedPayload.orderDraft || {}
@@ -15601,12 +15779,27 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
 
   const pickupAt = orderDraft.pickupAt ? new Date(orderDraft.pickupAt) : null
   const safePickupAt = pickupAt && !Number.isNaN(pickupAt.getTime()) ? pickupAt : null
-  const externalKey = orderDraft.externalMessageId
-    ? `openclaw:${orderDraft.externalMessageId}`
-    : `openclaw:draft:${draft.id}`
+  const isEmailSource = String(orderDraft.sourceChannel || parsedPayload.sourceChannel || '').trim().toLowerCase() === 'email'
+  const eventType = ['new', 'change', 'cancel'].includes(String(orderDraft.eventType || '').trim().toLowerCase())
+    ? String(orderDraft.eventType).trim().toLowerCase()
+    : 'new'
+  const externalKey = isEmailSource
+    ? (buildEmailOrderExternalKey(orderDraft) || `email_draft:${draft.id}`)
+    : (orderDraft.externalMessageId ? `openclaw:${orderDraft.externalMessageId}` : `openclaw:draft:${draft.id}`)
 
   const existingOrder = await prisma.order.findFirst({
-    where: { tenantId, externalKey }
+    where: {
+      tenantId,
+      OR: [
+        { externalKey },
+        ...(isEmailSource && orderDraft.orderNumber
+          ? [
+              { sourceBookingId: String(orderDraft.orderNumber) },
+              { sourceOrderNumber: String(orderDraft.orderNumber) }
+            ]
+          : [])
+      ]
+    }
   })
 
   const clientPrice = pricing.authoritativeClientPrice != null
@@ -15628,12 +15821,95 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
   const addressPersistence = buildOrderAddressPersistence(parsedPayload)
 
   if (existingOrder) {
+    const hasIncomingClientPrice = pricing.authoritativeClientPrice != null || orderDraft.clientPrice != null
+    const nextClientPrice = hasIncomingClientPrice ? clientPrice : existingOrder.clientPrice
+    const nextDriverPrice = orderDraft.driverPrice != null ? driverPrice : existingOrder.driverPrice
+    const nextCommission = nextDriverPrice != null ? nextClientPrice - nextDriverPrice : existingOrder.commission
+    const updateData = {
+      externalKey: existingOrder.externalKey || externalKey,
+      source: isEmailSource ? 'email' : existingOrder.source,
+      pickupAt: safePickupAt || existingOrder.pickupAt,
+      fromPoint: orderDraft.fromPoint || existingOrder.fromPoint,
+      toPoint: orderDraft.toPoint || existingOrder.toPoint,
+      clientPrice: nextClientPrice,
+      driverPrice: nextDriverPrice,
+      commission: nextCommission,
+      vehicleType: normalizeVehicleType(orderDraft.vehicleType || existingOrder.vehicleType),
+      counterpartyName: orderDraft.customerName || existingOrder.counterpartyName,
+      sourceComment: baseComment || existingOrder.sourceComment,
+      sourceCurrency: pricing.authoritativeCurrency || orderDraft.currency || existingOrder.sourceCurrency,
+      sourceOrderNumber: orderDraft.orderNumber || existingOrder.sourceOrderNumber,
+      sourceBookingId: orderDraft.orderNumber || existingOrder.sourceBookingId,
+      sourceInternalOrderNumber: orderDraft.externalMessageId || existingOrder.sourceInternalOrderNumber,
+      passengers: Number.isFinite(Number(orderDraft.passengers)) ? Number(orderDraft.passengers) : existingOrder.passengers,
+      luggage: Number.isFinite(Number(orderDraft.luggage)) ? Number(orderDraft.luggage) : existingOrder.luggage,
+      needsInfo,
+      infoReason,
+      ...flightPersistence,
+      ...addressPersistence,
+      comment: baseComment || existingOrder.comment,
+      lang: orderDraft.lang || existingOrder.lang || 'ru'
+    }
+    let updatedOrder = await prisma.order.update({
+      where: { id: existingOrder.id },
+      data: updateData
+    })
+    if (eventType === 'cancel' && normalizeOrderStatus(updatedOrder.status) !== 'cancelled') {
+      try {
+        updatedOrder = await applyOrderStatusTransition({
+          orderId: updatedOrder.id,
+          tenantId,
+          toStatus: 'cancelled',
+          reason: 'Cancellation received from technical email inbox',
+          actorUserId: user?.id || null,
+          actorEmail: user?.email || null,
+          source: 'email_ingest',
+          bypassPermissions: true
+        })
+      } catch (_) {
+        const fromStatus = normalizeOrderStatus(updatedOrder.status)
+        updatedOrder = await prisma.order.update({
+          where: { id: updatedOrder.id },
+          data: { status: 'cancelled' }
+        })
+        await prisma.orderStatusHistory.create({
+          data: {
+            orderId: updatedOrder.id,
+            tenantId,
+            fromStatus,
+            toStatus: 'cancelled',
+            reason: 'Cancellation received from technical email inbox',
+            actorUserId: user?.id || null,
+            actorEmail: user?.email || null,
+            source: 'email_ingest'
+          }
+        })
+      }
+    } else if (eventType === 'change') {
+      await prisma.orderStatusHistory.create({
+        data: {
+          orderId: updatedOrder.id,
+          tenantId,
+          fromStatus: normalizeOrderStatus(existingOrder.status),
+          toStatus: normalizeOrderStatus(updatedOrder.status),
+          reason: 'Order change received from technical email inbox',
+          actorUserId: user?.id || null,
+          actorEmail: user?.email || null,
+          source: 'email_ingest'
+        }
+      })
+    }
+    if (isEmailSource) {
+      await upsertEmailOrderMonthSnapshot({ tenantId, order: updatedOrder, orderDraft, payload: parsedPayload, eventType })
+      await notifyOrderEmailResponsible({ tenantId, order: updatedOrder, eventType, orderDraft })
+    }
     return {
-      order: existingOrder,
+      order: updatedOrder,
       created: false,
       payload: {
-        orderId: existingOrder.id,
+        orderId: updatedOrder.id,
         externalKey,
+        eventType,
         pricingConflict: !!pricing.conflict
       }
     }
@@ -15642,7 +15918,7 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
   const createdOrder = await prisma.order.create({
     data: {
       tenantId,
-      source: 'internal',
+      source: isEmailSource ? 'email' : 'internal',
       externalKey,
       pickupAt: safePickupAt,
       fromPoint: orderDraft.fromPoint || 'TBD',
@@ -15650,8 +15926,14 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       clientPrice,
       driverPrice,
       commission,
-      status: 'draft',
+      status: eventType === 'cancel' ? 'cancelled' : 'draft',
       vehicleType: normalizeVehicleType(orderDraft.vehicleType),
+      counterpartyName: orderDraft.customerName || null,
+      sourceComment: baseComment || null,
+      sourceCurrency: pricing.authoritativeCurrency || orderDraft.currency || null,
+      sourceOrderNumber: orderDraft.orderNumber || null,
+      sourceBookingId: orderDraft.orderNumber || null,
+      sourceInternalOrderNumber: orderDraft.externalMessageId || null,
       passengers: Number.isFinite(Number(orderDraft.passengers)) ? Number(orderDraft.passengers) : null,
       luggage: Number.isFinite(Number(orderDraft.luggage)) ? Number(orderDraft.luggage) : null,
       needsInfo,
@@ -15668,11 +15950,13 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       orderId: createdOrder.id,
       tenantId,
       fromStatus: 'new',
-      toStatus: 'draft',
-      reason: 'Created from OpenClaw AI draft after human approval',
+      toStatus: createdOrder.status,
+      reason: isEmailSource
+        ? `Created from technical email inbox (${eventType})`
+        : 'Created from OpenClaw AI draft after human approval',
       actorUserId: user?.id || null,
       actorEmail: user?.email || null,
-      source: 'openclaw_approval'
+      source: isEmailSource ? 'email_ingest' : 'openclaw_approval'
     }
   })
 
@@ -15696,12 +15980,18 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
     })
   }
 
+  if (isEmailSource) {
+    await upsertEmailOrderMonthSnapshot({ tenantId, order: createdOrder, orderDraft, payload: parsedPayload, eventType })
+    await notifyOrderEmailResponsible({ tenantId, order: createdOrder, eventType, orderDraft })
+  }
+
   return {
     order: createdOrder,
     created: true,
     payload: {
         orderId: createdOrder.id,
         externalKey,
+        eventType,
         pricingConflict: !!pricing.conflict,
         missingFields: parsedPayload.missingFields || [],
         qualityChecks,
@@ -15710,6 +16000,101 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       }
     }
   }
+
+async function pickEmailOrderResponsibleUser(tenantId, order) {
+  if (order?.driverId) {
+    const driver = await prisma.driver.findFirst({
+      where: { id: order.driverId, ...(tenantId ? { tenantId } : {}) },
+      select: { userId: true }
+    })
+    if (driver?.userId) return prisma.user.findFirst({ where: { id: driver.userId, isActive: true } })
+  }
+
+  const preferredEmails = [
+    'maksmaps123332@gmail.com',
+    'bellavitomatern@gmail.com',
+    'farzalievaas@gmail.com',
+    'svetlana.iqtour@gmail.com',
+    'demyanov@riderra.com'
+  ]
+  return prisma.user.findFirst({
+    where: {
+      isActive: true,
+      email: { in: preferredEmails }
+    },
+    orderBy: { createdAt: 'asc' }
+  })
+}
+
+function buildEmailOrderNotificationText({ order, eventType, orderDraft = {}, task = null }) {
+  const action = eventType === 'cancel'
+    ? 'Отмена заказа'
+    : eventType === 'change'
+      ? 'Изменение заказа'
+      : 'Новый заказ'
+  return buildCopilotMessage([
+    `${action} из ${TECHNICAL_INBOX_EMAIL}`,
+    `Заказ: ${orderDraft.orderNumber || order.sourceBookingId || order.id}`,
+    `Подача: ${formatUtcDateTime(order.pickupAt)}`,
+    `Маршрут: ${order.fromPoint} -> ${order.toPoint}`,
+    `Клиентская цена: ${order.clientPrice} ${order.sourceCurrency || orderDraft.currency || ''}`.trim(),
+    `Статус: ${order.status}`,
+    task ? `Задача: ${task.id}` : null,
+    'Источник: технический email inbox Riderra.',
+    'Статус: сохранено в базе заказов.'
+  ].filter(Boolean))
+}
+
+async function notifyOrderEmailResponsible({ tenantId, order, eventType, orderDraft = {} }) {
+  try {
+    const user = await pickEmailOrderResponsibleUser(tenantId, order)
+    if (!user?.id) return null
+
+    const title = eventType === 'cancel'
+      ? `Проверить отмену заказа ${orderDraft.orderNumber || order.id}`
+      : eventType === 'change'
+        ? `Проверить изменение заказа ${orderDraft.orderNumber || order.id}`
+        : `Проверить новый email-заказ ${orderDraft.orderNumber || order.id}`
+    const task = await createOpsTask({
+      tenantId,
+      userId: user.id,
+      type: eventType === 'cancel' ? 'email_order_cancel' : eventType === 'change' ? 'email_order_change' : 'email_order_new',
+      priority: eventType === 'cancel' ? 'high' : 'normal',
+      title,
+      details: [
+        `Order ID: ${order.id}`,
+        `Pickup: ${formatUtcDateTime(order.pickupAt)}`,
+        `Route: ${order.fromPoint} -> ${order.toPoint}`,
+        `Status: ${order.status}`
+      ].join('\n'),
+      source: 'email_ingest',
+      sourceRef: order.id,
+      dueAt: order.pickupAt || null,
+      payload: {
+        orderId: order.id,
+        externalKey: order.externalKey,
+        eventType,
+        orderNumber: orderDraft.orderNumber || null
+      }
+    })
+
+    const link = await prisma.telegramLink.findFirst({
+      where: {
+        tenantId,
+        userId: user.id,
+        telegramChatId: { not: null }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    if (link?.telegramChatId && process.env.TELEGRAM_BOT_TOKEN) {
+      await telegramSendMessage(link.telegramChatId, buildEmailOrderNotificationText({ order, eventType, orderDraft, task }))
+    }
+    return task
+  } catch (error) {
+    console.warn('Email order responsible notification skipped:', error.message)
+    return null
+  }
+}
 
 async function findLinkedOpenClawDraftForOrder(order, tenantId) {
   if (!order?.id) return null
@@ -15969,8 +16354,44 @@ app.post('/api/internal/ops/email-draft', resolveActorContext, requireActorConte
     const wrapped = await withIdempotency(req, 'ops.draft.email_ingest.create', fingerprintPayload, async () => {
       const draft = await saveOpsDraftFromOpenClaw({
         tenantId: req.actorContext.tenantId,
-        payload
+        payload,
+        skipFlightCheck: true
       })
+      let promoted = null
+      let responseDraft = draft
+      if (EMAIL_INGEST_AUTO_PROMOTE) {
+        promoted = await promoteOpenClawDraftToOrder({
+          draft,
+          tenantId: req.actorContext.tenantId,
+          actorContext: req.actorContext,
+          user: null,
+          comment: 'Auto-promoted from technical email inbox'
+        })
+        const currentPayload = parseJsonSafe(draft.payloadJson || '{}', {})
+        await prisma.opsEvent.create({
+          data: {
+            tenantId: req.actorContext.tenantId,
+            type: draft.parsedType,
+            payloadJson: JSON.stringify({
+              ...currentPayload,
+              promotedOrder: promoted.payload
+            }),
+            sourceDraftId: draft.id
+          }
+        }).catch(() => null)
+        responseDraft = await prisma.opsEventDraft.update({
+          where: { id: draft.id },
+          data: {
+            status: 'approved',
+            reviewedAt: new Date(),
+            reviewComment: 'Auto-approved technical email ingest',
+            payloadJson: JSON.stringify({
+              ...currentPayload,
+              promotedOrder: promoted.payload
+            })
+          }
+        })
+      }
       await writeAuditLog({
         tenantId: req.actorContext.tenantId,
         actorId: null,
@@ -15991,13 +16412,15 @@ app.post('/api/internal/ops/email-draft', resolveActorContext, requireActorConte
           gmailThreadId: gmailThreadId || null
         }
       })
-      return draft
+      return { draft: responseDraft, promoted }
     })
 
     res.json({
       success: true,
-      draftId: wrapped.data.id,
-      draft: wrapped.data,
+      draftId: wrapped.data.draft.id,
+      draft: wrapped.data.draft,
+      order: wrapped.data.promoted?.order || null,
+      promoted: wrapped.data.promoted?.payload || null,
       idempotent: wrapped.replayed
     })
   } catch (error) {
@@ -16028,7 +16451,8 @@ app.post('/api/admin/ops/drafts/manual-email', authenticateToken, resolveActorCo
           ...payload,
           sourceType: 'manual_email',
           sourceChannel: 'email'
-        }
+        },
+        skipFlightCheck: true
       })
       await writeAuditLog({
         tenantId: req.actorContext.tenantId,
@@ -16063,8 +16487,32 @@ app.post('/api/admin/ops/drafts/manual-email', authenticateToken, resolveActorCo
 
 app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
-    const { status = 'pending', parsedType = '', limit = '100' } = req.query
-    const take = Math.min(parseInt(limit, 10) || 100, 300)
+    const { status = 'pending', parsedType = '', limit = '100', period = '', sort = 'created_desc' } = req.query
+    const take = Math.min(parseInt(limit, 10) || 100, 500)
+    const fromPickupRaw = String(req.query.fromPickup || '').trim()
+    const toPickupRaw = String(req.query.toPickup || '').trim()
+    let fromPickup = parseDateBoundary(fromPickupRaw, 'start')
+    let toPickup = parseDateBoundary(toPickupRaw, 'end')
+    const now = new Date()
+    const normalizedPeriod = String(period || '').trim().toLowerCase()
+    if (!fromPickup && !toPickup && normalizedPeriod) {
+      fromPickup = new Date(now)
+      fromPickup.setHours(0, 0, 0, 0)
+      if (normalizedPeriod === 'week') {
+        toPickup = new Date(fromPickup)
+        toPickup.setDate(toPickup.getDate() + 7)
+        toPickup.setHours(23, 59, 59, 999)
+      } else if (normalizedPeriod === 'month') {
+        toPickup = new Date(fromPickup)
+        toPickup.setMonth(toPickup.getMonth() + 1)
+        toPickup.setHours(23, 59, 59, 999)
+      } else if (normalizedPeriod === 'future') {
+        toPickup = null
+      } else {
+        fromPickup = null
+      }
+    }
+    const needsPayloadFilter = Boolean(fromPickup || toPickup || sort === 'pickup_future')
     const rows = await prisma.opsEventDraft.findMany({
       where: {
         tenantId: req.actorContext.tenantId,
@@ -16072,12 +16520,113 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
         ...(parsedType ? { parsedType: String(parsedType) } : {})
       },
       orderBy: { createdAt: 'desc' },
-      take
+      take: needsPayloadFilter ? Math.max(take, 1000) : take
     })
-    res.json({ rows })
+    const pickupTime = (row) => {
+      const payload = parseJsonSafe(row.payloadJson || '{}', {})
+      const value = payload?.orderDraft?.pickupAt || payload?.sheetRowPreview?.date || null
+      const parsed = parseDateTimeFlexible(value)
+      return parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : null
+    }
+    let filteredRows = rows
+    if (fromPickup || toPickup) {
+      const fromMs = fromPickup?.getTime()
+      const toMs = toPickup?.getTime()
+      filteredRows = filteredRows.filter((row) => {
+        const time = pickupTime(row)
+        if (time === null) return false
+        if (Number.isFinite(fromMs) && time < fromMs) return false
+        if (Number.isFinite(toMs) && time > toMs) return false
+        return true
+      })
+    }
+    if (sort === 'pickup_future') {
+      const nowMs = now.getTime()
+      filteredRows = [...filteredRows].sort((a, b) => {
+        const aPickup = pickupTime(a)
+        const bPickup = pickupTime(b)
+        const aFuture = aPickup !== null && aPickup >= nowMs
+        const bFuture = bPickup !== null && bPickup >= nowMs
+        if (aFuture !== bFuture) return aFuture ? -1 : 1
+        if (aFuture && bFuture) return aPickup - bPickup
+        if (aPickup !== null && bPickup !== null) return bPickup - aPickup
+        if (aPickup !== null) return -1
+        if (bPickup !== null) return 1
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+    }
+    res.json({ rows: filteredRows.slice(0, take) })
   } catch (error) {
     console.error('Error fetching ops drafts:', error)
     res.status(500).json({ error: 'Failed to fetch ops drafts' })
+  }
+})
+
+function isSmokeOpsDraft(row) {
+  const payload = parseJsonSafe(row?.payloadJson || '{}', {})
+  const orderDraft = payload.orderDraft || {}
+  const haystack = [
+    orderDraft.customerName,
+    orderDraft.fromPoint,
+    orderDraft.toPoint,
+    orderDraft.orderNumber,
+    orderDraft.comment,
+    payload.rawText,
+    payload.sourceType
+  ].filter(Boolean).join(' ').toLowerCase()
+  return /\b(openclaw runtime smoke|openclaw smoke|smoke from|smoke to|smoke client|lax\s*->\s*anaheim|runtime smoke)\b/i.test(haystack)
+}
+
+app.post('/api/admin/ops/drafts/cleanup', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.drafts.resolve', 'ops_draft'), async (req, res) => {
+  try {
+    const mode = String(req.body?.mode || 'smoke').trim().toLowerCase()
+    if (mode !== 'smoke') return res.status(400).json({ error: 'Unsupported cleanup mode' })
+    const candidates = await prisma.opsEventDraft.findMany({
+      where: {
+        tenantId: req.actorContext.tenantId,
+        parsedType: 'openclaw_order_draft',
+        status: 'pending'
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+      select: { id: true, payloadJson: true }
+    })
+    const ids = candidates.filter(isSmokeOpsDraft).map((row) => row.id)
+    if (!ids.length) return res.json({ success: true, updated: 0 })
+    ensureIdempotencyKey(req, 'ops.draft.cleanup.smoke', { ids })
+    const wrapped = await withIdempotency(req, 'ops.draft.cleanup.smoke', { ids }, async () => {
+      const result = await prisma.opsEventDraft.updateMany({
+        where: {
+          tenantId: req.actorContext.tenantId,
+          id: { in: ids },
+          status: 'pending'
+        },
+        data: {
+          status: 'rejected',
+          reviewerUserId: req.user.id,
+          reviewerEmail: req.user.email,
+          reviewedAt: new Date(),
+          reviewComment: 'Cleaned up old smoke/test draft from AI Inbox'
+        }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'ops.draft.cleanup.smoke',
+        resource: 'ops_draft',
+        resourceId: null,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { updated: result.count }
+      })
+      return { updated: result.count }
+    })
+    res.json({ success: true, ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error cleaning up ops drafts:', error)
+    res.status(500).json({ error: 'Failed to clean up ops drafts' })
   }
 })
 
