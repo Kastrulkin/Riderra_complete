@@ -119,6 +119,12 @@
             <div>
               <span class="status-pill" :class="`status-pill--${row.status}`">{{ row.status }}</span>
               <div class="row-hint">{{ draftStateLabel(row) }}</div>
+              <div v-if="rowAddressBadge(row)" class="row-hint">
+                <span class="address-badge" :class="rowAddressBadge(row).className">
+                  <span v-if="rowAddressBadge(row).icon" class="address-badge__icon">!</span>
+                  {{ rowAddressBadge(row).label }}
+                </span>
+              </div>
             </div>
             <div class="row-actions">
               <button class="btn btn--small btn--primary" @click="openDraft(row.id)">{{ draftActionLabel(row) }}</button>
@@ -158,6 +164,10 @@
             <span class="pill">{{ orderDraft.flightNumber ? `Рейс: ${orderDraft.flightNumber}` : 'Рейс не найден' }}</span>
             <span class="pill">{{ formatMoney(pricing.authoritativeClientPrice != null ? pricing.authoritativeClientPrice : orderDraft.clientPrice, pricing.authoritativeCurrency || orderDraft.currency) }}</span>
             <span class="pill">{{ orderDraft.vehicleType || 'Класс не определён' }}</span>
+            <span v-if="addressSummaryBadge" class="address-badge" :class="addressSummaryBadge.className">
+              <span v-if="addressSummaryBadge.icon" class="address-badge__icon">!</span>
+              {{ addressSummaryBadge.label }}
+            </span>
           </div>
           <div class="focus-actions">
             <button
@@ -211,6 +221,28 @@
           <div v-if="orderDraft.comment" class="note-block">
             <strong>Комментарий:</strong>
             <pre>{{ orderDraft.comment }}</pre>
+          </div>
+        </details>
+
+        <details class="section-card" v-if="addressStatusRows.length" open>
+          <summary class="section-summary">Проверка адресов</summary>
+          <div class="address-checks">
+            <div
+              v-for="row in addressStatusRows"
+              :key="row.key"
+              class="address-check"
+              :class="row.ok ? 'address-check--ok' : 'address-check--danger'"
+            >
+              <div class="address-check__status">
+                <span v-if="!row.ok" class="address-check__icon">!</span>
+                <span>{{ row.statusLabel }}</span>
+              </div>
+              <div class="address-check__body">
+                <div><strong>{{ row.label }}:</strong> {{ row.source || '-' }}</div>
+                <div class="hint">{{ row.matchLabel }}</div>
+                <div v-if="row.coordinates" class="hint">{{ row.coordinates }}</div>
+              </div>
+            </div>
           </div>
         </details>
 
@@ -361,6 +393,15 @@ export default {
     flightCheck () {
       return this.payload.flightCheck || null
     },
+    addressVerification () {
+      return this.payload.addressVerification || null
+    },
+    addressStatusRows () {
+      return this.buildAddressStatusRows(this.payload)
+    },
+    addressSummaryBadge () {
+      return this.addressBadgeFromRows(this.addressStatusRows)
+    },
     pendingCount () {
       return this.rows.filter((row) => row.status === 'pending').length
     },
@@ -493,6 +534,63 @@ export default {
       if (Array.isArray(payload.missingFields) && payload.missingFields.length) return 'Есть неполные поля'
       if (payload.pricing?.conflict) return 'Проверьте цену'
       return 'Можно проверять и подтверждать'
+    },
+    rowAddressBadge (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      return this.addressBadgeFromRows(this.buildAddressStatusRows(payload))
+    },
+    addressProviderLabel (provider) {
+      const value = String(provider || '').toLowerCase()
+      if (value === 'google_maps') return 'Google Maps'
+      if (value === 'nominatim') return 'Nominatim'
+      return provider || 'геокодер'
+    },
+    buildAddressStatusRows (payload = {}) {
+      const verification = payload.addressVerification || null
+      if (!verification || typeof verification !== 'object') return []
+      const orderDraft = payload.orderDraft || {}
+      const checkedAt = verification.checkedAt ? this.formatDate(verification.checkedAt) : ''
+      const providerLabel = this.addressProviderLabel(verification.provider)
+      return [
+        { key: 'fromPoint', label: 'Откуда', source: orderDraft.fromPoint || '' },
+        { key: 'toPoint', label: 'Куда', source: orderDraft.toPoint || '' }
+      ].map((item) => {
+        const geo = verification[item.key] || null
+        if (!geo) return null
+        const best = geo.bestMatch || null
+        const ok = Boolean(geo.found && best)
+        const matchName = best?.displayName || best?.formattedAddress || ''
+        const lat = best?.lat
+        const lon = best?.lon
+        const coordinates = lat != null && lon != null ? `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}` : ''
+        return {
+          ...item,
+          ok,
+          providerLabel,
+          statusLabel: ok ? `Проверено по ${providerLabel}` : `Адрес не совпал с ${providerLabel}`,
+          matchLabel: ok
+            ? `Совпадение: ${matchName || 'найдено'}${checkedAt ? ` · ${checkedAt}` : ''}`
+            : `Совпадение не найдено${checkedAt ? ` · ${checkedAt}` : ''}`,
+          coordinates
+        }
+      }).filter(Boolean)
+    },
+    addressBadgeFromRows (rows = []) {
+      if (!rows.length) return null
+      const failed = rows.some((row) => !row.ok)
+      const providerLabel = rows.find((row) => row.providerLabel)?.providerLabel || 'геокодер'
+      if (failed) {
+        return {
+          className: 'address-badge--danger',
+          icon: true,
+          label: `Адрес не совпал с ${providerLabel}`
+        }
+      }
+      return {
+        className: 'address-badge--ok',
+        icon: false,
+        label: `Адрес проверен по ${providerLabel}`
+      }
     },
     draftActionLabel (row) {
       return this.draftStateLabel(row).includes('Можно') ? 'Проверить' : 'Разобрать'
@@ -789,6 +887,19 @@ export default {
 .focus-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .focus-actions .btn--primary { box-shadow: 0 10px 24px rgba(112, 34, 131, .18); }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.address-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 1.2; }
+.address-badge--ok { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.address-badge--danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.address-badge__icon,
+.address-check__icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: #dc2626; color: #fff; font-size: 13px; font-weight: 900; line-height: 1; }
+.address-checks { display: grid; gap: 10px; }
+.address-check { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; align-items: flex-start; border: 1px solid #e5e7ef; border-radius: 10px; padding: 12px; }
+.address-check--ok { background: #f0fdf4; border-color: #bbf7d0; }
+.address-check--danger { background: #fef2f2; border-color: #fecaca; }
+.address-check__status { display: inline-flex; align-items: center; gap: 8px; color: #17233d; font-weight: 900; }
+.address-check--ok .address-check__status { color: #166534; }
+.address-check--danger .address-check__status { color: #991b1b; }
+.address-check__body { display: grid; gap: 5px; min-width: 0; line-height: 1.45; }
 .section-card { margin-top: 14px; border: 1px solid #e5e7ef; border-radius: 12px; padding: 14px; }
 .section-card[open] { background: #fff; }
 .section-tools { display: flex; justify-content: flex-end; margin-bottom: 12px; }
@@ -815,6 +926,7 @@ export default {
   .page-head, .toolbar, .actions, .ops-rail, .focus-card__head, .focus-actions { flex-direction: column; align-items: stretch; }
   .overview-grid,
   .meta-grid,
-  .manual-import__grid { grid-template-columns: 1fr; }
+  .manual-import__grid,
+  .address-check { grid-template-columns: 1fr; }
 }
 </style>
