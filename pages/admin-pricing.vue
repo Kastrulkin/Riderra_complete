@@ -125,19 +125,20 @@
           <div class="panel-head">
             <div>
               <h3>{{ t.driver }}</h3>
+              <p class="panel-hint">{{ t.driverHint }}</p>
             </div>
           </div>
           <div class="pricing-list">
-            <div class="pricing-list__head pricing-list__head--compact-price">
-              <div>{{ t.driverRoute }}</div>
+            <div class="pricing-list__head pricing-list__head--base">
+              <div>{{ t.routeScope }}</div>
               <div>{{ t.vehicleClass }}</div>
               <div>{{ t.priceAndCurrency }}</div>
-              <div>{{ t.source }}</div>
+              <div>{{ t.managementSignal }}</div>
             </div>
-            <div v-for="d in filteredDriverRows" :key="d.id" class="pricing-row pricing-row--compact-price">
+            <div v-for="d in filteredDriverRows" :key="d.id" class="pricing-row pricing-row--base">
               <div class="route-cell">
                 <div class="route-cell__title">{{ routeSummary(d) }}</div>
-                <div class="route-cell__sub">{{ d.driverName || '-' }}<span v-if="d.coverage"> · {{ d.coverage }}</span></div>
+                <div class="route-cell__sub">{{ driverScopeLabel(d) }}</div>
               </div>
               <div>
                 <span :class="['class-badge', { 'class-badge--missing': !d.vehicleType }]">{{ d.vehicleType || t.missingClass }}</span>
@@ -147,8 +148,8 @@
                 <span class="muted">{{ t.sale }}: {{ priceLabel(d.ourPrice, d.currency) }}</span>
               </div>
               <div class="signal-cell">
-                <span class="status-pill" :class="{ 'status-pill--pending': d.sourceStatus && d.sourceStatus !== 'approved' }">{{ d.sourceStatus || t.ruleActive }}</span>
-                <span class="muted">{{ d.sourceLabel || d.sourceType || '-' }}</span>
+                <div class="signal-cell__title">{{ driverPricebookSignalTitle(d) }}</div>
+                <div class="signal-cell__copy">{{ driverPricebookSignalCopy(d) }}</div>
               </div>
             </div>
             <div v-if="!filteredDriverRows.length" class="empty-state">{{ t.empty }}</div>
@@ -171,12 +172,12 @@
             </div>
             <div v-for="c in filteredConflictRows" :key="c.id" class="pricing-row pricing-row--conflicts">
               <div class="route-cell">
-                <div class="route-cell__title">{{ c.issueType }}</div>
+                <div class="route-cell__title">{{ conflictIssueLabel(c) }}</div>
                 <div class="route-cell__sub">ID: {{ c.orderId || '-' }}</div>
               </div>
               <div class="route-cell">
                 <div class="route-cell__title">{{ c.order ? `${c.order.fromPoint || '-'} → ${c.order.toPoint || '-'}` : '-' }}</div>
-                <div class="route-cell__sub">{{ priceLabel(c.sellPrice) }} / {{ priceLabel(c.driverCost) }}</div>
+                <div class="route-cell__sub">{{ t.sale }}: {{ priceLabel(c.sellPrice) }} · {{ t.driverCost }}: {{ priceLabel(c.driverCost) }}</div>
               </div>
               <div class="price-cell">
                 <strong>{{ priceLabel(c.marginAbs) }}</strong>
@@ -184,7 +185,7 @@
               </div>
               <div class="signal-cell">
                 <div class="signal-cell__title">
-                  <span class="severity-pill" :class="`severity-pill--${String(c.severity || '').toLowerCase()}`">{{ c.severity || '-' }}</span>
+                  <span class="severity-pill" :class="`severity-pill--${String(c.severity || '').toLowerCase()}`">{{ conflictSeverityLabel(c) }}</span>
                 </div>
                 <div class="signal-cell__copy">{{ conflictSignalCopy(c) }}</div>
               </div>
@@ -393,6 +394,8 @@ export default {
             issue: 'Проблема',
             driverCost: 'Цена водителя',
             margin: 'Маржа',
+            criticalRisks: 'Критичные риски',
+            warningRisks: 'Предупреждения',
             penaltyCount: 'Количество штрафов',
             penaltyAmount: 'Сумма штрафов',
             netProfit: 'Профит после штрафов',
@@ -406,12 +409,17 @@ export default {
             customerPricebook: 'Прайс заказчика',
             supplierPricebook: 'Прайс исполнителя',
             activePriceRow: 'Действующая строка прайса',
+            supplierPriceRow: 'Строка прайса исполнителя',
             driverHint: 'Экономика исполнителей: стоимость по км, почасовая аренда и детские кресла.',
             conflictsHint: 'Открытые ситуации, где цена водителя уже конфликтует с продажной ценой или маржа стала опасной.',
             adjustmentsHint: 'Штрафы и удержания из заказов. Здесь видно, на каких водителей и клиентов приходится больше всего потерь, и как это меняет реальный профит.',
             baseFormHint: 'Добавляем или редактируем строку основного прайса Riderra. Это опорная цена для команды.',
             ruleActive: 'Правило активно',
-            ruleInactive: 'Правило выключено'
+            ruleInactive: 'Правило выключено',
+            issueDriverGtSell: 'Цена исполнителя выше продажи',
+            issueLowMargin: 'Низкая маржа',
+            severityCritical: 'Критично',
+            severityWarning: 'Внимание'
           }
         : {
             title: 'Pricing & Margin Control',
@@ -461,6 +469,8 @@ export default {
             issue: 'Issue',
             driverCost: 'Driver cost',
             margin: 'Margin',
+            criticalRisks: 'Critical risks',
+            warningRisks: 'Warnings',
             penaltyCount: 'Penalty count',
             penaltyAmount: 'Penalty amount',
             netProfit: 'Profit after penalties',
@@ -474,12 +484,17 @@ export default {
             customerPricebook: 'Customer price book',
             supplierPricebook: 'Supplier price book',
             activePriceRow: 'Active price row',
+            supplierPriceRow: 'Supplier price row',
             driverHint: 'Supplier economics: per-km rate, hourly rental, and child seat pricing.',
             conflictsHint: 'Open situations where driver cost already conflicts with the sell price or margin became risky.',
             adjustmentsHint: 'Penalties and deductions from orders. This shows which drivers and clients create the largest loss and how real profit changes.',
             baseFormHint: 'Add or edit a base pricing row. This is the anchor sale price for the team.',
             ruleActive: 'Rule active',
-            ruleInactive: 'Rule disabled'
+            ruleInactive: 'Rule disabled',
+            issueDriverGtSell: 'Supplier price is above sell price',
+            issueLowMargin: 'Low margin',
+            severityCritical: 'Critical',
+            severityWarning: 'Warning'
           }
     },
     searchPlaceholder () {
@@ -493,11 +508,13 @@ export default {
       const specialDeals = this.cpRows.filter((row) => row.isActive).length
       const driverWithEconomics = this.driverPriceRows.length
       const penalties = this.adjustmentTotals.adjustmentCount || 0
+      const criticalRisks = this.conflictRows.filter((row) => String(row.severity || '').toLowerCase() === 'critical').length
+      const warningRisks = this.conflictRows.filter((row) => String(row.severity || '').toLowerCase() === 'warning').length
       return [
         { key: 'base', value: this.baseRows.length, label: this.t.base, hint: this.t.baseHint, tone: 'neutral' },
         { key: 'counterparty', value: specialDeals, label: this.t.counterparty, hint: this.t.counterpartyHint, tone: specialDeals ? 'info' : 'neutral' },
         { key: 'driver', value: driverWithEconomics, label: this.t.driver, hint: this.t.driverHint, tone: driverWithEconomics ? 'ok' : 'neutral' },
-        { key: 'conflicts', value: this.conflictRows.length, label: this.t.conflicts, hint: this.t.conflictsHint, tone: this.conflictRows.length ? 'warn' : 'neutral' },
+        { key: 'conflicts', value: `${criticalRisks}/${warningRisks}`, label: this.t.conflicts, hint: `${this.t.criticalRisks}: ${criticalRisks} · ${this.t.warningRisks}: ${warningRisks}`, tone: criticalRisks ? 'critical' : (warningRisks ? 'warn' : 'neutral') },
         { key: 'penalties', value: penalties, label: this.t.adjustments, hint: this.t.adjustmentsHint, tone: penalties ? 'critical' : 'neutral' }
       ]
     },
@@ -647,6 +664,18 @@ export default {
       }
       return period && period !== '-' ? `${this.t.activePriceRow} · ${period}` : this.t.activePriceRow
     },
+    driverScopeLabel (row) {
+      return [row.supplierName || row.driverName, row.country, row.city].filter(Boolean).join(' · ') || '-'
+    },
+    driverPricebookSignalTitle (row) {
+      return row.supplierName || row.driverName
+        ? `${this.t.supplierPricebook}: ${row.supplierName || row.driverName}`
+        : this.t.supplierPricebook
+    },
+    driverPricebookSignalCopy (row) {
+      const source = row.sourceLabel || row.sourceType || row.coverage
+      return [this.t.supplierPriceRow, source].filter(Boolean).join(' · ')
+    },
     markupLabel (value) {
       if (value === null || value === undefined || value === '') return '-'
       return `${value}%`
@@ -710,6 +739,11 @@ export default {
     },
     conflictSignalCopy (row) {
       const severity = String(row.severity || '').toLowerCase()
+      if (String(row.issueType || '') === 'driver_gt_sell') {
+        return this.$store.state.language === 'ru'
+          ? 'Себестоимость уже выше продажной цены. Нужно менять продажу, исполнителя или согласованные условия.'
+          : 'Supplier cost is already above the sell price. Change the sell price, supplier, or agreed terms.'
+      }
       if (severity === 'high' || severity === 'critical') {
         return this.$store.state.language === 'ru'
           ? 'Маржа уже опасно низкая или отрицательная. Это нужно разбирать в первую очередь.'
@@ -718,6 +752,17 @@ export default {
       return this.$store.state.language === 'ru'
         ? 'Есть расхождение, но оно не выглядит критичным. Всё равно нужно проверить правило, цену водителя и продажи.'
         : 'There is a mismatch, but it does not look critical yet. Still worth checking the rule, supplier cost, and sell price.'
+    },
+    conflictIssueLabel (row) {
+      if (row.issueType === 'driver_gt_sell') return this.t.issueDriverGtSell
+      if (row.issueType === 'low_margin') return this.t.issueLowMargin
+      return row.issueType || '-'
+    },
+    conflictSeverityLabel (row) {
+      const severity = String(row.severity || '').toLowerCase()
+      if (severity === 'critical') return this.t.severityCritical
+      if (severity === 'warning') return this.t.severityWarning
+      return row.severity || '-'
     },
     openBaseForm (row = null) {
       this.editingBase = row || {}
