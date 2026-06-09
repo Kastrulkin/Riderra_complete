@@ -93,7 +93,7 @@
             </div>
             <div>Создан</div>
             <div>Поездка</div>
-            <div>Тип</div>
+            <div>Источник</div>
             <div>Контрагент</div>
             <div>Маршрут</div>
             <div>Цена</div>
@@ -112,7 +112,7 @@
             </div>
             <div>{{ formatDate(row.createdAt) }}</div>
             <div>{{ formatPickup(row) }}</div>
-            <div>{{ row.parsedType }}</div>
+            <div>{{ sourceLabel(row) }}</div>
             <div>{{ summarize(row).customer }}</div>
             <div>{{ summarize(row).route }}</div>
             <div>{{ summarize(row).price }}</div>
@@ -620,6 +620,29 @@ export default {
     },
     formatPickup (row) {
       return this.formatDate(this.pickupValue(row))
+    },
+    sourceLabel (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      const orderDraft = payload.orderDraft || {}
+      const created = this.formatDate(row.createdAt)
+      const from = this.sourceSender(payload, orderDraft)
+      return from
+        ? `Источник: письмо от ${created}, ${from}`
+        : `Источник: письмо от ${created}`
+    },
+    sourceSender (payload = {}, orderDraft = {}) {
+      const direct = String(
+        payload.fromEmail ||
+        payload.senderEmail ||
+        orderDraft.fromEmail ||
+        payload.sourceActorId ||
+        orderDraft.sourceActorId ||
+        ''
+      ).trim()
+      if (direct && direct !== 'technical-inbox' && direct !== 'manual-email' && direct !== 'openclaw') return direct
+      const comment = String(orderDraft.comment || payload.comment || '').trim()
+      const match = comment.match(/(?:^|\n)From:\s*([^\n]+)/i)
+      return match ? match[1].trim() : ''
     },
     checkLevelLabel (level) {
       const map = { ok: 'OK', warn: 'Warn', error: 'Error' }
