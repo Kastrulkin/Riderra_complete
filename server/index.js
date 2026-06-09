@@ -14911,19 +14911,29 @@ function buildOrderDraftQualityChecks(extracted, pricing = {}) {
     : null
   const hasExtractedPrice = extractedPrice != null && extractedPrice > 0
   const hasAuthoritativePrice = authoritativePrice != null && authoritativePrice > 0
-  if (hasAuthoritativePrice && hasExtractedPrice) {
+  const isCounterpartyPrice = pricing?.pricingSource === 'counterparty_pricing'
+  const counterpartyLabel = extracted?.counterpartyName || extracted?.contractor || 'клиента'
+  if (pricing?.pricingSource === 'counterparty_pricing_missing') {
+    checks.push({
+      key: 'price',
+      level: 'error',
+      message: pricing?.pricingMissingReason || `Нет согласованной цены для ${counterpartyLabel} по этому маршруту`
+    })
+  } else if (hasAuthoritativePrice && hasExtractedPrice) {
     checks.push({
       key: 'price',
       level: pricing?.conflict ? 'warn' : 'ok',
       message: pricing?.conflict
-        ? `Цена расходится: письмо ${extractedPrice.toFixed(2)}, прайс Riderra ${authoritativePrice.toFixed(2)}`
-        : `Цена совпадает с прайсом Riderra: ${authoritativePrice.toFixed(2)}`
+        ? `Цена расходится: письмо ${extractedPrice.toFixed(2)}, ${isCounterpartyPrice ? `согласованная цена ${counterpartyLabel}` : 'прайс Riderra'} ${authoritativePrice.toFixed(2)}`
+        : `Цена совпадает с ${isCounterpartyPrice ? `согласованной ценой ${counterpartyLabel}` : 'прайсом Riderra'}: ${authoritativePrice.toFixed(2)}`
     })
   } else if (hasAuthoritativePrice) {
     checks.push({
       key: 'price',
       level: 'ok',
-      message: `Используется цена Riderra: ${authoritativePrice.toFixed(2)}`
+      message: isCounterpartyPrice
+        ? `Используется согласованная цена ${counterpartyLabel}: ${authoritativePrice.toFixed(2)}`
+        : `Используется цена Riderra: ${authoritativePrice.toFixed(2)}`
     })
   } else if (hasExtractedPrice) {
     checks.push({
@@ -15138,15 +15148,72 @@ function hasValidEasyTaxiWebhookSecret(req) {
 
 async function findAuthoritativePriceForDraft({
   tenantId,
+  counterpartyName = '',
   city = '',
   fromPoint = '',
   toPoint = '',
   vehicleType = ''
 }) {
+  const counterpartyNorm = normalizeCounterpartyName(counterpartyName)
   const cityNorm = String(city || '').trim()
   const fromNorm = String(fromPoint || '').trim()
   const toNorm = String(toPoint || '').trim()
   const vehicleNorm = normalizeVehicleType(vehicleType)
+
+  if (counterpartyNorm) {
+    const counterpartyRows = await prisma.counterpartyPriceRule.findMany({
+      where: {
+        tenantId: tenantId || null,
+        isActive: true,
+        counterpartyName: { equals: counterpartyNorm, mode: 'insensitive' },
+        sellPrice: { not: null }
+      },
+      orderBy: [{ updatedAt: 'desc' }],
+      take: 500
+    })
+    const activeNow = counterpartyRows.filter((row) => {
+      const now = new Date()
+      const startsAt = row.startsAt ? new Date(row.startsAt) : null
+      const endsAt = row.endsAt ? new Date(row.endsAt) : null
+      if (startsAt && startsAt > now) return false
+      if (endsAt && endsAt < now) return false
+      return true
+    })
+    const exactCounterpartyRule = activeNow.find((row) =>
+      routePointMatches(row.routeFrom, fromNorm) &&
+      routePointMatches(row.routeTo, toNorm) &&
+      vehicleTypeMatches(row.vehicleType, vehicleNorm) &&
+      row.sellPrice !== null
+    )
+    if (exactCounterpartyRule) {
+      return {
+        ...exactCounterpartyRule,
+        fixedPrice: exactCounterpartyRule.sellPrice,
+        source: 'counterparty_pricing'
+      }
+    }
+    const cityCounterpartyRule = activeNow.find((row) =>
+      (!row.city || !cityNorm || String(row.city).trim().toLowerCase() === cityNorm.toLowerCase()) &&
+      !row.routeFrom &&
+      !row.routeTo &&
+      vehicleTypeMatches(row.vehicleType, vehicleNorm) &&
+      row.sellPrice !== null
+    )
+    if (cityCounterpartyRule) {
+      return {
+        ...cityCounterpartyRule,
+        fixedPrice: cityCounterpartyRule.sellPrice,
+        source: 'counterparty_pricing'
+      }
+    }
+    return {
+      id: null,
+      fixedPrice: null,
+      currency: 'EUR',
+      source: 'counterparty_pricing_missing',
+      missingReason: `Нет согласованной цены для ${counterpartyNorm} по этому маршруту и классу`
+    }
+  }
 
   const rows = await prisma.cityPricing.findMany({
     where: {
@@ -15164,7 +15231,7 @@ async function findAuthoritativePriceForDraft({
     (!row.routeTo || String(row.routeTo).trim().toLowerCase() === toNorm.toLowerCase()) &&
     row.fixedPrice !== null
   )
-  if (exact) return exact
+  if (exact) return { ...exact, source: 'riderra_pricing' }
 
   const cityOnly = rows.find((row) =>
     (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
@@ -15172,7 +15239,7 @@ async function findAuthoritativePriceForDraft({
     !row.routeTo &&
     row.fixedPrice !== null
   )
-  return cityOnly || null
+  return cityOnly ? { ...cityOnly, source: 'riderra_pricing' } : null
 }
 
 async function loadSupplierCostCandidates(tenantId) {
@@ -15492,6 +15559,7 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
 
   const authoritativePricing = await findAuthoritativePriceForDraft({
     tenantId,
+    counterpartyName: extracted.counterpartyName,
     city: extracted.city,
     fromPoint: extracted.fromPoint,
     toPoint: extracted.toPoint,
@@ -15517,6 +15585,8 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
   const qualityChecks = buildOrderDraftQualityChecks(extracted, {
     authoritativeClientPrice,
     authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
+    pricingSource: authoritativePricing?.source || null,
+    pricingMissingReason: authoritativePricing?.missingReason || null,
     conflict: priceConflict,
     supplierCost
   })
@@ -15524,6 +15594,8 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
   const sheetRowPreview = buildSheetRowPreviewFromDraft(extracted, {
     authoritativeClientPrice,
     authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
+    pricingSource: authoritativePricing?.source || null,
+    pricingMissingReason: authoritativePricing?.missingReason || null,
     conflict: priceConflict,
     supplierCost
   })
@@ -15546,7 +15618,8 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
       authoritativeClientPrice,
       authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
       pricingRuleId: authoritativePricing?.id || null,
-      pricingSource: authoritativePricing ? 'riderra_pricing' : null,
+      pricingSource: authoritativePricing?.source || null,
+      pricingMissingReason: authoritativePricing?.missingReason || null,
       conflict: priceConflict,
       supplierCost
     }

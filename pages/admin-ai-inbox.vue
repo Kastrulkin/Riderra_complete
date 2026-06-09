@@ -645,29 +645,38 @@ export default {
     priceBadgeFromPayload (payload = {}) {
       const pricing = payload.pricing || {}
       const orderDraft = payload.orderDraft || {}
+      const counterparty = orderDraft.counterpartyName || 'клиента'
       const emailPrice = Number(orderDraft.clientPrice)
       const riderraPrice = Number(pricing.authoritativeClientPrice)
       const hasEmailPrice = Number.isFinite(emailPrice) && emailPrice > 0
       const hasRiderraPrice = Number.isFinite(riderraPrice) && riderraPrice > 0
-      if (hasRiderraPrice && hasEmailPrice && pricing.conflict) {
+      if (pricing.pricingSource === 'counterparty_pricing_missing') {
         return {
           className: 'check-badge--danger',
           icon: true,
-          label: `Цена не совпала: письмо ${this.formatMoney(emailPrice, orderDraft.currency)}, Riderra ${this.formatMoney(riderraPrice, pricing.authoritativeCurrency || orderDraft.currency)}`
+          label: pricing.pricingMissingReason || `Нет согласованной цены ${counterparty} в базе`
+        }
+      }
+      if (hasRiderraPrice && hasEmailPrice && pricing.conflict) {
+        const sourceLabel = pricing.pricingSource === 'counterparty_pricing' ? `ценой ${counterparty}` : 'ценой Riderra'
+        return {
+          className: 'check-badge--danger',
+          icon: true,
+          label: `Цена не совпала с ${sourceLabel}: письмо ${this.formatMoney(emailPrice, orderDraft.currency)}, база ${this.formatMoney(riderraPrice, pricing.authoritativeCurrency || orderDraft.currency)}`
         }
       }
       if (hasRiderraPrice && hasEmailPrice) {
         return {
           className: 'check-badge--ok',
           icon: false,
-          label: 'Цена проверена по Riderra'
+          label: pricing.pricingSource === 'counterparty_pricing' ? `Цена проверена по прайсу ${counterparty}` : 'Цена проверена по Riderra'
         }
       }
       if (hasRiderraPrice) {
         return {
           className: 'check-badge--ok',
           icon: false,
-          label: 'Цена взята из Riderra'
+          label: pricing.pricingSource === 'counterparty_pricing' ? `Цена взята из прайса ${counterparty}` : 'Цена взята из Riderra'
         }
       }
       if (hasEmailPrice) {
@@ -684,6 +693,8 @@ export default {
       }
     },
     pricingSourceLabel (pricing = {}) {
+      if (pricing.pricingSource === 'counterparty_pricing') return 'Client price book'
+      if (pricing.pricingSource === 'counterparty_pricing_missing') return 'Client price book: not found'
       if (pricing.pricingSource === 'riderra_pricing') return 'Riderra price book'
       if (pricing.pricingSource) return pricing.pricingSource
       return 'не найдено'
