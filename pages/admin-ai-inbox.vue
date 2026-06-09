@@ -126,9 +126,17 @@
             </div>
             <div>
               <div class="row-title row-title--address">{{ sheetField(row, 'fromPoint') || routePoint(row, 'fromPoint') }}</div>
+              <span v-if="rowAddressPointBadge(row, 'fromPoint')" class="check-badge" :class="rowAddressPointBadge(row, 'fromPoint').className">
+                <span v-if="rowAddressPointBadge(row, 'fromPoint').icon" class="check-badge__icon">!</span>
+                {{ rowAddressPointBadge(row, 'fromPoint').label }}
+              </span>
             </div>
             <div>
               <div class="row-title row-title--address">{{ sheetField(row, 'toPoint') || routePoint(row, 'toPoint') }}</div>
+              <span v-if="rowAddressPointBadge(row, 'toPoint')" class="check-badge" :class="rowAddressPointBadge(row, 'toPoint').className">
+                <span v-if="rowAddressPointBadge(row, 'toPoint').icon" class="check-badge__icon">!</span>
+                {{ rowAddressPointBadge(row, 'toPoint').label }}
+              </span>
             </div>
             <div>
               <div class="row-title">{{ sheetField(row, 'sum') || summarize(row).price }}</div>
@@ -617,6 +625,10 @@ export default {
       const payload = this.parsePayload(row.payloadJson)
       return this.addressBadgeFromRows(this.buildAddressStatusRows(payload))
     },
+    rowAddressPointBadge (row, key) {
+      const payload = this.parsePayload(row.payloadJson)
+      return this.addressPointBadgeFromRows(this.buildAddressStatusRows(payload), key)
+    },
     rowPriceBadge (row) {
       const payload = this.parsePayload(row.payloadJson)
       return this.priceBadgeFromPayload(payload)
@@ -726,6 +738,16 @@ export default {
         className: 'address-badge--ok',
         icon: false,
         label: `Адрес проверен по ${providerLabel}`
+      }
+    },
+    addressPointBadgeFromRows (rows = [], key) {
+      const row = rows.find((item) => item.key === key)
+      if (!row) return null
+      const providerLabel = row.providerLabel || 'геокодер'
+      return {
+        className: row.ok ? 'check-badge--ok' : 'check-badge--danger',
+        icon: !row.ok,
+        label: row.ok ? `Совпадает с ${providerLabel}` : `Не совпадает с ${providerLabel}`
       }
     },
     draftActionLabel (row) {
