@@ -509,13 +509,13 @@ export default {
       const payload = this.parsePayload(row.payloadJson)
       const orderDraft = payload.orderDraft || {}
       const pricing = payload.pricing || {}
+      const riderraPrice = Number(pricing.authoritativeClientPrice)
+      const emailPrice = Number(orderDraft.clientPrice)
+      const price = riderraPrice > 0 ? riderraPrice : emailPrice > 0 ? emailPrice : null
       return {
         customer: orderDraft.counterpartyName || '-',
         route: [orderDraft.fromPoint, orderDraft.toPoint].filter(Boolean).join(' -> ') || '-',
-        price: this.formatMoney(
-          pricing.authoritativeClientPrice != null ? pricing.authoritativeClientPrice : orderDraft.clientPrice,
-          pricing.authoritativeCurrency || orderDraft.currency
-        )
+        price: this.formatMoney(price, pricing.authoritativeCurrency || orderDraft.currency)
       }
     },
     orderTitle (row) {
@@ -548,7 +548,9 @@ export default {
       const orderDraft = payload.orderDraft || {}
       const pricing = payload.pricing || {}
       const preview = payload.sheetRowPreview || {}
-      const price = pricing.authoritativeClientPrice != null ? pricing.authoritativeClientPrice : orderDraft.clientPrice
+      const riderraPrice = Number(pricing.authoritativeClientPrice)
+      const emailPrice = Number(orderDraft.clientPrice)
+      const price = riderraPrice > 0 ? riderraPrice : emailPrice > 0 ? emailPrice : null
       const currency = pricing.authoritativeCurrency || orderDraft.currency || 'EUR'
       return {
         contractor: preview.contractor || orderDraft.counterpartyName || '',
@@ -556,11 +558,18 @@ export default {
         date: preview.date || (orderDraft.pickupAt ? String(orderDraft.pickupAt).replace('T', ' ').slice(0, 16) : ''),
         fromPoint: preview.fromPoint || orderDraft.fromPoint || '',
         toPoint: preview.toPoint || orderDraft.toPoint || '',
-        sum: preview.sum || (Number.isFinite(Number(price)) ? `${Number(price).toFixed(2)} ${currency}` : ''),
+        sum: this.normalizedPreviewSum(preview.sum) || (Number.isFinite(Number(price)) && Number(price) > 0 ? `${Number(price).toFixed(2)} ${currency}` : ''),
         driver: preview.driver || '',
         internalOrderNumber: preview.internalOrderNumber || orderDraft.internalOrderNumber || '',
         comment: preview.comment || orderDraft.comment || ''
       }
+    },
+    normalizedPreviewSum (value) {
+      const raw = String(value || '').trim()
+      if (!raw) return ''
+      const amount = Number(raw.replace(',', '.').match(/-?\d+(?:[.,]\d+)?/)?.[0]?.replace(',', '.'))
+      if (Number.isFinite(amount) && amount <= 0) return ''
+      return raw
     },
     sheetRowToTsv (row = {}) {
       const values = [
@@ -638,8 +647,8 @@ export default {
       const orderDraft = payload.orderDraft || {}
       const emailPrice = Number(orderDraft.clientPrice)
       const riderraPrice = Number(pricing.authoritativeClientPrice)
-      const hasEmailPrice = Number.isFinite(emailPrice)
-      const hasRiderraPrice = Number.isFinite(riderraPrice)
+      const hasEmailPrice = Number.isFinite(emailPrice) && emailPrice > 0
+      const hasRiderraPrice = Number.isFinite(riderraPrice) && riderraPrice > 0
       if (hasRiderraPrice && hasEmailPrice && pricing.conflict) {
         return {
           className: 'check-badge--danger',

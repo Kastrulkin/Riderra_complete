@@ -14909,7 +14909,9 @@ function buildOrderDraftQualityChecks(extracted, pricing = {}) {
   const authoritativePrice = pricing?.authoritativeClientPrice !== null && pricing?.authoritativeClientPrice !== undefined && pricing?.authoritativeClientPrice !== ''
     ? (Number.isFinite(Number(pricing.authoritativeClientPrice)) ? Number(pricing.authoritativeClientPrice) : null)
     : null
-  if (authoritativePrice != null && extractedPrice != null) {
+  const hasExtractedPrice = extractedPrice != null && extractedPrice > 0
+  const hasAuthoritativePrice = authoritativePrice != null && authoritativePrice > 0
+  if (hasAuthoritativePrice && hasExtractedPrice) {
     checks.push({
       key: 'price',
       level: pricing?.conflict ? 'warn' : 'ok',
@@ -14917,13 +14919,13 @@ function buildOrderDraftQualityChecks(extracted, pricing = {}) {
         ? `Цена расходится: письмо ${extractedPrice.toFixed(2)}, прайс Riderra ${authoritativePrice.toFixed(2)}`
         : `Цена совпадает с прайсом Riderra: ${authoritativePrice.toFixed(2)}`
     })
-  } else if (authoritativePrice != null) {
+  } else if (hasAuthoritativePrice) {
     checks.push({
       key: 'price',
       level: 'ok',
       message: `Используется цена Riderra: ${authoritativePrice.toFixed(2)}`
     })
-  } else if (extractedPrice != null) {
+  } else if (hasExtractedPrice) {
     checks.push({
       key: 'price',
       level: 'warn',
@@ -14957,9 +14959,11 @@ function buildSheetRowPreviewFromDraft(extracted, pricing = {}) {
   const displayDate = extracted?.pickupAt
     ? String(extracted.pickupAt).replace('T', ' ').slice(0, 16)
     : ''
-  const price = pricing?.authoritativeClientPrice != null
-    ? Number(pricing.authoritativeClientPrice)
-    : (Number.isFinite(Number(extracted?.clientPrice)) ? Number(extracted.clientPrice) : null)
+  const authoritativePrice = pricing?.authoritativeClientPrice != null ? Number(pricing.authoritativeClientPrice) : null
+  const extractedPrice = Number.isFinite(Number(extracted?.clientPrice)) ? Number(extracted.clientPrice) : null
+  const price = authoritativePrice > 0
+    ? authoritativePrice
+    : (extractedPrice > 0 ? extractedPrice : null)
   const commentParts = [
     String(extracted?.customerName || '').trim() ? `Пассажир: ${String(extracted.customerName).trim()}` : null,
     extracted?.comment || null,
@@ -15560,6 +15564,16 @@ function findManualEmailLine(text, labels = [], options = {}) {
   let match = null
   while ((match = re.exec(source))) {
     const value = match?.[1]?.trim() || ''
+    if (!value) continue
+    if (typeof options.reject === 'function' && options.reject(value)) continue
+    return value
+  }
+  const lines = source.split(/\r?\n/)
+  const normalizedLabels = labels.map((label) => String(label || '').trim().toLowerCase()).filter(Boolean)
+  for (let i = 0; i < lines.length - 1; i++) {
+    const current = String(lines[i] || '').trim().replace(/[:\-–—]+$/, '').trim().toLowerCase()
+    if (!normalizedLabels.includes(current)) continue
+    const value = String(lines[i + 1] || '').trim()
     if (!value) continue
     if (typeof options.reject === 'function' && options.reject(value)) continue
     return value
