@@ -91,13 +91,11 @@
                 @change="toggleAllVisible"
               />
             </div>
-            <div>Создан</div>
-            <div>Поездка</div>
-            <div>Источник</div>
-            <div>Контрагент</div>
-            <div>Маршрут</div>
+            <div>Статус и дата</div>
+            <div>Заказ и маршрут</div>
+            <div>Служебно</div>
             <div>Цена</div>
-            <div>Статус</div>
+            <div>Проверки</div>
             <div>Действия</div>
           </div>
           <div v-for="row in rows" :key="row.id" class="table-row">
@@ -110,14 +108,28 @@
                 :aria-label="`Выбрать черновик ${row.id}`"
               />
             </div>
-            <div>{{ formatDate(row.createdAt) }}</div>
-            <div>{{ formatPickup(row) }}</div>
-            <div>{{ sourceLabel(row) }}</div>
-            <div>{{ summarize(row).customer }}</div>
-            <div>{{ summarize(row).route }}</div>
-            <div>{{ summarize(row).price }}</div>
             <div>
               <span class="status-pill" :class="`status-pill--${row.status}`">{{ row.status }}</span>
+              <div class="row-title">{{ formatPickup(row) }}</div>
+              <div class="row-hint">Создан: {{ formatDate(row.createdAt) }}</div>
+            </div>
+            <div>
+              <div class="row-title">{{ orderTitle(row) }}</div>
+              <div class="row-hint">{{ summarize(row).route }}</div>
+            </div>
+            <div>
+              <div class="row-title">{{ summarize(row).customer }}</div>
+              <div class="row-hint">{{ sourceLabel(row) }}</div>
+              <div class="row-hint">{{ serviceLabel(row) }}</div>
+            </div>
+            <div>
+              <div class="row-title">{{ summarize(row).price }}</div>
+              <span v-if="rowPriceBadge(row)" class="check-badge" :class="rowPriceBadge(row).className">
+                <span v-if="rowPriceBadge(row).icon" class="check-badge__icon">!</span>
+                {{ rowPriceBadge(row).label }}
+              </span>
+            </div>
+            <div>
               <div class="row-hint">{{ draftStateLabel(row) }}</div>
               <div v-if="rowAddressBadge(row)" class="row-hint">
                 <span class="address-badge" :class="rowAddressBadge(row).className">
@@ -194,6 +206,14 @@
             <button
               class="btn btn--small btn--ghost"
               type="button"
+              :disabled="refreshingChecks"
+              @click="refreshChecks"
+            >
+              {{ refreshingChecks ? 'Проверяю...' : 'Проверить адреса и цену' }}
+            </button>
+            <button
+              class="btn btn--small btn--ghost"
+              type="button"
               :disabled="flightChecking || !orderDraft.flightNumber"
               @click="runFlightCheck"
             >
@@ -239,6 +259,7 @@
               </div>
               <div class="address-check__body">
                 <div><strong>{{ row.label }}:</strong> {{ row.source || '-' }}</div>
+                <div class="hint"><strong>Искали:</strong> {{ row.query || row.source || '-' }}</div>
                 <div class="hint">{{ row.matchLabel }}</div>
                 <div v-if="row.coordinates" class="hint">{{ row.coordinates }}</div>
               </div>
@@ -269,11 +290,19 @@
 
         <details class="section-card">
           <summary class="section-summary">Проверка цены</summary>
-          <div class="meta-grid">
-            <div><strong>Источник цены:</strong> {{ pricing.pricingSource || 'не найдено' }}</div>
-            <div><strong>Riderra price:</strong> {{ formatMoney(pricing.authoritativeClientPrice, pricing.authoritativeCurrency || orderDraft.currency) }}</div>
-            <div><strong>Conflict:</strong> {{ pricing.conflict ? 'Да' : 'Нет' }}</div>
-            <div><strong>Rule ID:</strong> {{ pricing.pricingRuleId || '-' }}</div>
+          <div class="price-check">
+            <span v-if="priceBadge" class="check-badge" :class="priceBadge.className">
+              <span v-if="priceBadge.icon" class="check-badge__icon">!</span>
+              {{ priceBadge.label }}
+            </span>
+            <div class="meta-grid">
+              <div><strong>Цена из письма:</strong> {{ formatMoney(orderDraft.clientPrice, orderDraft.currency) }}</div>
+              <div><strong>Цена Riderra:</strong> {{ formatMoney(pricing.authoritativeClientPrice, pricing.authoritativeCurrency || orderDraft.currency) }}</div>
+              <div><strong>Источник цены:</strong> {{ pricingSourceLabel(pricing) }}</div>
+              <div><strong>Rule ID:</strong> {{ pricing.pricingRuleId || '-' }}</div>
+              <div v-if="pricing.supplierCost"><strong>Закупка:</strong> {{ supplierCostLabel(pricing.supplierCost) }}</div>
+              <div><strong>Расхождение:</strong> {{ pricing.conflict ? 'Да' : 'Нет' }}</div>
+            </div>
           </div>
         </details>
 
@@ -357,6 +386,7 @@ export default {
     copyNotice: '',
     saving: false,
     flightChecking: false,
+    refreshingChecks: false,
     flightCheckError: '',
     manualSaving: false,
     cleanupSaving: false,
@@ -401,6 +431,9 @@ export default {
     },
     addressSummaryBadge () {
       return this.addressBadgeFromRows(this.addressStatusRows)
+    },
+    priceBadge () {
+      return this.priceBadgeFromPayload(this.payload)
     },
     pendingCount () {
       return this.rows.filter((row) => row.status === 'pending').length
@@ -457,6 +490,22 @@ export default {
           pricing.authoritativeCurrency || orderDraft.currency
         )
       }
+    },
+    orderTitle (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      const orderDraft = payload.orderDraft || {}
+      return orderDraft.orderNumber || orderDraft.externalMessageId || 'Черновик заказа'
+    },
+    serviceLabel (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      const orderDraft = payload.orderDraft || {}
+      const parts = [
+        orderDraft.vehicleType ? `Класс: ${orderDraft.vehicleType}` : '',
+        orderDraft.flightNumber ? `Рейс: ${orderDraft.flightNumber}` : '',
+        orderDraft.passengers != null ? `PAX: ${orderDraft.passengers}` : '',
+        orderDraft.luggage != null ? `Багаж: ${orderDraft.luggage}` : ''
+      ].filter(Boolean)
+      return parts.join(' · ') || 'Служебные поля не заполнены'
     },
     sheetRowFromPayload (payload = {}) {
       const orderDraft = payload.orderDraft || {}
@@ -539,6 +588,62 @@ export default {
       const payload = this.parsePayload(row.payloadJson)
       return this.addressBadgeFromRows(this.buildAddressStatusRows(payload))
     },
+    rowPriceBadge (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      return this.priceBadgeFromPayload(payload)
+    },
+    priceBadgeFromPayload (payload = {}) {
+      const pricing = payload.pricing || {}
+      const orderDraft = payload.orderDraft || {}
+      const emailPrice = Number(orderDraft.clientPrice)
+      const riderraPrice = Number(pricing.authoritativeClientPrice)
+      const hasEmailPrice = Number.isFinite(emailPrice)
+      const hasRiderraPrice = Number.isFinite(riderraPrice)
+      if (hasRiderraPrice && hasEmailPrice && pricing.conflict) {
+        return {
+          className: 'check-badge--danger',
+          icon: true,
+          label: `Цена не совпала: письмо ${this.formatMoney(emailPrice, orderDraft.currency)}, Riderra ${this.formatMoney(riderraPrice, pricing.authoritativeCurrency || orderDraft.currency)}`
+        }
+      }
+      if (hasRiderraPrice && hasEmailPrice) {
+        return {
+          className: 'check-badge--ok',
+          icon: false,
+          label: 'Цена проверена по Riderra'
+        }
+      }
+      if (hasRiderraPrice) {
+        return {
+          className: 'check-badge--ok',
+          icon: false,
+          label: 'Цена взята из Riderra'
+        }
+      }
+      if (hasEmailPrice) {
+        return {
+          className: 'check-badge--warn',
+          icon: true,
+          label: 'Цена только из письма'
+        }
+      }
+      return {
+        className: 'check-badge--danger',
+        icon: true,
+        label: 'Цена не найдена'
+      }
+    },
+    pricingSourceLabel (pricing = {}) {
+      if (pricing.pricingSource === 'riderra_pricing') return 'Riderra price book'
+      if (pricing.pricingSource) return pricing.pricingSource
+      return 'не найдено'
+    },
+    supplierCostLabel (supplierCost = {}) {
+      const driver = supplierCost.driver || {}
+      const supplierName = driver.supplierCompany?.name || driver.name || supplierCost.sourceLabel || 'поставщик'
+      const price = this.formatMoney(supplierCost.supplierPrice, supplierCost.currency || 'EUR')
+      return `${supplierName}: ${price}`
+    },
     addressProviderLabel (provider) {
       const value = String(provider || '').toLowerCase()
       if (value === 'google_maps') return 'Google Maps'
@@ -559,6 +664,7 @@ export default {
         if (!geo) return null
         const best = geo.bestMatch || null
         const ok = Boolean(geo.found && best)
+        const itemProviderLabel = this.addressProviderLabel(geo.provider || verification.provider)
         const matchName = best?.displayName || best?.formattedAddress || ''
         const lat = best?.lat
         const lon = best?.lon
@@ -566,8 +672,9 @@ export default {
         return {
           ...item,
           ok,
-          providerLabel,
-          statusLabel: ok ? `Проверено по ${providerLabel}` : `Адрес не совпал с ${providerLabel}`,
+          providerLabel: itemProviderLabel || providerLabel,
+          query: geo.query || item.source || '',
+          statusLabel: ok ? `Проверено по ${itemProviderLabel || providerLabel}` : `Адрес не совпал с ${itemProviderLabel || providerLabel}`,
           matchLabel: ok
             ? `Совпадение: ${matchName || 'найдено'}${checkedAt ? ` · ${checkedAt}` : ''}`
             : `Совпадение не найдено${checkedAt ? ` · ${checkedAt}` : ''}`,
@@ -798,7 +905,29 @@ export default {
       this.copyNotice = ''
       this.saving = false
       this.flightChecking = false
+      this.refreshingChecks = false
       this.flightCheckError = ''
+    },
+    async refreshChecks () {
+      if (!this.draft) return
+      this.refreshingChecks = true
+      this.actionResult = ''
+      try {
+        const res = await fetch(`/api/admin/ops/drafts/${this.draft.id}/refresh-checks`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось проверить адреса и цену')
+        this.draft = data
+        this.actionResult = 'Адреса и цена перепроверены.'
+        await this.load()
+      } catch (error) {
+        this.actionResult = error.message || 'Не удалось проверить адреса и цену'
+      } finally {
+        this.refreshingChecks = false
+      }
     },
     async runFlightCheck () {
       if (!this.draft) return
@@ -887,9 +1016,10 @@ export default {
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; }
 .input--date { min-width: 150px; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
-.table-head, .table-row { display: grid; grid-template-columns: 42px 170px 170px 180px 1fr 1.2fr 180px 120px 240px; gap: 12px; padding: 10px 12px; min-width: 1440px; }
+.table-head, .table-row { display: grid; grid-template-columns: 42px 180px minmax(260px, 1.25fr) minmax(240px, 1fr) 210px 230px 250px; gap: 12px; padding: 10px 12px; min-width: 1360px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }
 .table-row { border-bottom: 1px solid #f1f3f8; align-items: center; }
+.row-title { color: #17233d; font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .row-hint { color: #64748b; font-size: 12px; margin-top: 6px; }
 .empty { padding: 16px; color: #64748b; }
@@ -914,7 +1044,12 @@ export default {
 .address-badge--ok { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
 .address-badge--danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 .address-badge__icon,
-.address-check__icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: #dc2626; color: #fff; font-size: 13px; font-weight: 900; line-height: 1; }
+.address-check__icon,
+.check-badge__icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: #dc2626; color: #fff; font-size: 13px; font-weight: 900; line-height: 1; }
+.check-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; max-width: 100%; margin-top: 8px; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 1.2; }
+.check-badge--ok { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.check-badge--warn { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.check-badge--danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 .address-checks { display: grid; gap: 10px; }
 .address-check { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; align-items: flex-start; border: 1px solid #e5e7ef; border-radius: 10px; padding: 12px; }
 .address-check--ok { background: #f0fdf4; border-color: #bbf7d0; }
@@ -931,6 +1066,7 @@ export default {
 .section-card[open] .section-summary { border-bottom: 1px solid #e5e7ef; }
 .section-card > :not(summary) { padding-top: 14px; }
 .section-card h4 { margin: 0 0 10px; }
+.price-check { display: grid; gap: 12px; }
 .note-block pre, .section-card pre { white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; font-family: inherit; }
 .pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #fbf2ff; color: #702283; font-size: 12px; }

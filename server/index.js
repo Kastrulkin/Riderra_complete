@@ -14809,9 +14809,11 @@ async function maybeAutoAttachAddressVerification(payload = {}) {
       fromPoint ? geocodeAddress(fromPoint, { language: orderDraft.lang || 'en' }) : Promise.resolve(null),
       toPoint ? geocodeAddress(toPoint, { language: orderDraft.lang || 'en' }) : Promise.resolve(null)
     ])
+    const provider = fromGeo?.provider || toGeo?.provider || getGeocodingConfig().provider || null
+    const checkedAt = fromGeo?.checkedAt || toGeo?.checkedAt || new Date().toISOString()
     return mergeAddressVerificationIntoPayload(payload, {
-      provider: 'nominatim',
-      checkedAt: new Date().toISOString(),
+      provider,
+      checkedAt,
       fromPoint: fromGeo,
       toPoint: toGeo
     })
@@ -14819,6 +14821,15 @@ async function maybeAutoAttachAddressVerification(payload = {}) {
     console.error('Automatic address verification failed:', error)
     return mergeAddressVerificationErrorIntoPayload(payload, error)
   }
+}
+
+async function refreshOpenClawDraftPayloadChecks(payload = {}, tenantId) {
+  const refreshed = await buildOpenClawDraftPayload(payload, tenantId)
+  const currentFlightCheck = payload.flightCheck || null
+  const withFlightCheck = currentFlightCheck
+    ? mergeFlightCheckIntoPayload(refreshed, currentFlightCheck)
+    : refreshed
+  return maybeAutoAttachAddressVerification(withFlightCheck)
 }
 
 function hasAirportLikePoint(value) {
@@ -15424,9 +15435,9 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
 
   const extracted = {
     externalMessageId: String(payload.externalMessageId || payload.messageId || draft.externalMessageId || '').trim() || null,
-    sourceChannel: String(payload.sourceChannel || payload.channel || 'openclaw').trim() || 'openclaw',
-    sourceChatId: String(payload.sourceChatId || payload.chatId || 'openclaw').trim() || 'openclaw',
-    sourceActorId: String(payload.sourceActorId || payload.actorId || 'openclaw').trim() || 'openclaw',
+    sourceChannel: String(payload.sourceChannel || payload.channel || draft.sourceChannel || 'openclaw').trim() || 'openclaw',
+    sourceChatId: String(payload.sourceChatId || payload.chatId || draft.sourceChatId || 'openclaw').trim() || 'openclaw',
+    sourceActorId: String(payload.sourceActorId || payload.actorId || draft.sourceActorId || 'openclaw').trim() || 'openclaw',
     sourceType: String(payload.sourceType || 'email').trim() || 'email',
     rawText: String(payload.rawText || payload.messageText || '').trim(),
     confidence: Number.isFinite(Number(payload.confidence)) ? Number(payload.confidence) : null,
@@ -16871,6 +16882,51 @@ app.post('/api/admin/ops/drafts/:draftId/flight-check', authenticateToken, resol
   } catch (error) {
     console.error('Error checking flight for draft:', error)
     res.status(error.statusCode || 500).json({ error: error.message || 'Failed to check flight' })
+  }
+})
+
+app.post('/api/admin/ops/drafts/:draftId/refresh-checks', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const row = await prisma.opsEventDraft.findFirst({
+      where: {
+        id: req.params.draftId,
+        tenantId: req.actorContext.tenantId
+      }
+    })
+    if (!row) return res.status(404).json({ error: 'Draft not found' })
+
+    const payload = parseJsonSafe(row.payloadJson || '{}', {})
+    const nextPayload = await refreshOpenClawDraftPayloadChecks(payload, req.actorContext.tenantId)
+
+    const updated = await prisma.opsEventDraft.update({
+      where: { id: row.id },
+      data: { payloadJson: JSON.stringify(nextPayload) }
+    })
+
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'ops.draft.refresh_checks',
+      resource: 'ops_draft',
+      resourceId: row.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: {
+        addressProvider: nextPayload.addressVerification?.provider || null,
+        pricingRuleId: nextPayload.pricing?.pricingRuleId || null,
+        pricingConflict: Boolean(nextPayload.pricing?.conflict)
+      }
+    })
+
+    res.json({
+      ...updated,
+      payload: nextPayload
+    })
+  } catch (error) {
+    console.error('Error refreshing ops draft checks:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to refresh draft checks' })
   }
 })
 
