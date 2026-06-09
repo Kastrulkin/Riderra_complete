@@ -92,7 +92,9 @@
               />
             </div>
             <div>Статус и дата</div>
-            <div>Заказ и маршрут</div>
+            <div>Номер заказа</div>
+            <div>Откуда</div>
+            <div>Куда</div>
             <div>Служебно</div>
             <div>Цена</div>
             <div>Проверки</div>
@@ -115,7 +117,12 @@
             </div>
             <div>
               <div class="row-title">{{ orderTitle(row) }}</div>
-              <div class="row-hint">{{ summarize(row).route }}</div>
+            </div>
+            <div>
+              <div class="row-title row-title--address">{{ routePoint(row, 'fromPoint') }}</div>
+            </div>
+            <div>
+              <div class="row-title row-title--address">{{ routePoint(row, 'toPoint') }}</div>
             </div>
             <div>
               <div class="row-title">{{ summarize(row).customer }}</div>
@@ -495,6 +502,11 @@ export default {
       const payload = this.parsePayload(row.payloadJson)
       const orderDraft = payload.orderDraft || {}
       return orderDraft.orderNumber || orderDraft.externalMessageId || 'Черновик заказа'
+    },
+    routePoint (row, key) {
+      const payload = this.parsePayload(row.payloadJson)
+      const orderDraft = payload.orderDraft || {}
+      return orderDraft[key] || '-'
     },
     serviceLabel (row) {
       const payload = this.parsePayload(row.payloadJson)
@@ -1016,10 +1028,11 @@ export default {
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; }
 .input--date { min-width: 150px; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
-.table-head, .table-row { display: grid; grid-template-columns: 42px 180px minmax(260px, 1.25fr) minmax(240px, 1fr) 210px 230px 250px; gap: 12px; padding: 10px 12px; min-width: 1360px; }
+.table-head, .table-row { display: grid; grid-template-columns: 42px 180px 170px minmax(230px, 1fr) minmax(230px, 1fr) minmax(230px, .9fr) 210px 230px 250px; gap: 12px; padding: 10px 12px; min-width: 1720px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }
 .table-row { border-bottom: 1px solid #f1f3f8; align-items: center; }
 .row-title { color: #17233d; font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
+.row-title--address { font-weight: 700; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .row-hint { color: #64748b; font-size: 12px; margin-top: 6px; }
 .empty { padding: 16px; color: #64748b; }
