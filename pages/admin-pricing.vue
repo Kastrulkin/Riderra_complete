@@ -95,16 +95,16 @@
             </select>
           </div>
           <div class="pricing-list">
-            <div class="pricing-list__head pricing-list__head--pricebook">
+            <div class="pricing-list__head pricing-list__head--base">
               <div>{{ t.routeScope }}</div>
               <div>{{ t.vehicleClass }}</div>
               <div>{{ t.priceAndCurrency }}</div>
-              <div>{{ t.source }}</div>
+              <div>{{ t.managementSignal }}</div>
             </div>
-            <div v-for="r in filteredCounterpartyPricebookRows" :key="r.id" class="pricing-row pricing-row--pricebook">
+            <div v-for="r in filteredCounterpartyPricebookRows" :key="r.id" class="pricing-row pricing-row--base">
               <div class="route-cell">
                 <div class="route-cell__title">{{ routeSummary(r) }}</div>
-                <div class="route-cell__sub">{{ pricebookOwnerLabel(r) }}<span v-if="r.city"> · {{ r.city }}</span></div>
+                <div class="route-cell__sub">{{ pricebookScopeLabel(r) }}</div>
               </div>
               <div>
                 <span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span>
@@ -113,8 +113,8 @@
                 <strong>{{ pricebookPriceLabel(r) }}</strong>
               </div>
               <div class="signal-cell">
-                <span class="status-pill" :class="{ 'status-pill--inactive': !r.isActive, 'status-pill--pending': r.sourceStatus && r.sourceStatus !== 'approved' }">{{ pricebookStatusLabel(r) }}</span>
-                <span class="muted">{{ pricebookSourceLabel(r) }}</span>
+                <div class="signal-cell__title">{{ pricebookSignalTitle(r) }}</div>
+                <div class="signal-cell__copy">{{ pricebookSourceLabel(r) }}</div>
               </div>
             </div>
             <div v-if="!filteredCounterpartyPricebookRows.length" class="empty-state">{{ t.empty }}</div>
@@ -403,6 +403,9 @@ export default {
             empty: 'По текущему фильтру данных пока нет.',
             baseHint: 'Главный источник истины по продажной цене Riderra. Именно отсюда должна браться финальная цена, если нет специально согласованного исключения.',
             counterpartyHint: 'Актуальный прайс-лист по выбранному заказчику или исполнителю. Таблица показывает итоговые действующие цены, а не отдельные правки.',
+            customerPricebook: 'Прайс заказчика',
+            supplierPricebook: 'Прайс исполнителя',
+            activePriceRow: 'Действующая строка прайса',
             driverHint: 'Экономика исполнителей: стоимость по км, почасовая аренда и детские кресла.',
             conflictsHint: 'Открытые ситуации, где цена водителя уже конфликтует с продажной ценой или маржа стала опасной.',
             adjustmentsHint: 'Штрафы и удержания из заказов. Здесь видно, на каких водителей и клиентов приходится больше всего потерь, и как это меняет реальный профит.',
@@ -468,6 +471,9 @@ export default {
             empty: 'No data for the current filter yet.',
             baseHint: 'The main source of truth for Riderra selling price. The team should fall back to this unless there is an explicit exception.',
             counterpartyHint: 'Current price book by selected customer or supplier. The table shows effective active prices, not separate edits.',
+            customerPricebook: 'Customer price book',
+            supplierPricebook: 'Supplier price book',
+            activePriceRow: 'Active price row',
             driverHint: 'Supplier economics: per-km rate, hourly rental, and child seat pricing.',
             conflictsHint: 'Open situations where driver cost already conflicts with the sell price or margin became risky.',
             adjustmentsHint: 'Penalties and deductions from orders. This shows which drivers and clients create the largest loss and how real profit changes.',
@@ -624,21 +630,22 @@ export default {
       if (value === null || value === undefined || value === '') return '-'
       return `${value}${currency ? ` ${currency}` : ''}`
     },
-    pricebookOwnerLabel (row) {
-      return row.pricebookOwner || '-'
+    pricebookScopeLabel (row) {
+      return [row.pricebookOwner, row.country, row.city].filter(Boolean).join(' · ') || '-'
     },
     pricebookPriceLabel (row) {
       return this.priceLabel(row.pricebookPrice, row.currency)
     },
-    pricebookStatusLabel (row) {
-      if (row.pricebookKind === 'supplier') return row.sourceStatus || this.t.ruleActive
-      return row.isActive ? this.t.ruleActive : this.t.ruleInactive
+    pricebookSignalTitle (row) {
+      const label = row.pricebookKind === 'supplier' ? this.t.supplierPricebook : this.t.customerPricebook
+      return row.pricebookOwner ? `${label}: ${row.pricebookOwner}` : label
     },
     pricebookSourceLabel (row) {
+      const period = this.rulePeriodLabel(row)
       if (row.pricebookKind === 'supplier') {
-        return row.sourceLabel || row.sourceType || row.coverage || '-'
+        return [this.t.activePriceRow, row.sourceLabel || row.sourceType || row.coverage].filter(Boolean).join(' · ')
       }
-      return this.rulePeriodLabel(row)
+      return period && period !== '-' ? `${this.t.activePriceRow} · ${period}` : this.t.activePriceRow
     },
     markupLabel (value) {
       if (value === null || value === undefined || value === '') return '-'
