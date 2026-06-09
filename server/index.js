@@ -14440,10 +14440,16 @@ function getAviationStackConfig() {
 }
 
 function getGeocodingConfig() {
+  const googleMapsApiKey = String(process.env.GOOGLE_MAPS_API_KEY || process.env.MAPS_API_KEY || '').trim()
+  const googleMapsBaseUrl = String(process.env.GOOGLE_MAPS_GEOCODING_BASE_URL || 'https://maps.googleapis.com/maps/api/geocode').trim()
+  const provider = String(process.env.GEOCODING_PROVIDER || (googleMapsApiKey ? 'google_maps' : 'nominatim')).trim().toLowerCase()
   const baseUrl = String(process.env.GEOCODING_BASE_URL || 'https://nominatim.openstreetmap.org').trim()
   const userAgent = String(process.env.GEOCODING_USER_AGENT || 'Riderra/1.0 (ops@riderra.com)').trim()
   const referer = String(process.env.GEOCODING_REFERER || 'https://riderra.com').trim()
   return {
+    provider,
+    googleMapsApiKey,
+    googleMapsBaseUrl: googleMapsBaseUrl.replace(/\/+$/, ''),
     baseUrl: baseUrl.replace(/\/+$/, ''),
     userAgent,
     referer
@@ -14475,20 +14481,55 @@ function normalizeGeocodingResult(row = {}) {
   }
 }
 
-async function geocodeAddress(query, options = {}) {
-  const rawQuery = String(query || '').trim()
-  if (!rawQuery) {
-    const error = new Error('address query is required')
-    error.statusCode = 400
+function normalizeGoogleMapsGeocodingResult(row = {}) {
+  const location = row.geometry?.location || {}
+  return {
+    displayName: row.formatted_address || null,
+    lat: location.lat != null ? Number(location.lat) : null,
+    lon: location.lng != null ? Number(location.lng) : null,
+    type: Array.isArray(row.types) ? row.types[0] || null : null,
+    className: Array.isArray(row.types) ? row.types.join(',') : null,
+    importance: null,
+    address: row.address_components || null,
+    placeId: row.place_id || null,
+    raw: row
+  }
+}
+
+async function geocodeAddressWithGoogleMaps(rawQuery, options = {}) {
+  const config = getGeocodingConfig()
+  if (!config.googleMapsApiKey) {
+    const error = new Error('Google Maps geocoding key is not configured')
+    error.statusCode = 503
     throw error
   }
 
-  const cacheKey = `${rawQuery.toLowerCase()}::${String(options.language || 'en')}`
-  const cached = geocodeCache.get(cacheKey)
-  if (cached && (Date.now() - cached.ts) < (1000 * 60 * 60 * 12)) {
-    return cached.value
+  const url = new URL(`${config.googleMapsBaseUrl}/json`)
+  url.searchParams.set('address', rawQuery)
+  url.searchParams.set('key', config.googleMapsApiKey)
+  if (options.language) url.searchParams.set('language', options.language)
+
+  const response = await fetch(url.toString())
+  const json = await response.json().catch(() => ({}))
+  if (!response.ok || !['OK', 'ZERO_RESULTS'].includes(String(json.status || ''))) {
+    const error = new Error(`Google Maps geocoding failed: ${json.status || `HTTP ${response.status}`}${json.error_message ? ` (${json.error_message})` : ''}`)
+    error.statusCode = 502
+    throw error
   }
 
+  const rows = Array.isArray(json.results) ? json.results.map(normalizeGoogleMapsGeocodingResult) : []
+  const bestMatch = rows[0] || null
+  return {
+    provider: 'google_maps',
+    checkedAt: new Date().toISOString(),
+    query: rawQuery,
+    found: Boolean(bestMatch),
+    bestMatch,
+    resultCount: rows.length
+  }
+}
+
+async function geocodeAddressWithNominatim(rawQuery, options = {}) {
   const config = getGeocodingConfig()
   await waitForGeocodeSlot()
 
@@ -14514,7 +14555,7 @@ async function geocodeAddress(query, options = {}) {
 
   const rows = Array.isArray(json) ? json.map(normalizeGeocodingResult) : []
   const bestMatch = rows[0] || null
-  const value = {
+  return {
     provider: 'nominatim',
     checkedAt: new Date().toISOString(),
     query: rawQuery,
@@ -14522,6 +14563,35 @@ async function geocodeAddress(query, options = {}) {
     bestMatch,
     resultCount: rows.length
   }
+}
+
+async function geocodeAddress(query, options = {}) {
+  const rawQuery = String(query || '').trim()
+  if (!rawQuery) {
+    const error = new Error('address query is required')
+    error.statusCode = 400
+    throw error
+  }
+
+  const config = getGeocodingConfig()
+  const cacheKey = `${config.provider}::${rawQuery.toLowerCase()}::${String(options.language || 'en')}`
+  const cached = geocodeCache.get(cacheKey)
+  if (cached && (Date.now() - cached.ts) < (1000 * 60 * 60 * 12)) {
+    return cached.value
+  }
+
+  let value
+  if (config.provider === 'google_maps' && config.googleMapsApiKey) {
+    try {
+      value = await geocodeAddressWithGoogleMaps(rawQuery, options)
+    } catch (error) {
+      console.error('Google Maps geocoding failed, falling back to Nominatim:', error)
+      value = await geocodeAddressWithNominatim(rawQuery, options)
+    }
+  } else {
+    value = await geocodeAddressWithNominatim(rawQuery, options)
+  }
+
   geocodeCache.set(cacheKey, { ts: Date.now(), value })
   return value
 }
