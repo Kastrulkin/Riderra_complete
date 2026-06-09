@@ -81,17 +81,9 @@
             </div>
           </div>
           <div class="pricebook-toolbar">
-            <div class="subtabs subtabs--nested">
-              <button class="subtab" :class="{ 'subtab--active': partyKind==='customer' }" @click="partyKind='customer'">{{ t.customers }}</button>
-              <button class="subtab" :class="{ 'subtab--active': partyKind==='supplier' }" @click="partyKind='supplier'">{{ t.suppliers }}</button>
-            </div>
-            <select v-if="partyKind==='customer'" v-model="selectedCounterparty" class="input pricebook-select">
+            <select v-model="selectedCounterparty" class="input pricebook-select">
               <option value="">{{ t.allCounterparties }}</option>
               <option v-for="name in counterpartyOptions" :key="name" :value="name">{{ name }}</option>
-            </select>
-            <select v-else v-model="selectedSupplier" class="input pricebook-select">
-              <option value="">{{ t.allSuppliers }}</option>
-              <option v-for="name in supplierOptions" :key="name" :value="name">{{ name }}</option>
             </select>
           </div>
           <div class="pricing-list">
@@ -127,6 +119,12 @@
               <h3>{{ t.driver }}</h3>
               <p class="panel-hint">{{ t.driverHint }}</p>
             </div>
+          </div>
+          <div class="pricebook-toolbar">
+            <select v-model="selectedSupplier" class="input pricebook-select">
+              <option value="">{{ t.allSuppliers }}</option>
+              <option v-for="name in supplierOptions" :key="name" :value="name">{{ name }}</option>
+            </select>
           </div>
           <div class="pricing-list">
             <div class="pricing-list__head pricing-list__head--base">
@@ -329,7 +327,6 @@ export default {
     conflictRows: [],
     driverRows: [],
     adjustmentSummary: null,
-    partyKind: 'customer',
     selectedCounterparty: '',
     selectedSupplier: '',
     notice: '',
@@ -350,13 +347,13 @@ export default {
             title: 'Прайс и контроль маржи',
             subtitle: 'Здесь команда видит не просто набор цен, а управленческую картину: где базовый прайс, где особые договорённости, где водительские ставки и где уже есть риск для маржи.',
             base: 'Базовый прайс',
-            counterparty: 'Контрагенты',
-            driver: 'Цены водителей',
+            counterparty: 'Прайсы клиентов',
+            driver: 'Прайсы исполнителей',
             customers: 'Заказчики',
             suppliers: 'Исполнители',
-            allCounterparties: 'Все заказчики',
+            allCounterparties: 'Все клиенты',
             allSuppliers: 'Все исполнители',
-            conflicts: 'Риски и расхождения',
+            conflicts: 'Риски',
             adjustments: 'Штрафы',
             refresh: 'Обновить',
             addRow: 'Добавить строку',
@@ -405,12 +402,12 @@ export default {
             cancel: 'Отмена',
             empty: 'По текущему фильтру данных пока нет.',
             baseHint: 'Главный источник истины по продажной цене Riderra. Именно отсюда должна браться финальная цена, если нет специально согласованного исключения.',
-            counterpartyHint: 'Актуальный прайс-лист по выбранному заказчику или исполнителю. Таблица показывает итоговые действующие цены, а не отдельные правки.',
+            counterpartyHint: 'Актуальный прайс-лист выбранного клиента. Таблица показывает итоговые действующие цены, а не отдельные правки.',
             customerPricebook: 'Прайс заказчика',
             supplierPricebook: 'Прайс исполнителя',
             activePriceRow: 'Действующая строка прайса',
             supplierPriceRow: 'Строка прайса исполнителя',
-            driverHint: 'Экономика исполнителей: стоимость по км, почасовая аренда и детские кресла.',
+            driverHint: 'Актуальный прайс-лист выбранного исполнителя: маршруты, классы авто, себестоимость и источник строки.',
             conflictsHint: 'Открытые ситуации, где цена водителя уже конфликтует с продажной ценой или маржа стала опасной.',
             adjustmentsHint: 'Штрафы и удержания из заказов. Здесь видно, на каких водителей и клиентов приходится больше всего потерь, и как это меняет реальный профит.',
             baseFormHint: 'Добавляем или редактируем строку основного прайса Riderra. Это опорная цена для команды.',
@@ -425,13 +422,13 @@ export default {
             title: 'Pricing & Margin Control',
             subtitle: 'This screen shows more than price rows. It gives the team a management view of base pricing, special agreements, driver economics, and margin risk.',
             base: 'Base pricing',
-            counterparty: 'Counterparties',
-            driver: 'Driver prices',
+            counterparty: 'Customer prices',
+            driver: 'Supplier prices',
             customers: 'Customers',
             suppliers: 'Suppliers',
             allCounterparties: 'All customers',
             allSuppliers: 'All suppliers',
-            conflicts: 'Risks and conflicts',
+            conflicts: 'Risks',
             adjustments: 'Penalties',
             refresh: 'Refresh',
             addRow: 'Add row',
@@ -480,12 +477,12 @@ export default {
             cancel: 'Cancel',
             empty: 'No data for the current filter yet.',
             baseHint: 'The main source of truth for Riderra selling price. The team should fall back to this unless there is an explicit exception.',
-            counterpartyHint: 'Current price book by selected customer or supplier. The table shows effective active prices, not separate edits.',
+            counterpartyHint: 'Current price book for the selected customer. The table shows effective active prices, not separate edits.',
             customerPricebook: 'Customer price book',
             supplierPricebook: 'Supplier price book',
             activePriceRow: 'Active price row',
             supplierPriceRow: 'Supplier price row',
-            driverHint: 'Supplier economics: per-km rate, hourly rental, and child seat pricing.',
+            driverHint: 'Current price book for the selected supplier: routes, vehicle classes, supplier cost, and row source.',
             conflictsHint: 'Open situations where driver cost already conflicts with the sell price or margin became risky.',
             adjustmentsHint: 'Penalties and deductions from orders. This shows which drivers and clients create the largest loss and how real profit changes.',
             baseFormHint: 'Add or edit a base pricing row. This is the anchor sale price for the team.',
@@ -499,8 +496,8 @@ export default {
     },
     searchPlaceholder () {
       if (this.tab === 'base') return this.$store.state.language === 'ru' ? 'Поиск по стране, маршруту или классу авто' : 'Search by country, route, or vehicle class'
-      if (this.tab === 'counterparty') return this.$store.state.language === 'ru' ? 'Поиск по контрагенту, городу или маршруту' : 'Search by counterparty, city, or route'
-      if (this.tab === 'driver') return this.$store.state.language === 'ru' ? 'Поиск по водителю, стране или городу' : 'Search by driver, country, or city'
+      if (this.tab === 'counterparty') return this.$store.state.language === 'ru' ? 'Поиск по клиенту, городу или маршруту' : 'Search by customer, city, or route'
+      if (this.tab === 'driver') return this.$store.state.language === 'ru' ? 'Поиск по исполнителю, стране или городу' : 'Search by supplier, country, or city'
       if (this.tab === 'adjustments') return this.$store.state.language === 'ru' ? 'Поиск по водителю, клиенту или маршруту' : 'Search by driver, client, or route'
       return this.$store.state.language === 'ru' ? 'Поиск по проблеме, ID заказа или маршруту' : 'Search by issue, order ID, or route'
     },
@@ -545,16 +542,6 @@ export default {
         .sort((a, b) => a.localeCompare(b))
     },
     counterpartyPricebookRows () {
-      if (this.partyKind === 'supplier') {
-        return this.driverPriceRows.map((row) => ({
-          ...row,
-          pricebookKind: 'supplier',
-          routeFrom: row.routeFrom || row.fromPoint,
-          routeTo: row.routeTo || row.toPoint,
-          pricebookOwner: row.supplierName || row.driverName,
-          pricebookPrice: row.driverPrice
-        }))
-      }
       return this.cpRows
         .filter((row) => row.isActive)
         .map((row) => ({
@@ -565,7 +552,7 @@ export default {
         }))
     },
     filteredCounterpartyPricebookRows () {
-      const owner = this.partyKind === 'supplier' ? this.selectedSupplier : this.selectedCounterparty
+      const owner = this.selectedCounterparty
       const q = this.q.trim().toLowerCase()
       return this.counterpartyPricebookRows.filter((row) => {
         if (owner && row.pricebookOwner !== owner) return false
@@ -574,9 +561,14 @@ export default {
       })
     },
     filteredDriverRows () {
+      const owner = this.selectedSupplier
       const q = this.q.trim().toLowerCase()
-      if (!q) return this.driverPriceRows
-      return this.driverPriceRows.filter((row) => `${row.driverName || ''} ${row.country || ''} ${row.city || ''} ${row.fromPoint || ''} ${row.toPoint || ''} ${row.vehicleType || ''} ${row.sourceLabel || ''}`.toLowerCase().includes(q))
+      return this.driverPriceRows.filter((row) => {
+        const rowOwner = row.supplierName || row.driverName
+        if (owner && rowOwner !== owner) return false
+        if (!q) return true
+        return `${rowOwner || ''} ${row.country || ''} ${row.city || ''} ${row.fromPoint || ''} ${row.toPoint || ''} ${row.vehicleType || ''} ${row.sourceLabel || ''}`.toLowerCase().includes(q)
+      })
     },
     driverPriceRows () {
       return this.driverRows.flatMap((driver) => {
