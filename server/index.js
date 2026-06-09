@@ -13720,7 +13720,8 @@ app.delete('/api/admin/pricing/cities/:id', authenticateToken, resolveActorConte
 
 app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing'), async (req, res) => {
   try {
-    const { q = '', active = '' } = req.query
+    const { q = '', active = '', limit = '500' } = req.query
+    const take = Math.min(parseInt(limit, 10) || 500, 5000)
     const where = {
       tenantId: req.actorContext.tenantId,
       ...buildCityScopeWhere(req, 'city')
@@ -13740,7 +13741,7 @@ app.get('/api/admin/pricing/counterparty-rules', authenticateToken, resolveActor
         customerCompany: { select: { id: true, name: true } }
       },
       orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }],
-      take: 300
+      take
     })
     res.json({ rows })
   } catch (error) {

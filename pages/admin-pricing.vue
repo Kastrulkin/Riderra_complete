@@ -77,33 +77,47 @@
           <div class="panel-head">
             <div>
               <h3>{{ t.counterparty }}</h3>
+              <p class="panel-hint">{{ t.counterpartyHint }}</p>
             </div>
           </div>
+          <div class="pricebook-toolbar">
+            <div class="subtabs subtabs--nested">
+              <button class="subtab" :class="{ 'subtab--active': partyKind==='customer' }" @click="partyKind='customer'">{{ t.customers }}</button>
+              <button class="subtab" :class="{ 'subtab--active': partyKind==='supplier' }" @click="partyKind='supplier'">{{ t.suppliers }}</button>
+            </div>
+            <select v-if="partyKind==='customer'" v-model="selectedCounterparty" class="input pricebook-select">
+              <option value="">{{ t.allCounterparties }}</option>
+              <option v-for="name in counterpartyOptions" :key="name" :value="name">{{ name }}</option>
+            </select>
+            <select v-else v-model="selectedSupplier" class="input pricebook-select">
+              <option value="">{{ t.allSuppliers }}</option>
+              <option v-for="name in supplierOptions" :key="name" :value="name">{{ name }}</option>
+            </select>
+          </div>
           <div class="pricing-list">
-            <div class="pricing-list__head pricing-list__head--compact-price">
-              <div>{{ t.counterpartyRoute }}</div>
+            <div class="pricing-list__head pricing-list__head--pricebook">
+              <div>{{ t.routeScope }}</div>
               <div>{{ t.vehicleClass }}</div>
               <div>{{ t.priceAndCurrency }}</div>
-              <div>{{ t.status }}</div>
+              <div>{{ t.source }}</div>
             </div>
-            <div v-for="r in filteredCpRows" :key="r.id" class="pricing-row pricing-row--compact-price">
+            <div v-for="r in filteredCounterpartyPricebookRows" :key="r.id" class="pricing-row pricing-row--pricebook">
               <div class="route-cell">
                 <div class="route-cell__title">{{ routeSummary(r) }}</div>
-                <div class="route-cell__sub">{{ r.counterpartyName || '-' }}<span v-if="r.city"> · {{ r.city }}</span></div>
+                <div class="route-cell__sub">{{ pricebookOwnerLabel(r) }}<span v-if="r.city"> · {{ r.city }}</span></div>
               </div>
               <div>
                 <span :class="['class-badge', { 'class-badge--missing': !r.vehicleType }]">{{ r.vehicleType || t.missingClass }}</span>
               </div>
               <div class="price-cell">
-                <strong>{{ priceLabel(r.sellPrice, r.currency) }}</strong>
-                <span class="muted">{{ t.markup }}: {{ markupLabel(r.markupPercent) }}</span>
+                <strong>{{ pricebookPriceLabel(r) }}</strong>
               </div>
               <div class="signal-cell">
-                <span class="status-pill" :class="{ 'status-pill--inactive': !r.isActive }">{{ r.isActive ? t.ruleActive : t.ruleInactive }}</span>
-                <span class="muted">{{ rulePeriodLabel(r) }}</span>
+                <span class="status-pill" :class="{ 'status-pill--inactive': !r.isActive, 'status-pill--pending': r.sourceStatus && r.sourceStatus !== 'approved' }">{{ pricebookStatusLabel(r) }}</span>
+                <span class="muted">{{ pricebookSourceLabel(r) }}</span>
               </div>
             </div>
-            <div v-if="!filteredCpRows.length" class="empty-state">{{ t.empty }}</div>
+            <div v-if="!filteredCounterpartyPricebookRows.length" class="empty-state">{{ t.empty }}</div>
           </div>
         </div>
 
@@ -265,32 +279,32 @@
           <button class="modal-close" type="button" @click="closeBaseForm">×</button>
         </div>
         <div class="form-grid">
-          <div>
-            <label>{{ t.country }}</label>
-            <input v-model="baseForm.country" class="input" />
+          <div class="pricing-field">
+            <label class="pricing-field__label">{{ t.country }}</label>
+            <input v-model="baseForm.country" class="input pricing-field__input" />
           </div>
-          <div>
-            <label>{{ t.from }}</label>
-            <input v-model="baseForm.routeFrom" class="input" />
+          <div class="pricing-field">
+            <label class="pricing-field__label">{{ t.from }}</label>
+            <input v-model="baseForm.routeFrom" class="input pricing-field__input" />
           </div>
-          <div>
-            <label>{{ t.to }}</label>
-            <input v-model="baseForm.routeTo" class="input" />
+          <div class="pricing-field">
+            <label class="pricing-field__label">{{ t.to }}</label>
+            <input v-model="baseForm.routeTo" class="input pricing-field__input" />
           </div>
-          <div>
-            <label>{{ t.vehicleClass }} *</label>
-            <input v-model="baseForm.vehicleType" class="input" />
+          <div class="pricing-field">
+            <label class="pricing-field__label">{{ t.vehicleClass }} *</label>
+            <input v-model="baseForm.vehicleType" class="input pricing-field__input" />
           </div>
-          <div>
-            <label>{{ t.sale }} *</label>
-            <input v-model="baseForm.fixedPrice" class="input" type="number" step="0.01" min="0" />
+          <div class="pricing-field">
+            <label class="pricing-field__label">{{ t.sale }} *</label>
+            <input v-model="baseForm.fixedPrice" class="input pricing-field__input" type="number" step="0.01" min="0" />
           </div>
-          <div>
-            <label>{{ t.currency }} *</label>
-            <input v-model="baseForm.currency" class="input" />
+          <div class="pricing-field">
+            <label class="pricing-field__label">{{ t.currency }} *</label>
+            <input v-model="baseForm.currency" class="input pricing-field__input" />
           </div>
         </div>
-        <div class="actions">
+        <div class="actions modal-actions">
           <button class="btn btn--primary" @click="saveBaseRow">{{ t.save }}</button>
           <button class="btn" @click="closeBaseForm">{{ t.cancel }}</button>
         </div>
@@ -314,6 +328,9 @@ export default {
     conflictRows: [],
     driverRows: [],
     adjustmentSummary: null,
+    partyKind: 'customer',
+    selectedCounterparty: '',
+    selectedSupplier: '',
     notice: '',
     editingBase: null,
     baseForm: {
@@ -334,6 +351,10 @@ export default {
             base: 'Базовый прайс',
             counterparty: 'Контрагенты',
             driver: 'Цены водителей',
+            customers: 'Заказчики',
+            suppliers: 'Исполнители',
+            allCounterparties: 'Все заказчики',
+            allSuppliers: 'Все исполнители',
             conflicts: 'Риски и расхождения',
             adjustments: 'Штрафы',
             refresh: 'Обновить',
@@ -381,7 +402,7 @@ export default {
             cancel: 'Отмена',
             empty: 'По текущему фильтру данных пока нет.',
             baseHint: 'Главный источник истины по продажной цене Riderra. Именно отсюда должна браться финальная цена, если нет специально согласованного исключения.',
-            counterpartyHint: 'Отдельные договорённости с контрагентами. Здесь важно быстро видеть, где мы живём не по базовому прайсу.',
+            counterpartyHint: 'Актуальный прайс-лист по выбранному заказчику или исполнителю. Таблица показывает итоговые действующие цены, а не отдельные правки.',
             driverHint: 'Экономика исполнителей: стоимость по км, почасовая аренда и детские кресла.',
             conflictsHint: 'Открытые ситуации, где цена водителя уже конфликтует с продажной ценой или маржа стала опасной.',
             adjustmentsHint: 'Штрафы и удержания из заказов. Здесь видно, на каких водителей и клиентов приходится больше всего потерь, и как это меняет реальный профит.',
@@ -395,6 +416,10 @@ export default {
             base: 'Base pricing',
             counterparty: 'Counterparties',
             driver: 'Driver prices',
+            customers: 'Customers',
+            suppliers: 'Suppliers',
+            allCounterparties: 'All customers',
+            allSuppliers: 'All suppliers',
             conflicts: 'Risks and conflicts',
             adjustments: 'Penalties',
             refresh: 'Refresh',
@@ -442,7 +467,7 @@ export default {
             cancel: 'Cancel',
             empty: 'No data for the current filter yet.',
             baseHint: 'The main source of truth for Riderra selling price. The team should fall back to this unless there is an explicit exception.',
-            counterpartyHint: 'Special deals with counterparties. This is where the team should quickly see where pricing diverges from the base book.',
+            counterpartyHint: 'Current price book by selected customer or supplier. The table shows effective active prices, not separate edits.',
             driverHint: 'Supplier economics: per-km rate, hourly rental, and child seat pricing.',
             conflictsHint: 'Open situations where driver cost already conflicts with the sell price or margin became risky.',
             adjustmentsHint: 'Penalties and deductions from orders. This shows which drivers and clients create the largest loss and how real profit changes.',
@@ -482,6 +507,48 @@ export default {
       const q = this.q.trim().toLowerCase()
       if (!q) return this.cpRows
       return this.cpRows.filter((row) => `${row.counterpartyName || ''} ${row.city || ''} ${row.routeFrom || ''} ${row.routeTo || ''} ${row.vehicleType || ''}`.toLowerCase().includes(q))
+    },
+    counterpartyOptions () {
+      return Array.from(new Set(this.cpRows
+        .filter((row) => row.isActive)
+        .map((row) => row.customerCompany?.name || row.counterpartyName)
+        .filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b))
+    },
+    supplierOptions () {
+      return Array.from(new Set(this.driverPriceRows
+        .map((row) => row.supplierName || row.driverName)
+        .filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b))
+    },
+    counterpartyPricebookRows () {
+      if (this.partyKind === 'supplier') {
+        return this.driverPriceRows.map((row) => ({
+          ...row,
+          pricebookKind: 'supplier',
+          routeFrom: row.routeFrom || row.fromPoint,
+          routeTo: row.routeTo || row.toPoint,
+          pricebookOwner: row.supplierName || row.driverName,
+          pricebookPrice: row.driverPrice
+        }))
+      }
+      return this.cpRows
+        .filter((row) => row.isActive)
+        .map((row) => ({
+          ...row,
+          pricebookKind: 'customer',
+          pricebookOwner: row.customerCompany?.name || row.counterpartyName,
+          pricebookPrice: row.sellPrice
+        }))
+    },
+    filteredCounterpartyPricebookRows () {
+      const owner = this.partyKind === 'supplier' ? this.selectedSupplier : this.selectedCounterparty
+      const q = this.q.trim().toLowerCase()
+      return this.counterpartyPricebookRows.filter((row) => {
+        if (owner && row.pricebookOwner !== owner) return false
+        if (!q) return true
+        return `${row.pricebookOwner || ''} ${row.city || ''} ${row.country || ''} ${row.routeFrom || ''} ${row.routeTo || ''} ${row.vehicleType || ''}`.toLowerCase().includes(q)
+      })
     },
     filteredDriverRows () {
       const q = this.q.trim().toLowerCase()
@@ -556,6 +623,22 @@ export default {
     priceLabel (value, currency = '') {
       if (value === null || value === undefined || value === '') return '-'
       return `${value}${currency ? ` ${currency}` : ''}`
+    },
+    pricebookOwnerLabel (row) {
+      return row.pricebookOwner || '-'
+    },
+    pricebookPriceLabel (row) {
+      return this.priceLabel(row.pricebookPrice, row.currency)
+    },
+    pricebookStatusLabel (row) {
+      if (row.pricebookKind === 'supplier') return row.sourceStatus || this.t.ruleActive
+      return row.isActive ? this.t.ruleActive : this.t.ruleInactive
+    },
+    pricebookSourceLabel (row) {
+      if (row.pricebookKind === 'supplier') {
+        return row.sourceLabel || row.sourceType || row.coverage || '-'
+      }
+      return this.rulePeriodLabel(row)
     },
     markupLabel (value) {
       if (value === null || value === undefined || value === '') return '-'
@@ -689,7 +772,7 @@ export default {
       this.notice = ''
       const [base, cp, cf, dr, adj] = await Promise.allSettled([
         this.fetchJson('/api/admin/pricing/cities?limit=5000'),
-        this.fetchJson('/api/admin/pricing/counterparty-rules'),
+        this.fetchJson('/api/admin/pricing/counterparty-rules?active=true&limit=5000'),
         this.fetchJson('/api/admin/pricing/conflicts?status=open&limit=500'),
         this.fetchJson('/api/admin/drivers'),
         this.fetchJson('/api/admin/pricing/adjustments/summary?type=penalty&limit=1000')
@@ -760,6 +843,10 @@ export default {
   flex-wrap: wrap;
 }
 
+.actions {
+  margin-top: 20px;
+}
+
 .overview-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -824,6 +911,23 @@ export default {
   flex: 1 1 320px;
 }
 
+.pricebook-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.subtabs--nested {
+  margin: 0;
+}
+
+.pricebook-select {
+  width: min(100%, 360px);
+}
+
 .hint {
   margin-bottom: 12px;
   color: #4a628c;
@@ -880,6 +984,8 @@ export default {
 .pricing-row--base,
 .pricing-list__head--compact-price,
 .pricing-row--compact-price,
+.pricing-list__head--pricebook,
+.pricing-row--pricebook,
 .pricing-list__head--conflicts,
 .pricing-row--conflicts,
 .pricing-list__head--adjustments,
@@ -1042,6 +1148,8 @@ export default {
   padding: 10px 12px;
   min-width: 220px;
   width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
 }
 
 .modal-overlay {
@@ -1055,10 +1163,12 @@ export default {
 }
 
 .modal {
-  width: min(760px, 95vw);
+  width: min(820px, 95vw);
+  max-height: min(92vh, 720px);
+  overflow: auto;
   background: #ffffff;
   border-radius: 16px;
-  padding: 18px;
+  padding: 22px 24px;
   border: 1px solid #d8d8e6;
 }
 
@@ -1081,8 +1191,39 @@ export default {
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 14px;
+  column-gap: 18px;
+  row-gap: 20px;
+  margin-top: 20px;
+}
+
+.pricing-field {
+  display: grid;
+  grid-template-rows: auto 52px;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pricing-field__label {
+  display: block;
+  color: #17233d;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+.pricing-field__input {
+  min-height: 52px;
+  height: 52px;
+  padding: 0 14px;
+  font-size: 16px;
+  line-height: 52px;
+}
+
+.modal-actions {
+  margin-top: 24px;
+  align-items: center;
 }
 
 .btn {
