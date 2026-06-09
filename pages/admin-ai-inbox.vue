@@ -184,7 +184,7 @@
         <div class="focus-card">
           <div class="focus-card__head">
             <div>
-              <h4>{{ orderDraft.customerName || 'Черновик без контрагента' }}</h4>
+              <h4>{{ orderDraft.counterpartyName || 'Черновик без контрагента' }}</h4>
               <div class="hint">{{ [orderDraft.city, orderDraft.pickupAt].filter(Boolean).join(' · ') || 'Дата и город пока не определены' }}</div>
             </div>
             <span class="status-pill" :class="`status-pill--${draft.status}`">{{ draft.status }}</span>
@@ -243,7 +243,8 @@
         <details class="section-card" open>
           <summary class="section-summary">Подготовленный заказ</summary>
           <div class="meta-grid">
-            <div><strong>Контрагент:</strong> {{ orderDraft.customerName || '-' }}</div>
+            <div><strong>Контрагент:</strong> {{ orderDraft.counterpartyName || '-' }}</div>
+            <div><strong>Пассажир:</strong> {{ orderDraft.customerName || '-' }}</div>
             <div><strong>Номер:</strong> {{ orderDraft.orderNumber || '-' }}</div>
             <div><strong>Город:</strong> {{ orderDraft.city || '-' }}</div>
             <div><strong>Дата/время:</strong> {{ orderDraft.pickupAt || '-' }}</div>
@@ -501,7 +502,7 @@ export default {
       const orderDraft = payload.orderDraft || {}
       const pricing = payload.pricing || {}
       return {
-        customer: orderDraft.customerName || '-',
+        customer: orderDraft.counterpartyName || '-',
         route: [orderDraft.fromPoint, orderDraft.toPoint].filter(Boolean).join(' -> ') || '-',
         price: this.formatMoney(
           pricing.authoritativeClientPrice != null ? pricing.authoritativeClientPrice : orderDraft.clientPrice,
@@ -542,14 +543,14 @@ export default {
       const price = pricing.authoritativeClientPrice != null ? pricing.authoritativeClientPrice : orderDraft.clientPrice
       const currency = pricing.authoritativeCurrency || orderDraft.currency || 'EUR'
       return {
-        contractor: preview.contractor || orderDraft.customerName || '',
+        contractor: preview.contractor || orderDraft.counterpartyName || '',
         orderNumber: preview.orderNumber || orderDraft.orderNumber || '',
         date: preview.date || (orderDraft.pickupAt ? String(orderDraft.pickupAt).replace('T', ' ').slice(0, 16) : ''),
         fromPoint: preview.fromPoint || orderDraft.fromPoint || '',
         toPoint: preview.toPoint || orderDraft.toPoint || '',
         sum: preview.sum || (Number.isFinite(Number(price)) ? `${Number(price).toFixed(2)} ${currency}` : ''),
         driver: preview.driver || '',
-        internalOrderNumber: preview.internalOrderNumber || orderDraft.externalMessageId || '',
+        internalOrderNumber: preview.internalOrderNumber || orderDraft.internalOrderNumber || '',
         comment: preview.comment || orderDraft.comment || ''
       }
     },
@@ -562,8 +563,8 @@ export default {
         row.toPoint,
         row.sum,
         row.driver,
-        row.internalOrderNumber,
-        row.comment
+        row.comment,
+        row.internalOrderNumber
       ]
       return values.map((value) => String(value || '').replace(/\r?\n/g, ' ').replace(/\t/g, ' ').trim()).join('\t')
     },

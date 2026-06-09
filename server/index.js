@@ -11518,7 +11518,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         sum: String(preview.sum || ''),
         driver: String(preview.driver || ''),
         comment: String(preview.comment || ''),
-        internalOrderNumber: String(preview.internalOrderNumber || draft.id),
+        internalOrderNumber: String(preview.internalOrderNumber || ''),
         status: order?.status || 'draft',
         needsInfo: Boolean(order?.needsInfo),
         infoReason: order?.infoReason || payload?.infoReason || null,
@@ -14961,6 +14961,7 @@ function buildSheetRowPreviewFromDraft(extracted, pricing = {}) {
     ? Number(pricing.authoritativeClientPrice)
     : (Number.isFinite(Number(extracted?.clientPrice)) ? Number(extracted.clientPrice) : null)
   const commentParts = [
+    String(extracted?.customerName || '').trim() ? `Пассажир: ${String(extracted.customerName).trim()}` : null,
     extracted?.comment || null,
     extracted?.flightNumber ? `рейс ${normalizeFlightNumber(extracted.flightNumber)}` : null,
     pricing?.conflict ? 'расхождение с прайсом Riderra' : null,
@@ -14968,7 +14969,7 @@ function buildSheetRowPreviewFromDraft(extracted, pricing = {}) {
   ].filter(Boolean)
 
   return {
-    contractor: extracted?.customerName || '',
+    contractor: extracted?.counterpartyName || extracted?.contractor || '',
     orderNumber: extracted?.orderNumber || '',
     date: displayDate,
     fromPoint: extracted?.fromPoint || '',
@@ -14976,7 +14977,7 @@ function buildSheetRowPreviewFromDraft(extracted, pricing = {}) {
     sum: price != null ? `${price.toFixed(2)} ${pricing?.authoritativeCurrency || extracted?.currency || 'EUR'}` : '',
     driver: '',
     comment: commentParts.join('; '),
-    internalOrderNumber: extracted?.externalMessageId || ''
+    internalOrderNumber: extracted?.internalOrderNumber || ''
   }
 }
 
@@ -15428,10 +15429,30 @@ function buildSupplierCostSignal({
   }
 }
 
+function inferEmailCounterpartyName({ fromEmail = '', rawText = '', current = '' } = {}) {
+  const explicit = String(current || '').trim()
+  const source = `${fromEmail}\n${rawText}`.toLowerCase()
+  if (/transferz|transfez/.test(source)) return 'Transferz'
+  if (/rideways/.test(source)) return 'Rideways'
+  if (/booking\.com|bookingcom/.test(source)) return 'Booking.com'
+  if (/gettransfer/.test(source)) return 'GetTransfer'
+  if (/kiwitaxi|kiwi taxi/.test(source)) return 'Kiwitaxi'
+  if (/intui\.travel|intui/.test(source)) return 'Intui.travel'
+  if (/easy\s?taxi|easytaxi/.test(source)) return 'EasyTaxi'
+  return explicit
+}
+
 async function buildOpenClawDraftPayload(payload, tenantId) {
   const draft = payload?.orderDraft && typeof payload.orderDraft === 'object'
     ? payload.orderDraft
     : {}
+  const rawText = String(payload.rawText || payload.messageText || draft.rawText || '').trim()
+  const sourceEmail = String(payload.fromEmail || payload.sourceEmail || draft.fromEmail || draft.sourceActorId || payload.sourceActorId || draft.sourceChatId || payload.sourceChatId || '').trim()
+  const counterpartyName = inferEmailCounterpartyName({
+    fromEmail: sourceEmail,
+    rawText,
+    current: draft.counterpartyName || payload.counterpartyName || payload.contractor || ''
+  })
 
   const extracted = {
     externalMessageId: String(payload.externalMessageId || payload.messageId || draft.externalMessageId || '').trim() || null,
@@ -15439,11 +15460,12 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     sourceChatId: String(payload.sourceChatId || payload.chatId || draft.sourceChatId || 'openclaw').trim() || 'openclaw',
     sourceActorId: String(payload.sourceActorId || payload.actorId || draft.sourceActorId || 'openclaw').trim() || 'openclaw',
     sourceType: String(payload.sourceType || 'email').trim() || 'email',
-    rawText: String(payload.rawText || payload.messageText || '').trim(),
+    rawText,
     confidence: Number.isFinite(Number(payload.confidence)) ? Number(payload.confidence) : null,
     missingFields: Array.isArray(payload.missingFields) ? payload.missingFields.map((x) => String(x || '').trim()).filter(Boolean) : [],
     proposedActions: Array.isArray(payload.proposedActions) ? payload.proposedActions : [],
     contractVersion: String(payload.contractVersion || 'v1').trim() || 'v1',
+    counterpartyName: counterpartyName || null,
     customerName: String(draft.customerName || payload.customerName || '').trim() || null,
     orderNumber: String(draft.orderNumber || payload.orderNumber || '').trim() || null,
     eventType: ['new', 'change', 'cancel'].includes(String(draft.eventType || payload.eventType || '').trim().toLowerCase())
@@ -15662,7 +15684,8 @@ function extractManualEmailFlightNumber(text) {
   if (labeled) return labeled
   const source = String(text || '')
   const matches = source.match(/\b(?:[A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])\s?\d{2,5}[A-Z]?\b/g) || []
-  return normalizeFlightNumber(matches[0] || '')
+  const match = matches.find((value) => /[A-Z]/i.test(value))
+  return normalizeFlightNumber(match || '')
 }
 
 function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = '' }) {
@@ -15676,14 +15699,19 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
     .digest('hex')
     .slice(0, 24)
 
-  const customerName = findManualEmailLine(text, ['name', 'customer', 'client', 'partner', 'контрагент', 'клиент', 'заказчик', 'имя']) ||
+  const customerName = findManualEmailLine(text, ['name', 'customer', 'client', 'passenger', 'passenger name', 'имя пассажира', 'пассажир', 'имя']) ||
     String(fromEmail || '').split('@')[0] ||
     null
+  const counterpartyName = inferEmailCounterpartyName({
+    fromEmail,
+    rawText: text,
+    current: findManualEmailLine(text, ['partner', 'контрагент', 'заказчик', 'company', 'vendor', 'source'])
+  })
   const fromPoint = findManualEmailLine(text, ['pick-up location', 'pickup location', 'pickup address', 'pick up location', 'pick up', 'pickup', 'from', 'откуда', 'адрес подачи', 'место подачи'], { reject: looksLikeEmailHeaderValue })
   const toPoint = findManualEmailLine(text, ['drop-off location', 'dropoff location', 'drop-off', 'dropoff', 'drop off location', 'destination', 'to', 'куда', 'адрес назначения', 'место назначения'], { reject: looksLikeEmailHeaderValue })
   const pickupAt = parseManualEmailPickupAt(text)
   const city = findManualEmailLine(text, ['city', 'город'])
-  const orderNumber = findManualEmailLine(text, ['booking id', 'booking number', 'order number', 'номер заказа']) ||
+  const orderNumber = findManualEmailLine(text, ['journey code', 'booking id', 'booking number', 'order number', 'номер заказа']) ||
     String(text.match(/(?:^|\n)\s*ID\s*[:\-–—]\s*([A-Z0-9_-]+)/i)?.[1] || '').trim() ||
     findManualEmailLine(text, ['order', 'booking', 'заказ'])
 
@@ -15694,6 +15722,7 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
     sourceActorId: fromEmail || 'manual-email',
     sourceType: 'email',
     rawText: text,
+    counterpartyName,
     customerName,
     orderNumber: orderNumber || null,
     eventType,
@@ -15702,9 +15731,9 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
     toPoint,
     pickupAt,
     flightNumber,
-    vehicleType: normalizeVehicleType(findManualEmailLine(text, ['vehicle', 'car class', 'class', 'car', 'машина', 'класс'])),
-    passengers: findManualEmailNumber(text, ['number of passengers', 'passengers', 'pax', 'пассажиры', 'количество пассажиров']),
-    luggage: findManualEmailNumber(text, ['number of bags', 'luggage', 'bags', 'baggage', 'багаж', 'чемоданы']),
+    vehicleType: normalizeVehicleType(findManualEmailLine(text, ['vehicle category', 'vehicle', 'car class', 'car', 'машина', 'класс'])),
+    passengers: findManualEmailNumber(text, ['number of passengers', 'passengers', 'travellers', 'travelers', 'pax', 'пассажиры', 'количество пассажиров']),
+    luggage: findManualEmailNumber(text, ['number of bags', 'suitcases', 'luggage', 'bags', 'baggage', 'багаж', 'чемоданы']),
     clientPrice: Number.isFinite(price.value) ? price.value : null,
     currency: price.currency || 'EUR',
     comment: [
@@ -15819,8 +15848,8 @@ function buildEmailOrderSourceRaw({ order, orderDraft = {}, payload = {}, eventT
     source: 'email_inbox',
     source_type: orderDraft.sourceType || payload.sourceType || 'technical_inbox',
     status: order?.status || (eventType === 'cancel' ? 'cancelled' : 'draft'),
-    counterparty: orderDraft.customerName || order?.counterpartyName || '',
-    contractor: orderDraft.customerName || order?.counterpartyName || '',
+    counterparty: orderDraft.counterpartyName || order?.counterpartyName || '',
+    contractor: orderDraft.counterpartyName || order?.counterpartyName || '',
     orderNumber: orderDraft.orderNumber || order?.sourceOrderNumber || '',
     booking_id: orderDraft.orderNumber || order?.sourceBookingId || '',
     date: orderDraft.pickupAt || order?.pickupAt || '',
@@ -15831,7 +15860,7 @@ function buildEmailOrderSourceRaw({ order, orderDraft = {}, payload = {}, eventT
     currency,
     driver: order?.driverNameRaw || '',
     comment: orderDraft.comment || order?.comment || '',
-    internalOrderNumber: order?.sourceInternalOrderNumber || orderDraft.externalMessageId || '',
+    internalOrderNumber: order?.sourceInternalOrderNumber || '',
     event_type: eventType,
     gmail_message_id: orderDraft.externalMessageId || '',
     raw_text: payload.rawText || '',
@@ -15960,12 +15989,12 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       driverPrice: nextDriverPrice,
       commission: nextCommission,
       vehicleType: normalizeVehicleType(orderDraft.vehicleType || existingOrder.vehicleType),
-      counterpartyName: orderDraft.customerName || existingOrder.counterpartyName,
+      counterpartyName: orderDraft.counterpartyName || existingOrder.counterpartyName,
       sourceComment: baseComment || existingOrder.sourceComment,
       sourceCurrency: pricing.authoritativeCurrency || orderDraft.currency || existingOrder.sourceCurrency,
       sourceOrderNumber: orderDraft.orderNumber || existingOrder.sourceOrderNumber,
       sourceBookingId: orderDraft.orderNumber || existingOrder.sourceBookingId,
-      sourceInternalOrderNumber: orderDraft.externalMessageId || existingOrder.sourceInternalOrderNumber,
+      sourceInternalOrderNumber: existingOrder.sourceInternalOrderNumber,
       passengers: Number.isFinite(Number(orderDraft.passengers)) ? Number(orderDraft.passengers) : existingOrder.passengers,
       luggage: Number.isFinite(Number(orderDraft.luggage)) ? Number(orderDraft.luggage) : existingOrder.luggage,
       needsInfo,
@@ -16053,12 +16082,12 @@ async function promoteOpenClawDraftToOrder({ draft, tenantId, actorContext, user
       commission,
       status: eventType === 'cancel' ? 'cancelled' : 'draft',
       vehicleType: normalizeVehicleType(orderDraft.vehicleType),
-      counterpartyName: orderDraft.customerName || null,
+      counterpartyName: orderDraft.counterpartyName || null,
       sourceComment: baseComment || null,
       sourceCurrency: pricing.authoritativeCurrency || orderDraft.currency || null,
       sourceOrderNumber: orderDraft.orderNumber || null,
       sourceBookingId: orderDraft.orderNumber || null,
-      sourceInternalOrderNumber: orderDraft.externalMessageId || null,
+      sourceInternalOrderNumber: null,
       passengers: Number.isFinite(Number(orderDraft.passengers)) ? Number(orderDraft.passengers) : null,
       luggage: Number.isFinite(Number(orderDraft.luggage)) ? Number(orderDraft.luggage) : null,
       needsInfo,
