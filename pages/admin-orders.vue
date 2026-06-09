@@ -77,14 +77,16 @@
 
         <div v-if="mode === 'table'" class="table-wrap">
           <div class="table-head main-grid">
-            <div>{{ t.statusDate }}</div>
+            <div>{{ t.contractor }}</div>
             <div>{{ t.orderNumber }}</div>
+            <div>{{ t.date }}</div>
             <div>{{ t.from }}</div>
             <div>{{ t.to }}</div>
-            <div>{{ t.clientInfo }}</div>
-            <div>{{ t.price }}</div>
-            <div>{{ t.driver }}</div>
-            <div>{{ t.issue }}</div>
+            <div>{{ t.sum }}</div>
+            <div>{{ t.drivers }}</div>
+            <div>{{ t.comment }}</div>
+            <div>{{ t.internalOrderNumber }}</div>
+            <div>{{ t.status }}</div>
             <div>{{ t.nextStep }}</div>
           </div>
           <template v-for="zone in operationalZones">
@@ -101,10 +103,10 @@
               class="table-row main-grid"
               :class="`table-row--${zone.tone}`"
             >
-              <div class="order-meta">
-                <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
-                <div class="order-meta__date">{{ o.date || '-' }}</div>
-                <div class="order-meta__sub">{{ orderIdentity(o) }}</div>
+              <div class="client-block">
+                <div class="client-block__title">{{ o.contractor || '-' }}</div>
+                <div class="client-block__line"><strong>ID:</strong> <span class="cell-ellipsis" :title="o.id">{{ o.id || '-' }}</span></div>
+                <div class="client-block__line"><strong>{{ t.source }}:</strong> {{ o.source || '-' }}</div>
               </div>
 
               <div class="order-number-block">
@@ -117,19 +119,15 @@
                   {{ o.orderNumber }}
                 </button>
                 <span v-else class="order-number-block__empty">{{ t.noOrderNumber }}</span>
-                <div v-if="o.internalOrderNumber" class="order-number-block__sub">{{ o.internalOrderNumber }}</div>
+              </div>
+
+              <div class="date-block">
+                <div class="date-block__value">{{ o.date || '-' }}</div>
               </div>
 
               <div class="route-point route-point--from">{{ o.fromPoint || '-' }}</div>
 
               <div class="route-point route-point--to">{{ o.toPoint || '-' }}</div>
-
-              <div class="client-block">
-                <div class="client-block__line"><strong>{{ t.contractor }}:</strong> {{ o.contractor || '-' }}</div>
-                <div class="client-block__line"><strong>ID:</strong> <span class="cell-ellipsis" :title="o.id">{{ o.id || '-' }}</span></div>
-                <div class="client-block__line"><strong>{{ t.source }}:</strong> {{ o.source || '-' }}</div>
-                <div class="client-block__line"><strong>{{ t.internalOrderNumber }}:</strong> {{ o.internalOrderNumber || '-' }}</div>
-              </div>
 
               <div class="price-block">
                 <div class="price-block__sum">{{ o.sum || '-' }}</div>
@@ -141,8 +139,7 @@
                 <div class="driver-block__hint">{{ driverStateLabel(o) }}</div>
               </div>
 
-              <div class="issue-block">
-                <div class="issue-block__title">{{ issueSummary(o) }}</div>
+              <div class="comment-block">
                 <div
                   v-if="o.needsInfo || o.infoReason"
                   class="info-reason"
@@ -150,7 +147,15 @@
                 >
                   {{ o.infoReason || t.infoFlagged }}
                 </div>
-                <div v-else class="issue-block__hint">{{ commentSummary(o) }}</div>
+                <div v-else class="comment-block__text">{{ commentSummary(o) }}</div>
+                <div class="comment-block__hint">{{ issueSummary(o) }}</div>
+              </div>
+
+              <div class="internal-number-block">{{ o.internalOrderNumber || '-' }}</div>
+
+              <div class="order-meta">
+                <span class="status-pill" :class="statusPillClass(o.status)">{{ statusLabel(o.status) }}</span>
+                <div class="order-meta__sub">{{ orderIdentity(o) }}</div>
               </div>
 
               <div class="row-actions">
@@ -616,6 +621,7 @@ export default {
             to: 'Куда',
             sum: 'Сумма',
             driver: 'Водитель',
+            drivers: 'Водители',
             comment: 'Комментарий',
             internalOrderNumber: 'Внутренний номер заказа',
             actions: 'Действия',
@@ -743,6 +749,7 @@ export default {
             to: 'To',
             sum: 'Sum',
             driver: 'Driver',
+            drivers: 'Drivers',
             comment: 'Comment',
             internalOrderNumber: 'Internal Order Number',
             actions: 'Actions',
@@ -2087,7 +2094,7 @@ export default {
 }
 .input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #c8ccdc; background: #fff; color: #1f2b46; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
-.table-head, .table-row { gap: 14px; min-width: 1900px; padding: 12px 14px; }
+.table-head, .table-row { gap: 14px; min-width: 2300px; padding: 12px 14px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; }
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
 .table-row--critical { background: linear-gradient(90deg, rgba(255, 247, 247, .96) 0%, #fff 42%); }
@@ -2095,14 +2102,14 @@ export default {
 .table-row--done { background: linear-gradient(90deg, rgba(248, 250, 252, .96) 0%, #fff 42%); }
 .table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
-.main-grid { display: grid; grid-template-columns: 180px 170px minmax(240px, 1fr) minmax(240px, 1fr) minmax(230px, .9fr) 120px 150px 220px 240px; align-items: start; }
+.main-grid { display: grid; grid-template-columns: 190px 170px 170px minmax(240px, 1fr) minmax(240px, 1fr) 140px 180px minmax(280px, 1fr) 210px 150px 240px; align-items: start; }
 .raw-grid { display: grid; }
 .zone-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-width: 1900px;
+  min-width: 2300px;
   padding: 12px 14px;
   border-top: 1px solid #e4e7f0;
   background: #f8fafc;
@@ -2159,17 +2166,23 @@ export default {
 .order-link:hover { color: #084a95; }
 .order-meta,
 .order-number-block,
+.date-block,
 .client-block,
 .price-block,
 .driver-block,
+.comment-block,
+.internal-number-block,
 .issue-block {
   display: grid;
   gap: 6px;
 }
+.client-block__title,
+.date-block__value,
 .order-meta__date,
 .price-block__sum,
 .driver-block__name,
-.issue-block__title {
+.issue-block__title,
+.internal-number-block {
   font-weight: 700;
   color: #17233d;
 }
@@ -2179,10 +2192,18 @@ export default {
 .client-block__line,
 .price-block__hint,
 .driver-block__hint,
+.comment-block__hint,
 .issue-block__hint {
   font-size: 12px;
   line-height: 1.45;
   color: #64748b;
+}
+.comment-block__text {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .price-block__hint--error { color: #b91c1c; font-weight: 700; }
 .price-block__hint--warn { color: #9a3412; font-weight: 700; }
