@@ -2615,6 +2615,45 @@ function hasValidOpenClawInternalToken(req) {
   }
 }
 
+const emailIngestBodyParsers = [
+  bodyParser.urlencoded({
+    extended: false,
+    limit: '2mb',
+    type: 'application/x-www-form-urlencoded'
+  }),
+  bodyParser.text({
+    limit: '2mb',
+    type: (req) => {
+      if (req.is('application/json') || req.is('application/x-www-form-urlencoded')) return false
+      return true
+    }
+  })
+]
+
+function getEmailIngestField(req, keys = []) {
+  const body = req.body || {}
+  if (!body || typeof body !== 'object' || Buffer.isBuffer(body)) return ''
+  for (const key of keys) {
+    const value = body[key]
+    if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim()
+  }
+  return ''
+}
+
+function getEmailIngestRawText(req) {
+  if (typeof req.body === 'string') return req.body.trim()
+  const direct = getEmailIngestField(req, ['rawText', 'text', 'messageText', 'body', 'payload'])
+  if (direct) return direct
+  const rawBody = req.rawBody ? Buffer.from(req.rawBody).toString('utf8').trim() : ''
+  if (!rawBody) return ''
+  try {
+    const parsed = JSON.parse(rawBody)
+    return String(parsed.rawText || parsed.text || parsed.messageText || parsed.body || parsed.payload || '').trim()
+  } catch (_) {
+    return rawBody
+  }
+}
+
 // Создаем транспортер для отправки email
 let transporter = null
 if (SMTP_USER && SMTP_PASS) {
@@ -16312,20 +16351,28 @@ app.post('/api/webhooks/openclaw/order-draft', resolveActorContext, requireActor
   }
 })
 
-app.post('/api/internal/ops/email-draft', resolveActorContext, requireActorContext, async (req, res) => {
+app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorContext, requireActorContext, async (req, res) => {
   try {
     if (!hasValidEmailIngestToken(req)) {
       return res.status(401).json({ error: 'Invalid internal token for email ingest' })
     }
 
-    const rawText = String(req.body?.rawText || req.body?.text || req.body?.messageText || '').trim()
-    const subject = String(req.body?.subject || '').trim()
-    const fromEmail = String(req.body?.fromEmail || req.body?.from || '').trim()
-    const toEmail = String(req.body?.toEmail || req.body?.to || TECHNICAL_INBOX_EMAIL).trim()
-    const gmailMessageId = String(req.body?.gmailMessageId || req.body?.messageId || '').trim()
-    const gmailThreadId = String(req.body?.gmailThreadId || req.body?.threadId || '').trim()
-    const sourceType = String(req.body?.sourceType || req.body?.source || 'gmail_forward').trim() || 'gmail_forward'
+    const rawText = getEmailIngestRawText(req)
+    const subject = getEmailIngestField(req, ['subject'])
+    const fromEmail = getEmailIngestField(req, ['fromEmail', 'from'])
+    const toEmail = getEmailIngestField(req, ['toEmail', 'to']) || TECHNICAL_INBOX_EMAIL
+    const gmailMessageId = getEmailIngestField(req, ['gmailMessageId', 'messageId'])
+    const gmailThreadId = getEmailIngestField(req, ['gmailThreadId', 'threadId'])
+    const sourceType = getEmailIngestField(req, ['sourceType', 'source']) || 'gmail_forward'
     if (rawText.length < 10) {
+      console.warn('Email ingest request missing rawText', {
+        contentType: req.headers['content-type'] || null,
+        bodyType: typeof req.body,
+        bodyKeys: req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) ? Object.keys(req.body).slice(0, 20) : [],
+        sourceType,
+        fromEmail: fromEmail || null,
+        subject: subject || null
+      })
       return res.status(400).json({ error: 'rawText is required' })
     }
 
