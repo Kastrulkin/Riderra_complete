@@ -349,8 +349,6 @@ export default {
             base: 'Базовый прайс',
             counterparty: 'Прайсы клиентов',
             driver: 'Прайсы исполнителей',
-            customers: 'Заказчики',
-            suppliers: 'Исполнители',
             allCounterparties: 'Все клиенты',
             allSuppliers: 'Все исполнители',
             conflicts: 'Риски',
@@ -372,22 +370,10 @@ export default {
             sale: 'Цена',
             priceAndCurrency: 'Цена и валюта',
             currency: 'Валюта',
-            counterpartyRoute: 'Контрагент и маршрут',
-            driverRoute: 'Водитель и маршрут',
-            source: 'Источник',
-            perKm: 'За км',
-            hourly: 'Почасовая',
-            childSeat: 'Детское кресло',
             counterpartyName: 'Контрагент',
-            markup: 'Наценка',
-            status: 'Статус',
             name: 'Водитель',
             country: 'Страна',
             coverage: 'Покрытие',
-            comment: 'Комментарий',
-            noComment: 'Комментарий не указан',
-            noCoverage: 'Покрытие не задано',
-            noCity: 'Город не указан',
             issue: 'Проблема',
             driverCost: 'Цена водителя',
             margin: 'Маржа',
@@ -411,8 +397,6 @@ export default {
             conflictsHint: 'Открытые ситуации, где цена водителя уже конфликтует с продажной ценой или маржа стала опасной.',
             adjustmentsHint: 'Штрафы и удержания из заказов. Здесь видно, на каких водителей и клиентов приходится больше всего потерь, и как это меняет реальный профит.',
             baseFormHint: 'Добавляем или редактируем строку основного прайса Riderra. Это опорная цена для команды.',
-            ruleActive: 'Правило активно',
-            ruleInactive: 'Правило выключено',
             issueDriverGtSell: 'Цена исполнителя выше продажи',
             issueLowMargin: 'Низкая маржа',
             severityCritical: 'Критично',
@@ -424,8 +408,6 @@ export default {
             base: 'Base pricing',
             counterparty: 'Customer prices',
             driver: 'Supplier prices',
-            customers: 'Customers',
-            suppliers: 'Suppliers',
             allCounterparties: 'All customers',
             allSuppliers: 'All suppliers',
             conflicts: 'Risks',
@@ -447,22 +429,10 @@ export default {
             sale: 'Price',
             priceAndCurrency: 'Price and currency',
             currency: 'Currency',
-            counterpartyRoute: 'Counterparty and route',
-            driverRoute: 'Driver and route',
-            source: 'Source',
-            perKm: 'Per km',
-            hourly: 'Hourly',
-            childSeat: 'Child seat',
             counterpartyName: 'Counterparty',
-            markup: 'Markup',
-            status: 'Status',
             name: 'Driver',
             country: 'Country',
             coverage: 'Coverage',
-            comment: 'Comment',
-            noComment: 'No comment',
-            noCoverage: 'Coverage not set',
-            noCity: 'City not set',
             issue: 'Issue',
             driverCost: 'Driver cost',
             margin: 'Margin',
@@ -486,8 +456,6 @@ export default {
             conflictsHint: 'Open situations where driver cost already conflicts with the sell price or margin became risky.',
             adjustmentsHint: 'Penalties and deductions from orders. This shows which drivers and clients create the largest loss and how real profit changes.',
             baseFormHint: 'Add or edit a base pricing row. This is the anchor sale price for the team.',
-            ruleActive: 'Rule active',
-            ruleInactive: 'Rule disabled',
             issueDriverGtSell: 'Supplier price is above sell price',
             issueLowMargin: 'Low margin',
             severityCritical: 'Critical',
@@ -546,7 +514,6 @@ export default {
         .filter((row) => row.isActive)
         .map((row) => ({
           ...row,
-          pricebookKind: 'customer',
           pricebookOwner: row.customerCompany?.name || row.counterpartyName,
           pricebookPrice: row.sellPrice
         }))
@@ -646,14 +613,10 @@ export default {
       return this.priceLabel(row.pricebookPrice, row.currency)
     },
     pricebookSignalTitle (row) {
-      const label = row.pricebookKind === 'supplier' ? this.t.supplierPricebook : this.t.customerPricebook
-      return row.pricebookOwner ? `${label}: ${row.pricebookOwner}` : label
+      return row.pricebookOwner ? `${this.t.customerPricebook}: ${row.pricebookOwner}` : this.t.customerPricebook
     },
     pricebookSourceLabel (row) {
       const period = this.rulePeriodLabel(row)
-      if (row.pricebookKind === 'supplier') {
-        return [this.t.activePriceRow, row.sourceLabel || row.sourceType || row.coverage].filter(Boolean).join(' · ')
-      }
       return period && period !== '-' ? `${this.t.activePriceRow} · ${period}` : this.t.activePriceRow
     },
     driverScopeLabel (row) {
@@ -667,10 +630,6 @@ export default {
     driverPricebookSignalCopy (row) {
       const source = row.sourceLabel || row.sourceType || row.coverage
       return [this.t.supplierPriceRow, source].filter(Boolean).join(' · ')
-    },
-    markupLabel (value) {
-      if (value === null || value === undefined || value === '') return '-'
-      return `${value}%`
     },
     rulePeriodLabel (row) {
       const dates = [row.startsAt, row.endsAt].filter(Boolean).map((value) => String(value).slice(0, 10))
@@ -688,9 +647,6 @@ export default {
         .map((row) => this.priceLabel(Number(row[field]).toFixed(2), row.currency))
         .join(' / ') || '-'
     },
-    simpleValue (value) {
-      return value === null || value === undefined || value === '' ? '-' : value
-    },
     baseSignalTitle (row) {
       return row.vehicleType ? (this.$store.state.language === 'ru' ? 'Базовая строка готова' : 'Base row ready') : this.t.missingClass
     },
@@ -703,31 +659,6 @@ export default {
       return this.$store.state.language === 'ru'
         ? 'Эта строка может использоваться как базовая цена Riderra, если нет отдельного исключения для контрагента.'
         : 'This row can be used as the Riderra anchor price unless a dedicated counterparty rule overrides it.'
-    },
-    counterpartySignalCopy (row) {
-      if (!row.isActive) {
-        return this.$store.state.language === 'ru'
-          ? 'Правило сейчас выключено. Проверьте, нужно ли оно вообще или его можно убрать из системы.'
-          : 'The rule is disabled. Check whether it is still needed or can be removed.'
-      }
-      return this.$store.state.language === 'ru'
-        ? 'Это отдельная договорённость. Важно держать её в актуальном состоянии, чтобы команда не продавала по старым условиям.'
-        : 'This is a special agreement. Keep it updated so the team does not sell on outdated terms.'
-    },
-    driverSignalTitle (row) {
-      return row.kmRate || row.hourlyRate
-        ? (this.$store.state.language === 'ru' ? 'Экономика заведена' : 'Economics set')
-        : (this.$store.state.language === 'ru' ? 'Нужно заполнить ставки' : 'Rates missing')
-    },
-    driverSignalCopy (row) {
-      if (row.kmRate || row.hourlyRate) {
-        return this.$store.state.language === 'ru'
-          ? 'По этому водителю уже можно оценивать маржу и сравнивать продажную цену с себестоимостью.'
-          : 'This supplier already has enough economics data to compare margin against the sell price.'
-      }
-      return this.$store.state.language === 'ru'
-        ? 'У водителя нет ставок. Пока он плохо пригоден для быстрых решений по цене.'
-        : 'The supplier has no rates yet and is not reliable for fast pricing decisions.'
     },
     conflictSignalCopy (row) {
       const severity = String(row.severity || '').toLowerCase()
@@ -1026,10 +957,6 @@ export default {
 
 .pricing-list__head--base,
 .pricing-row--base,
-.pricing-list__head--compact-price,
-.pricing-row--compact-price,
-.pricing-list__head--pricebook,
-.pricing-row--pricebook,
 .pricing-list__head--conflicts,
 .pricing-row--conflicts,
 .pricing-list__head--adjustments,
@@ -1103,29 +1030,6 @@ export default {
 
 .price-cell strong {
   color: #102b63;
-}
-
-.status-pill {
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: #eefdf3;
-  color: #166534;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.status-pill--inactive {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.status-pill--pending {
-  background: #fff7ed;
-  color: #c2410c;
 }
 
 .class-badge {
