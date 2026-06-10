@@ -597,10 +597,14 @@ export default {
     sheetPlaceLabel (value = '', row = {}) {
       const place = String(value || '').trim()
       if (!place) return '-'
+      const airport = this.airportLabel(place)
+      if (airport) return airport
       const zone = this.londonZoneLabel(place, row)
       return zone || place
     },
     countryByPlace (value = '') {
+      const airport = this.airportByCode(value)
+      if (airport) return airport.country
       const text = String(value || '').toLowerCase()
       const placeCountries = [
         { pattern: 'vancouver', country: 'Canada' },
@@ -608,6 +612,37 @@ export default {
         { pattern: 'london', country: 'United Kingdom' }
       ]
       return placeCountries.find((item) => text.includes(item.pattern))?.country || ''
+    },
+    airportLabel (value = '') {
+      const airport = this.airportByCode(value)
+      if (!airport) return ''
+      const airportName = airport.name.toLowerCase() === airport.city.toLowerCase() ? '' : ` ${airport.name}`
+      return `${airport.city}${airportName} airport (${airport.code})`
+    },
+    airportByCode (value = '') {
+      const text = String(value || '').trim().toUpperCase()
+      const code = text.match(/^[A-Z]{3}$/)?.[0] || text.match(/\(([A-Z]{3})\)/)?.[1] || ''
+      const airports = {
+        AMS: { city: 'Amsterdam', name: 'Schiphol', country: 'Netherlands' },
+        BCN: { city: 'Barcelona', name: 'El Prat', country: 'Spain' },
+        BER: { city: 'Berlin', name: 'Brandenburg', country: 'Germany' },
+        CDG: { city: 'Paris', name: 'Charles de Gaulle', country: 'France' },
+        DME: { city: 'Moscow', name: 'Domodedovo', country: 'Russia' },
+        HEL: { city: 'Helsinki', name: 'Vantaa', country: 'Finland' },
+        IST: { city: 'Istanbul', name: 'Istanbul', country: 'Turkey' },
+        LCY: { city: 'London', name: 'City', country: 'United Kingdom' },
+        LGW: { city: 'London', name: 'Gatwick', country: 'United Kingdom' },
+        LHR: { city: 'London', name: 'Heathrow', country: 'United Kingdom' },
+        LTN: { city: 'London', name: 'Luton', country: 'United Kingdom' },
+        MAN: { city: 'Manchester', name: 'Manchester', country: 'United Kingdom' },
+        ORY: { city: 'Paris', name: 'Orly', country: 'France' },
+        STN: { city: 'London', name: 'Stansted', country: 'United Kingdom' },
+        SVO: { city: 'Moscow', name: 'Sheremetyevo', country: 'Russia' },
+        VKO: { city: 'Moscow', name: 'Vnukovo', country: 'Russia' },
+        YVR: { city: 'Vancouver', name: 'International', country: 'Canada' },
+        ZIA: { city: 'Moscow', name: 'Zhukovsky', country: 'Russia' }
+      }
+      return airports[code] || null
     },
     londonZoneLabel (value = '', row = {}) {
       const zone = String(value || '').trim().toUpperCase()
