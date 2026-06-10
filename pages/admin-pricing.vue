@@ -617,7 +617,8 @@ export default {
       const airport = this.airportByCode(value)
       if (!airport) return ''
       const airportName = airport.name.toLowerCase() === airport.city.toLowerCase() ? '' : ` ${airport.name}`
-      return `${airport.city}${airportName} airport (${airport.code})`
+      const airportWord = airport.code === 'LCY' ? 'Airport' : 'airport'
+      return `${airport.city}${airportName} ${airportWord} (${airport.code})`
     },
     airportByCode (value = '') {
       const text = String(value || '').trim().toUpperCase()
@@ -642,7 +643,7 @@ export default {
         YVR: { city: 'Vancouver', name: 'International', country: 'Canada' },
         ZIA: { city: 'Moscow', name: 'Zhukovsky', country: 'Russia' }
       }
-      return airports[code] || null
+      return airports[code] ? { ...airports[code], code } : null
     },
     londonZoneLabel (value = '', row = {}) {
       const zone = String(value || '').trim().toUpperCase()
