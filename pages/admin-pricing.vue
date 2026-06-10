@@ -85,28 +85,29 @@
             </div>
           </div>
           <div class="pricing-list pricing-list--sheet">
-            <div class="pricing-list__head pricing-list__head--sheet">
+            <div class="pricing-list__head pricing-list__head--comparison" :style="counterpartyGridStyle">
               <div>{{ t.country }}</div>
               <div>{{ t.from }}</div>
               <div>{{ t.to }}</div>
               <div>{{ t.type }}</div>
               <div>{{ t.pax }}</div>
-              <div>{{ t.price }}</div>
+              <div>{{ t.riderraPrice }}</div>
               <div>{{ t.currency }}</div>
+              <div v-for="name in counterpartyComparisonColumns" :key="`head-${name}`">{{ name }}</div>
             </div>
-            <div v-for="r in filteredCounterpartyPricebookRows" :key="r.id" class="pricing-row pricing-row--sheet">
-              <div>
-                <div>{{ sheetCountryLabel(r) }}</div>
-                <div class="route-cell__sub">{{ r.pricebookOwner || '-' }}</div>
-              </div>
+            <div v-for="r in filteredCounterpartyComparisonRows" :key="r.key" class="pricing-row pricing-row--comparison" :style="counterpartyGridStyle">
+              <div>{{ sheetCountryLabel(r) }}</div>
               <div>{{ sheetPlaceLabel(r.routeFrom, r) }}</div>
               <div>{{ sheetPlaceLabel(r.routeTo, r) }}</div>
               <div>{{ r.vehicleType || '-' }}</div>
               <div>{{ paxLabel(r.vehicleType) }}</div>
-              <div class="price-cell"><strong>{{ priceAmountLabel(r.pricebookPrice) }}</strong></div>
+              <div class="price-cell"><strong>{{ priceAmountLabel(r.riderraPrice) }}</strong></div>
               <div>{{ r.currency || '-' }}</div>
+              <div v-for="name in counterpartyComparisonColumns" :key="`${r.key}-${name}`" class="price-cell price-cell--counterparty">
+                <strong>{{ counterpartyPriceLabel(r, name) }}</strong>
+              </div>
             </div>
-            <div v-if="!filteredCounterpartyPricebookRows.length" class="empty-state">{{ t.empty }}</div>
+            <div v-if="!filteredCounterpartyComparisonRows.length" class="empty-state">{{ t.empty }}</div>
           </div>
         </div>
 
@@ -363,6 +364,7 @@ export default {
             type: 'Type',
             pax: 'Pax',
             price: 'Price',
+            riderraPrice: 'Price (Riderra)',
             vehicleClass: 'Класс авто',
             sale: 'Цена',
             currency: 'Валюта',
@@ -419,6 +421,7 @@ export default {
             type: 'Type',
             pax: 'Pax',
             price: 'Price',
+            riderraPrice: 'Price (Riderra)',
             vehicleClass: 'Vehicle class',
             sale: 'Price',
             currency: 'Currency',
@@ -507,6 +510,84 @@ export default {
           pricebookPrice: row.sellPrice
         }))
     },
+    counterpartyComparisonColumns () {
+      return this.selectedCounterparties.length ? this.selectedCounterparties : this.counterpartyOptions
+    },
+    counterpartyGridStyle () {
+      const priceColumns = this.counterpartyComparisonColumns.map(() => 'minmax(120px, .65fr)').join(' ')
+      return {
+        gridTemplateColumns: `minmax(130px, .8fr) minmax(220px, 1.35fr) minmax(220px, 1.35fr) minmax(170px, 1fr) minmax(64px, .45fr) minmax(120px, .7fr) minmax(92px, .55fr) ${priceColumns}`.trim(),
+        minWidth: `${1060 + (this.counterpartyComparisonColumns.length * 136)}px`
+      }
+    },
+    counterpartyComparisonRows () {
+      const rows = new Map()
+      const ensure = (row = {}) => {
+        const key = this.pricebookRouteKey(row)
+        if (!rows.has(key)) {
+          rows.set(key, {
+            key,
+            country: row.country || '',
+            city: row.city || '',
+            routeFrom: row.routeFrom || row.fromPoint || '',
+            routeTo: row.routeTo || row.toPoint || '',
+            vehicleType: row.vehicleType || '',
+            riderraPrice: row.fixedPrice ?? null,
+            currency: row.currency || 'EUR',
+            counterpartyPrices: {}
+          })
+        }
+        return rows.get(key)
+      }
+
+      this.baseRows.forEach((row) => {
+        const item = ensure(row)
+        item.country = row.country || item.country
+        item.city = row.city || item.city
+        item.routeFrom = row.routeFrom || item.routeFrom
+        item.routeTo = row.routeTo || item.routeTo
+        item.vehicleType = row.vehicleType || item.vehicleType
+        item.riderraPrice = row.fixedPrice ?? item.riderraPrice
+        item.currency = row.currency || item.currency
+      })
+
+      this.counterpartyPricebookRows.forEach((row) => {
+        const owner = row.pricebookOwner
+        if (!owner) return
+        const item = ensure(row)
+        if (!item.country) item.country = row.country || this.countryByPlace(row.city) || ''
+        if (!item.city) item.city = row.city || ''
+        if (!item.routeFrom) item.routeFrom = row.routeFrom || ''
+        if (!item.routeTo) item.routeTo = row.routeTo || ''
+        if (!item.vehicleType) item.vehicleType = row.vehicleType || ''
+        if (!item.currency) item.currency = row.currency || 'EUR'
+        if (!item.counterpartyPrices[owner]) {
+          item.counterpartyPrices[owner] = {
+            price: row.pricebookPrice,
+            currency: row.currency || item.currency || 'EUR'
+          }
+        }
+      })
+
+      return Array.from(rows.values())
+        .sort((a, b) => this.pricebookSortLabel(a).localeCompare(this.pricebookSortLabel(b)))
+    },
+    filteredCounterpartyComparisonRows () {
+      const owners = this.selectedCounterparties
+      const q = this.q.trim().toLowerCase()
+      return this.counterpartyComparisonRows.filter((row) => {
+        if (owners.length && !owners.some((owner) => row.counterpartyPrices[owner])) return false
+        if (!q) return true
+        return [
+          this.sheetCountryLabel(row),
+          this.sheetPlaceLabel(row.routeFrom, row),
+          this.sheetPlaceLabel(row.routeTo, row),
+          row.vehicleType,
+          row.currency,
+          ...Object.entries(row.counterpartyPrices).flatMap(([owner, price]) => [owner, price.price, price.currency])
+        ].join(' ').toLowerCase().includes(q)
+      })
+    },
     filteredCounterpartyPricebookRows () {
       const owners = this.selectedCounterparties
       const q = this.q.trim().toLowerCase()
@@ -590,6 +671,33 @@ export default {
     priceAmountLabel (value) {
       if (value === null || value === undefined || value === '') return '-'
       return Number.isFinite(Number(value)) ? Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) : String(value)
+    },
+    counterpartyPriceLabel (row, owner) {
+      const price = row.counterpartyPrices?.[owner]
+      if (!price || price.price === null || price.price === undefined || price.price === '') return '-'
+      return this.priceLabel(this.priceAmountLabel(price.price), price.currency || row.currency || '')
+    },
+    pricebookSortLabel (row = {}) {
+      return [
+        this.sheetCountryLabel(row),
+        this.sheetPlaceLabel(row.routeFrom, row),
+        this.sheetPlaceLabel(row.routeTo, row),
+        row.vehicleType || ''
+      ].join(' ')
+    },
+    pricebookRouteKey (row = {}) {
+      return [
+        this.normalizePricebookPart(this.sheetCountryLabel(row)),
+        this.normalizePricebookPart(this.sheetPlaceLabel(row.routeFrom || row.fromPoint, row)),
+        this.normalizePricebookPart(this.sheetPlaceLabel(row.routeTo || row.toPoint, row)),
+        this.normalizePricebookPart(row.vehicleType || '')
+      ].join('|')
+    },
+    normalizePricebookPart (value = '') {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim()
     },
     sheetCountryLabel (row) {
       return row.country || this.countryByPlace(row.city) || this.countryByPlace(row.routeFrom || row.fromPoint) || this.countryByPlace(row.routeTo || row.toPoint) || row.city || '-'
