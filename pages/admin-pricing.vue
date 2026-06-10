@@ -592,13 +592,21 @@ export default {
       return Number.isFinite(Number(value)) ? Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) : String(value)
     },
     sheetCountryLabel (row) {
-      return row.country || row.city || '-'
+      return row.country || this.countryByPlace(row.city) || this.countryByPlace(row.routeFrom || row.fromPoint) || this.countryByPlace(row.routeTo || row.toPoint) || row.city || '-'
+    },
+    countryByPlace (value = '') {
+      const text = String(value || '').toLowerCase()
+      const placeCountries = [
+        { pattern: 'vancouver', country: 'Canada' },
+        { pattern: 'toronto', country: 'Canada' }
+      ]
+      return placeCountries.find((item) => text.includes(item.pattern))?.country || ''
     },
     paxLabel (vehicleType = '') {
       const text = String(vehicleType || '')
-      const explicit = text.match(/(\\d+)\\s*(?:pax|pass|passenger|seat|мест|p)/i)
+      const explicit = text.match(/(\d+)\s*(?:pax|pass|passenger|seat|мест|p)/i)
       if (explicit) return explicit[1]
-      const anyNumber = text.match(/\\b(\\d{1,2})\\b/)
+      const anyNumber = text.match(/\b(\d{1,2})\b/)
       if (anyNumber) return anyNumber[1]
       if (/mpv/i.test(text)) return '5'
       if (/class\\s+car|sedan|business|first/i.test(text)) return '3'
