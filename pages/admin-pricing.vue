@@ -54,8 +54,8 @@
             </div>
             <div v-for="r in filteredBaseRows" :key="r.id" class="pricing-row pricing-row--sheet">
               <div>{{ sheetCountryLabel(r) }}</div>
-              <div>{{ r.routeFrom || '-' }}</div>
-              <div>{{ r.routeTo || '-' }}</div>
+              <div>{{ sheetPlaceLabel(r.routeFrom, r) }}</div>
+              <div>{{ sheetPlaceLabel(r.routeTo, r) }}</div>
               <div>{{ r.vehicleType || '-' }}</div>
               <div>{{ paxLabel(r.vehicleType) }}</div>
               <div class="price-cell"><strong>{{ priceAmountLabel(r.fixedPrice) }}</strong></div>
@@ -99,8 +99,8 @@
                 <div>{{ sheetCountryLabel(r) }}</div>
                 <div class="route-cell__sub">{{ r.pricebookOwner || '-' }}</div>
               </div>
-              <div>{{ r.routeFrom || '-' }}</div>
-              <div>{{ r.routeTo || '-' }}</div>
+              <div>{{ sheetPlaceLabel(r.routeFrom, r) }}</div>
+              <div>{{ sheetPlaceLabel(r.routeTo, r) }}</div>
               <div>{{ r.vehicleType || '-' }}</div>
               <div>{{ paxLabel(r.vehicleType) }}</div>
               <div class="price-cell"><strong>{{ priceAmountLabel(r.pricebookPrice) }}</strong></div>
@@ -138,8 +138,8 @@
                 <div>{{ sheetCountryLabel(d) }}</div>
                 <div class="route-cell__sub">{{ d.supplierName || d.driverName || '-' }}</div>
               </div>
-              <div>{{ d.routeFrom || d.fromPoint || '-' }}</div>
-              <div>{{ d.routeTo || d.toPoint || '-' }}</div>
+              <div>{{ sheetPlaceLabel(d.routeFrom || d.fromPoint, d) }}</div>
+              <div>{{ sheetPlaceLabel(d.routeTo || d.toPoint, d) }}</div>
               <div>{{ d.vehicleType || '-' }}</div>
               <div>{{ paxLabel(d.vehicleType) }}</div>
               <div class="price-cell"><strong>{{ priceAmountLabel(d.driverPrice) }}</strong></div>
@@ -594,13 +594,28 @@ export default {
     sheetCountryLabel (row) {
       return row.country || this.countryByPlace(row.city) || this.countryByPlace(row.routeFrom || row.fromPoint) || this.countryByPlace(row.routeTo || row.toPoint) || row.city || '-'
     },
+    sheetPlaceLabel (value = '', row = {}) {
+      const place = String(value || '').trim()
+      if (!place) return '-'
+      const zone = this.londonZoneLabel(place, row)
+      return zone || place
+    },
     countryByPlace (value = '') {
       const text = String(value || '').toLowerCase()
       const placeCountries = [
         { pattern: 'vancouver', country: 'Canada' },
-        { pattern: 'toronto', country: 'Canada' }
+        { pattern: 'toronto', country: 'Canada' },
+        { pattern: 'london', country: 'United Kingdom' }
       ]
       return placeCountries.find((item) => text.includes(item.pattern))?.country || ''
+    },
+    londonZoneLabel (value = '', row = {}) {
+      const zone = String(value || '').trim().toUpperCase()
+      const city = String(row.city || row.country || '').toLowerCase()
+      const londonZones = ['N', 'E', 'EC', 'SE', 'SW', 'W', 'WC', 'NW']
+      if (!londonZones.includes(zone)) return ''
+      if (city && !city.includes('london')) return ''
+      return `London ${zone}`
     },
     paxLabel (vehicleType = '') {
       const text = String(vehicleType || '')
@@ -609,7 +624,7 @@ export default {
       const anyNumber = text.match(/\b(\d{1,2})\b/)
       if (anyNumber) return anyNumber[1]
       if (/mpv/i.test(text)) return '5'
-      if (/class\\s+car|sedan|business|first/i.test(text)) return '3'
+      if (/class\s+car|sedan|business|first/i.test(text)) return '3'
       return '-'
     },
     toggleCounterparty (name) {
