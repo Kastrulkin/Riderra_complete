@@ -95,7 +95,7 @@
               <div>{{ t.currency }}</div>
               <div v-for="name in counterpartyComparisonColumns" :key="`head-${name}`">{{ name }}</div>
             </div>
-            <div v-for="r in filteredCounterpartyComparisonRows" :key="r.key" class="pricing-row pricing-row--comparison" :style="counterpartyGridStyle">
+            <div v-for="r in visibleCounterpartyComparisonRows" :key="r.key" class="pricing-row pricing-row--comparison" :style="counterpartyGridStyle">
               <div>{{ sheetCountryLabel(r) }}</div>
               <div>{{ sheetPlaceLabel(r.routeFrom, r) }}</div>
               <div>{{ sheetPlaceLabel(r.routeTo, r) }}</div>
@@ -108,6 +108,9 @@
               </div>
             </div>
             <div v-if="!filteredCounterpartyComparisonRows.length" class="empty-state">{{ t.empty }}</div>
+            <div v-else-if="counterpartyHiddenRowsCount > 0" class="pricing-list__more">
+              <button class="btn" @click="showMoreCounterpartyRows">{{ t.showMore }} · {{ counterpartyHiddenRowsCount }}</button>
+            </div>
           </div>
         </div>
 
@@ -325,6 +328,7 @@ export default {
     adjustmentSummary: null,
     selectedCounterparties: [],
     selectedSuppliers: [],
+    counterpartyVisibleLimit: 250,
     notice: '',
     editingBase: null,
     baseForm: {
@@ -336,6 +340,14 @@ export default {
       currency: 'EUR'
     }
   }),
+  watch: {
+    q () {
+      this.resetCounterpartyVisibleLimit()
+    },
+    selectedCounterparties () {
+      this.resetCounterpartyVisibleLimit()
+    }
+  },
   computed: {
     t () {
       return this.$store.state.language === 'ru'
@@ -354,6 +366,7 @@ export default {
             editRow: 'Редактировать строку',
             edit: 'Изменить',
             delete: 'Удалить',
+            showMore: 'Показать ещё',
             etaTemplate: 'Шаблон для ETA',
             recalc: 'Пересчитать риски',
             city: 'Город',
@@ -411,6 +424,7 @@ export default {
             editRow: 'Edit row',
             edit: 'Edit',
             delete: 'Delete',
+            showMore: 'Show more',
             etaTemplate: 'ETA Template',
             recalc: 'Recalculate risks',
             city: 'City',
@@ -587,6 +601,12 @@ export default {
           ...Object.entries(row.counterpartyPrices).flatMap(([owner, price]) => [owner, price.price, price.currency])
         ].join(' ').toLowerCase().includes(q)
       })
+    },
+    visibleCounterpartyComparisonRows () {
+      return this.filteredCounterpartyComparisonRows.slice(0, this.counterpartyVisibleLimit)
+    },
+    counterpartyHiddenRowsCount () {
+      return Math.max(0, this.filteredCounterpartyComparisonRows.length - this.visibleCounterpartyComparisonRows.length)
     },
     filteredCounterpartyPricebookRows () {
       const owners = this.selectedCounterparties
@@ -778,6 +798,12 @@ export default {
     },
     clearCounterparties () {
       this.selectedCounterparties = []
+    },
+    resetCounterpartyVisibleLimit () {
+      this.counterpartyVisibleLimit = 250
+    },
+    showMoreCounterpartyRows () {
+      this.counterpartyVisibleLimit += 250
     },
     toggleSupplier (name) {
       this.selectedSuppliers = this.selectedSuppliers.includes(name)
@@ -1112,6 +1138,12 @@ export default {
 .pricing-row {
   color: #2f3e60;
   border-bottom: 1px solid #f0f2f7;
+}
+
+.pricing-list__more {
+  padding: 14px 16px;
+  border-top: 1px solid #eef2f7;
+  background: #fbfcff;
 }
 
 .pricing-list__head--sheet,
