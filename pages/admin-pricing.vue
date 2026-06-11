@@ -128,28 +128,32 @@
             </div>
           </div>
           <div class="pricing-list pricing-list--sheet">
-            <div class="pricing-list__head pricing-list__head--sheet">
+            <div class="pricing-list__head pricing-list__head--comparison" :style="supplierGridStyle">
               <div>{{ t.country }}</div>
               <div>{{ t.from }}</div>
               <div>{{ t.to }}</div>
               <div>{{ t.type }}</div>
               <div>{{ t.pax }}</div>
-              <div>{{ t.price }}</div>
+              <div>{{ t.riderraPrice }}</div>
               <div>{{ t.currency }}</div>
+              <div v-for="name in supplierComparisonColumns" :key="`supplier-head-${name}`">{{ name }}</div>
             </div>
-            <div v-for="d in filteredDriverRows" :key="d.id" class="pricing-row pricing-row--sheet">
-              <div>
-                <div>{{ sheetCountryLabel(d) }}</div>
-                <div class="route-cell__sub">{{ d.supplierName || d.driverName || '-' }}</div>
-              </div>
-              <div>{{ sheetPlaceLabel(d.routeFrom || d.fromPoint, d) }}</div>
-              <div>{{ sheetPlaceLabel(d.routeTo || d.toPoint, d) }}</div>
+            <div v-for="d in visibleSupplierComparisonRows" :key="d.key" class="pricing-row pricing-row--comparison" :style="supplierGridStyle">
+              <div>{{ sheetCountryLabel(d) }}</div>
+              <div>{{ sheetPlaceLabel(d.routeFrom, d) }}</div>
+              <div>{{ sheetPlaceLabel(d.routeTo, d) }}</div>
               <div>{{ d.vehicleType || '-' }}</div>
               <div>{{ paxLabel(d.vehicleType) }}</div>
-              <div class="price-cell"><strong>{{ priceAmountLabel(d.driverPrice) }}</strong></div>
+              <div class="price-cell"><strong>{{ priceAmountLabel(d.riderraPrice) }}</strong></div>
               <div>{{ d.currency || '-' }}</div>
+              <div v-for="name in supplierComparisonColumns" :key="`${d.key}-${name}`" class="price-cell price-cell--counterparty">
+                <strong>{{ supplierPriceLabel(d, name) }}</strong>
+              </div>
             </div>
-            <div v-if="!filteredDriverRows.length" class="empty-state">{{ t.empty }}</div>
+            <div v-if="!filteredSupplierComparisonRows.length" class="empty-state">{{ t.empty }}</div>
+            <div v-else-if="supplierHiddenRowsCount > 0" class="pricing-list__more">
+              <button class="btn" @click="showMoreSupplierRows">{{ t.showMore }} · {{ supplierHiddenRowsCount }}</button>
+            </div>
           </div>
         </div>
 
@@ -329,6 +333,7 @@ export default {
     selectedCounterparties: [],
     selectedSuppliers: [],
     counterpartyVisibleLimit: 250,
+    supplierVisibleLimit: 250,
     notice: '',
     editingBase: null,
     baseForm: {
@@ -343,9 +348,13 @@ export default {
   watch: {
     q () {
       this.resetCounterpartyVisibleLimit()
+      this.resetSupplierVisibleLimit()
     },
     selectedCounterparties () {
       this.resetCounterpartyVisibleLimit()
+    },
+    selectedSuppliers () {
+      this.resetSupplierVisibleLimit()
     }
   },
   computed: {
@@ -627,6 +636,90 @@ export default {
         return `${rowOwner || ''} ${row.country || ''} ${row.city || ''} ${row.fromPoint || ''} ${row.toPoint || ''} ${row.vehicleType || ''} ${row.sourceLabel || ''}`.toLowerCase().includes(q)
       })
     },
+    supplierComparisonColumns () {
+      return this.selectedSuppliers.length ? this.selectedSuppliers : this.supplierOptions
+    },
+    supplierGridStyle () {
+      const priceColumns = this.supplierComparisonColumns.map(() => 'minmax(120px, .65fr)').join(' ')
+      return {
+        gridTemplateColumns: `minmax(130px, .8fr) minmax(220px, 1.35fr) minmax(220px, 1.35fr) minmax(170px, 1fr) minmax(64px, .45fr) minmax(120px, .7fr) minmax(92px, .55fr) ${priceColumns}`.trim(),
+        minWidth: `${1060 + (this.supplierComparisonColumns.length * 136)}px`
+      }
+    },
+    supplierComparisonRows () {
+      const rows = new Map()
+      const ensure = (row = {}) => {
+        const key = this.pricebookRouteKey(row)
+        if (!rows.has(key)) {
+          rows.set(key, {
+            key,
+            country: row.country || '',
+            city: row.city || '',
+            routeFrom: row.routeFrom || row.fromPoint || '',
+            routeTo: row.routeTo || row.toPoint || '',
+            vehicleType: row.vehicleType || '',
+            riderraPrice: row.fixedPrice ?? null,
+            currency: row.currency || 'EUR',
+            supplierPrices: {}
+          })
+        }
+        return rows.get(key)
+      }
+
+      this.baseRows.forEach((row) => {
+        const item = ensure(row)
+        item.country = row.country || item.country
+        item.city = row.city || item.city
+        item.routeFrom = row.routeFrom || item.routeFrom
+        item.routeTo = row.routeTo || item.routeTo
+        item.vehicleType = row.vehicleType || item.vehicleType
+        item.riderraPrice = row.fixedPrice ?? item.riderraPrice
+        item.currency = row.currency || item.currency
+      })
+
+      this.driverPriceRows.forEach((row) => {
+        const owner = row.supplierName || row.driverName
+        if (!owner) return
+        const item = ensure(row)
+        if (!item.country) item.country = row.country || this.countryByPlace(row.city) || ''
+        if (!item.city) item.city = row.city || ''
+        if (!item.routeFrom) item.routeFrom = row.routeFrom || row.fromPoint || ''
+        if (!item.routeTo) item.routeTo = row.routeTo || row.toPoint || ''
+        if (!item.vehicleType) item.vehicleType = row.vehicleType || ''
+        if (!item.currency) item.currency = row.currency || 'EUR'
+        if (!item.supplierPrices[owner]) {
+          item.supplierPrices[owner] = {
+            price: row.driverPrice,
+            currency: row.currency || item.currency || 'EUR'
+          }
+        }
+      })
+
+      return Array.from(rows.values())
+        .sort((a, b) => this.pricebookSortLabel(a).localeCompare(this.pricebookSortLabel(b)))
+    },
+    filteredSupplierComparisonRows () {
+      const owners = this.selectedSuppliers
+      const q = this.q.trim().toLowerCase()
+      return this.supplierComparisonRows.filter((row) => {
+        if (owners.length && !owners.some((owner) => row.supplierPrices[owner])) return false
+        if (!q) return true
+        return [
+          this.sheetCountryLabel(row),
+          this.sheetPlaceLabel(row.routeFrom, row),
+          this.sheetPlaceLabel(row.routeTo, row),
+          row.vehicleType,
+          row.currency,
+          ...Object.entries(row.supplierPrices).flatMap(([owner, price]) => [owner, price.price, price.currency])
+        ].join(' ').toLowerCase().includes(q)
+      })
+    },
+    visibleSupplierComparisonRows () {
+      return this.filteredSupplierComparisonRows.slice(0, this.supplierVisibleLimit)
+    },
+    supplierHiddenRowsCount () {
+      return Math.max(0, this.filteredSupplierComparisonRows.length - this.visibleSupplierComparisonRows.length)
+    },
     driverPriceRows () {
       return this.driverRows.flatMap((driver) => {
         const coverage = [driver.country, driver.city].filter(Boolean).join(' · ')
@@ -694,6 +787,11 @@ export default {
     },
     counterpartyPriceLabel (row, owner) {
       const price = row.counterpartyPrices?.[owner]
+      if (!price || price.price === null || price.price === undefined || price.price === '') return '-'
+      return this.priceLabel(this.priceAmountLabel(price.price), price.currency || row.currency || '')
+    },
+    supplierPriceLabel (row, owner) {
+      const price = row.supplierPrices?.[owner]
       if (!price || price.price === null || price.price === undefined || price.price === '') return '-'
       return this.priceLabel(this.priceAmountLabel(price.price), price.currency || row.currency || '')
     },
@@ -812,6 +910,12 @@ export default {
     },
     clearSuppliers () {
       this.selectedSuppliers = []
+    },
+    resetSupplierVisibleLimit () {
+      this.supplierVisibleLimit = 250
+    },
+    showMoreSupplierRows () {
+      this.supplierVisibleLimit += 250
     },
     percentLabel (value) {
       if (value === null || value === undefined || Number.isNaN(Number(value))) return '-'
