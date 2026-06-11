@@ -199,6 +199,16 @@ const RIDERRA_PUBLIC_SOURCES = [
     notes: 'Public API contract for draft transfer requests.'
   },
   {
+    name: 'Riderra public agent manifest',
+    url: `${RIDERRA_BASE_URL}/api/public/agent-manifest`,
+    type: 'owned_machine_readable',
+    status: 'authoritative',
+    expectedName: 'Riderra',
+    expectedWebsite: RIDERRA_BASE_URL,
+    expectedEmail: RIDERRA_CONTACT_EMAIL,
+    notes: 'Public capability and safety boundary manifest for AI agents.'
+  },
+  {
     name: 'Riderra LinkedIn',
     url: 'https://ee.linkedin.com/company/riderracs',
     type: 'external_profile',
@@ -1361,6 +1371,74 @@ function publicPricingHints() {
   }
 }
 
+function publicAgentManifest() {
+  return {
+    name: 'Riderra Public AI Agent Manifest',
+    version: '1.0.0',
+    canonicalWebsite: RIDERRA_BASE_URL,
+    contactEmail: RIDERRA_CONTACT_EMAIL,
+    purpose: 'Help external AI agents understand Riderra and submit draft transfer requests without bypassing Riderra operator review.',
+    sourceOfTruth: {
+      publicProfile: `${RIDERRA_BASE_URL}/api/public/riderra-profile`,
+      services: `${RIDERRA_BASE_URL}/api/public/services`,
+      pricingHints: `${RIDERRA_BASE_URL}/api/public/pricing-hints`,
+      sourceTruth: `${RIDERRA_BASE_URL}/api/public/source-truth`,
+      orderRequestSchema: `${RIDERRA_BASE_URL}/api/public/order-request-schema`,
+      openapi: `${RIDERRA_BASE_URL}/api/public/openapi.json`,
+      llms: `${RIDERRA_BASE_URL}/llms.txt`
+    },
+    executionPolicy: {
+      publicRequestsCreateDraftsOnly: true,
+      confirmedBookingRequiresRiderraReview: true,
+      finalPriceRequiresRiderraReview: true,
+      noAutonomousOutboundCommunication: true,
+      noPublicFullPriceBook: true
+    },
+    publicCapabilities: [
+      {
+        capability: 'riderra.public.order_request.validate',
+        method: 'POST',
+        endpoint: '/api/public/order-requests/validate',
+        sideEffect: false,
+        approval: 'not_required',
+        result: 'Validates a draft request payload without creating a booking.'
+      },
+      {
+        capability: 'riderra.public.order_request.create_draft',
+        method: 'POST',
+        endpoint: '/api/public/order-requests',
+        sideEffect: true,
+        approval: 'operator_review_before_booking',
+        result: 'Creates a draft request for Riderra review. It is not a confirmed booking.'
+      },
+      {
+        capability: 'riderra.public.order_request.status',
+        method: 'GET',
+        endpoint: '/api/public/order-requests/{requestId}/status?email={email}',
+        sideEffect: false,
+        approval: 'contact_verification_required',
+        result: 'Returns draft request status after contact verification.'
+      }
+    ],
+    prohibitedForPublicAgents: [
+      'quote_final_price',
+      'confirm_booking',
+      'change_or_cancel_order',
+      'send_customer_or_driver_message',
+      'access_internal_price_book',
+      'access_admin_api',
+      'perform_payment_or_billing_action'
+    ],
+    recommendedFlow: [
+      'Read /llms.txt and /api/public/agent-manifest.',
+      'Collect route, pickup time, passenger, luggage, vehicle, and flight details.',
+      'Validate the payload with POST /api/public/order-requests/validate.',
+      'Submit one draft with POST /api/public/order-requests and a stable Idempotency-Key.',
+      'Tell the user Riderra will review availability and final price.'
+    ]
+  }
+}
+
 function orderRequestSchema() {
   return {
     endpoint: `${RIDERRA_BASE_URL}/api/public/order-requests`,
@@ -1433,6 +1511,12 @@ function publicOpenApiSpec() {
         get: {
           summary: 'Get Riderra public source registry',
           responses: { 200: { description: 'Owned and declared public sources of truth' } }
+        }
+      },
+      '/api/public/agent-manifest': {
+        get: {
+          summary: 'Get public AI agent capability and safety manifest',
+          responses: { 200: { description: 'Public AI agent manifest' } }
         }
       },
       '/api/public/order-request-schema': {
@@ -1703,6 +1787,7 @@ Profile: GET ${RIDERRA_BASE_URL}/api/public/riderra-profile
 Services: GET ${RIDERRA_BASE_URL}/api/public/services
 Pricing hints: GET ${RIDERRA_BASE_URL}/api/public/pricing-hints
 Source truth: GET ${RIDERRA_BASE_URL}/api/public/source-truth
+Agent manifest: GET ${RIDERRA_BASE_URL}/api/public/agent-manifest
 Recommended header: Idempotency-Key
 
 ## Public sources of truth
@@ -1765,6 +1850,10 @@ app.get('/api/public/pricing-hints', (_req, res) => {
 
 app.get('/api/public/source-truth', (_req, res) => {
   res.json(publicSourceTruth())
+})
+
+app.get('/api/public/agent-manifest', (_req, res) => {
+  res.json(publicAgentManifest())
 })
 
 app.get('/api/public/order-request-schema', (_req, res) => {

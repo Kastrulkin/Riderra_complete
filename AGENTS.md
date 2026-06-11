@@ -2,6 +2,14 @@
 
 ## Project Agreements
 
+### AI-Readable Canon
+- Product canon: `PRODUCT.md`.
+- Agent capability registry: `docs/AGENT_REGISTRY_V1.md`.
+- AI-relevant use cases and status labels: `docs/use-cases.md`.
+- Integration map and source-of-truth boundaries: `docs/integrations.md`.
+- Neighbor-agent / OpenClaw contract: `docs/contracts/riderra-openclaw/PHASE1.md`.
+- Public AI visibility is exposed through `/llms.txt`, `/api/public/openapi.json`, `/api/public/riderra-profile`, `/api/public/source-truth`, and checked with `npm run smoke:public-ai-visibility`.
+
 ### Product and Operations
 - Orders source of truth: Google Sheets.
 - Monthly model: a new Google Sheet each month; source is configured via a dedicated field/UI.

@@ -64,7 +64,17 @@ npm run prisma:generate
 - Vuex store: `store/index.js`
 
 ## Документация
+- Продуктовый канон для людей и AI-агентов: `PRODUCT.md`
+- Реестр агентских capability и границ безопасности: `docs/AGENT_REGISTRY_V1.md`
+- Use cases и статусы готовности: `docs/use-cases.md`
+- Интеграции и источники истины: `docs/integrations.md`
+- Контракт соседнего агента/OpenClaw: `docs/contracts/riderra-openclaw/PHASE1.md`
 - Деплой и сервер: `README_DEPLOY.md`
 - Авторизация и роли: `README_AUTH.md`
 - Комиссии/приоритизация: `README_COMMISSION_SYSTEM.md`
 - Обновление прода: `UPDATE_INSTRUCTIONS.md`
+
+Публичная видимость для AI-агентов уже обслуживается через `/llms.txt`,
+`/api/public/openapi.json`, `/api/public/riderra-profile`,
+`/api/public/source-truth` и проверяется командой
+`npm run smoke:public-ai-visibility`.
