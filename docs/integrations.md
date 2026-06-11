@@ -18,7 +18,7 @@ Last reviewed: 2026-06-11.
 | Google Sheets monthly order source | available | read into Riderra | current and monthly order operations | Human-configured source; sheet remains master. |
 | Google Sheets public/reference price files | internal | import/compare | price list input and checks | Comparison/import source only. |
 | Google Maps API | beta | Riderra -> Google | address validation | Validation signal only; show match/mismatch clearly. |
-| Gmail forwarding / email ingest | available | email -> Riderra | AI Inbox order/change/cancellation drafts | Creates drafts only. |
+| Gmail forwarding / email ingest | receiver available; bridge ready to install | email -> Riderra | AI Inbox order/change/cancellation drafts | Creates drafts only. Gmail delivery requires the Apps Script bridge in `docs/integrations/gmail-ai-inbox-bridge.md`. |
 | EasyTaxi webhook | available | EasyTaxi -> Riderra | operational order payloads | Authenticated webhook; no public write access. |
 | OpenClaw runtime | available | Riderra <-> OpenClaw | draft building, classification, extraction, message send runtime | Must use validated envelope and approval policy. |
 | Telegram bot | available | Riderra <-> Telegram | operator/driver notifications and commands | RBAC-restricted. |
