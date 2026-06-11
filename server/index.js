@@ -14922,6 +14922,62 @@ async function refreshOpenClawDraftPayloadChecks(payload = {}, tenantId) {
   return maybeAutoAttachAddressVerification(withFlightCheck)
 }
 
+async function refreshOpenClawDraftPayloadPricingOnly(payload = {}, tenantId) {
+  const refreshed = await buildOpenClawDraftPayload(payload, tenantId)
+  const currentFlightCheck = payload.flightCheck || null
+  const currentAddressVerification = payload.addressVerification || null
+  const withFlightCheck = currentFlightCheck
+    ? mergeFlightCheckIntoPayload(refreshed, currentFlightCheck)
+    : refreshed
+  return currentAddressVerification
+    ? mergeAddressVerificationIntoPayload(withFlightCheck, currentAddressVerification)
+    : withFlightCheck
+}
+
+function hasUsableDraftPricing(payload = {}) {
+  const pricing = payload.pricing || {}
+  const orderDraft = payload.orderDraft || {}
+  const authoritativePrice = Number(pricing.authoritativeClientPrice)
+  const emailPrice = Number(orderDraft.clientPrice)
+  return (
+    (Number.isFinite(authoritativePrice) && authoritativePrice > 0) ||
+    (Number.isFinite(emailPrice) && emailPrice > 0)
+  )
+}
+
+function shouldAutoRefreshDraftPricing(row) {
+  if (!row || row.status !== 'pending' || row.parsedType !== 'openclaw_order_draft') return false
+  const payload = parseJsonSafe(row.payloadJson || '{}', {})
+  if (hasUsableDraftPricing(payload)) return false
+  const orderDraft = payload.orderDraft || {}
+  const sourceChannel = String(orderDraft.sourceChannel || payload.sourceChannel || '').trim().toLowerCase()
+  const sourceType = String(orderDraft.sourceType || payload.sourceType || '').trim().toLowerCase()
+  const hasRoute = Boolean(String(orderDraft.fromPoint || '').trim() && String(orderDraft.toPoint || '').trim())
+  const isEmailDraft = sourceChannel === 'email' || sourceType.includes('email') || sourceType === 'gmail_forward'
+  return isEmailDraft && hasRoute
+}
+
+async function maybeAutoRefreshDraftPricing(row, tenantId) {
+  if (!shouldAutoRefreshDraftPricing(row)) return row
+  try {
+    const payload = parseJsonSafe(row.payloadJson || '{}', {})
+    const nextPayload = await refreshOpenClawDraftPayloadPricingOnly(payload, tenantId)
+    if (JSON.stringify(nextPayload.pricing || {}) === JSON.stringify(payload.pricing || {})) {
+      return row
+    }
+    return prisma.opsEventDraft.update({
+      where: { id: row.id },
+      data: { payloadJson: JSON.stringify(nextPayload) }
+    })
+  } catch (error) {
+    console.error('Automatic AI Inbox pricing refresh failed:', {
+      draftId: row?.id || null,
+      error: error?.message || error
+    })
+    return row
+  }
+}
+
 function hasAirportLikePoint(value) {
   const raw = String(value || '').trim().toLowerCase()
   if (!raw) return false
@@ -15952,7 +16008,8 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
 async function saveOpsDraftFromOpenClaw({ tenantId, payload, skipFlightCheck = false }) {
   const basePayload = await buildOpenClawDraftPayload(payload, tenantId)
   const withFlightPayload = skipFlightCheck ? basePayload : await maybeAutoAttachFlightCheck(basePayload)
-  const normalizedPayload = await maybeAutoAttachAddressVerification(withFlightPayload)
+  const withFreshPricing = await refreshOpenClawDraftPayloadPricingOnly(withFlightPayload, tenantId)
+  const normalizedPayload = await maybeAutoAttachAddressVerification(withFreshPricing)
   const orderDraft = normalizedPayload.orderDraft || {}
   return prisma.opsEventDraft.create({
     data: {
@@ -16894,7 +16951,9 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       })
     }
-    res.json({ rows: filteredRows.slice(0, take) })
+    const pageRows = filteredRows.slice(0, take)
+    const refreshedRows = await Promise.all(pageRows.map((row) => maybeAutoRefreshDraftPricing(row, req.actorContext.tenantId)))
+    res.json({ rows: refreshedRows })
   } catch (error) {
     console.error('Error fetching ops drafts:', error)
     res.status(500).json({ error: 'Failed to fetch ops drafts' })
