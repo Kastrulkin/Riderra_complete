@@ -15,7 +15,7 @@
             {{ cleanupSaving ? 'Убираю...' : 'Убрать тестовые' }}
           </button>
           <button class="btn btn--ghost" :disabled="bulkDeleting || !selectedDraftIds.length" @click="deleteSelectedDrafts">
-            {{ bulkDeleting ? 'Удаляю...' : `Удалить выбранные (${selectedDraftIds.length})` }}
+            {{ bulkDeleting ? 'Убираю...' : `Убрать выбранные (${selectedDraftIds.length})` }}
           </button>
         </div>
 
@@ -78,6 +78,18 @@
           <input v-model="toPickup" class="input input--date" type="date" aria-label="Дата поездки до" @change="applyCustomPeriod" />
           <button class="btn btn--small btn--ghost" type="button" @click="resetPeriod">Сбросить</button>
         </div>
+        <div v-if="selectedDraftIds.length" class="bulk-panel">
+          <div>
+            <strong>Выбрано: {{ selectedDraftIds.length }}</strong>
+            <span class="hint">Групповая обработка применится только к pending-черновикам на текущем экране.</span>
+          </div>
+          <div class="bulk-panel__actions">
+            <button class="btn btn--small btn--ghost" type="button" :disabled="bulkDeleting" @click="clearSelectedDrafts">Снять выбор</button>
+            <button class="btn btn--small btn--primary" type="button" :disabled="bulkDeleting" @click="deleteSelectedDrafts">
+              {{ bulkDeleting ? 'Убираю...' : 'Убрать выбранные' }}
+            </button>
+          </div>
+        </div>
         <div v-if="actionResult && !draft" class="hint result-block page-result">{{ actionResult }}</div>
 
         <div class="table-wrap">
@@ -90,6 +102,7 @@
                 aria-label="Выбрать все видимые черновики"
                 @change="toggleAllVisible"
               />
+              <span class="sr-only">Выбор</span>
             </div>
             <div>Контрагент</div>
             <div>Номер заказа</div>
@@ -870,7 +883,7 @@ export default {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Не удалось удалить выбранные черновики')
         this.actionResult = data.updated
-          ? `Удалено выбранных черновиков: ${data.updated}.`
+          ? `Убрано выбранных черновиков: ${data.updated}.`
           : 'Выбранные черновики уже не были в Pending.'
         this.selectedDraftIds = []
         await this.load()
@@ -879,6 +892,9 @@ export default {
       } finally {
         this.bulkDeleting = false
       }
+    },
+    clearSelectedDrafts () {
+      this.selectedDraftIds = []
     },
     setPeriod (period) {
       this.period = period
@@ -1086,6 +1102,8 @@ export default {
 .period-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; min-width: 220px; }
 .input--date { min-width: 150px; }
+.bulk-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid #d8d8e6; border-radius: 10px; background: #f8fafc; }
+.bulk-panel__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .table-wrap { background: #fff; border: 1px solid #d8d8e6; border-radius: 12px; overflow: auto; }
 .table-head, .table-row { display: grid; grid-template-columns: 42px 190px 170px 170px minmax(230px, 1fr) minmax(230px, 1fr) 160px 180px minmax(260px, 1fr) 210px 230px 250px; gap: 12px; padding: 10px 12px; min-width: 2320px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e5e7ef; }
@@ -1152,10 +1170,11 @@ export default {
 .actions { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
 .comment-input { flex: 1; min-width: 280px; }
 .hint { color: #64748b; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .result-block { margin-top: 10px; }
 .page-result { margin: -4px 0 12px; }
 @media (max-width: 900px) {
-  .page-head, .toolbar, .actions, .ops-rail, .focus-card__head, .focus-actions { flex-direction: column; align-items: stretch; }
+  .page-head, .toolbar, .actions, .ops-rail, .focus-card__head, .focus-actions, .bulk-panel { flex-direction: column; align-items: stretch; }
   .overview-grid,
   .meta-grid,
   .manual-import__grid,
