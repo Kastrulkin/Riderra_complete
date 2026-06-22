@@ -58,6 +58,57 @@
             </div>
           </div>
 
+          <div class="geo-zone-card">
+            <div class="geo-zone-card__head">
+              <div>
+                <strong>{{ t.geoZonesTitle }}</strong>
+                <p class="card-hint">{{ t.geoZonesHint }}</p>
+              </div>
+              <span class="scope-pill" :class="{ 'scope-pill--warn': !geoZoneImport.configured }">
+                {{ geoZoneImport.configured ? t.geoZonesLoaded : t.geoZonesEmpty }}
+              </span>
+            </div>
+            <div v-if="geoZoneNotice.text" class="notice" :class="geoZoneNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
+              {{ geoZoneNotice.text }}
+            </div>
+            <div class="geo-zone-upload">
+              <input
+                ref="geoZoneFile"
+                type="file"
+                class="input geo-zone-upload__file"
+                accept=".kml,.kmz,.csv,.geojson,.json"
+                @change="onGeoZoneFileChange"
+              />
+              <button class="btn btn--primary" :disabled="geoZoneUploading || !geoZoneFile" @click="uploadGeoZoneFile">
+                {{ geoZoneUploading ? t.geoZonesUploading : t.geoZonesUpload }}
+              </button>
+            </div>
+            <div class="geo-zone-meta">
+              <div class="entity-stack">
+                <span class="muted">{{ t.geoZonesLatestFile }}</span>
+                <strong>{{ latestGeoZone.originalFileName || '-' }}</strong>
+              </div>
+              <div class="entity-stack">
+                <span class="muted">{{ t.geoZonesUpdatedAt }}</span>
+                <strong>{{ formatDateTime(latestGeoZone.uploadedAt) }}</strong>
+              </div>
+              <div class="entity-stack">
+                <span class="muted">{{ t.geoZonesCount }}</span>
+                <strong>{{ latestGeoZone.zoneCount != null ? latestGeoZone.zoneCount : '-' }}</strong>
+              </div>
+              <div class="entity-stack">
+                <span class="muted">{{ t.geoZonesFormat }}</span>
+                <strong>{{ latestGeoZone.format || '-' }}</strong>
+              </div>
+            </div>
+            <div v-if="latestGeoZone.sampleZones && latestGeoZone.sampleZones.length" class="geo-zone-sample">
+              <span v-for="zone in latestGeoZone.sampleZones" :key="zone" class="scope-pill">{{ zone }}</span>
+            </div>
+            <p v-if="latestGeoZone.warnings && latestGeoZone.warnings.length" class="card-hint card-hint--warn">
+              {{ latestGeoZone.warnings.join(' ') }}
+            </p>
+          </div>
+
           <div v-if="sheetNotice.text" class="notice" :class="sheetNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
             {{ sheetNotice.text }}
           </div>
@@ -209,11 +260,18 @@ export default {
       internalUrl: '',
       tokenConfigured: false
     },
+    geoZoneImport: {
+      configured: false,
+      latest: null
+    },
+    geoZoneFile: null,
+    geoZoneUploading: false,
     sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица', detailsTabName: 'подробности' },
     staffDrafts: {},
     abacDrafts: {},
     syncingSheetId: null,
     sheetNotice: { type: 'ok', text: '' },
+    geoZoneNotice: { type: 'ok', text: '' },
     staffNotice: { type: 'ok', text: '' },
     mappingModal: { open: false, sourceId: '', sourceName: '' },
     mapDraft: {
@@ -264,6 +322,9 @@ export default {
           ]
       return this.canViewStaffRoles ? cards : cards.filter((card) => card.key !== 'scoped')
     },
+    latestGeoZone () {
+      return this.geoZoneImport.latest || {}
+    },
     mappingFields () {
       return [
         { key: 'contractor', label: 'Контрагент', placeholder: 'Контрагент' },
@@ -295,6 +356,16 @@ export default {
             emailIngestNotReady: 'Нужен token',
             emailIngestInbox: 'Технический ящик',
             emailIngestEndpoint: 'Internal endpoint',
+            geoZonesTitle: 'Геозоны EasyTaxi / ETO',
+            geoZonesHint: 'Загрузите KML, CSV или GeoJSON с зонами. Riderra сохранит файл как текущий источник геозон для будущего матчинга адресов и цен.',
+            geoZonesLoaded: 'Файл загружен',
+            geoZonesEmpty: 'Файл не загружен',
+            geoZonesUpload: 'Загрузить геозоны',
+            geoZonesUploading: 'Загрузка...',
+            geoZonesLatestFile: 'Последний файл',
+            geoZonesUpdatedAt: 'Обновлено',
+            geoZonesCount: 'Зон в файле',
+            geoZonesFormat: 'Формат',
             staffTelegram: 'Сотрудники и Telegram',
             staffTelegramHint: 'Привязка Telegram User ID к сотрудникам, чтобы команды и уведомления попадали нужным людям.',
             accessScopes: 'Права доступа',
@@ -337,6 +408,16 @@ export default {
             emailIngestNotReady: 'Token missing',
             emailIngestInbox: 'Technical inbox',
             emailIngestEndpoint: 'Internal endpoint',
+            geoZonesTitle: 'EasyTaxi / ETO geo zones',
+            geoZonesHint: 'Upload KML, CSV or GeoJSON with zones. Riderra stores it as the current geo-zone source for future address and pricing matching.',
+            geoZonesLoaded: 'File loaded',
+            geoZonesEmpty: 'No file yet',
+            geoZonesUpload: 'Upload zones',
+            geoZonesUploading: 'Uploading...',
+            geoZonesLatestFile: 'Latest file',
+            geoZonesUpdatedAt: 'Updated at',
+            geoZonesCount: 'Zones in file',
+            geoZonesFormat: 'Format',
             staffTelegram: 'Staff and Telegram',
             staffTelegramHint: 'Link Telegram User IDs so commands and alerts reach the right staff members.',
             accessScopes: 'Access scopes',
@@ -407,17 +488,19 @@ export default {
       return body
     },
     async load () {
-      const [me, sheets, staff, emailIngest] = await Promise.all([
+      const [me, sheets, staff, emailIngest, geoZoneImport] = await Promise.all([
         this.jsonRequest('/api/auth/me', { headers: this.headers() }).catch(() => ({})),
         this.jsonRequest('/api/admin/sheet-sources', { headers: this.headers() }),
         this.jsonRequest('/api/admin/staff-users', { headers: this.headers() }),
-        this.jsonRequest('/api/admin/email-ingest/status', { headers: this.headers() })
+        this.jsonRequest('/api/admin/email-ingest/status', { headers: this.headers() }),
+        this.jsonRequest('/api/admin/geo-zones/import/status', { headers: this.headers() }).catch(() => ({ configured: false, latest: null }))
       ])
       this.currentUserEmail = me?.user?.email || ''
       if (this.activeSection === 'access' && !this.canViewStaffRoles) this.activeSection = 'sources'
       this.sheets = Array.isArray(sheets) ? sheets : []
       this.staff = staff.rows || []
       this.emailIngest = emailIngest || this.emailIngest
+      this.geoZoneImport = geoZoneImport || this.geoZoneImport
       this.staffDrafts = this.staff.reduce((acc, user) => {
         acc[user.id] = (user.telegramLinks && user.telegramLinks[0] && user.telegramLinks[0].telegramUserId) || ''
         return acc
@@ -429,6 +512,49 @@ export default {
         }
         return acc
       }, {})
+    },
+    formatDateTime (value) {
+      if (!value) return '-'
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return '-'
+      return date.toLocaleString(this.$store.state.language === 'ru' ? 'ru-RU' : 'en-US')
+    },
+    onGeoZoneFileChange (event) {
+      this.geoZoneFile = event.target.files && event.target.files[0] ? event.target.files[0] : null
+      this.geoZoneNotice = { type: 'ok', text: '' }
+    },
+    async uploadGeoZoneFile () {
+      if (!this.geoZoneFile) {
+        this.geoZoneNotice = { type: 'error', text: this.$store.state.language === 'ru' ? 'Выберите файл геозон.' : 'Choose a geo-zone file.' }
+        return
+      }
+      this.geoZoneUploading = true
+      this.geoZoneNotice = { type: 'ok', text: '' }
+      try {
+        const form = new FormData()
+        form.append('file', this.geoZoneFile)
+        const response = await fetch('/api/admin/geo-zones/import', {
+          method: 'POST',
+          headers: this.headers(),
+          body: form
+        })
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`)
+        this.geoZoneImport = { configured: true, latest: body.latest || null }
+        this.geoZoneFile = null
+        if (this.$refs.geoZoneFile) this.$refs.geoZoneFile.value = ''
+        const count = body.latest && body.latest.zoneCount != null ? body.latest.zoneCount : 0
+        this.geoZoneNotice = {
+          type: 'ok',
+          text: this.$store.state.language === 'ru'
+            ? `Геозоны загружены. Найдено зон: ${count}.`
+            : `Geo zones uploaded. Zones found: ${count}.`
+        }
+      } catch (error) {
+        this.geoZoneNotice = { type: 'error', text: `${this.$store.state.language === 'ru' ? 'Ошибка загрузки' : 'Upload failed'}: ${error.message}` }
+      } finally {
+        this.geoZoneUploading = false
+      }
     },
     async createSheetSource () {
       this.sheetNotice = { type: 'ok', text: '' }
@@ -589,8 +715,15 @@ export default {
 .email-ingest-card { display:grid; gap:12px; border:1px solid #e6ebf5; border-radius:14px; padding:14px; background:linear-gradient(180deg,#fff 0%,#f8fbff 100%); margin-bottom:14px; }
 .email-ingest-card__head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
 .email-ingest-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.geo-zone-card { display:grid; gap:12px; border:1px solid #e4e8f2; border-radius:14px; padding:14px; background:#fff; margin-bottom:14px; }
+.geo-zone-card__head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.geo-zone-upload { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; }
+.geo-zone-upload__file { padding:8px 10px; }
+.geo-zone-meta { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; padding:12px; border-radius:12px; background:#f8fbff; border:1px solid #e6ebf5; }
+.geo-zone-sample { display:flex; flex-wrap:wrap; gap:8px; }
 .card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:12px; }
 .card-hint { margin:6px 0 0; color:#64748b; line-height:1.5; }
+.card-hint--warn { color:#92400e; }
 .notice { border-radius:10px; padding:10px 12px; margin:10px 0 14px; font-weight:600; }
 .notice--ok { background:#ebf7ef; border:1px solid #a5d6b4; color:#1f6b32; }
 .notice--error { background:#fff1f0; border:1px solid #f4b8b2; color:#9f2f26; }
@@ -635,6 +768,9 @@ export default {
   .form-grid__wide { grid-column:auto; }
   .email-ingest-card__head { flex-direction:column; align-items:stretch; }
   .email-ingest-grid { grid-template-columns:1fr; }
+  .geo-zone-card__head { flex-direction:column; align-items:stretch; }
+  .geo-zone-upload { grid-template-columns:1fr; }
+  .geo-zone-meta { grid-template-columns:1fr 1fr; }
 }
 @media (max-width: 640px) {
   .settings-overview { grid-template-columns:1fr; }
@@ -646,6 +782,7 @@ export default {
   .section-pill {
     flex: 0 0 220px;
   }
+  .geo-zone-meta { grid-template-columns:1fr; }
   .inline-actions,
   .row-actions {
     width: 100%;

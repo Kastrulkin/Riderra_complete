@@ -12883,6 +12883,240 @@ app.get('/api/admin/email-ingest/status', authenticateToken, resolveActorContext
   }
 })
 
+const GEO_ZONE_UPLOAD_MAX_BYTES = 12 * 1024 * 1024
+const GEO_ZONE_ALLOWED_EXTENSIONS = new Set(['.csv', '.geojson', '.json', '.kml', '.kmz'])
+
+function getGeoZoneImportDir(tenantId) {
+  const safeTenant = String(tenantId || 'global').replace(/[^a-zA-Z0-9_-]/g, '_') || 'global'
+  return path.join(process.cwd(), 'data', 'geo-zones', safeTenant)
+}
+
+function getGeoZoneLatestPath(tenantId) {
+  return path.join(getGeoZoneImportDir(tenantId), 'latest.json')
+}
+
+function sanitizeUploadedFileName(value = '') {
+  const fallback = 'geo-zones.kml'
+  const raw = path.basename(String(value || fallback)).replace(/[^\w.\-а-яА-ЯёЁ ]+/g, '_').trim()
+  return raw || fallback
+}
+
+function splitBufferByNeedle(buffer, needle) {
+  const chunks = []
+  let offset = 0
+  while (offset <= buffer.length) {
+    const next = buffer.indexOf(needle, offset)
+    if (next === -1) {
+      chunks.push(buffer.slice(offset))
+      break
+    }
+    chunks.push(buffer.slice(offset, next))
+    offset = next + needle.length
+  }
+  return chunks
+}
+
+async function readRequestBodyBuffer(req, maxBytes = GEO_ZONE_UPLOAD_MAX_BYTES) {
+  const chunks = []
+  let total = 0
+  for await (const chunk of req) {
+    total += chunk.length
+    if (total > maxBytes) {
+      const error = new Error(`File is too large. Maximum size is ${Math.round(maxBytes / 1024 / 1024)} MB.`)
+      error.statusCode = 413
+      throw error
+    }
+    chunks.push(chunk)
+  }
+  return Buffer.concat(chunks)
+}
+
+function parseMultipartFile(req, bodyBuffer) {
+  const contentType = String(req.headers['content-type'] || '')
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)
+  if (!boundaryMatch) {
+    const error = new Error('Multipart boundary is missing.')
+    error.statusCode = 400
+    throw error
+  }
+  const boundary = Buffer.from(`--${boundaryMatch[1] || boundaryMatch[2]}`)
+  const parts = splitBufferByNeedle(bodyBuffer, boundary)
+  for (const rawPart of parts) {
+    let part = rawPart
+    if (part.slice(0, 2).toString('latin1') === '\r\n') part = part.slice(2)
+    if (!part.length || part.slice(0, 2).toString('latin1') === '--') continue
+    const headerEnd = part.indexOf(Buffer.from('\r\n\r\n'))
+    if (headerEnd === -1) continue
+    const headers = part.slice(0, headerEnd).toString('latin1')
+    const disposition = headers.match(/content-disposition:\s*form-data;[^\r\n]*/i)?.[0] || ''
+    const name = disposition.match(/name="([^"]+)"/i)?.[1] || ''
+    const filename = disposition.match(/filename="([^"]*)"/i)?.[1] || ''
+    if (name !== 'file' || !filename) continue
+    let data = part.slice(headerEnd + 4)
+    if (data.slice(-2).toString('latin1') === '\r\n') data = data.slice(0, -2)
+    return {
+      filename: sanitizeUploadedFileName(filename),
+      contentType: headers.match(/content-type:\s*([^\r\n]+)/i)?.[1]?.trim() || 'application/octet-stream',
+      data
+    }
+  }
+  const error = new Error('File field is required.')
+  error.statusCode = 400
+  throw error
+}
+
+function parseCsvLine(line = '') {
+  const cells = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    if (char === '"' && inQuotes && line[i + 1] === '"') {
+      current += '"'
+      i++
+      continue
+    }
+    if (char === '"') {
+      inQuotes = !inQuotes
+      continue
+    }
+    if (char === ',' && !inQuotes) {
+      cells.push(current)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  cells.push(current)
+  return cells.map((cell) => cell.trim())
+}
+
+function summarizeGeoZoneFile(fileBuffer, extension) {
+  const summary = {
+    format: extension.replace(/^\./, '') || 'unknown',
+    zoneCount: 0,
+    sampleZones: [],
+    warnings: []
+  }
+  if (extension === '.kmz') {
+    summary.warnings.push('KMZ archive was saved but not parsed. Upload KML/CSV/GeoJSON for zone preview.')
+    return summary
+  }
+  const text = fileBuffer.toString('utf8').replace(/^\uFEFF/, '')
+  if (extension === '.kml') {
+    const placemarks = [...text.matchAll(/<Placemark\b[\s\S]*?<\/Placemark>/gi)]
+    summary.zoneCount = placemarks.length
+    summary.sampleZones = placemarks
+      .map((match) => String(match[0].match(/<name>([\s\S]*?)<\/name>/i)?.[1] || '').replace(/<[^>]+>/g, '').trim())
+      .filter(Boolean)
+      .slice(0, 8)
+    return summary
+  }
+  if (extension === '.csv') {
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    const header = parseCsvLine(lines[0] || '')
+    const nameIndex = header.findIndex((field) => ['name', 'zone', 'zone name', 'geozonename', 'geozone', 'название'].includes(String(field || '').trim().toLowerCase()))
+    summary.zoneCount = Math.max(0, lines.length - 1)
+    summary.sampleZones = lines.slice(1, 9).map((line) => {
+      const cells = parseCsvLine(line)
+      return cells[nameIndex >= 0 ? nameIndex : 1] || cells[0] || ''
+    }).filter(Boolean)
+    return summary
+  }
+  if (extension === '.json' || extension === '.geojson') {
+    try {
+      const parsed = JSON.parse(text)
+      const features = Array.isArray(parsed.features) ? parsed.features : []
+      const rows = Array.isArray(parsed) ? parsed : features
+      summary.zoneCount = rows.length
+      summary.sampleZones = rows.map((row) => row?.properties?.name || row?.name || row?.Name || row?.id || '').filter(Boolean).slice(0, 8)
+      return summary
+    } catch (error) {
+      summary.warnings.push(`JSON parse failed: ${error.message}`)
+      return summary
+    }
+  }
+  summary.warnings.push('File format is saved but not parsed.')
+  return summary
+}
+
+async function readGeoZoneImportStatus(tenantId) {
+  try {
+    const raw = await fs.readFile(getGeoZoneLatestPath(tenantId), 'utf8')
+    return JSON.parse(raw)
+  } catch (_) {
+    return null
+  }
+}
+
+app.get('/api/admin/geo-zones/import/status', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const latest = await readGeoZoneImportStatus(req.actorContext.tenantId)
+    res.json({
+      configured: Boolean(latest),
+      latest
+    })
+  } catch (error) {
+    console.error('Error fetching geo zone import status:', error)
+    res.status(500).json({ error: 'Failed to fetch geo zone import status' })
+  }
+})
+
+app.post('/api/admin/geo-zones/import', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const contentType = String(req.headers['content-type'] || '')
+    if (!contentType.toLowerCase().includes('multipart/form-data')) {
+      return res.status(415).json({ error: 'Upload must use multipart/form-data with file field.' })
+    }
+    const bodyBuffer = await readRequestBodyBuffer(req)
+    const uploaded = parseMultipartFile(req, bodyBuffer)
+    const extension = path.extname(uploaded.filename).toLowerCase()
+    if (!GEO_ZONE_ALLOWED_EXTENSIONS.has(extension)) {
+      return res.status(400).json({ error: 'Unsupported file type. Use KML, KMZ, CSV, GeoJSON or JSON.' })
+    }
+    const importDir = getGeoZoneImportDir(req.actorContext.tenantId)
+    await fs.mkdir(importDir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const storedFileName = `${stamp}-${uploaded.filename}`
+    const storedPath = path.join(importDir, storedFileName)
+    await fs.writeFile(storedPath, uploaded.data)
+    const summary = summarizeGeoZoneFile(uploaded.data, extension)
+    const manifest = {
+      uploadedAt: new Date().toISOString(),
+      tenantId: req.actorContext.tenantId,
+      originalFileName: uploaded.filename,
+      storedFileName,
+      storedPath,
+      contentType: uploaded.contentType,
+      sizeBytes: uploaded.data.length,
+      sourceSystem: 'easy_taxi_eto',
+      ...summary
+    }
+    await fs.writeFile(getGeoZoneLatestPath(req.actorContext.tenantId), JSON.stringify(manifest, null, 2), 'utf8')
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'geo_zones.import_file',
+      resource: 'geo_zone_import',
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: {
+        originalFileName: manifest.originalFileName,
+        storedFileName: manifest.storedFileName,
+        sizeBytes: manifest.sizeBytes,
+        format: manifest.format,
+        zoneCount: manifest.zoneCount
+      }
+    })
+    res.json({ success: true, latest: manifest })
+  } catch (error) {
+    console.error('Error importing geo zone file:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Failed to import geo zone file' })
+  }
+})
+
 app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
   try {
     const { name, monthLabel, googleSheetId, tabName, detailsTabName, columnMapping, isActive = true, syncEnabled = true } = req.body
