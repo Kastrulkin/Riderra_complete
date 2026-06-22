@@ -14934,21 +14934,16 @@ async function refreshOpenClawDraftPayloadPricingOnly(payload = {}, tenantId) {
     : withFlightCheck
 }
 
-function hasUsableDraftPricing(payload = {}) {
+function hasUsableAuthoritativeDraftPricing(payload = {}) {
   const pricing = payload.pricing || {}
-  const orderDraft = payload.orderDraft || {}
   const authoritativePrice = Number(pricing.authoritativeClientPrice)
-  const emailPrice = Number(orderDraft.clientPrice)
-  return (
-    (Number.isFinite(authoritativePrice) && authoritativePrice > 0) ||
-    (Number.isFinite(emailPrice) && emailPrice > 0)
-  )
+  return Number.isFinite(authoritativePrice) && authoritativePrice > 0
 }
 
 function shouldAutoRefreshDraftPricing(row) {
   if (!row || row.status !== 'pending' || row.parsedType !== 'openclaw_order_draft') return false
   const payload = parseJsonSafe(row.payloadJson || '{}', {})
-  if (hasUsableDraftPricing(payload)) return false
+  if (hasUsableAuthoritativeDraftPricing(payload)) return false
   const orderDraft = payload.orderDraft || {}
   const sourceChannel = String(orderDraft.sourceChannel || payload.sourceChannel || '').trim().toLowerCase()
   const sourceType = String(orderDraft.sourceType || payload.sourceType || '').trim().toLowerCase()
@@ -15223,12 +15218,30 @@ function normalizeVehicleType(raw) {
   if (!value) return 'sedan'
   const key = value.toLowerCase()
   const map = {
+    pt: 'sedan',
     economy: 'sedan',
+    'economy sedan': 'sedan',
     sedan: 'sedan',
+    'standard sedan': 'sedan',
+    'standard class car': 'sedan',
+    'standard car': 'sedan',
+    car: 'sedan',
     comfort: 'comfort',
+    mbe: 'business',
     business: 'business',
+    'business sedan': 'business',
+    'business class car': 'business',
+    'first class car': 'business',
+    mv: 'van',
+    mpv: 'van',
     van: 'van',
     minivan: 'van',
+    'standard minivan': 'van',
+    'standard minivan 5 pax': 'van',
+    'standard minivan 6 pax': 'van',
+    'standard minivan 7 pax': 'van',
+    'standard minivan 8 pax': 'van',
+    minibus: 'van',
     suv: 'suv'
   }
   return map[key] || value
