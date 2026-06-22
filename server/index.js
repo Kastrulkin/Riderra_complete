@@ -10195,19 +10195,24 @@ app.get(
       const addressVerification = order.addressVerificationJson
         ? parseJsonSafe(order.addressVerificationJson, null)
         : (draftPayload.addressVerification || null)
+      const geoZones = draftPayload.geoZones || await buildGeoZoneMatchesForAddressVerification(req.actorContext.tenantId, addressVerification)
       const supplierCost = await findBestSupplierCostForDraft({
         tenantId: req.actorContext.tenantId,
         city: orderDraft.city || '',
         fromPoint: order.fromPoint || orderDraft.fromPoint || '',
         toPoint: order.toPoint || orderDraft.toPoint || '',
-        vehicleType: order.vehicleType || orderDraft.vehicleType || ''
+        vehicleType: order.vehicleType || orderDraft.vehicleType || '',
+        fromZoneName: geoZones?.fromPoint?.name || '',
+        toZoneName: geoZones?.toPoint?.name || ''
       })
       const supplierCostCandidates = await loadSupplierCostCandidates(req.actorContext.tenantId)
       const supplierOptions = findSupplierCostOptionsFromCandidates(supplierCostCandidates, {
         city: orderDraft.city || '',
         fromPoint: order.fromPoint || orderDraft.fromPoint || '',
         toPoint: order.toPoint || orderDraft.toPoint || '',
-        vehicleType: order.vehicleType || orderDraft.vehicleType || ''
+        vehicleType: order.vehicleType || orderDraft.vehicleType || '',
+        fromZoneName: geoZones?.fromPoint?.name || '',
+        toZoneName: geoZones?.toPoint?.name || ''
       })
         .slice(0, 5)
         .map((candidate) => ({
@@ -10259,6 +10264,7 @@ app.get(
           flightNumber: order.flightNumber || orderDraft.flightNumber || null,
           flightCheck,
           addressVerification,
+          geoZones,
           qualityChecks,
           sourceType: orderDraft.sourceType || draftPayload.sourceType || null,
           customerName: orderDraft.customerName || null,
@@ -10397,7 +10403,9 @@ app.post(
         fromPoint: fromGeo,
         toPoint: toGeo
       }
-      const nextPayload = draft ? mergeAddressVerificationIntoPayload(payload, verification) : payload
+      const withAddressPayload = draft ? mergeAddressVerificationIntoPayload(payload, verification) : payload
+      const geoZones = await buildGeoZoneMatchesForAddressVerification(req.actorContext.tenantId, verification)
+      const nextPayload = draft && geoZones ? mergeGeoZonesIntoPayload(withAddressPayload, geoZones) : withAddressPayload
       const addressPersistence = buildOrderAddressPersistence({ addressVerification: verification })
 
       const ops = [
@@ -10428,7 +10436,9 @@ app.post(
         context: {
           provider: 'nominatim',
           fromFound: Boolean(fromGeo?.found),
-          toFound: Boolean(toGeo?.found)
+          toFound: Boolean(toGeo?.found),
+          fromZone: geoZones?.fromPoint?.name || null,
+          toZone: geoZones?.toPoint?.name || null
         }
       })
 
@@ -10436,7 +10446,8 @@ app.post(
         success: true,
         orderId: order.id,
         draft: updatedDraft ? { ...updatedDraft, payload: nextPayload } : null,
-        addressVerification: verification
+        addressVerification: verification,
+        geoZones
       })
     } catch (error) {
       console.error('Error checking addresses for order:', error)
@@ -11451,6 +11462,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
             sourceOrderNumber: true,
             sourceBookingId: true,
             sourceInternalOrderNumber: true,
+            addressVerificationJson: true,
             hasComplaint: true,
             issueFlagsJson: true,
             driverPrice: true,
@@ -11492,11 +11504,19 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
       const effectiveFromPoint = snapshot.order?.fromPoint || fromPoint
       const effectiveToPoint = snapshot.order?.toPoint || toPoint
       const effectiveVehicleType = snapshot.order?.vehicleType || ''
+      const orderAddressVerification = snapshot.order?.addressVerificationJson
+        ? parseJsonSafe(snapshot.order.addressVerificationJson, null)
+        : null
+      const geoZones = orderAddressVerification
+        ? await buildGeoZoneMatchesForAddressVerification(req.actorContext.tenantId, orderAddressVerification)
+        : null
       const supplierCost = effectiveFromPoint && effectiveToPoint
         ? findBestSupplierCostFromCandidates(supplierCostCandidates, {
             fromPoint: effectiveFromPoint,
             toPoint: effectiveToPoint,
-            vehicleType: effectiveVehicleType
+            vehicleType: effectiveVehicleType,
+            fromZoneName: geoZones?.fromPoint?.name || '',
+            toZoneName: geoZones?.toPoint?.name || ''
           })
         : null
       const supplierSignal = buildSupplierCostSignal({
@@ -11535,7 +11555,8 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         supplierCostCompany: supplierCost?.driver?.supplierCompany?.name || null,
         supplierCostVehicleType: supplierCost?.vehicleType || null,
         supplierCostBaseValue: supplierDisplay?.baseAmount ?? null,
-        supplierCostBaseCurrency: supplierDisplay?.baseCurrency || BASE_CURRENCY
+        supplierCostBaseCurrency: supplierDisplay?.baseCurrency || BASE_CURRENCY,
+        geoZones
       })
 
     }
@@ -11584,7 +11605,9 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
               city: orderDraft?.city || '',
               fromPoint: orderDraft?.fromPoint || '',
               toPoint: orderDraft?.toPoint || '',
-              vehicleType: orderDraft?.vehicleType || ''
+              vehicleType: orderDraft?.vehicleType || '',
+              fromZoneName: payload?.geoZones?.fromPoint?.name || '',
+              toZoneName: payload?.geoZones?.toPoint?.name || ''
             })
           : null
       )
@@ -11624,7 +11647,8 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         supplierCostCompany: supplierCost?.driver?.supplierCompany?.name || null,
         supplierCostVehicleType: supplierCost?.vehicleType || null,
         supplierCostBaseValue: supplierDisplay?.baseAmount ?? null,
-        supplierCostBaseCurrency: supplierDisplay?.baseCurrency || BASE_CURRENCY
+        supplierCostBaseCurrency: supplierDisplay?.baseCurrency || BASE_CURRENCY,
+        geoZones: payload?.geoZones || null
       })
     }
 
@@ -12885,6 +12909,7 @@ app.get('/api/admin/email-ingest/status', authenticateToken, resolveActorContext
 
 const GEO_ZONE_UPLOAD_MAX_BYTES = 12 * 1024 * 1024
 const GEO_ZONE_ALLOWED_EXTENSIONS = new Set(['.csv', '.geojson', '.json', '.kml', '.kmz'])
+const geoZoneIndexCache = new Map()
 
 function getGeoZoneImportDir(tenantId) {
   const safeTenant = String(tenantId || 'global').replace(/[^a-zA-Z0-9_-]/g, '_') || 'global'
@@ -12989,6 +13014,252 @@ function parseCsvLine(line = '') {
   }
   cells.push(current)
   return cells.map((cell) => cell.trim())
+}
+
+function decodeXmlEntities(value = '') {
+  return String(value || '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+}
+
+function stripXmlTags(value = '') {
+  return decodeXmlEntities(String(value || '').replace(/<[^>]+>/g, '')).trim()
+}
+
+function parseKmlCoordinateList(value = '') {
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .map((token) => {
+      const [lonRaw, latRaw] = token.split(',')
+      const lon = Number(lonRaw)
+      const lat = Number(latRaw)
+      return Number.isFinite(lat) && Number.isFinite(lon) ? [lon, lat] : null
+    })
+    .filter(Boolean)
+}
+
+function extractKmlZones(text = '') {
+  const zones = []
+  const placemarks = [...String(text || '').matchAll(/<Placemark\b[\s\S]*?<\/Placemark>/gi)]
+  for (const match of placemarks) {
+    const placemark = match[0]
+    const name = stripXmlTags(placemark.match(/<name\b[^>]*>([\s\S]*?)<\/name>/i)?.[1] || '')
+    const polygonBlocks = [...placemark.matchAll(/<Polygon\b[\s\S]*?<\/Polygon>/gi)]
+    const polygons = polygonBlocks.map((polygonMatch) => {
+      const polygonText = polygonMatch[0]
+      const rings = [...polygonText.matchAll(/<coordinates\b[^>]*>([\s\S]*?)<\/coordinates>/gi)]
+        .map((coordMatch) => parseKmlCoordinateList(decodeXmlEntities(coordMatch[1] || '')))
+        .filter((ring) => ring.length >= 3)
+      return rings.length ? rings : null
+    }).filter(Boolean)
+    if (name || polygons.length) {
+      zones.push({
+        name: name || `Zone ${zones.length + 1}`,
+        polygons,
+        sourceFormat: 'kml'
+      })
+    }
+  }
+  return zones
+}
+
+function geoJsonFeatureName(feature = {}, index = 0) {
+  const props = feature?.properties || {}
+  return String(props.name || props.Name || props.zone || props.geozonename || props.geozone || feature?.id || `Zone ${index + 1}`).trim()
+}
+
+function normalizeGeoJsonPolygonCoordinates(coordinates = []) {
+  if (!Array.isArray(coordinates)) return []
+  return coordinates
+    .map((ring) => Array.isArray(ring)
+      ? ring.map((point) => {
+          const lon = Number(point?.[0])
+          const lat = Number(point?.[1])
+          return Number.isFinite(lat) && Number.isFinite(lon) ? [lon, lat] : null
+        }).filter(Boolean)
+      : [])
+    .filter((ring) => ring.length >= 3)
+}
+
+function extractGeoJsonZones(parsed) {
+  const features = Array.isArray(parsed?.features)
+    ? parsed.features
+    : Array.isArray(parsed)
+      ? parsed
+      : []
+  return features.map((feature, index) => {
+    const geometry = feature?.geometry || feature
+    const type = String(geometry?.type || '').toLowerCase()
+    let polygons = []
+    if (type === 'polygon') {
+      const rings = normalizeGeoJsonPolygonCoordinates(geometry.coordinates)
+      if (rings.length) polygons.push(rings)
+    } else if (type === 'multipolygon') {
+      polygons = Array.isArray(geometry.coordinates)
+        ? geometry.coordinates.map(normalizeGeoJsonPolygonCoordinates).filter((rings) => rings.length)
+        : []
+    }
+    return {
+      name: geoJsonFeatureName(feature, index),
+      polygons,
+      sourceFormat: 'geojson'
+    }
+  }).filter((zone) => zone.name || zone.polygons.length)
+}
+
+function extractCsvZoneNames(text = '') {
+  const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  const header = parseCsvLine(lines[0] || '')
+  const nameIndex = header.findIndex((field) => ['name', 'zone', 'zone name', 'geozonename', 'geozone', 'название'].includes(String(field || '').trim().toLowerCase()))
+  return lines.slice(1).map((line, index) => {
+    const cells = parseCsvLine(line)
+    const name = String(cells[nameIndex >= 0 ? nameIndex : 1] || cells[0] || `Zone ${index + 1}`).trim()
+    return name ? { name, polygons: [], sourceFormat: 'csv' } : null
+  }).filter(Boolean)
+}
+
+function pointInRing(lon, lat, ring = []) {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = Number(ring[i]?.[0])
+    const yi = Number(ring[i]?.[1])
+    const xj = Number(ring[j]?.[0])
+    const yj = Number(ring[j]?.[1])
+    if (![xi, yi, xj, yj].every(Number.isFinite)) continue
+    const intersects = ((yi > lat) !== (yj > lat)) &&
+      (lon < ((xj - xi) * (lat - yi)) / ((yj - yi) || Number.EPSILON) + xi)
+    if (intersects) inside = !inside
+  }
+  return inside
+}
+
+function pointInPolygon(lon, lat, rings = []) {
+  if (!rings.length) return false
+  if (!pointInRing(lon, lat, rings[0])) return false
+  for (const hole of rings.slice(1)) {
+    if (pointInRing(lon, lat, hole)) return false
+  }
+  return true
+}
+
+function extractPointFromGeoResult(geo = null) {
+  const match = geo?.bestMatch || geo
+  const lat = Number(match?.lat ?? match?.latitude)
+  const lon = Number(match?.lon ?? match?.lng ?? match?.longitude)
+  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null
+}
+
+function buildGeoZoneMatch(zone, manifest, matchedBy = 'polygon') {
+  if (!zone) return null
+  return {
+    name: zone.name || null,
+    matchedBy,
+    sourceSystem: manifest?.sourceSystem || 'easy_taxi_eto',
+    sourceFile: manifest?.originalFileName || manifest?.storedFileName || null,
+    sourceFormat: zone.sourceFormat || manifest?.format || null
+  }
+}
+
+async function loadGeoZoneIndex(tenantId) {
+  const manifest = await readGeoZoneImportStatus(tenantId)
+  if (!manifest?.storedPath) return null
+  const cacheKey = `${tenantId || 'global'}::${manifest.uploadedAt || ''}::${manifest.storedPath}`
+  const cached = geoZoneIndexCache.get(cacheKey)
+  if (cached) return cached
+
+  let zones = []
+  try {
+    const extension = path.extname(manifest.storedPath).toLowerCase()
+    const fileBuffer = await fs.readFile(manifest.storedPath)
+    if (extension === '.kml') {
+      zones = extractKmlZones(fileBuffer.toString('utf8').replace(/^\uFEFF/, ''))
+    } else if (extension === '.geojson' || extension === '.json') {
+      zones = extractGeoJsonZones(JSON.parse(fileBuffer.toString('utf8').replace(/^\uFEFF/, '')))
+    } else if (extension === '.csv') {
+      zones = extractCsvZoneNames(fileBuffer.toString('utf8').replace(/^\uFEFF/, ''))
+    }
+  } catch (error) {
+    console.error('Failed to load geo zone index:', error)
+    zones = []
+  }
+
+  const index = {
+    manifest,
+    zones,
+    polygonZoneCount: zones.filter((zone) => Array.isArray(zone.polygons) && zone.polygons.length).length
+  }
+  geoZoneIndexCache.clear()
+  geoZoneIndexCache.set(cacheKey, index)
+  return index
+}
+
+async function findGeoZoneForGeoResult(tenantId, geo) {
+  const point = extractPointFromGeoResult(geo)
+  if (!point) return null
+  const index = await loadGeoZoneIndex(tenantId)
+  if (!index?.polygonZoneCount) return null
+  for (const zone of index.zones) {
+    const polygons = Array.isArray(zone.polygons) ? zone.polygons : []
+    if (polygons.some((rings) => pointInPolygon(point.lon, point.lat, rings))) {
+      return buildGeoZoneMatch(zone, index.manifest, 'polygon')
+    }
+  }
+  return null
+}
+
+async function buildGeoZoneMatchesForAddressVerification(tenantId, addressVerification = null) {
+  if (!addressVerification || typeof addressVerification !== 'object') return null
+  const [fromPoint, toPoint] = await Promise.all([
+    findGeoZoneForGeoResult(tenantId, addressVerification.fromPoint),
+    findGeoZoneForGeoResult(tenantId, addressVerification.toPoint)
+  ])
+  const index = await loadGeoZoneIndex(tenantId)
+  if (!fromPoint && !toPoint && !index?.manifest) return null
+  return {
+    provider: 'riderra_geo_zone_import',
+    checkedAt: new Date().toISOString(),
+    sourceSystem: index?.manifest?.sourceSystem || 'easy_taxi_eto',
+    sourceFile: index?.manifest?.originalFileName || index?.manifest?.storedFileName || null,
+    sourceFormat: index?.manifest?.format || null,
+    polygonZoneCount: index?.polygonZoneCount || 0,
+    fromPoint,
+    toPoint
+  }
+}
+
+function mergeGeoZonesIntoPayload(payload = {}, geoZones = null) {
+  const next = { ...payload, geoZones }
+  const qualityChecks = Array.isArray(payload.qualityChecks)
+    ? payload.qualityChecks.filter((item) => !['fromPointGeoZone', 'toPointGeoZone', 'geoZoneSource'].includes(item?.key))
+    : []
+  if (geoZones) {
+    for (const pointKey of ['fromPoint', 'toPoint']) {
+      const zone = geoZones?.[pointKey]
+      const label = pointKey === 'fromPoint' ? 'Откуда' : 'Куда'
+      qualityChecks.push({
+        key: `${pointKey}GeoZone`,
+        level: zone?.name ? 'ok' : 'warn',
+        message: zone?.name
+          ? `${label}: геозона ${zone.name}`
+          : `${label}: геозона не найдена в загруженном файле`
+      })
+    }
+    if (!geoZones.polygonZoneCount) {
+      qualityChecks.push({
+        key: 'geoZoneSource',
+        level: 'warn',
+        message: 'Файл геозон загружен без полигонов, координатный матчинг зон недоступен'
+      })
+    }
+  }
+  next.qualityChecks = qualityChecks
+  next.infoReason = buildInfoReasonFromDraftChecks(qualityChecks, payload.missingFields || [])
+  return next
 }
 
 function summarizeGeoZoneFile(fileBuffer, extension) {
@@ -15123,7 +15394,7 @@ async function maybeAutoAttachFlightCheck(payload = {}) {
   }
 }
 
-async function maybeAutoAttachAddressVerification(payload = {}) {
+async function maybeAutoAttachAddressVerification(payload = {}, tenantId = null) {
   const orderDraft = payload.orderDraft || {}
   const fromPoint = String(orderDraft.fromPoint || '').trim()
   const toPoint = String(orderDraft.toPoint || '').trim()
@@ -15135,12 +15406,14 @@ async function maybeAutoAttachAddressVerification(payload = {}) {
     ])
     const provider = fromGeo?.provider || toGeo?.provider || getGeocodingConfig().provider || null
     const checkedAt = fromGeo?.checkedAt || toGeo?.checkedAt || new Date().toISOString()
-    return mergeAddressVerificationIntoPayload(payload, {
+    const withAddressVerification = mergeAddressVerificationIntoPayload(payload, {
       provider,
       checkedAt,
       fromPoint: fromGeo,
       toPoint: toGeo
     })
+    const geoZones = await buildGeoZoneMatchesForAddressVerification(tenantId, withAddressVerification.addressVerification)
+    return geoZones ? mergeGeoZonesIntoPayload(withAddressVerification, geoZones) : withAddressVerification
   } catch (error) {
     console.error('Automatic address verification failed:', error)
     return mergeAddressVerificationErrorIntoPayload(payload, error)
@@ -15153,19 +15426,24 @@ async function refreshOpenClawDraftPayloadChecks(payload = {}, tenantId) {
   const withFlightCheck = currentFlightCheck
     ? mergeFlightCheckIntoPayload(refreshed, currentFlightCheck)
     : refreshed
-  return maybeAutoAttachAddressVerification(withFlightCheck)
+  const withAddressVerification = await maybeAutoAttachAddressVerification(withFlightCheck, tenantId)
+  return refreshOpenClawDraftPayloadPricingOnly(withAddressVerification, tenantId)
 }
 
 async function refreshOpenClawDraftPayloadPricingOnly(payload = {}, tenantId) {
   const refreshed = await buildOpenClawDraftPayload(payload, tenantId)
   const currentFlightCheck = payload.flightCheck || null
   const currentAddressVerification = payload.addressVerification || null
+  const currentGeoZones = payload.geoZones || null
   const withFlightCheck = currentFlightCheck
     ? mergeFlightCheckIntoPayload(refreshed, currentFlightCheck)
     : refreshed
-  return currentAddressVerification
+  const withAddressVerification = currentAddressVerification
     ? mergeAddressVerificationIntoPayload(withFlightCheck, currentAddressVerification)
     : withFlightCheck
+  return currentGeoZones
+    ? mergeGeoZonesIntoPayload(withAddressVerification, currentGeoZones)
+    : withAddressVerification
 }
 
 function hasUsableAuthoritativeDraftPricing(payload = {}) {
@@ -15191,7 +15469,10 @@ async function maybeAutoRefreshDraftPricing(row, tenantId) {
   try {
     const payload = parseJsonSafe(row.payloadJson || '{}', {})
     const nextPayload = await refreshOpenClawDraftPayloadPricingOnly(payload, tenantId)
-    if (JSON.stringify(nextPayload.pricing || {}) === JSON.stringify(payload.pricing || {})) {
+    if (
+      JSON.stringify(nextPayload.pricing || {}) === JSON.stringify(payload.pricing || {}) &&
+      JSON.stringify(nextPayload.geoZones || null) === JSON.stringify(payload.geoZones || null)
+    ) {
       return row
     }
     return prisma.opsEventDraft.update({
@@ -15545,12 +15826,16 @@ async function findAuthoritativePriceForDraft({
   city = '',
   fromPoint = '',
   toPoint = '',
-  vehicleType = ''
+  vehicleType = '',
+  fromZoneName = '',
+  toZoneName = ''
 }) {
   const counterpartyNorm = normalizeCounterpartyName(counterpartyName)
   const cityNorm = String(city || '').trim()
   const fromNorm = String(fromPoint || '').trim()
   const toNorm = String(toPoint || '').trim()
+  const fromZoneNorm = String(fromZoneName || '').trim()
+  const toZoneNorm = String(toZoneName || '').trim()
   const vehicleNorm = normalizeVehicleType(vehicleType)
 
   if (counterpartyNorm) {
@@ -15582,7 +15867,28 @@ async function findAuthoritativePriceForDraft({
       return {
         ...exactCounterpartyRule,
         fixedPrice: exactCounterpartyRule.sellPrice,
-        source: 'counterparty_pricing'
+        source: 'counterparty_pricing',
+        matchMeta: { matchedBy: 'address_text' }
+      }
+    }
+    const geoZoneCounterpartyRule = (fromZoneNorm || toZoneNorm)
+      ? activeNow.find((row) =>
+          routePointMatches(row.routeFrom, fromZoneNorm || fromNorm) &&
+          routePointMatches(row.routeTo, toZoneNorm || toNorm) &&
+          vehicleTypeMatches(row.vehicleType, vehicleNorm) &&
+          row.sellPrice !== null
+        )
+      : null
+    if (geoZoneCounterpartyRule) {
+      return {
+        ...geoZoneCounterpartyRule,
+        fixedPrice: geoZoneCounterpartyRule.sellPrice,
+        source: 'counterparty_pricing',
+        matchMeta: {
+          matchedBy: 'geo_zone',
+          fromZoneName: fromZoneNorm || null,
+          toZoneName: toZoneNorm || null
+        }
       }
     }
     const cityCounterpartyRule = activeNow.find((row) =>
@@ -15596,7 +15902,8 @@ async function findAuthoritativePriceForDraft({
       return {
         ...cityCounterpartyRule,
         fixedPrice: cityCounterpartyRule.sellPrice,
-        source: 'counterparty_pricing'
+        source: 'counterparty_pricing',
+        matchMeta: { matchedBy: 'city_fallback' }
       }
     }
     return {
@@ -15624,7 +15931,27 @@ async function findAuthoritativePriceForDraft({
     (!row.routeTo || String(row.routeTo).trim().toLowerCase() === toNorm.toLowerCase()) &&
     row.fixedPrice !== null
   )
-  if (exact) return { ...exact, source: 'riderra_pricing' }
+  if (exact) return { ...exact, source: 'riderra_pricing', matchMeta: { matchedBy: 'address_text' } }
+
+  const geoZoneExact = (fromZoneNorm || toZoneNorm)
+    ? rows.find((row) =>
+        (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
+        (!row.routeFrom || String(row.routeFrom).trim().toLowerCase() === (fromZoneNorm || fromNorm).toLowerCase()) &&
+        (!row.routeTo || String(row.routeTo).trim().toLowerCase() === (toZoneNorm || toNorm).toLowerCase()) &&
+        row.fixedPrice !== null
+      )
+    : null
+  if (geoZoneExact) {
+    return {
+      ...geoZoneExact,
+      source: 'riderra_pricing',
+      matchMeta: {
+        matchedBy: 'geo_zone',
+        fromZoneName: fromZoneNorm || null,
+        toZoneName: toZoneNorm || null
+      }
+    }
+  }
 
   const cityOnly = rows.find((row) =>
     (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
@@ -15632,7 +15959,7 @@ async function findAuthoritativePriceForDraft({
     !row.routeTo &&
     row.fixedPrice !== null
   )
-  return cityOnly ? { ...cityOnly, source: 'riderra_pricing' } : null
+  return cityOnly ? { ...cityOnly, source: 'riderra_pricing', matchMeta: { matchedBy: 'city_fallback' } } : null
 }
 
 async function loadSupplierCostCandidates(tenantId) {
@@ -15718,13 +16045,17 @@ function findBestSupplierCostFromCandidates(candidates, {
   city = '',
   fromPoint = '',
   toPoint = '',
-  vehicleType = ''
+  vehicleType = '',
+  fromZoneName = '',
+  toZoneName = ''
 } = {}) {
   const matchedCandidates = findSupplierCostOptionsFromCandidates(candidates, {
     city,
     fromPoint,
     toPoint,
-    vehicleType
+    vehicleType,
+    fromZoneName,
+    toZoneName
   })
 
   return matchedCandidates[0] || null
@@ -15734,15 +16065,24 @@ function findSupplierCostOptionsFromCandidates(candidates, {
   city = '',
   fromPoint = '',
   toPoint = '',
-  vehicleType = ''
+  vehicleType = '',
+  fromZoneName = '',
+  toZoneName = ''
 } = {}) {
   const vehicleNorm = normalizeVehicleType(vehicleType)
+  const fromCandidates = [fromPoint, fromZoneName].map((value) => String(value || '').trim()).filter(Boolean)
+  const toCandidates = [toPoint, toZoneName].map((value) => String(value || '').trim()).filter(Boolean)
+  const routeMatchesAny = (ruleFrom, ruleTo) =>
+    fromCandidates.length > 0 &&
+    toCandidates.length > 0 &&
+    fromCandidates.some((value) => routePointMatches(ruleFrom, value)) &&
+    toCandidates.some((value) => routePointMatches(ruleTo, value))
   const driverRoutes = Array.isArray(candidates?.driverRoutes) ? candidates.driverRoutes : []
   const cityRouteRows = Array.isArray(candidates?.cityRouteRows) ? candidates.cityRouteRows : []
 
   const routeCandidates = driverRoutes
     .filter((row) => vehicleTypeMatches(row.vehicleType, vehicleNorm))
-    .filter((row) => routePointMatches(row.fromPoint, fromPoint) && routePointMatches(row.toPoint, toPoint))
+    .filter((row) => routeMatchesAny(row.fromPoint, row.toPoint))
     .filter((row) => row.driverPrice != null)
     .map((row) => ({
       sourceModel: 'driver_route',
@@ -15764,7 +16104,7 @@ function findSupplierCostOptionsFromCandidates(candidates, {
     .filter((row) => !cityNorm || String(row?.cityRoute?.city || '').trim().toLowerCase() === cityNorm.toLowerCase())
     .filter((row) => vehicleTypeMatches(row?.cityRoute?.vehicleType, vehicleNorm))
     .filter((row) => row.bestPrice != null)
-    .filter((row) => routePointMatches(row.cityRoute.fromPoint, fromPoint) && routePointMatches(row.cityRoute.toPoint, toPoint))
+    .filter((row) => routeMatchesAny(row.cityRoute.fromPoint, row.cityRoute.toPoint))
     .map((row) => ({
       sourceModel: 'driver_city_route',
       sourceId: row.id,
@@ -15814,14 +16154,18 @@ async function findBestSupplierCostForDraft({
   city = '',
   fromPoint = '',
   toPoint = '',
-  vehicleType = ''
+  vehicleType = '',
+  fromZoneName = '',
+  toZoneName = ''
 }) {
   const candidates = await loadSupplierCostCandidates(tenantId)
   return findBestSupplierCostFromCandidates(candidates, {
     city,
     fromPoint,
     toPoint,
-    vehicleType
+    vehicleType,
+    fromZoneName,
+    toZoneName
   })
 }
 
@@ -15949,6 +16293,9 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     comment: String(draft.comment || payload.comment || '').trim() || null,
     lang: String(draft.lang || payload.lang || 'ru').trim() || 'ru'
   }
+  const geoZones = payload?.geoZones && typeof payload.geoZones === 'object' ? payload.geoZones : null
+  const fromZoneName = String(geoZones?.fromPoint?.name || '').trim()
+  const toZoneName = String(geoZones?.toPoint?.name || '').trim()
 
   const authoritativePricing = await findAuthoritativePriceForDraft({
     tenantId,
@@ -15956,14 +16303,18 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     city: extracted.city,
     fromPoint: extracted.fromPoint,
     toPoint: extracted.toPoint,
-    vehicleType: extracted.vehicleType
+    vehicleType: extracted.vehicleType,
+    fromZoneName,
+    toZoneName
   })
   const supplierCost = await findBestSupplierCostForDraft({
     tenantId,
     city: extracted.city,
     fromPoint: extracted.fromPoint,
     toPoint: extracted.toPoint,
-    vehicleType: extracted.vehicleType
+    vehicleType: extracted.vehicleType,
+    fromZoneName,
+    toZoneName
   })
 
   const authoritativeClientPrice = authoritativePricing?.fixedPrice != null
@@ -15979,6 +16330,7 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     authoritativeClientPrice,
     authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
     pricingSource: authoritativePricing?.source || null,
+    pricingMatchMeta: authoritativePricing?.matchMeta || null,
     pricingMissingReason: authoritativePricing?.missingReason || null,
     conflict: priceConflict,
     supplierCost
@@ -15988,6 +16340,7 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     authoritativeClientPrice,
     authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
     pricingSource: authoritativePricing?.source || null,
+    pricingMatchMeta: authoritativePricing?.matchMeta || null,
     pricingMissingReason: authoritativePricing?.missingReason || null,
     conflict: priceConflict,
     supplierCost
@@ -16012,6 +16365,7 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
       authoritativeCurrency: authoritativePricing?.currency || extracted.currency || 'EUR',
       pricingRuleId: authoritativePricing?.id || null,
       pricingSource: authoritativePricing?.source || null,
+      pricingMatchMeta: authoritativePricing?.matchMeta || null,
       pricingMissingReason: authoritativePricing?.missingReason || null,
       conflict: priceConflict,
       supplierCost
@@ -16255,8 +16609,8 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
 async function saveOpsDraftFromOpenClaw({ tenantId, payload, skipFlightCheck = false }) {
   const basePayload = await buildOpenClawDraftPayload(payload, tenantId)
   const withFlightPayload = skipFlightCheck ? basePayload : await maybeAutoAttachFlightCheck(basePayload)
-  const withFreshPricing = await refreshOpenClawDraftPayloadPricingOnly(withFlightPayload, tenantId)
-  const normalizedPayload = await maybeAutoAttachAddressVerification(withFreshPricing)
+  const withAddressPayload = await maybeAutoAttachAddressVerification(withFlightPayload, tenantId)
+  const normalizedPayload = await refreshOpenClawDraftPayloadPricingOnly(withAddressPayload, tenantId)
   const orderDraft = normalizedPayload.orderDraft || {}
   return prisma.opsEventDraft.create({
     data: {

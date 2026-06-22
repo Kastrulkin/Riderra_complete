@@ -125,9 +125,15 @@
                 <div class="date-block__value">{{ o.date || '-' }}</div>
               </div>
 
-              <div class="route-point route-point--from">{{ o.fromPoint || '-' }}</div>
+              <div class="route-point route-point--from">
+                <div>{{ o.fromPoint || '-' }}</div>
+                <div v-if="geoZoneValue(o.geoZones, 'fromPoint') !== '-'" class="route-point__hint">{{ geoZoneValue(o.geoZones, 'fromPoint') }}</div>
+              </div>
 
-              <div class="route-point route-point--to">{{ o.toPoint || '-' }}</div>
+              <div class="route-point route-point--to">
+                <div>{{ o.toPoint || '-' }}</div>
+                <div v-if="geoZoneValue(o.geoZones, 'toPoint') !== '-'" class="route-point__hint">{{ geoZoneValue(o.geoZones, 'toPoint') }}</div>
+              </div>
 
               <div class="price-block">
                 <div class="price-block__sum">{{ o.sum || '-' }}</div>
@@ -405,6 +411,8 @@
             <div><strong>{{ t.toNormalizedLabel }}:</strong> {{ addressNormalizedValue(selectedOrder.addressVerification, 'toPoint') }}</div>
             <div><strong>{{ t.fromCoordsLabel }}:</strong> {{ addressCoordsValue(selectedOrder.addressVerification, 'fromPoint') }}</div>
             <div><strong>{{ t.toCoordsLabel }}:</strong> {{ addressCoordsValue(selectedOrder.addressVerification, 'toPoint') }}</div>
+            <div><strong>{{ t.fromGeoZoneLabel }}:</strong> {{ geoZoneValue(selectedOrder.geoZones, 'fromPoint') }}</div>
+            <div><strong>{{ t.toGeoZoneLabel }}:</strong> {{ geoZoneValue(selectedOrder.geoZones, 'toPoint') }}</div>
           </div>
         </details>
 
@@ -658,6 +666,8 @@ export default {
             toNormalizedLabel: 'Нормализованное “Куда”',
             fromCoordsLabel: 'Координаты “Откуда”',
             toCoordsLabel: 'Координаты “Куда”',
+            fromGeoZoneLabel: 'Геозона “Откуда”',
+            toGeoZoneLabel: 'Геозона “Куда”',
             qualityChecksTitle: 'Проверка полей',
             findInDetails: 'Найти в Подробностях',
             updatedAt: 'Обновлено',
@@ -786,6 +796,8 @@ export default {
             toNormalizedLabel: 'Normalized to',
             fromCoordsLabel: 'From coords',
             toCoordsLabel: 'To coords',
+            fromGeoZoneLabel: 'From geo zone',
+            toGeoZoneLabel: 'To geo zone',
             qualityChecksTitle: 'Field checks',
             findInDetails: 'Find in details',
             updatedAt: 'Updated at',
@@ -1739,6 +1751,7 @@ export default {
             flightNumber: detail.flightNumber || null,
             flightCheck: detail.flightCheck || null,
             addressVerification: detail.addressVerification || null,
+            geoZones: detail.geoZones || null,
             qualityChecks: Array.isArray(detail.qualityChecks) ? detail.qualityChecks : [],
             sourceType: detail.sourceType || null,
             orderComment: detail.comment || null,
@@ -1815,6 +1828,7 @@ export default {
         this.selectedOrder = {
           ...this.selectedOrder,
           addressVerification: payload.addressVerification || data?.addressVerification || null,
+          geoZones: payload.geoZones || data?.geoZones || null,
           qualityChecks: Array.isArray(payload.qualityChecks) ? payload.qualityChecks : (this.selectedOrder.qualityChecks || [])
         }
       } catch (error) {
@@ -1906,6 +1920,10 @@ export default {
       if (!match) return '-'
       if (match.lat == null || match.lon == null) return '-'
       return `${Number(match.lat).toFixed(5)}, ${Number(match.lon).toFixed(5)}`
+    },
+    geoZoneValue (geoZones, pointKey) {
+      const zone = geoZones && geoZones[pointKey] ? geoZones[pointKey] : null
+      return zone?.name || '-'
     },
     openRawFromCard () {
       const selected = this.selectedOrder
@@ -2214,6 +2232,12 @@ export default {
   color: #334155;
   font-weight: 650;
   overflow-wrap: anywhere;
+}
+.route-point__hint {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
 }
 .card-link {
   border: 1px solid #cbd5e1;

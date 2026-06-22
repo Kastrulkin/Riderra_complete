@@ -302,6 +302,7 @@
                 <div class="hint"><strong>Искали:</strong> {{ row.query || row.source || '-' }}</div>
                 <div class="hint">{{ row.matchLabel }}</div>
                 <div v-if="row.coordinates" class="hint">{{ row.coordinates }}</div>
+                <div v-if="row.geoZoneLabel" class="hint"><strong>Геозона:</strong> {{ row.geoZoneLabel }}</div>
               </div>
             </div>
           </div>
@@ -339,6 +340,7 @@
               <div><strong>Цена из письма:</strong> {{ formatMoney(orderDraft.clientPrice, orderDraft.currency) }}</div>
               <div><strong>Цена Riderra:</strong> {{ formatMoney(pricing.authoritativeClientPrice, pricing.authoritativeCurrency || orderDraft.currency) }}</div>
               <div><strong>Источник цены:</strong> {{ pricingSourceLabel(pricing) }}</div>
+              <div v-if="pricingMatchLabel"><strong>Матчинг:</strong> {{ pricingMatchLabel }}</div>
               <div><strong>Rule ID:</strong> {{ pricing.pricingRuleId || '-' }}</div>
               <div v-if="pricing.supplierCost"><strong>Закупка:</strong> {{ supplierCostLabel(pricing.supplierCost) }}</div>
               <div><strong>Расхождение:</strong> {{ pricing.conflict ? 'Да' : 'Нет' }}</div>
@@ -465,6 +467,12 @@ export default {
     },
     addressVerification () {
       return this.payload.addressVerification || null
+    },
+    geoZones () {
+      return this.payload.geoZones || null
+    },
+    pricingMatchLabel () {
+      return this.pricingMatchLabelFromPricing(this.pricing)
     },
     addressStatusRows () {
       return this.buildAddressStatusRows(this.payload)
@@ -712,6 +720,15 @@ export default {
       if (pricing.pricingSource) return pricing.pricingSource
       return 'не найдено'
     },
+    pricingMatchLabelFromPricing (pricing = {}) {
+      const meta = pricing.pricingMatchMeta || {}
+      if (meta.matchedBy === 'geo_zone') {
+        return [meta.fromZoneName, meta.toZoneName].filter(Boolean).join(' -> ') || 'по геозонам'
+      }
+      if (meta.matchedBy === 'address_text') return 'по тексту маршрута'
+      if (meta.matchedBy === 'city_fallback') return 'по городу'
+      return ''
+    },
     supplierCostLabel (supplierCost = {}) {
       const driver = supplierCost.driver || {}
       const supplierName = driver.supplierCompany?.name || driver.name || supplierCost.sourceLabel || 'поставщик'
@@ -728,6 +745,7 @@ export default {
       const verification = payload.addressVerification || null
       if (!verification || typeof verification !== 'object') return []
       const orderDraft = payload.orderDraft || {}
+      const geoZones = payload.geoZones || {}
       const checkedAt = verification.checkedAt ? this.formatDate(verification.checkedAt) : ''
       const providerLabel = this.addressProviderLabel(verification.provider)
       return [
@@ -752,7 +770,8 @@ export default {
           matchLabel: ok
             ? `Совпадение: ${matchName || 'найдено'}${checkedAt ? ` · ${checkedAt}` : ''}`
             : `Совпадение не найдено${checkedAt ? ` · ${checkedAt}` : ''}`,
-          coordinates
+          coordinates,
+          geoZoneLabel: geoZones[item.key]?.name || ''
         }
       }).filter(Boolean)
     },
