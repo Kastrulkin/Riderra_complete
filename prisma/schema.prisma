@@ -47,6 +47,7 @@ model Tenant {
   aiLearningEvents  AiLearningEvent[]
   vpnProfiles       VpnProfile[]
   vpnAccessGrants   VpnAccessGrant[]
+  wikiPages         WikiPage[]
 }
 
 model TenantMembership {
@@ -104,6 +105,33 @@ model Request {
   tenant     Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
+}
+
+model WikiPage {
+  id              String     @id @default(cuid())
+  tenantId        String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  importedAt      DateTime?
+  title           String
+  slug            String
+  contentMarkdown String     @default("")
+  contentText     String     @default("")
+  sourceProvider  String     @default("manual")
+  sourcePageId    String?
+  sourceUrl       String?
+  sourceUpdatedAt DateTime?
+  parentId        String?
+  sortOrder       Int        @default(0)
+  isPublished     Boolean    @default(true)
+  tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent          WikiPage?  @relation("WikiPageChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children        WikiPage[] @relation("WikiPageChildren")
+
+  @@unique([tenantId, sourceProvider, sourcePageId])
+  @@index([tenantId, isPublished, updatedAt])
+  @@index([tenantId, parentId, sortOrder])
+  @@index([tenantId, slug])
 }
 
 model Driver {

@@ -253,6 +253,12 @@ export default {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '' }
     },
+    resetSessionAndRedirect () {
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('user')
+      this.$store.commit('clearUser')
+      this.$router.replace('/staff-login')
+    },
     async load () {
       this.loading = true
       this.error = ''
@@ -262,6 +268,10 @@ export default {
         if (this.toMonth) params.set('toMonth', this.toMonth)
         const res = await fetch(`/api/admin/economics/analytics/overview?${params.toString()}`, { headers: this.headers() })
         const data = await res.json().catch(() => ({}))
+        if (res.status === 401 || res.status === 403) {
+          this.resetSessionAndRedirect()
+          return
+        }
         if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
         this.months = data.months || []
         this.drivers = data.drivers || []

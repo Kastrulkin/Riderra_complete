@@ -3213,6 +3213,16 @@ function requireAnyPermission(permissionCodes) {
   }
 }
 
+const STAFF_WIKI_READ_PERMISSIONS = [
+  'admin.panel',
+  'orders.read',
+  'drivers.read',
+  'crm.read',
+  'pricing.read',
+  'ops.read',
+  'settings.manage'
+]
+
 async function getConfiguredTenant(tenantCode = null) {
   const code = String(tenantCode || process.env.TENANT_CODE || 'riderra').trim().toLowerCase()
   const tenant = await prisma.tenant.findUnique({
@@ -18162,6 +18172,318 @@ app.get('/api/admin/telegram-links', authenticateToken, resolveActorContext, req
   } catch (error) {
     console.error('Error fetching telegram links:', error)
     res.status(500).json({ error: 'Failed to fetch telegram links' })
+  }
+})
+
+function normalizeWikiSlug(value = '', fallback = 'wiki-page') {
+  const raw = String(value || '').trim().toLowerCase()
+  const slug = raw
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9а-яё]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120)
+  return slug || fallback
+}
+
+function extractNotionPageId(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const uuid = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+  if (uuid) return uuid[0].toLowerCase()
+  const compact = raw.match(/[0-9a-f]{32}/i)
+  if (!compact) return ''
+  const id = compact[0].toLowerCase()
+  return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`
+}
+
+function notionPageUrl(pageId = '') {
+  const compact = String(pageId || '').replace(/-/g, '')
+  return compact ? `https://www.notion.so/${compact}` : null
+}
+
+function notionPlainText(richText = []) {
+  if (!Array.isArray(richText)) return ''
+  return richText.map((part) => part?.plain_text || '').join('')
+}
+
+function extractNotionTitle(page = {}, fallback = 'Untitled') {
+  const properties = page.properties || {}
+  for (const property of Object.values(properties)) {
+    if (property?.type === 'title') {
+      const title = notionPlainText(property.title)
+      if (title.trim()) return title.trim()
+    }
+  }
+  return String(fallback || 'Untitled').trim() || 'Untitled'
+}
+
+function notionBlockToMarkdown(block = {}) {
+  const type = block.type
+  const data = block[type] || {}
+  const text = notionPlainText(data.rich_text)
+  if (!text && !['divider', 'child_page'].includes(type)) return ''
+  if (type === 'heading_1') return `# ${text}`
+  if (type === 'heading_2') return `## ${text}`
+  if (type === 'heading_3') return `### ${text}`
+  if (type === 'bulleted_list_item') return `- ${text}`
+  if (type === 'numbered_list_item') return `1. ${text}`
+  if (type === 'to_do') return `${data.checked ? '- [x]' : '- [ ]'} ${text}`
+  if (type === 'quote') return `> ${text}`
+  if (type === 'callout') return `> ${text}`
+  if (type === 'code') return `\`\`\`${data.language || ''}\n${text}\n\`\`\``
+  if (type === 'divider') return '---'
+  if (type === 'child_page') return ''
+  return text
+}
+
+async function notionApiRequest(path, token) {
+  const response = await fetch(`https://api.notion.com/v1${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Notion-Version': '2022-06-28'
+    }
+  })
+  const bodyText = await response.text()
+  const body = parseJsonSafe(bodyText, {})
+  if (!response.ok) {
+    const error = new Error(body?.message || `Notion API failed with ${response.status}`)
+    error.statusCode = response.status
+    error.notionCode = body?.code || null
+    throw error
+  }
+  return body
+}
+
+async function fetchNotionBlockChildren(blockId, token) {
+  const results = []
+  let cursor = null
+  do {
+    const qs = new URLSearchParams({ page_size: '100' })
+    if (cursor) qs.set('start_cursor', cursor)
+    const body = await notionApiRequest(`/blocks/${blockId}/children?${qs.toString()}`, token)
+    results.push(...(body.results || []))
+    cursor = body.has_more ? body.next_cursor : null
+  } while (cursor)
+  return results
+}
+
+async function importNotionWikiPage({ tenantId, pageId, parentId = null, sortOrder = 0, token }) {
+  const [page, blocks] = await Promise.all([
+    notionApiRequest(`/pages/${pageId}`, token),
+    fetchNotionBlockChildren(pageId, token)
+  ])
+  const title = extractNotionTitle(page)
+  const contentBlocks = blocks.filter((block) => block.type !== 'child_page')
+  const markdown = contentBlocks.map(notionBlockToMarkdown).filter(Boolean).join('\n\n').trim()
+  const row = await prisma.wikiPage.upsert({
+    where: {
+      tenantId_sourceProvider_sourcePageId: {
+        tenantId,
+        sourceProvider: 'notion',
+        sourcePageId: pageId
+      }
+    },
+    create: {
+      tenantId,
+      title,
+      slug: normalizeWikiSlug(title, `notion-${pageId.slice(0, 8)}`),
+      contentMarkdown: markdown,
+      contentText: markdown.replace(/[#>*_`[\]-]/g, ' ').replace(/\s+/g, ' ').trim(),
+      sourceProvider: 'notion',
+      sourcePageId: pageId,
+      sourceUrl: page.url || notionPageUrl(pageId),
+      sourceUpdatedAt: page.last_edited_time ? new Date(page.last_edited_time) : null,
+      importedAt: new Date(),
+      parentId,
+      sortOrder,
+      isPublished: true
+    },
+    update: {
+      title,
+      slug: normalizeWikiSlug(title, `notion-${pageId.slice(0, 8)}`),
+      contentMarkdown: markdown,
+      contentText: markdown.replace(/[#>*_`[\]-]/g, ' ').replace(/\s+/g, ' ').trim(),
+      sourceUrl: page.url || notionPageUrl(pageId),
+      sourceUpdatedAt: page.last_edited_time ? new Date(page.last_edited_time) : null,
+      importedAt: new Date(),
+      parentId,
+      sortOrder,
+      isPublished: true
+    }
+  })
+
+  let imported = 1
+  const childPages = blocks.filter((block) => block.type === 'child_page')
+  for (let i = 0; i < childPages.length; i += 1) {
+    const child = childPages[i]
+    const childResult = await importNotionWikiPage({
+      tenantId,
+      pageId: child.id,
+      parentId: row.id,
+      sortOrder: i,
+      token
+    })
+    imported += childResult.imported
+  }
+
+  return { row, imported }
+}
+
+app.get('/api/admin/wiki/pages', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(STAFF_WIKI_READ_PERMISSIONS), async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim()
+    const where = {
+      tenantId: req.actorContext.tenantId,
+      isPublished: true,
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: 'insensitive' } },
+              { contentText: { contains: q, mode: 'insensitive' } }
+            ]
+          }
+        : {})
+    }
+    const rows = await prisma.wikiPage.findMany({
+      where,
+      orderBy: [{ parentId: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
+      take: 500,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        parentId: true,
+        sortOrder: true,
+        sourceProvider: true,
+        sourceUrl: true,
+        updatedAt: true,
+        importedAt: true
+      }
+    })
+    res.json({
+      rows,
+      canManage: hasPermission(req, 'settings.manage') || hasPermission(req, 'admin.panel')
+    })
+  } catch (error) {
+    console.error('Error fetching wiki pages:', error)
+    res.status(500).json({ error: 'Failed to fetch wiki pages' })
+  }
+})
+
+app.get('/api/admin/wiki/pages/:pageId', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(STAFF_WIKI_READ_PERMISSIONS), async (req, res) => {
+  try {
+    const row = await prisma.wikiPage.findFirst({
+      where: {
+        id: String(req.params.pageId || ''),
+        tenantId: req.actorContext.tenantId,
+        isPublished: true
+      },
+      include: {
+        children: {
+          where: { isPublished: true },
+          orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+          select: { id: true, title: true, slug: true }
+        }
+      }
+    })
+    if (!row) return res.status(404).json({ error: 'Wiki page not found' })
+    res.json({
+      page: row,
+      canManage: hasPermission(req, 'settings.manage') || hasPermission(req, 'admin.panel')
+    })
+  } catch (error) {
+    console.error('Error fetching wiki page:', error)
+    res.status(500).json({ error: 'Failed to fetch wiki page' })
+  }
+})
+
+app.put('/api/admin/wiki/pages/:pageId', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const pageId = String(req.params.pageId || '').trim()
+    const title = String(req.body?.title || '').trim()
+    const contentMarkdown = String(req.body?.contentMarkdown || '').trim()
+    if (!pageId) return res.status(400).json({ error: 'Invalid wiki page id' })
+    if (!title) return res.status(400).json({ error: 'Title is required' })
+
+    const existing = await prisma.wikiPage.findFirst({
+      where: { id: pageId, tenantId: req.actorContext.tenantId }
+    })
+    if (!existing) return res.status(404).json({ error: 'Wiki page not found' })
+
+    const row = await prisma.wikiPage.update({
+      where: { id: existing.id },
+      data: {
+        title,
+        slug: normalizeWikiSlug(title, existing.slug || `wiki-${existing.id.slice(0, 8)}`),
+        contentMarkdown,
+        contentText: contentMarkdown.replace(/[#>*_`[\]-]/g, ' ').replace(/\s+/g, ' ').trim()
+      }
+    })
+
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'wiki.page.update',
+      resource: 'wiki_page',
+      resourceId: row.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: { sourceProvider: row.sourceProvider }
+    })
+
+    res.json({ success: true, page: row })
+  } catch (error) {
+    console.error('Error updating wiki page:', error)
+    res.status(500).json({ error: 'Failed to update wiki page' })
+  }
+})
+
+app.post('/api/admin/wiki/import-notion', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const token = String(process.env.RIDERRA_NOTION_TOKEN || process.env.NOTION_API_TOKEN || process.env.NOTION_TOKEN || '').trim()
+    if (!token) {
+      return res.status(503).json({
+        error: 'notion_token_missing',
+        message: 'Set RIDERRA_NOTION_TOKEN or NOTION_API_TOKEN on the Riderra server before importing Notion WIKI.'
+      })
+    }
+    const pageId = extractNotionPageId(req.body?.pageUrl || req.body?.pageId || '')
+    if (!pageId) return res.status(400).json({ error: 'Invalid Notion page URL or page id' })
+
+    const result = await importNotionWikiPage({
+      tenantId: req.actorContext.tenantId,
+      pageId,
+      parentId: null,
+      sortOrder: 0,
+      token
+    })
+
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'wiki.notion.import',
+      resource: 'wiki_page',
+      resourceId: result.row.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: { pageId, imported: result.imported }
+    })
+
+    res.json({ success: true, imported: result.imported, rootPageId: result.row.id })
+  } catch (error) {
+    console.error('Error importing Notion wiki:', error)
+    if (error.notionCode === 'object_not_found' || error.statusCode === 404) {
+      return res.status(404).json({
+        error: 'notion_page_not_shared',
+        message: 'Notion page is not shared with the Riderra Notion integration, or the page id belongs to another workspace.'
+      })
+    }
+    res.status(error.statusCode || 500).json({ error: 'Failed to import Notion wiki', details: error.message })
   }
 })
 

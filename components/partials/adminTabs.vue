@@ -112,6 +112,17 @@ export default {
           ]
         },
         {
+          key: 'wiki',
+          label: 'Вики',
+          hint: 'Знания команды',
+          kicker: 'База знаний',
+          description: 'Здесь собраны внутренние инструкции, правила и справочные материалы Riderra для сотрудников.',
+          defaultTo: '/admin-wiki',
+          tabs: [
+            { to: '/admin-wiki', label: 'Вики', hint: 'Инструкции и правила' }
+          ]
+        },
+        {
           key: 'admin',
           label: 'Администрирование',
           hint: 'Доступы и конфигурация',
@@ -165,6 +176,17 @@ export default {
             { to: '/admin-pricing', label: 'Pricing', hint: 'Sales prices' },
             { to: '/admin-order-archive', label: 'Order archive', hint: 'Past months' },
             { to: '/admin-order-analytics', label: 'Analytics', hint: 'ROI and output' }
+          ]
+        },
+        {
+          key: 'wiki',
+          label: 'Wiki',
+          hint: 'Team knowledge',
+          kicker: 'Knowledge base',
+          description: 'Internal Riderra instructions, policies, and reference materials for staff.',
+          defaultTo: '/admin-wiki',
+          tabs: [
+            { to: '/admin-wiki', label: 'Wiki', hint: 'Guides and policies' }
           ]
         },
         {
