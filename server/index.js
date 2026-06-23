@@ -16383,7 +16383,7 @@ function findManualEmailLine(text, labels = [], options = {}) {
   const source = String(text || '')
   let match = null
   while ((match = re.exec(source))) {
-    const value = match?.[1]?.trim() || ''
+    const value = cleanManualEmailValue(match?.[1] || '')
     if (!value) continue
     if (typeof options.reject === 'function' && options.reject(value)) continue
     return value
@@ -16393,12 +16393,22 @@ function findManualEmailLine(text, labels = [], options = {}) {
   for (let i = 0; i < lines.length - 1; i++) {
     const current = String(lines[i] || '').trim().replace(/[:\-–—]+$/, '').trim().toLowerCase()
     if (!normalizedLabels.includes(current)) continue
-    const value = String(lines[i + 1] || '').trim()
+    const value = cleanManualEmailValue(lines[i + 1] || '')
     if (!value) continue
     if (typeof options.reject === 'function' && options.reject(value)) continue
     return value
   }
   return ''
+}
+
+function cleanManualEmailValue(value = '') {
+  return String(value || '')
+    .replace(/\r/g, '')
+    .trim()
+    .replace(/^\*+\s*/g, '')
+    .replace(/\s*\*+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function findManualEmailNumber(text, labels = []) {
@@ -16412,7 +16422,7 @@ function findManualEmailNumber(text, labels = []) {
 }
 
 function parseLooseNaturalDate(value) {
-  const raw = String(value || '').trim()
+  const raw = cleanManualEmailValue(value).replace(/\s*\([^)]*\)/g, '').trim()
   if (!raw) return null
   const parsed = Date.parse(raw)
   if (Number.isNaN(parsed)) return null
@@ -16420,15 +16430,20 @@ function parseLooseNaturalDate(value) {
 }
 
 function parseManualEmailPickupAt(text) {
+  const bookingSection = String(text || '').split(/BOOKING DATA/i).slice(1).join('BOOKING DATA') || String(text || '')
   const pickupDateRaw = findManualEmailLine(text, [
     'pickup date',
     'pick-up date',
+    'pickup datetime',
+    'pick-up datetime',
     'service date',
-    'date',
     'дата подачи',
     'дата'
+  ]) || findManualEmailLine(bookingSection, [
+    'date',
+    'дата'
   ])
-  const pickupTimeRaw = findManualEmailLine(text, [
+  const pickupTimeRaw = findManualEmailLine(bookingSection, [
     'pickup time',
     'pick-up time',
     'time',
@@ -16566,8 +16581,8 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
     pickupAt,
     flightNumber,
     vehicleType: normalizeVehicleType(findManualEmailLine(text, ['vehicle category', 'vehicle', 'car class', 'car', 'машина', 'класс'])),
-    passengers: findManualEmailNumber(text, ['number of passengers', 'passengers', 'travellers', 'travelers', 'pax', 'пассажиры', 'количество пассажиров']),
-    luggage: findManualEmailNumber(text, ['number of bags', 'suitcases', 'luggage', 'bags', 'baggage', 'багаж', 'чемоданы']),
+    passengers: findManualEmailNumber(text, ['adult passengers', 'number of passengers', 'passengers', 'travellers', 'travelers', 'pax', 'пассажиры', 'количество пассажиров']),
+    luggage: findManualEmailNumber(text, ['checked luggage', 'number of bags', 'suitcases', 'luggage', 'bags', 'baggage', 'багаж', 'чемоданы']),
     clientPrice: Number.isFinite(price.value) ? price.value : null,
     currency: price.currency || 'EUR',
     comment: [
