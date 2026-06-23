@@ -78,7 +78,26 @@
                   <button class="btn" type="button" :disabled="saving" @click="cancelEdit">{{ t.cancel }}</button>
                 </div>
               </div>
-              <pre v-else class="wiki-content">{{ selectedPage.contentMarkdown || t.noContent }}</pre>
+              <div v-else class="wiki-content">
+                <p v-if="!selectedPage.contentMarkdown">{{ t.noContent }}</p>
+                <p v-for="(line, lineIndex) in renderedContent" v-else :key="lineIndex">
+                  <template v-if="line.length">
+                    <template v-for="(part, partIndex) in line">
+                      <button
+                        v-if="part.type === 'wiki-link'"
+                        :key="`${lineIndex}-${partIndex}`"
+                        class="wiki-inline-link"
+                        type="button"
+                        @click="openWikiLink(part.title)"
+                      >
+                        {{ part.title }}
+                      </button>
+                      <span v-else :key="`${lineIndex}-${partIndex}`">{{ part.text }}</span>
+                    </template>
+                  </template>
+                  <span v-else>&nbsp;</span>
+                </p>
+              </div>
               <div v-if="selectedPage.children && selectedPage.children.length" class="wiki-children">
                 <h3>{{ t.children }}</h3>
                 <button v-for="child in selectedPage.children" :key="child.id" class="wiki-child" type="button" @click="openPage(child.id)">
@@ -120,6 +139,33 @@ export default {
   }),
   computed: {
     isRu () { return this.$store.state.language === 'ru' },
+    pageTitleIndex () {
+      const index = {}
+      this.pages.forEach((page) => {
+        const title = String(page.title || '').trim().toLowerCase()
+        if (title) index[title] = page.id
+      })
+      return index
+    },
+    renderedContent () {
+      const source = String((this.selectedPage && this.selectedPage.contentMarkdown) || '')
+      return source.split('\n').map((line) => {
+        const parts = []
+        const pattern = /\[\[([^\]]+)\]\]/g
+        let lastIndex = 0
+        let match
+        while ((match = pattern.exec(line))) {
+          if (match.index > lastIndex) {
+            parts.push({ type: 'text', text: line.slice(lastIndex, match.index) })
+          }
+          const title = String(match[1] || '').trim()
+          if (title) parts.push({ type: 'wiki-link', title })
+          lastIndex = pattern.lastIndex
+        }
+        if (lastIndex < line.length) parts.push({ type: 'text', text: line.slice(lastIndex) })
+        return parts
+      })
+    },
     t () {
       return this.isRu
         ? {
@@ -227,6 +273,17 @@ export default {
         this.notice = { type: 'error', text: error.message }
       }
     },
+    async openWikiLink (title) {
+      const id = this.pageTitleIndex[String(title || '').trim().toLowerCase()]
+      if (!id) {
+        this.notice = {
+          type: 'error',
+          text: this.isRu ? `Статья не найдена: ${title}` : `Article not found: ${title}`
+        }
+        return
+      }
+      await this.openPage(id)
+    },
     startEdit () {
       if (!this.selectedPage) return
       this.editForm = {
@@ -317,7 +374,10 @@ export default {
 .wiki-reader__head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 18px; margin-bottom: 18px; }
 .wiki-reader__actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .wiki-reader h2 { margin: 0 0 8px; color: #1d2c4a; font-size: 28px; }
-.wiki-content { white-space: pre-wrap; word-break: break-word; font-family: inherit; color: #1f2937; font-size: 15px; line-height: 1.65; margin: 0; }
+.wiki-content { word-break: break-word; color: #1f2937; font-size: 15px; line-height: 1.65; margin: 0; }
+.wiki-content p { margin: 0 0 8px; }
+.wiki-inline-link { border: 0; background: transparent; color: #3152ff; font: inherit; font-weight: 800; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.wiki-inline-link:hover { color: #1d4ed8; }
 .wiki-edit { display: grid; gap: 14px; }
 .wiki-edit label { display: grid; gap: 6px; color: #1d2c4a; font-weight: 800; }
 .wiki-edit__textarea { min-height: 360px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; resize: vertical; font: inherit; line-height: 1.55; color: #1f2937; }
