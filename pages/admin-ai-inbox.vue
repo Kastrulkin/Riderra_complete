@@ -128,6 +128,10 @@
             </div>
             <div>
               <div class="row-title">{{ sheetField(row, 'contractor') }}</div>
+              <span v-if="rowEventNotice(row)" class="event-badge" :class="rowEventNotice(row).className">
+                <span class="event-badge__icon">!</span>
+                {{ rowEventNotice(row).label }}
+              </span>
               <div class="row-hint">{{ sourceLabel(row) }}</div>
             </div>
             <div>
@@ -200,6 +204,14 @@
 
         <div class="banner">
           Я помощник Riderra, работаю в тестовом режиме. Показываю найденную информацию и источник, но финальное действие только после подтверждения сотрудника.
+        </div>
+
+        <div v-if="eventNotice" class="event-alert" :class="eventNotice.className">
+          <div class="event-alert__icon">!</div>
+          <div>
+            <strong>{{ eventNotice.title }}</strong>
+            <p>{{ eventNotice.description }}</p>
+          </div>
         </div>
 
         <div class="focus-card">
@@ -483,6 +495,9 @@ export default {
     priceBadge () {
       return this.priceBadgeFromPayload(this.payload)
     },
+    eventNotice () {
+      return this.eventNoticeFromPayload(this.payload)
+    },
     pendingCount () {
       return this.rows.filter((row) => row.status === 'pending').length
     },
@@ -505,12 +520,16 @@ export default {
       return this.selectableRows.length > 0 && this.selectableRows.every((row) => this.selectedDraftIds.includes(row.id))
     },
     focusSummary () {
+      if (this.eventNotice) return this.eventNotice.description
       if (this.payload.infoReason) return `Нужно уточнить: ${this.payload.infoReason}`
       if (this.missingFields.length) return `Перед подтверждением нужно проверить: ${this.missingFields.join(', ')}`
       if (this.pricing.conflict) return 'Найдено расхождение по цене, лучше проверить перед созданием заказа.'
       return 'Черновик выглядит целостным. Можно перенести в базу.'
     },
     primaryDraftAction () {
+      const eventType = this.eventTypeFromPayload(this.payload)
+      if (eventType === 'cancel') return 'Разобрать отмену'
+      if (eventType === 'change') return 'Разобрать изменение'
       if (this.payload.infoReason || this.missingFields.length || this.pricing.conflict) return 'Проверить и перенести в базу'
       return 'Перенести в базу'
     }
@@ -553,6 +572,56 @@ export default {
       const payload = this.parsePayload(row.payloadJson)
       const orderDraft = payload.orderDraft || {}
       return orderDraft[key] || '-'
+    },
+    eventTypeFromPayload (payload = {}) {
+      const orderDraft = payload.orderDraft || {}
+      const direct = String(payload.eventType || orderDraft.eventType || payload.event_type || orderDraft.event_type || '').trim().toLowerCase()
+      if (['cancel', 'change', 'new'].includes(direct)) return direct
+      const haystack = [
+        payload.rawText,
+        orderDraft.rawText,
+        orderDraft.comment,
+        payload.infoReason
+      ].filter(Boolean).join('\n').toLowerCase()
+      if (/(cancelled|canceled|cancellation|cancel\b|отмен[аеуы]|аннулир|снят[ао]?)/i.test(haystack)) return 'cancel'
+      if (/(changed|change|updated|update|modified|amended|измен|обнов|коррект|поменя)/i.test(haystack)) return 'change'
+      return 'new'
+    },
+    eventNoticeFromPayload (payload = {}) {
+      const orderDraft = payload.orderDraft || {}
+      const eventType = this.eventTypeFromPayload(payload)
+      const rawText = String(payload.rawText || orderDraft.rawText || orderDraft.comment || '')
+      if (eventType === 'cancel') {
+        const paid = /(cancelled with cost|still get paid|оплат|будет оплачен|будет оплачена)/i.test(rawText)
+        return {
+          className: 'event-alert--cancel',
+          rowClassName: 'event-badge--cancel',
+          label: paid ? 'Отмена с оплатой' : 'Отмена',
+          title: paid ? 'Это отмена с оплатой' : 'Это отмена заказа',
+          description: paid
+            ? 'Письмо сообщает об отмене поездки, но контрагент пишет, что она будет оплачена. Проверьте существующий заказ и отметьте отмену, не создавая новый обычный заказ.'
+            : 'Письмо сообщает об отмене поездки. Проверьте существующий заказ и обработайте отмену, не создавая новый обычный заказ.'
+        }
+      }
+      if (eventType === 'change') {
+        return {
+          className: 'event-alert--change',
+          rowClassName: 'event-badge--change',
+          label: 'Изменение',
+          title: 'Это изменение заказа',
+          description: 'Письмо сообщает об изменении существующей поездки. Сверьте номер заказа и изменившиеся поля перед переносом в базу.'
+        }
+      }
+      return null
+    },
+    rowEventNotice (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      const notice = this.eventNoticeFromPayload(payload)
+      if (!notice) return null
+      return {
+        className: notice.rowClassName,
+        label: notice.label
+      }
     },
     serviceLabel (row) {
       const payload = this.parsePayload(row.payloadJson)
@@ -644,8 +713,11 @@ export default {
     },
     draftStateLabel (row) {
       const payload = this.parsePayload(row.payloadJson)
+      const eventType = this.eventTypeFromPayload(payload)
       if (row.status === 'approved') return 'Уже подтверждён'
       if (row.status === 'rejected') return 'Отклонён'
+      if (eventType === 'cancel') return 'Внимание: отмена заказа'
+      if (eventType === 'change') return 'Внимание: изменение заказа'
       if (String(payload.infoReason || '').trim()) return 'Есть блокирующее уточнение'
       if (Array.isArray(payload.missingFields) && payload.missingFields.length) return 'Есть неполные поля'
       if (payload.pricing?.conflict) return 'Проверьте цену'
@@ -803,6 +875,10 @@ export default {
       }
     },
     draftActionLabel (row) {
+      const payload = this.parsePayload(row.payloadJson)
+      const eventType = this.eventTypeFromPayload(payload)
+      if (eventType === 'cancel') return 'Разобрать отмену'
+      if (eventType === 'change') return 'Разобрать изменение'
       return this.draftStateLabel(row).includes('Можно') ? 'Проверить' : 'Разобрать'
     },
     parsePayload (raw) {
@@ -1133,6 +1209,12 @@ export default {
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .row-hint { color: #64748b; font-size: 12px; margin-top: 6px; }
 .empty { padding: 16px; color: #64748b; }
+.event-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; max-width: 100%; margin-top: 8px; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 900; line-height: 1.2; text-transform: uppercase; }
+.event-badge__icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; color: #fff; font-size: 13px; font-weight: 900; line-height: 1; }
+.event-badge--cancel { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.event-badge--change { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+.event-badge--cancel .event-badge__icon { background: #dc2626; }
+.event-badge--change .event-badge__icon { background: #ea580c; }
 .status-pill { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
 .status-pill--pending { background: #fef3c7; color: #92400e; }
 .status-pill--approved { background: #dcfce7; color: #166534; }
@@ -1142,6 +1224,14 @@ export default {
 .modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .modal-close { border: 0; background: transparent; font-size: 28px; cursor: pointer; color: #334155; }
 .banner { margin: 12px 0; padding: 12px 14px; border-radius: 10px; background: #fbf2ff; color: #702283; line-height: 1.45; }
+.event-alert { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: flex-start; margin: 12px 0; padding: 14px; border-radius: 10px; border: 1px solid; line-height: 1.45; }
+.event-alert__icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 18px; font-weight: 900; line-height: 1; }
+.event-alert strong { display: block; margin-bottom: 4px; font-size: 15px; }
+.event-alert p { margin: 0; }
+.event-alert--cancel { background: #fef2f2; color: #991b1b; border-color: #fca5a5; }
+.event-alert--change { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
+.event-alert--cancel .event-alert__icon { background: #dc2626; }
+.event-alert--change .event-alert__icon { background: #ea580c; }
 .focus-card { margin-top: 12px; padding: 16px; border-radius: 14px; border: 1px solid #ead7f0; background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%); }
 .focus-card__head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
 .focus-card__head h4 { margin: 0 0 4px; }
