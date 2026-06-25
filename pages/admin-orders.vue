@@ -13,6 +13,9 @@
           <button class="btn btn--ghost" :disabled="queueBulkSaving" @click="queueAllMarked">
             {{ queueBulkSaving ? t.queueing : t.queueAllMarked }}
           </button>
+          <button class="btn btn--ghost" :disabled="!selectedMonth || loading || syncSaving" @click="syncSelectedMonth">
+            {{ syncSaving ? t.syncingSheet : t.syncSheet }}
+          </button>
           <button class="btn btn--primary" :disabled="loading" @click="load">
             {{ loading ? t.loading : t.refresh }}
           </button>
@@ -589,6 +592,7 @@ export default {
     quickDispatchSavingByOrder: {},
     queueBulkSaving: false,
     queueNotice: '',
+    syncSaving: false,
     loading: false,
     loadError: ''
   }),
@@ -604,6 +608,9 @@ export default {
             activeViewLabel: 'Показаны заказы',
             refresh: 'Обновить',
             loading: 'Загрузка...',
+            syncSheet: 'Синхронизировать лист',
+            syncingSheet: 'Синхронизирую...',
+            syncSheetDone: 'Лист синхронизирован',
             openMonths: 'Открытые месяцы',
             defaultMonth: 'Автовыбор месяца',
             noOpenMonths: 'Нет открытых месяцев',
@@ -734,6 +741,9 @@ export default {
             activeViewLabel: 'Current view',
             refresh: 'Refresh',
             loading: 'Loading...',
+            syncSheet: 'Sync sheet',
+            syncingSheet: 'Syncing...',
+            syncSheetDone: 'Sheet synced',
             openMonths: 'Open months',
             defaultMonth: 'Auto-select month',
             noOpenMonths: 'No open months',
@@ -994,6 +1004,47 @@ export default {
         this.queueNotice = error?.message || 'Failed to close month'
       } finally {
         this.archiveSaving = false
+      }
+    },
+    async syncSelectedMonth () {
+      if (!this.selectedMonth || this.syncSaving) return
+      this.syncSaving = true
+      this.loadError = ''
+      this.queueNotice = ''
+      try {
+        const response = await fetch(`/api/admin/orders/months/${encodeURIComponent(this.selectedMonth)}/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `sync-order-month-${this.selectedMonth}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({})
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          throw new Error(data?.details || data?.error || `HTTP ${response.status}`)
+        }
+        const totals = (data.results || []).reduce((acc, result) => {
+          const stats = result?.stats || {}
+          acc.created += Number(stats.created || 0)
+          acc.updated += Number(stats.updated || 0)
+          acc.unchanged += Number(stats.unchanged || 0)
+          acc.errors += Number(stats.errors || 0)
+          return acc
+        }, { created: 0, updated: 0, unchanged: 0, errors: 0 })
+        const summary = this.$store.state.language === 'ru'
+          ? `создано ${totals.created}, обновлено ${totals.updated}, без изменений ${totals.unchanged}, ошибок ${totals.errors}`
+          : `created ${totals.created}, updated ${totals.updated}, unchanged ${totals.unchanged}, errors ${totals.errors}`
+        await this.loadOpenMonths()
+        await this.load()
+        this.queueNotice = `${this.t.syncSheetDone}: ${summary}`
+      } catch (error) {
+        this.loadError = this.$store.state.language === 'ru'
+          ? `Не удалось синхронизировать лист: ${error?.message || 'unknown'}`
+          : `Failed to sync sheet: ${error?.message || 'unknown'}`
+      } finally {
+        this.syncSaving = false
       }
     },
     async load () {
