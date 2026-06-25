@@ -224,7 +224,7 @@
   .menu-open.header{
     transform: none;
     opacity: 1;
-    background: linear-gradient(90deg, #FF017A 36.45%, #702283 105.02%);
+    background: #101827;
 
     .tabs-container{
       display: none;
@@ -288,6 +288,8 @@
       display: flex;
       align-items: center;
       margin: 0 auto;
+      gap: clamp(12px, 1.2vw, 24px);
+      min-width: 0;
     }
 
     &__tel{
@@ -297,17 +299,18 @@
     }
 
     &__right{
-      margin-left: auto;
+      margin-left: 0;
       display: flex;
       align-items: center;
       flex-shrink: 0;
+      min-width: 0;
     }
 
     &__signin{
       display: inline-block;
       line-height: 40px;
       border: 1px solid #fff;
-      border-radius: 20px;
+      border-radius: 8px;
       padding: 0 16px;
       text-decoration: none;
       font-weight: 800;
@@ -467,14 +470,18 @@
   }
   .nav-list{
     display: flex;
-    margin-left: 16%;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    gap: clamp(18px, 2vw, 42px);
+    margin-left: clamp(16px, 5vw, 120px);
     align-items: center;
+    min-width: 0;
 
     &__item{
-      margin-right: 42px;
       text-decoration: none;
-      font-size: 16px;
+      font-size: 15px;
       position: relative;
+      white-space: nowrap;
 
       &:after{
         content: '';
@@ -575,10 +582,7 @@
       font-weight: 700;
       color: white;
       text-decoration: none;
-      background: linear-gradient(135deg, #FF017A 0%, #702283 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: #fff;
     }
 
     .logo__text:hover {
@@ -612,11 +616,16 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      min-width: 0;
       
       .user-name {
         color: rgba(255,255,255,0.8);
         font-size: 14px;
         font-weight: 500;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       
       .logout-btn {
@@ -636,6 +645,32 @@
         }
       }
     }
+
+  @media (max-width: 1500px){
+    .nav-list{
+      gap: 22px;
+      margin-left: 28px;
+    }
+
+    .user-menu {
+      gap: 8px;
+
+      .user-name {
+        display: none;
+      }
+    }
+  }
+
+  @media (max-width: 1180px){
+    .nav-list,
+    .header__right{
+      display: none;
+    }
+
+    .menu-toggle{
+      display: flex;
+    }
+  }
 
 
 </style>

@@ -81,12 +81,12 @@
 <style scoped lang="scss">
   .mobile-menu {
     width: 100%;
-    height: 100vh;
+    height: 100svh;
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
-    background: linear-gradient(90deg, #FF017A 36.45%, #702283 105.02%);
+    background: #101827;
     z-index: 30;
     display: block;
     -webkit-overflow-scrolling: touch;
@@ -115,7 +115,7 @@
       display: block;
       line-height: 40px;
       border: 1px solid #fff;
-      border-radius: 40px;
+      border-radius: 8px;
       padding: 0 16px;
       text-decoration: none;
       font-weight: 800;
