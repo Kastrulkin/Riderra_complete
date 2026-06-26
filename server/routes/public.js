@@ -13,6 +13,10 @@ function registerPublicRoutes(app, handlers) {
   app.get('/api/public/agent-manifest', handlers.agentManifest)
   app.get('/api/public/order-request-schema', handlers.orderRequestSchema)
   app.get(['/api/public/openapi.json', '/openapi.json'], handlers.openapiJson)
+  app.get('/privacy-policy', handlers.privacyPolicyRedirect)
+  app.get(['/privacy-policy/ru', '/privacy-policy/en'], handlers.privacyPolicy)
+  app.get(['/terms', '/terms/en', '/terms-and-conditions', '/user-agreement'], handlers.terms)
+  app.get(['/data-deletion', '/data-deletion/en', '/data-deletion-instructions', '/facebook-data-deletion', '/facebook-data-deletion/en'], handlers.dataDeletion)
 }
 
 module.exports = {

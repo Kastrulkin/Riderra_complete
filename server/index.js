@@ -1816,10 +1816,13 @@ function openapiJsonHandler(_req, res) {
 registerPublicRoutes(app, {
   agentManifest: agentManifestHandler,
   crawlerHomepage: crawlerHomepageHandler,
+  dataDeletion: dataDeletionHandler,
   llmsTxt: llmsTxtHandler,
   openapiJson: openapiJsonHandler,
   orderRequestSchema: orderRequestSchemaHandler,
   pricingHints: pricingHintsHandler,
+  privacyPolicy: privacyPolicyHandler,
+  privacyPolicyRedirect: privacyPolicyRedirectHandler,
   publicServices: publicServicesHandler,
   publicSourceHtml: publicSourceHtmlHandler,
   redirectRussianPublicPages: redirectRussianPublicPagesHandler,
@@ -1827,7 +1830,8 @@ registerPublicRoutes(app, {
   robotsTxt: robotsTxtHandler,
   seoTransferPage: seoTransferPageHandler,
   sitemapXml: sitemapXmlHandler,
-  sourceTruth: sourceTruthHandler
+  sourceTruth: sourceTruthHandler,
+  terms: termsHandler
 })
 
 app.post('/api/public/order-requests/validate', publicFormLimiter, resolveActorContext, requireActorContext, (req, res) => {
@@ -2142,16 +2146,16 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
 </html>`
 }
 
-app.get('/privacy-policy', (req, res) => {
+function privacyPolicyRedirectHandler(req, res) {
   res.redirect(302, '/privacy-policy/en')
-})
+}
 
-app.get(['/privacy-policy/ru', '/privacy-policy/en'], (req, res) => {
+function privacyPolicyHandler(req, res) {
   const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderPrivacyPolicyHtml(lang))
-})
+}
 
 function renderTermsHtml(lang = 'ru') {
   const isEn = String(lang || '').toLowerCase() === 'en'
@@ -2374,12 +2378,12 @@ function renderTermsHtml(lang = 'ru') {
 </html>`
 }
 
-app.get(['/terms', '/terms/en', '/terms-and-conditions', '/user-agreement'], (req, res) => {
+function termsHandler(req, res) {
   const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderTermsHtml(lang))
-})
+}
 
 function renderDataDeletionHtml(lang = 'ru') {
   const isEn = String(lang || '').toLowerCase() === 'en'
@@ -2552,12 +2556,12 @@ function renderDataDeletionHtml(lang = 'ru') {
 </html>`
 }
 
-app.get(['/data-deletion', '/data-deletion/en', '/data-deletion-instructions', '/facebook-data-deletion', '/facebook-data-deletion/en'], (req, res) => {
+function dataDeletionHandler(req, res) {
   const lang = req.path.endsWith('/en') || req.query.lang === 'en' ? 'en' : 'ru'
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderDataDeletionHtml(lang))
-})
+}
 
 // JWT секрет
 const JWT_SECRET = process.env.JWT_SECRET
