@@ -26,10 +26,11 @@ const {
   normalizeText
 } = require('./utils/helpers')
 const { createCorsMiddleware } = require('./middleware/cors')
+const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
 const { jsonBodyParser } = require('./middleware/jsonBody')
 const { languageCookieMiddleware } = require('./middleware/languageCookie')
-const { registerAuthRoutes } = require('./routes/auth')
+const { registerAuthBootstrapRoutes, registerAuthRoutes } = require('./routes/auth')
 const { registerPublicRoutes } = require('./routes/public')
 
 const prisma = new PrismaClient()
@@ -12218,184 +12219,21 @@ app.delete('/api/admin/drivers/routes/:routeId', authenticateToken, resolveActor
 
 // ==================== АВТОРИЗАЦИЯ ====================
 
-registerAuthRoutes(app, {
-  authenticatedMiddleware: [authenticateToken, resolveActorContext, requireActorContext],
-  login: loginHandler,
-  me: meHandler,
-  register: registerHandler
+const authController = createAuthController({
+  bcrypt,
+  ensureDefaultTenantMembership,
+  getUserRolesAndPermissions,
+  jwt,
+  jwtSecret: JWT_SECRET,
+  prisma
 })
 
-// Регистрация пользователя
-async function registerHandler(req, res) {
-  try {
-    const { email, password, role = 'driver', name, phone, country, city, commissionRate } = req.body
-    if (role !== 'driver') {
-      return res.status(403).json({ error: 'Public registration is only available for drivers' })
-    }
-
-    // Проверяем, существует ли пользователь
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    })
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' })
-    }
-
-    // Хешируем пароль
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Создаем пользователя
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        role
-      }
-    })
-
-    // Если это водитель, создаем запись водителя
-    if (role === 'driver') {
-      const { tenant } = await ensureDefaultTenantMembership(user.id, 'executor')
-      await prisma.driver.create({
-        data: {
-          tenantId: tenant.id,
-          name,
-          email,
-          phone,
-          country: country || null,
-          city,
-          commissionRate: commissionRate || 15.0,
-          userId: user.id
-        }
-      })
-    } else {
-      await ensureDefaultTenantMembership(user.id, role === 'admin' ? 'staff_supervisor' : 'staff')
-    }
-
-    // Создаем JWT токен
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
-
-    const acl = await getUserRolesAndPermissions(user.id)
-    const { tenant, membership } = await ensureDefaultTenantMembership(
-      user.id,
-      role === 'driver' ? 'executor' : (role === 'admin' ? 'staff_supervisor' : 'staff')
-    )
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        tenant: { id: tenant.id, code: tenant.code, role: membership.role },
-        roles: acl.roles,
-        permissions: acl.permissions
-      }
-    })
-  } catch (error) {
-    console.error('Registration error:', error)
-    res.status(500).json({ error: 'Registration failed' })
-  }
-}
-
-// Вход в систему
-async function loginHandler(req, res) {
-  try {
-    const { email, password } = req.body
-
-    // Находим пользователя
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        driver: true
-      }
-    })
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' })
-    }
-
-    // Проверяем пароль
-    const validPassword = await bcrypt.compare(password, user.password)
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' })
-    }
-
-    // Проверяем, активен ли пользователь
-    if (!user.isActive) {
-      return res.status(401).json({ error: 'Account is deactivated' })
-    }
-
-    // Создаем JWT токен
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
-
-    const acl = await getUserRolesAndPermissions(user.id)
-    const { tenant, membership } = await ensureDefaultTenantMembership(
-      user.id,
-      user.role === 'driver' ? 'executor' : (user.role === 'admin' ? 'staff_supervisor' : 'staff')
-    )
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        tenant: { id: tenant.id, code: tenant.code, role: membership.role },
-        roles: acl.roles,
-        permissions: acl.permissions,
-        driver: user.driver
-      }
-    })
-  } catch (error) {
-    console.error('Login error:', error)
-    res.status(500).json({ error: 'Login failed' })
-  }
-}
-
-// Получение информации о текущем пользователе
-async function meHandler(req, res) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        driver: true
-      }
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
-    }
-
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        tenant: {
-          id: req.actorContext.tenantId,
-          code: req.actorContext.tenantCode,
-          role: req.actorContext.actorRole
-        },
-        roles: req.userRoles || [],
-        permissions: req.userPermissions || [],
-        driver: user.driver
-      }
-    })
-  } catch (error) {
-    console.error('Get user error:', error)
-    res.status(500).json({ error: 'Failed to get user info' })
-  }
-}
+registerAuthRoutes(app, {
+  authenticatedMiddleware: [authenticateToken, resolveActorContext, requireActorContext],
+  login: authController.login,
+  me: authController.me,
+  register: authController.register
+})
 
 // API для получения заказов текущего водителя
 app.get('/api/drivers/me/orders', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
@@ -19518,55 +19356,6 @@ app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorCo
   }
 })
 
-// Создание админа (только для разработки)
-app.post('/api/auth/create-admin', async (req, res) => {
-  try {
-    const { email, password } = req.body
-    const setupKey = req.headers['x-setup-key'] || req.body.setupKey
-
-    if (!process.env.ADMIN_SETUP_KEY) {
-      return res.status(403).json({ error: 'Admin bootstrap is disabled' })
-    }
-
-    if (setupKey !== process.env.ADMIN_SETUP_KEY) {
-      return res.status(403).json({ error: 'Invalid setup key' })
-    }
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' })
-    }
-
-    // Проверяем, существует ли админ
-    const existingAdmin = await prisma.user.findFirst({
-      where: { role: 'admin' }
-    })
-
-    if (existingAdmin) {
-      return res.status(400).json({ error: 'Admin already exists' })
-    }
-
-    // Хешируем пароль
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Создаем админа
-    const admin = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        role: 'admin'
-      }
-    })
-
-    res.json({
-      message: 'Admin created successfully',
-      admin: {
-        id: admin.id,
-        email: admin.email,
-        role: admin.role
-      }
-    })
-  } catch (error) {
-    console.error('Create admin error:', error)
-    res.status(500).json({ error: 'Failed to create admin' })
-  }
+registerAuthBootstrapRoutes(app, {
+  createAdmin: authController.createAdmin
 })
