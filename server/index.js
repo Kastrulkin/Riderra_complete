@@ -25,6 +25,9 @@ const {
   getClientIp,
   normalizeText
 } = require('./utils/helpers')
+const { createCorsMiddleware } = require('./middleware/cors')
+const { jsonBodyParser } = require('./middleware/jsonBody')
+const { languageCookieMiddleware } = require('./middleware/languageCookie')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -34,45 +37,9 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .map((origin) => origin.trim())
   .filter(Boolean)
 
-// CORS middleware
-app.use((req, res, next) => {
-  const requestOrigin = req.headers.origin
-  if (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') {
-    res.header('Access-Control-Allow-Origin', '*')
-  } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-    res.header('Access-Control-Allow-Origin', requestOrigin)
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Idempotency-Key, X-EasyTaxi-Webhook-Secret, X-EasyTaxi-Signature, X-OpenClaw-Signature, X-OpenClaw-Internal-Token, X-Riderra-Internal-Token')
-  res.header('Vary', 'Origin')
-  if (String(req.path || req.url || '').startsWith('/_nuxt/')) {
-    res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-    res.header('Pragma', 'no-cache')
-    res.header('Expires', '0')
-  }
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200)
-  }
-  next()
-})
-
-app.use((req, res, next) => {
-  const lang = String(req.query?.lang || '').toLowerCase()
-  if (/^(ru|en|es|de|fr|el|th|ar|ha)$/.test(lang)) {
-    res.cookie('riderra_lang', lang, {
-      maxAge: 365 * 24 * 60 * 60 * 1000,
-      sameSite: 'lax',
-      path: '/'
-    })
-  }
-  next()
-})
-
-app.use(bodyParser.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = Buffer.from(buf || '')
-  }
-}))
+app.use(createCorsMiddleware(allowedOrigins))
+app.use(languageCookieMiddleware)
+app.use(jsonBodyParser())
 
 function createRateLimiter({ windowMs = 60 * 1000, max = 30, name = 'public' } = {}) {
   const hits = new Map()
