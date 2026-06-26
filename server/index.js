@@ -1,11 +1,5 @@
-// Загружаем переменные окружения из .env файла (для локальной разработки)
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    require('dotenv').config()
-  } catch (e) {
-    // dotenv не установлен, используем переменные из окружения
-  }
-}
+const { loadEnv } = require('./config/env')
+loadEnv()
 
 const express = require('express')
 const bodyParser = require('body-parser')
@@ -22,6 +16,15 @@ const {
   validateOpenClawPayload,
   validateOpenClawResponse
 } = require('./openclaw_contract')
+const {
+  RIDERRA_BASE_URL,
+  RIDERRA_CONTACT_EMAIL
+} = require('./config/constants')
+const {
+  escapeHtml,
+  getClientIp,
+  normalizeText
+} = require('./utils/helpers')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -71,11 +74,6 @@ app.use(bodyParser.json({
   }
 }))
 
-function getClientIp(req) {
-  const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
-  return forwardedFor || req.ip || req.connection?.remoteAddress || 'unknown'
-}
-
 function createRateLimiter({ windowMs = 60 * 1000, max = 30, name = 'public' } = {}) {
   const hits = new Map()
   return (req, res, next) => {
@@ -100,26 +98,9 @@ function createRateLimiter({ windowMs = 60 * 1000, max = 30, name = 'public' } =
   }
 }
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-function normalizeText(value, maxLength = 500) {
-  if (value === undefined || value === null) return null
-  const text = String(value).trim()
-  return text ? text.slice(0, maxLength) : null
-}
-
 const publicFormLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 25, name: 'public-form' })
 const publicReviewLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20, name: 'public-review' })
 
-const RIDERRA_BASE_URL = 'https://riderra.com'
-const RIDERRA_CONTACT_EMAIL = 'info@riderra.com'
 const RIDERRA_SEO_TRANSFERS = (() => {
   try {
     return require('./seo_transfers.json')
