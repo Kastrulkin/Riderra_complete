@@ -28,6 +28,7 @@ const {
 const { createCorsMiddleware } = require('./middleware/cors')
 const { jsonBodyParser } = require('./middleware/jsonBody')
 const { languageCookieMiddleware } = require('./middleware/languageCookie')
+const { registerAuthRoutes } = require('./routes/auth')
 const { registerPublicRoutes } = require('./routes/public')
 
 const prisma = new PrismaClient()
@@ -12469,8 +12470,15 @@ app.delete('/api/admin/drivers/routes/:routeId', authenticateToken, resolveActor
 
 // ==================== АВТОРИЗАЦИЯ ====================
 
+registerAuthRoutes(app, {
+  authenticatedMiddleware: [authenticateToken, resolveActorContext, requireActorContext],
+  login: loginHandler,
+  me: meHandler,
+  register: registerHandler
+})
+
 // Регистрация пользователя
-app.post('/api/auth/register', async (req, res) => {
+async function registerHandler(req, res) {
   try {
     const { email, password, role = 'driver', name, phone, country, city, commissionRate } = req.body
     if (role !== 'driver') {
@@ -12545,10 +12553,10 @@ app.post('/api/auth/register', async (req, res) => {
     console.error('Registration error:', error)
     res.status(500).json({ error: 'Registration failed' })
   }
-})
+}
 
 // Вход в систему
-app.post('/api/auth/login', async (req, res) => {
+async function loginHandler(req, res) {
   try {
     const { email, password } = req.body
 
@@ -12604,10 +12612,10 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', error)
     res.status(500).json({ error: 'Login failed' })
   }
-})
+}
 
 // Получение информации о текущем пользователе
-app.get('/api/auth/me', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
+async function meHandler(req, res) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
@@ -12639,7 +12647,7 @@ app.get('/api/auth/me', authenticateToken, resolveActorContext, requireActorCont
     console.error('Get user error:', error)
     res.status(500).json({ error: 'Failed to get user info' })
   }
-})
+}
 
 // API для получения заказов текущего водителя
 app.get('/api/drivers/me/orders', authenticateToken, resolveActorContext, requireActorContext, async (req, res) => {
