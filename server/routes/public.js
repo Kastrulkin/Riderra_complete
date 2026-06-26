@@ -20,6 +20,8 @@ function registerPublicRoutes(app, handlers) {
   app.get(['/privacy-policy/ru', '/privacy-policy/en'], handlers.privacyPolicy)
   app.get(['/terms', '/terms/en', '/terms-and-conditions', '/user-agreement'], handlers.terms)
   app.get(['/data-deletion', '/data-deletion/en', '/data-deletion-instructions', '/facebook-data-deletion', '/facebook-data-deletion/en'], handlers.dataDeletion)
+  app.post('/api/requests', ...handlers.publicFormMiddleware, handlers.createRequest)
+  app.post('/api/drivers', ...handlers.publicFormMiddleware, handlers.createDriver)
 }
 
 module.exports = {

@@ -1815,7 +1815,9 @@ function openapiJsonHandler(_req, res) {
 
 registerPublicRoutes(app, {
   agentManifest: agentManifestHandler,
+  createDriver: createDriverHandler,
   createOrderRequest: createOrderRequestHandler,
+  createRequest: createRequestHandler,
   crawlerHomepage: crawlerHomepageHandler,
   dataDeletion: dataDeletionHandler,
   llmsTxt: llmsTxtHandler,
@@ -1826,6 +1828,7 @@ registerPublicRoutes(app, {
   pricingHints: pricingHintsHandler,
   privacyPolicy: privacyPolicyHandler,
   privacyPolicyRedirect: privacyPolicyRedirectHandler,
+  publicFormMiddleware: [publicFormLimiter, resolveActorContext, requireActorContext],
   publicServices: publicServicesHandler,
   publicSourceHtml: publicSourceHtmlHandler,
   redirectRussianPublicPages: redirectRussianPublicPagesHandler,
@@ -4993,7 +4996,7 @@ async function promoteStagingToCustomerCrm(tenantId) {
   return stats
 }
 
-app.post('/api/requests', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
+async function createRequestHandler(req, res) {
   try {
     const { name, email, phone, fromPoint, toPoint, date, passengers, luggage, comment, lang } = req.body
     const created = await prisma.request.create({ data: {
@@ -5014,9 +5017,9 @@ app.post('/api/requests', publicFormLimiter, resolveActorContext, requireActorCo
     console.error(e)
     res.status(500).json({ error: 'failed' })
   }
-})
+}
 
-app.post('/api/drivers', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
+async function createDriverHandler(req, res) {
   try {
     const {
       name,
@@ -5096,7 +5099,7 @@ app.post('/api/drivers', publicFormLimiter, resolveActorContext, requireActorCon
     console.error('Error stack:', e.stack)
     res.status(500).json({ error: 'failed', message: e.message })
   }
-})
+}
 
 module.exports = app
 module.exports.__internal = {
