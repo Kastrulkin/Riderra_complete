@@ -28,6 +28,7 @@ const {
 const { createCorsMiddleware } = require('./middleware/cors')
 const { jsonBodyParser } = require('./middleware/jsonBody')
 const { languageCookieMiddleware } = require('./middleware/languageCookie')
+const { registerPublicRoutes } = require('./routes/public')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -1672,7 +1673,7 @@ function appendAiRequestOperatorNote(comment, { status, user, note, orderId } = 
   return [base, workflowBlock].filter(Boolean).join('\n').slice(0, 2000)
 }
 
-app.get('/robots.txt', (_req, res) => {
+function robotsTxtHandler(_req, res) {
   res.type('text/plain')
   res.setHeader('Cache-Control', 'public, max-age=3600')
   res.send([
@@ -1686,9 +1687,9 @@ app.get('/robots.txt', (_req, res) => {
     `Sitemap: ${RIDERRA_BASE_URL}/sitemap.xml`,
     ''
   ].join('\n'))
-})
+}
 
-app.get('/sitemap.xml', (_req, res) => {
+function sitemapXmlHandler(_req, res) {
   const now = new Date().toISOString().slice(0, 10)
   const seoTransferPages = [
     ...RIDERRA_SEO_TRANSFERS.countries.map((page) => ({ path: page.path, priority: '0.8' })),
@@ -1702,9 +1703,9 @@ app.get('/sitemap.xml', (_req, res) => {
 ${RIDERRA_PUBLIC_PAGES.map((page) => `  <url><loc>${riderraAbsoluteUrl(page.path)}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${page.priority}</priority></url>`).join('\n')}
 ${seoTransferPages.map((page) => `  <url><loc>${riderraAbsoluteUrl(page.path)}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${page.priority}</priority></url>`).join('\n')}
 </urlset>`)
-})
+}
 
-app.get('/llms.txt', (_req, res) => {
+function llmsTxtHandler(_req, res) {
   res.type('text/plain')
   res.setHeader('Cache-Control', 'public, max-age=3600')
   res.send(`# Riderra
@@ -1746,9 +1747,9 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
 - Countries: ${RIDERRA_SEO_TRANSFERS.countries.map((page) => riderraAbsoluteUrl(page.path)).join(', ')}
 - Airport pages are generated only for priority airport hubs and sizeable route groups. Route pages are limited to selected popular routes to avoid thin-page generation.
 `)
-})
+}
 
-app.get(['/ai', '/about', '/services', '/docs', '/prices', '/contact', '/faq'], (req, res, next) => {
+function redirectRussianPublicPagesHandler(req, res, next) {
   if (isCrawlerRequest(req)) return next()
   if (preferredLanguageFromRequest(req) === 'en') return next()
   const acceptLanguage = String(req.headers['accept-language'] || '').toLowerCase()
@@ -1756,60 +1757,77 @@ app.get(['/ai', '/about', '/services', '/docs', '/prices', '/contact', '/faq'], 
     return res.redirect(302, `/ru${req.path}`)
   }
   return next()
-})
+}
 
-app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/docs', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/about', '/ru/services', '/ru/docs', '/ru/prices', '/ru/contact', '/ru/faq'], (req, res) => {
+function publicSourceHtmlHandler(req, res) {
   res.type('text/html')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderPublicSourceHtml(req.path))
-})
+}
 
-app.get(/^\/(?:ru\/)?transfers(?:\/[a-z0-9-]+){0,3}\/?$/, (req, res, next) => {
+function seoTransferPageHandler(req, res, next) {
   const pagePath = req.path.replace(/\/$/, '') || '/transfers'
   const html = renderSeoTransferPage(pagePath, pagePath.startsWith('/ru/transfers'))
   if (!html) return next()
   res.type('text/html')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(html)
-})
+}
 
-app.get('/', (req, res, next) => {
+function crawlerHomepageHandler(req, res, next) {
   if (!isCrawlerRequest(req)) return next()
   res.type('text/html')
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.status(200).send(renderPublicSourceHtml('/'))
-})
+}
 
-app.get('/api/public/riderra-profile', (_req, res) => {
+function riderraProfileHandler(_req, res) {
   res.json(publicRiderraProfile())
-})
+}
 
-app.get('/api/public/services', (_req, res) => {
+function publicServicesHandler(_req, res) {
   res.json({
     services: RIDERRA_SERVICES,
     pricingPolicy: publicRiderraProfile().pricingPolicy,
     bookingPolicy: publicRiderraProfile().bookingPolicy
   })
-})
+}
 
-app.get('/api/public/pricing-hints', (_req, res) => {
+function pricingHintsHandler(_req, res) {
   res.json(publicPricingHints())
-})
+}
 
-app.get('/api/public/source-truth', (_req, res) => {
+function sourceTruthHandler(_req, res) {
   res.json(publicSourceTruth())
-})
+}
 
-app.get('/api/public/agent-manifest', (_req, res) => {
+function agentManifestHandler(_req, res) {
   res.json(publicAgentManifest())
-})
+}
 
-app.get('/api/public/order-request-schema', (_req, res) => {
+function orderRequestSchemaHandler(_req, res) {
   res.json(orderRequestSchema())
-})
+}
 
-app.get(['/api/public/openapi.json', '/openapi.json'], (_req, res) => {
+function openapiJsonHandler(_req, res) {
   res.json(publicOpenApiSpec())
+}
+
+registerPublicRoutes(app, {
+  agentManifest: agentManifestHandler,
+  crawlerHomepage: crawlerHomepageHandler,
+  llmsTxt: llmsTxtHandler,
+  openapiJson: openapiJsonHandler,
+  orderRequestSchema: orderRequestSchemaHandler,
+  pricingHints: pricingHintsHandler,
+  publicServices: publicServicesHandler,
+  publicSourceHtml: publicSourceHtmlHandler,
+  redirectRussianPublicPages: redirectRussianPublicPagesHandler,
+  riderraProfile: riderraProfileHandler,
+  robotsTxt: robotsTxtHandler,
+  seoTransferPage: seoTransferPageHandler,
+  sitemapXml: sitemapXmlHandler,
+  sourceTruth: sourceTruthHandler
 })
 
 app.post('/api/public/order-requests/validate', publicFormLimiter, resolveActorContext, requireActorContext, (req, res) => {
