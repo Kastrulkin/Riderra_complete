@@ -26,6 +26,7 @@ const {
   normalizeText
 } = require('./utils/helpers')
 const { createCorsMiddleware } = require('./middleware/cors')
+const { createPublicIntakeController } = require('./controllers/publicIntakeController')
 const { jsonBodyParser } = require('./middleware/jsonBody')
 const { languageCookieMiddleware } = require('./middleware/languageCookie')
 const { registerAuthRoutes } = require('./routes/auth')
@@ -1547,68 +1548,6 @@ function publicOpenApiSpec() {
   }
 }
 
-function normalizePublicOrderRequestBody(body = {}) {
-  const pickupAtRaw = normalizeText(body.pickupAt, 80)
-  const passengers = body.passengers === undefined || body.passengers === null || body.passengers === ''
-    ? null
-    : parseInt(body.passengers, 10)
-  const luggage = body.luggage === undefined || body.luggage === null || body.luggage === ''
-    ? null
-    : parseInt(body.luggage, 10)
-  return {
-    name: normalizeText(body.name, 160),
-    email: normalizeText(body.email, 254),
-    phone: normalizeText(body.phone, 80),
-    fromPoint: normalizeText(body.fromPoint, 500),
-    toPoint: normalizeText(body.toPoint, 500),
-    pickupAtRaw,
-    pickupAt: pickupAtRaw ? new Date(pickupAtRaw) : null,
-    passengers: Number.isFinite(passengers) && passengers > 0 ? passengers : null,
-    luggage: Number.isFinite(luggage) && luggage >= 0 ? luggage : null,
-    comment: normalizeText(body.comment, 1500),
-    lang: normalizeText(body.lang, 10) || 'en',
-    extras: {
-      vehicleClass: normalizeText(body.vehicleClass, 120),
-      flightNumber: normalizeText(body.flightNumber, 120),
-      agentName: normalizeText(body.agentName, 160),
-      agentContact: normalizeText(body.agentContact, 254),
-      sourceUrl: normalizeText(body.sourceUrl, 500)
-    }
-  }
-}
-
-function validatePublicOrderRequest(input) {
-  const missing = ['name', 'email', 'phone', 'fromPoint', 'toPoint', 'pickupAtRaw'].filter((field) => !input[field])
-  const errors = []
-  if (missing.length) errors.push({ code: 'missing_required_fields', fields: missing.map((field) => field === 'pickupAtRaw' ? 'pickupAt' : field) })
-  if (input.pickupAtRaw && (!input.pickupAt || Number.isNaN(input.pickupAt.getTime()))) {
-    errors.push({ code: 'invalid_pickupAt', field: 'pickupAt', message: 'pickupAt must be a valid ISO 8601 date/time.' })
-  }
-  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
-    errors.push({ code: 'invalid_email', field: 'email' })
-  }
-  return {
-    valid: errors.length === 0,
-    errors,
-    normalized: {
-      ...input,
-      pickupAt: input.pickupAt && !Number.isNaN(input.pickupAt.getTime()) ? input.pickupAt.toISOString() : null
-    }
-  }
-}
-
-function publicOrderRequestComment(input) {
-  return [
-    input.comment,
-    '--- AI-agent/public request metadata ---',
-    ...Object.entries(input.extras)
-      .filter(([, value]) => value)
-      .map(([key, value]) => `${key}: ${value}`),
-    'source: AI/public API',
-    'status: draft_received; not a confirmed booking; final price requires Riderra confirmation'
-  ].filter(Boolean).join('\n')
-}
-
 function parseAiRequestMetadata(comment = '') {
   const text = String(comment || '')
   const lines = text.split(/\r?\n/)
@@ -1814,18 +1753,26 @@ function openapiJsonHandler(_req, res) {
   res.json(publicOpenApiSpec())
 }
 
+const publicIntakeController = createPublicIntakeController({
+  ensureIdempotencyKey,
+  normalizeText,
+  prisma,
+  sendDriverRegistrationEmail,
+  withIdempotency
+})
+
 registerPublicRoutes(app, {
   agentManifest: agentManifestHandler,
-  createDriver: createDriverHandler,
-  createOrderRequest: createOrderRequestHandler,
-  createRequest: createRequestHandler,
+  createDriver: publicIntakeController.createDriver,
+  createOrderRequest: publicIntakeController.createOrderRequest,
+  createRequest: publicIntakeController.createRequest,
   crawlerHomepage: crawlerHomepageHandler,
   dataDeletion: dataDeletionHandler,
   llmsTxt: llmsTxtHandler,
   openapiJson: openapiJsonHandler,
   orderRequestMiddleware: [publicFormLimiter, resolveActorContext, requireActorContext],
   orderRequestSchema: orderRequestSchemaHandler,
-  orderRequestStatus: orderRequestStatusHandler,
+  orderRequestStatus: publicIntakeController.orderRequestStatus,
   pricingHints: pricingHintsHandler,
   privacyPolicy: privacyPolicyHandler,
   privacyPolicyRedirect: privacyPolicyRedirectHandler,
@@ -1839,102 +1786,8 @@ registerPublicRoutes(app, {
   sitemapXml: sitemapXmlHandler,
   sourceTruth: sourceTruthHandler,
   terms: termsHandler,
-  validateOrderRequest: validateOrderRequestHandler
+  validateOrderRequest: publicIntakeController.validateOrderRequest
 })
-
-function validateOrderRequestHandler(req, res) {
-  const validation = validatePublicOrderRequest(normalizePublicOrderRequestBody(req.body || {}))
-  res.status(validation.valid ? 200 : 400).json({
-    success: validation.valid,
-    status: validation.valid ? 'valid_draft_request' : 'invalid_draft_request',
-    errors: validation.errors,
-    nextStep: validation.valid
-      ? 'Submit the same payload to POST /api/public/order-requests. Riderra will review and confirm availability and final price.'
-      : 'Fix the listed fields before submitting a draft request.'
-  })
-}
-
-async function orderRequestStatusHandler(req, res) {
-  try {
-    const requestId = String(req.params.requestId || '').trim()
-    const email = normalizeText(req.query.email, 254)
-    const phone = normalizeText(req.query.phone, 80)
-    if (!email && !phone) {
-      return res.status(400).json({ error: 'contact_verification_required', message: 'Provide email or phone used in the draft request.' })
-    }
-    const row = await prisma.request.findFirst({
-      where: {
-        id: requestId,
-        tenantId: req.actorContext.tenantId,
-        ...(email ? { email } : { phone })
-      }
-    })
-    if (!row) return res.status(404).json({ error: 'request_not_found' })
-    res.json({
-      success: true,
-      requestId: row.id,
-      status: 'draft_received',
-      createdAt: row.createdAt,
-      nextStep: 'Riderra will review and confirm availability and final price.',
-      confirmedBooking: false,
-      finalPriceConfirmed: false
-    })
-  } catch (error) {
-    console.error('Error in /api/public/order-requests/:requestId/status:', error)
-    res.status(500).json({ error: 'failed' })
-  }
-}
-
-async function createOrderRequestHandler(req, res) {
-  try {
-    const input = normalizePublicOrderRequestBody(req.body || {})
-    const validation = validatePublicOrderRequest(input)
-    if (!validation.valid) {
-      return res.status(400).json({ error: 'invalid_draft_request', errors: validation.errors })
-    }
-    ensureIdempotencyKey(req, 'public.order_request.create', {
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      fromPoint: input.fromPoint,
-      toPoint: input.toPoint,
-      pickupAt: input.pickupAt.toISOString()
-    })
-    const wrapped = await withIdempotency(req, 'public.order_request.create', validation.normalized, async () => {
-      const created = await prisma.request.create({
-        data: {
-          tenantId: req.actorContext.tenantId,
-          name: input.name,
-          email: input.email,
-          phone: input.phone,
-          fromPoint: input.fromPoint,
-          toPoint: input.toPoint,
-          date: input.pickupAt,
-          passengers: input.passengers,
-          luggage: input.luggage,
-          comment: publicOrderRequestComment(input).slice(0, 2000),
-          lang: input.lang
-        }
-      })
-      return {
-        requestId: created.id,
-        status: 'draft_received',
-        nextStep: 'Riderra will review and confirm availability and final price.',
-        confirmedBooking: false,
-        finalPriceConfirmed: false
-      }
-    })
-
-    res.status(wrapped.replayed ? 200 : 201).json({
-      success: true,
-      ...wrapped.data,
-      idempotent: wrapped.replayed
-    })
-  } catch (error) {
-    console.error('Error in /api/public/order-requests:', error)
-    res.status(error.statusCode || 500).json({ error: error.message || 'failed' })
-  }
-}
 
 function renderPrivacyPolicyHtml(lang = 'ru') {
   const isEn = String(lang || '').toLowerCase() === 'en'
@@ -4995,111 +4848,6 @@ async function promoteStagingToCustomerCrm(tenantId) {
   }
 
   return stats
-}
-
-async function createRequestHandler(req, res) {
-  try {
-    const { name, email, phone, fromPoint, toPoint, date, passengers, luggage, comment, lang } = req.body
-    const created = await prisma.request.create({ data: {
-      tenantId: req.actorContext.tenantId,
-      name: normalizeText(name, 160),
-      email: normalizeText(email, 254),
-      phone: normalizeText(phone, 80),
-      fromPoint: normalizeText(fromPoint, 500),
-      toPoint: normalizeText(toPoint, 500),
-      date: date ? new Date(date) : null,
-      passengers: passengers ?? null,
-      luggage: luggage ?? null,
-      comment: normalizeText(comment, 2000),
-      lang: normalizeText(lang, 10)
-    }})
-    res.json(created)
-  } catch (e) {
-    console.error(e)
-    res.status(500).json({ error: 'failed' })
-  }
-}
-
-async function createDriverHandler(req, res) {
-  try {
-    const {
-      name,
-      email,
-      phone,
-      country,
-      city,
-      fixedRoutes,
-      fixedRoutesJson,
-      pricePerKm,
-      kmRate,
-      hourlyRate,
-      childSeatPrice,
-      pricingCurrency,
-      comment,
-      lang,
-      commissionRate,
-      routes
-    } = req.body
-    
-    // Сохраняем в базу данных
-    const created = await prisma.driver.create({ data: {
-      tenantId: req.actorContext.tenantId,
-      name: normalizeText(name, 160),
-      email: normalizeText(email, 254),
-      phone: normalizeText(phone, 80),
-      country: normalizeText(country, 120),
-      city: normalizeText(city, 160),
-      fixedRoutesJson: fixedRoutesJson || (fixedRoutes ? JSON.stringify(fixedRoutes) : null),
-      pricePerKm: normalizeText(pricePerKm, 80),
-      kmRate: kmRate !== undefined && kmRate !== null && kmRate !== '' ? parseFloat(kmRate) : null,
-      hourlyRate: hourlyRate !== undefined && hourlyRate !== null && hourlyRate !== '' ? parseFloat(hourlyRate) : null,
-      childSeatPrice: childSeatPrice !== undefined && childSeatPrice !== null && childSeatPrice !== '' ? parseFloat(childSeatPrice) : null,
-      pricingCurrency: pricingCurrency ? String(pricingCurrency) : null,
-      comment: normalizeText(comment, 2000),
-      lang: normalizeText(lang, 10),
-      commissionRate: commissionRate ? parseFloat(commissionRate) : 15.0
-    }})
-
-    // Отправляем email с заявкой (не блокируем сохранение, если email не настроен)
-    let routesData = []
-    if (routes && Array.isArray(routes)) {
-      routesData = routes
-    } else if (fixedRoutesJson) {
-      try {
-        routesData = JSON.parse(fixedRoutesJson)
-      } catch (e) {
-        routesData = []
-      }
-    }
-
-    try {
-      const emailSent = await sendDriverRegistrationEmail({
-        name: normalizeText(name, 160),
-        email: normalizeText(email, 254),
-        phone: normalizeText(phone, 80),
-        city: normalizeText(city, 160),
-        pricePerKm: normalizeText(pricePerKm, 80),
-        commissionRate: commissionRate ? parseFloat(commissionRate) : 15.0,
-        routes: routesData,
-        comment: normalizeText(comment, 2000),
-        lang: normalizeText(lang, 10) || 'ru'
-      })
-      if (emailSent) {
-        console.info('Driver registration notification email sent')
-      } else {
-        console.warn('Email not sent (SMTP not configured)')
-      }
-    } catch (emailError) {
-      console.error('Error sending email (non-blocking):', emailError)
-      // Не блокируем ответ, если email не отправился
-    }
-
-    res.json({ success: true, driver: created })
-  } catch (e) {
-    console.error('Error in /api/drivers:', e)
-    console.error('Error stack:', e.stack)
-    res.status(500).json({ error: 'failed', message: e.message })
-  }
 }
 
 module.exports = app
