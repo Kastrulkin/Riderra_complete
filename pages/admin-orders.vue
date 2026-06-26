@@ -180,11 +180,20 @@
                   <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
                     {{ t.openCard }}
                   </button>
-                  <button class="card-link" type="button" :disabled="!o.id || queueSavingByOrder[o.id]" @click="queueOrder(o)">
+                  <button
+                    class="card-link"
+                    type="button"
+                    :disabled="!o.id || queueSavingByOrder[o.id] || infoPresetFromRow(o) === 'none'"
+                    @click="queueOrder(o)"
+                  >
                     {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
                   </button>
                 </div>
-                <select class="action-select" :value="infoPresetFromRow(o)" @change="onInfoQuickChange(o, $event.target.value)">
+                <select
+                  class="action-select"
+                  :value="infoPresetFromRow(o)"
+                  @change="onInfoQuickChange(o, $event.target.value)"
+                >
                   <option value="none">{{ t.infoNone }}</option>
                   <option value="baggage">{{ t.infoPresetBaggage }}</option>
                   <option value="pickup">{{ t.infoPresetPickup }}</option>
@@ -475,6 +484,7 @@
             v-model="infoModal.reason"
             :placeholder="t.infoReasonPlaceholder"
             rows="4"
+            required
           ></textarea>
         </label>
         <label class="info-toggle">
@@ -484,7 +494,12 @@
         <div v-if="infoModal.message" class="hint">{{ infoModal.message }}</div>
         <div v-if="infoModal.error" class="hint hint--error">{{ infoModal.error }}</div>
         <div class="modal-actions info-modal-actions">
-          <button class="btn btn--primary" type="button" :disabled="infoSaving" @click="saveInfoNote">
+          <button
+            class="btn btn--primary"
+            type="button"
+            :disabled="infoSaving || (infoPresetFromRow({ infoReason: infoModal.reason, needsInfo: infoModal.needsInfo }) === 'other' && !infoModal.reason.trim())"
+            @click="saveInfoNote"
+          >
             {{ infoSaving ? t.saving : t.infoSave }}
           </button>
           <button class="btn btn--secondary" type="button" @click="closeInfoModal">
@@ -1749,6 +1764,11 @@ export default {
       this.infoModal.error = ''
       try {
         const reasonValue = String(this.infoModal.reason || '').trim()
+        // Если причина пустая и выбрано 'other', не разрешаем сохранение
+        if (this.infoPresetFromRow({ infoReason: reasonValue, needsInfo: this.infoModal.needsInfo }) === 'other' && !reasonValue) {
+          this.infoModal.error = this.$store.state.language === 'ru' ? 'Пожалуйста, укажите причину контакта' : 'Please specify the contact reason'
+          return
+        }
         const updated = await this.updateInfoNote(this.infoModal.orderId, this.infoModal.needsInfo, reasonValue || null)
         this.infoModal.reason = updated.infoReason || ''
         this.infoModal.message = updated.needsInfo ? this.t.infoMarkedSuccess : this.t.infoRemovedSuccess
