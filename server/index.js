@@ -1815,11 +1815,14 @@ function openapiJsonHandler(_req, res) {
 
 registerPublicRoutes(app, {
   agentManifest: agentManifestHandler,
+  createOrderRequest: createOrderRequestHandler,
   crawlerHomepage: crawlerHomepageHandler,
   dataDeletion: dataDeletionHandler,
   llmsTxt: llmsTxtHandler,
   openapiJson: openapiJsonHandler,
+  orderRequestMiddleware: [publicFormLimiter, resolveActorContext, requireActorContext],
   orderRequestSchema: orderRequestSchemaHandler,
+  orderRequestStatus: orderRequestStatusHandler,
   pricingHints: pricingHintsHandler,
   privacyPolicy: privacyPolicyHandler,
   privacyPolicyRedirect: privacyPolicyRedirectHandler,
@@ -1831,10 +1834,11 @@ registerPublicRoutes(app, {
   seoTransferPage: seoTransferPageHandler,
   sitemapXml: sitemapXmlHandler,
   sourceTruth: sourceTruthHandler,
-  terms: termsHandler
+  terms: termsHandler,
+  validateOrderRequest: validateOrderRequestHandler
 })
 
-app.post('/api/public/order-requests/validate', publicFormLimiter, resolveActorContext, requireActorContext, (req, res) => {
+function validateOrderRequestHandler(req, res) {
   const validation = validatePublicOrderRequest(normalizePublicOrderRequestBody(req.body || {}))
   res.status(validation.valid ? 200 : 400).json({
     success: validation.valid,
@@ -1844,9 +1848,9 @@ app.post('/api/public/order-requests/validate', publicFormLimiter, resolveActorC
       ? 'Submit the same payload to POST /api/public/order-requests. Riderra will review and confirm availability and final price.'
       : 'Fix the listed fields before submitting a draft request.'
   })
-})
+}
 
-app.get('/api/public/order-requests/:requestId/status', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
+async function orderRequestStatusHandler(req, res) {
   try {
     const requestId = String(req.params.requestId || '').trim()
     const email = normalizeText(req.query.email, 254)
@@ -1875,9 +1879,9 @@ app.get('/api/public/order-requests/:requestId/status', publicFormLimiter, resol
     console.error('Error in /api/public/order-requests/:requestId/status:', error)
     res.status(500).json({ error: 'failed' })
   }
-})
+}
 
-app.post('/api/public/order-requests', publicFormLimiter, resolveActorContext, requireActorContext, async (req, res) => {
+async function createOrderRequestHandler(req, res) {
   try {
     const input = normalizePublicOrderRequestBody(req.body || {})
     const validation = validatePublicOrderRequest(input)
@@ -1926,7 +1930,7 @@ app.post('/api/public/order-requests', publicFormLimiter, resolveActorContext, r
     console.error('Error in /api/public/order-requests:', error)
     res.status(error.statusCode || 500).json({ error: error.message || 'failed' })
   }
-})
+}
 
 function renderPrivacyPolicyHtml(lang = 'ru') {
   const isEn = String(lang || '').toLowerCase() === 'en'
