@@ -29,7 +29,6 @@
         <li><a :href="publicPath('/docs')" class="footer__link">{{ t.docs }}</a></li>
         <li><a :href="publicPath('/how-it-works')" class="footer__link">{{ t.howItWorks || 'How it works' }}</a></li>
         <li><a :href="publicPath('/services')" class="footer__link">{{ t.services }}</a></li>
-        <li><a :href="publicPath('/transfers')" class="footer__link">{{ t.destinations || 'Destinations' }}</a></li>
       </ul>
       <ul class="footer__col footer__col--contacts col-xs-12 col-sm-3 col-md-push-1">
         <li><a class="footer__link" href="mailto:info@riderra.com">{{ t.infoEmail }}</a></li>

@@ -23,7 +23,6 @@
       <nuxt-link to="/for-travel-planners" class="nav-list__item">{{ textData.travelPlanners || 'Travel Planners' }}</nuxt-link>
       <nuxt-link to="/ai" class="nav-list__item">{{ textData.aiAgents || 'AI Agents' }}</nuxt-link>
       <nuxt-link to="/business-travel" class="nav-list__item">{{ textData.businessTravel || 'Business Travel' }}</nuxt-link>
-      <nuxt-link to="/transfers" class="nav-list__item">{{ textData.destinations || 'Destinations' }}</nuxt-link>
       <a :href="publicPath('/how-it-works')" class="nav-list__item">{{ textData.howItWorks || 'How it works' }}</a>
     </nav>
     <tabs-nav></tabs-nav>
