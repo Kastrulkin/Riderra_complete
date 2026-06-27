@@ -11,18 +11,28 @@
 
       </div>
       </div>
-      <ul class="footer__col col-xs-12 col-sm-3 ">
-        <li><a :href="publicPath('/about')" class="footer__link">{{ publicLinks.about }}</a></li>
-        <li><a :href="publicPath('/services')" class="footer__link">{{ publicLinks.services }}</a></li>
-        <li><a :href="publicPath('/docs')" class="footer__link">{{ publicLinks.docs || 'Docs' }}</a></li>
-        <li><a :href="publicPath('/contact')" class="footer__link">{{ publicLinks.contact }}</a></li>
-        <li><a :href="publicPath('/faq')" class="footer__link">{{ publicLinks.faq }}</a></li>
-        <li><nuxt-link to="/transport" class="footer__link">{{ publicLinks.terms }}</nuxt-link></li>
-        <li><nuxt-link to="/privacy-policy" class="footer__link">{{ publicLinks.privacy }}</nuxt-link></li>
-            <li><nuxt-link to="/drivers" class="footer__link">{{ publicLinks.drivers }}</nuxt-link></li>
+      <ul class="footer__col col-xs-12 col-sm-2">
+        <li class="footer__group-title">{{ t.forCustomers }}</li>
+        <li><a href="#booking-widget" class="footer__link">{{ t.bookTransfer }}</a></li>
+        <li><a :href="publicPath('/business-travel')" class="footer__link">{{ textData.businessTravel || 'Business Travel' }}</a></li>
+        <li><a :href="publicPath('/faq')" class="footer__link">{{ t.faq }}</a></li>
+        <li><a :href="publicPath('/contact')" class="footer__link">{{ t.contact }}</a></li>
+      </ul>
+      <ul class="footer__col col-xs-12 col-sm-2">
+        <li class="footer__group-title">{{ t.forPartners }}</li>
+        <li><a :href="publicPath('/for-travel-planners')" class="footer__link">{{ textData.travelPlanners || 'Travel Planners' }}</a></li>
+        <li><a :href="publicPath('/drivers')" class="footer__link">{{ t.fleetPartners || 'Fleet Partners' }}</a></li>
+        <li><a :href="publicPath('/ai')" class="footer__link">{{ textData.aiAgents || 'AI Agents' }}</a></li>
+      </ul>
+      <ul class="footer__col col-xs-12 col-sm-2">
+        <li class="footer__group-title">{{ t.resources }}</li>
+        <li><a :href="publicPath('/docs')" class="footer__link">{{ t.docs }}</a></li>
+        <li><a :href="publicPath('/how-it-works')" class="footer__link">{{ t.howItWorks || 'How it works' }}</a></li>
+        <li><a :href="publicPath('/services')" class="footer__link">{{ t.services }}</a></li>
+        <li><a :href="publicPath('/transfers')" class="footer__link">{{ t.destinations || 'Destinations' }}</a></li>
       </ul>
       <ul class="footer__col footer__col--contacts col-xs-12 col-sm-3 col-md-push-1">
-        <li><a class="footer__link" href="mailto:info@riderra.com">info@riderra.com</a></li>
+        <li><a class="footer__link" href="mailto:info@riderra.com">{{ t.infoEmail }}</a></li>
       </ul>
 
       <div class="col-sm-3 col-xs-12 ">
@@ -78,6 +88,39 @@
     computed: {
       publicLinks(){
         return (this.$store.getters.textData && this.$store.getters.textData.publicLinks) || {};
+      },
+      textData(){
+        return this.$store.getters.textData || {};
+      },
+      t(){
+        const lang = this.$store.state.language;
+        const dict = {
+          ru: {
+            forCustomers: 'Для клиентов',
+            forPartners: 'Для партнёров',
+            resources: 'Ресурсы',
+            bookTransfer: 'Заказать поездку',
+            faq: 'FAQ',
+            contact: 'Контакты',
+            fleetPartners: 'Перевозчикам',
+            infoEmail: 'info@riderra.com',
+            docs: 'Документация',
+            services: 'Услуги'
+          },
+          en: {
+            forCustomers: 'For customers',
+            forPartners: 'For partners',
+            resources: 'Resources',
+            bookTransfer: 'Book a transfer',
+            faq: 'FAQ',
+            contact: 'Contact',
+            fleetPartners: 'Fleet Partners',
+            infoEmail: 'info@riderra.com',
+            docs: 'Docs',
+            services: 'Services'
+          }
+        };
+        return dict[lang] || dict.en;
       }
     },
     methods: {

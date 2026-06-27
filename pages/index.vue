@@ -1,7 +1,13 @@
 <template>
   <div>
     <main-section :data="siteData"></main-section>
-    
+
+    <!-- B2B Value Proposition -->
+    <b2b-value-proposition :data="siteData"></b2b-value-proposition>
+
+    <!-- Fewer Layers Section -->
+    <fewer-layers :data="siteData"></fewer-layers>
+
     <section class="site-section site-section--pf">
       <div class="container">
         <div class="row">
@@ -28,6 +34,8 @@ import workSection from '~/components/main/HowWeWorks.vue'
 import sectionCities from '~/components/main/citiesSection.vue'
 import sectionCars from '~/components/main/carpark.vue'
 import questions from '~/components/main/questions.vue'
+import b2bValueProposition from '~/components/main/b2bValueProposition.vue'
+import fewerLayers from '~/components/main/fewerLayers.vue'
 
 import {data} from '~/static/lang.js'
 
@@ -40,7 +48,7 @@ export default {
     }
   },
   components: {
-    mainSection, workSection, sectionCities, sectionCars, questions
+    mainSection, workSection, sectionCities, sectionCars, questions, b2bValueProposition, fewerLayers
   },
   computed: {
     lang(){

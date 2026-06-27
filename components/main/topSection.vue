@@ -16,31 +16,45 @@
           </svg>
           <span>{{ data['main'].badge }}</span>
         </div>
-        
+
         <h1 class="hero-title">
           {{ data['main'].title }}
-          <span v-if="data['main'].titleAccent" class="hero-title__accent">{{ data['main'].titleAccent }}</span>
+          <span v-if="data['main'].subtitle" class="hero-title__subtitle">{{ data['main'].subtitle }}</span>
         </h1>
-        
+
         <p class="hero-description">
           {{ data['main'].description }}
         </p>
-        
+
         <div class="hero-actions">
-          <a href="#booking-widget" class="btn btn--primary hero-btn-primary" @click="scrollToBooking">
-            {{ data['main'].orderButton }}
+          <a :href="data['main'].ctaPrimaryLink || '#booking-widget'" class="btn btn--primary hero-btn-primary" @click="scrollToBooking">
+            {{ data['main'].ctaPrimary || data['main'].orderButton }}
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </a>
-          <nuxt-link to="/drivers" class="btn btn--ghost hero-btn-secondary">
+          <nuxt-link :to="data['main'].ctaSecondaryLink || '/drivers'" class="btn btn--ghost hero-btn-secondary">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M8 2L10 6L14 6L11 9L12 13L8 11L4 13L5 9L2 6L6 6L8 2Z" fill="#FFD700"/>
             </svg>
-            {{ data['main'].driverButton }}
+            {{ data['main'].ctaSecondary || data['main'].driverButton }}
           </nuxt-link>
         </div>
-        
+
+        <!-- B2B Value Proposition Cards -->
+        <div class="b2b-cards" v-if="b2bCards && b2bCards.length">
+          <div class="b2b-card" v-for="(card, index) in b2bCards" :key="index">
+            <h3 class="b2b-card__title">{{ card.title }}</h3>
+            <p class="b2b-card__subtitle">{{ card.subtitle }}</p>
+            <nuxt-link :to="card.link" class="b2b-card__link">
+              {{ card.cta }}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </nuxt-link>
+          </div>
+        </div>
+
         <div class="hero-stats">
           <div class="stat-item">
             <div class="stat-item__icon stat-item__icon--users">
@@ -54,7 +68,7 @@
               <div class="stat-item__label">{{ data['main'].users }}</div>
             </div>
           </div>
-          
+
           <div class="stat-item">
             <div class="stat-item__icon stat-item__icon--trips">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -67,7 +81,7 @@
               <div class="stat-item__label">{{ data['main'].trips }}</div>
             </div>
           </div>
-          
+
           <div class="stat-item">
             <div class="stat-item__icon stat-item__icon--rating">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -99,7 +113,28 @@
       },
     },
     data() {
-      return {}
+      return {
+        b2bCards: [
+          {
+            title: 'For Travel Planners',
+            subtitle: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
+            cta: 'Get agency access',
+            link: '/for-travel-planners'
+          },
+          {
+            title: 'For Business Travel',
+            subtitle: 'Reliable airport transfers with clear rules, flight tracking, invoices and support.',
+            cta: 'Business travel',
+            link: '/business-travel'
+          },
+          {
+            title: 'For AI Agents',
+            subtitle: 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
+            cta: 'AI booking protocol',
+            link: '/ai'
+          }
+        ]
+      }
     },
     methods:{
       pageLoad(){
@@ -112,7 +147,7 @@
         e.preventDefault();
         const bookingWidget = document.querySelector('#booking-widget');
         if (bookingWidget) {
-          bookingWidget.scrollIntoView({ 
+          bookingWidget.scrollIntoView({
             behavior: 'smooth',
             block: 'start'
           });
@@ -306,6 +341,58 @@
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     }
 
+    // B2B Cards
+    .b2b-cards {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 40px;
+    }
+
+    .b2b-card {
+      flex: 1;
+      min-width: 280px;
+      max-width: 320px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      &__title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 12px;
+      }
+
+      &__subtitle {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.5;
+        margin-bottom: 16px;
+      }
+
+      &__link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+
     &__background {
       position: absolute;
       left: 0;
@@ -368,7 +455,7 @@
     .hero-title {
       font-size: 40px;
     }
-    
+
     .hero-stats {
       gap: 32px;
     }
@@ -398,18 +485,18 @@
       font-size: 30px;
       margin-bottom: 16px;
     }
-    
+
     .hero-description {
       font-size: 16px;
       margin-bottom: 28px;
     }
-    
+
     .hero-actions {
       flex-direction: column;
       align-items: flex-start;
       margin-bottom: 28px;
     }
-    
+
     .hero-stats {
       gap: 12px;
       width: 100%;
@@ -442,7 +529,7 @@
     display: block;
     margin-top: 10px;
   }
-  
+
   .subtitle-small {
     font-size: 0.5em !important;
     line-height: 1.4;

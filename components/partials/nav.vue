@@ -20,12 +20,11 @@
     </div>
       <language :data="langData"></language>
     <nav class="nav-list">
-      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#howWorks')">{{textData.howwework || 'How we work'}}</nuxt-link>
-      <nuxt-link to="/" class="nav-list__item" @click.native="scrollTo('#park')">{{textData.park || 'Cars'}}</nuxt-link>
-      <a :href="publicPath('/services')" class="nav-list__item">{{ publicLinks.services }}</a>
-      <a :href="publicPath('/docs')" class="nav-list__item">{{ publicLinks.docs || 'Docs' }}</a>
-      <a :href="publicPath('/contact')" class="nav-list__item">{{ publicLinks.contact }}</a>
-      <nuxt-link to="/drivers" class="nav-list__item">{{ publicLinks.drivers }}</nuxt-link>
+      <nuxt-link to="/for-travel-planners" class="nav-list__item">{{ textData.travelPlanners || 'Travel Planners' }}</nuxt-link>
+      <nuxt-link to="/ai" class="nav-list__item">{{ textData.aiAgents || 'AI Agents' }}</nuxt-link>
+      <nuxt-link to="/business-travel" class="nav-list__item">{{ textData.businessTravel || 'Business Travel' }}</nuxt-link>
+      <nuxt-link to="/transfers" class="nav-list__item">{{ textData.destinations || 'Destinations' }}</nuxt-link>
+      <a :href="publicPath('/how-it-works')" class="nav-list__item">{{ textData.howItWorks || 'How it works' }}</a>
     </nav>
     <tabs-nav></tabs-nav>
     <div class="header__right">
@@ -84,6 +83,11 @@
 	          howwework: 'How we work',
 	          park: 'Cars',
 	          enter: 'Sign in',
+	          travelPlanners: 'Travel Planners',
+	          aiAgents: 'AI Agents',
+	          businessTravel: 'Business Travel',
+	          destinations: 'Destinations',
+	          howItWorks: 'How it works',
 	          publicLinks: {}
 	        };
 	      }
@@ -233,14 +237,14 @@
     .inner-page .menu-toggle__line{
       background: #fff;
     }
-    
+
     .nav-list {
       display: flex;
       flex-direction: column;
       align-items: center;
       margin: 40px 0;
     }
-    
+
     .auth-links {
       display: flex;
       flex-direction: column;
@@ -339,15 +343,15 @@
   .header:not(.header--solid) {
     background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%) !important;
     color: #fff !important;
-    
+
     .logo svg {
       fill: #fff !important;
     }
-    
+
     .nav-list__item:after {
       background: #fff !important;
     }
-    
+
     .header__signin {
       border-color: #fff !important;
       color: #fff !important;
@@ -358,15 +362,15 @@
   .header.active {
     background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%) !important;
     color: #fff !important;
-    
+
     .logo svg {
       fill: #fff !important;
     }
-    
+
     .nav-list__item:after {
       background: #fff !important;
     }
-    
+
     .header__signin {
       border-color: #fff !important;
       color: #fff !important;
@@ -377,15 +381,15 @@
   body .header:not(.header--solid).active {
     background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%) !important;
     color: #fff !important;
-    
+
     .logo svg {
       fill: #fff !important;
     }
-    
+
     .nav-list__item:after {
       background: #fff !important;
     }
-    
+
     .header__signin {
       border-color: #fff !important;
       color: #fff !important;
@@ -536,14 +540,14 @@
       &__right{
         display: none;
       }
-      
+
       .auth-links {
         display: flex;
         flex-direction: column;
         gap: 8px;
         margin-top: 20px;
       }
-      
+
     .header__signin {
       width: 100%;
       text-align: center;
@@ -598,7 +602,7 @@
       border: 1px solid rgba(255,255,255,0.3);
       border-radius: 6px;
       transition: all 0.2s ease;
-      
+
       &:hover {
         background: rgba(255,255,255,0.1);
         border-color: rgba(255,255,255,0.5);
@@ -617,7 +621,7 @@
       align-items: center;
       gap: 12px;
       min-width: 0;
-      
+
       .user-name {
         color: rgba(255,255,255,0.8);
         font-size: 14px;
@@ -627,7 +631,7 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      
+
       .logout-btn {
         background: transparent;
         color: #fff;
@@ -638,7 +642,7 @@
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        
+
         &:hover {
           background: rgba(255,255,255,0.1);
           border-color: rgba(255,255,255,0.5);
