@@ -111,29 +111,28 @@
       media(){
         return this.$store.state.media;
       },
-    },
-    data() {
-      return {
-        b2bCards: [
+      b2bCards() {
+        const b2b = this.data['b2b'] || {};
+        return [
           {
-            title: 'For Travel Planners',
-            subtitle: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
-            cta: 'Get agency access',
+            title: b2b.travelPlannersCta || 'Get agency access',
+            subtitle: b2b.travelPlannersText || 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
+            cta: b2b.travelPlannersCta || 'Get agency access',
             link: '/for-travel-planners'
           },
           {
-            title: 'For Business Travel',
-            subtitle: 'Reliable airport transfers with clear rules, flight tracking, invoices and support.',
-            cta: 'Business travel',
+            title: b2b.businessTravelCta || 'Business travel',
+            subtitle: b2b.businessTravelText || 'Reliable airport transfers with clear rules, flight tracking, invoices and support.',
+            cta: b2b.businessTravelCta || 'Business travel',
             link: '/business-travel'
           },
           {
-            title: 'For AI Agents',
-            subtitle: 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
-            cta: 'AI booking protocol',
+            title: b2b.aiAgentsCta || 'AI booking protocol',
+            subtitle: b2b.aiAgentsText || 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
+            cta: b2b.aiAgentsCta || 'AI booking protocol',
             link: '/ai'
           }
-        ]
+        ];
       }
     },
     methods:{

@@ -2,37 +2,15 @@
   <section class="site-section b2b-section">
     <div class="container">
       <div class="b2b-content">
-        <h2 class="b2b-title">Private transfers for people who book travel for others</h2>
-        <p class="b2b-subtitle">{{ data['b2b']?.subtitle || 'Riderra helps travel planners, business travelers and AI agents book reliable private transfers through one managed transfer desk connected to local fleet partners.' }}</p>
-        
+        <h2 class="b2b-title">{{ b2bData.title }}</h2>
+        <p class="b2b-subtitle">{{ b2bData.subtitle }}</p>
+
         <div class="b2b-cards">
-          <div class="b2b-card">
-            <h3 class="b2b-card__title">For Travel Planners</h3>
-            <p class="b2b-card__text">
-              {{ data['b2b']?.travelPlannersText || 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.' }}
-            </p>
-            <nuxt-link to="/for-travel-planners" class="b2b-card__link">
-              {{ data['b2b']?.travelPlannersCta || 'Get agency access' }}
-            </nuxt-link>
-          </div>
-          
-          <div class="b2b-card">
-            <h3 class="b2b-card__title">For Business Travel</h3>
-            <p class="b2b-card__text">
-              {{ data['b2b']?.businessTravelText || 'Reliable airport transfers with clear rules, flight tracking, invoices and support.' }}
-            </p>
-            <nuxt-link to="/business-travel" class="b2b-card__link">
-              {{ data['b2b']?.businessTravelCta || 'Business travel' }}
-            </nuxt-link>
-          </div>
-          
-          <div class="b2b-card">
-            <h3 class="b2b-card__title">For AI Agents</h3>
-            <p class="b2b-card__text">
-              {{ data['b2b']?.aiAgentsText || 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.' }}
-            </p>
-            <nuxt-link to="/ai" class="b2b-card__link">
-              {{ data['b2b']?.aiAgentsCta || 'AI booking protocol' }}
+          <div class="b2b-card" v-for="(card, index) in b2bData.cards" :key="index">
+            <h3 class="b2b-card__title">{{ card.title }}</h3>
+            <p class="b2b-card__text">{{ card.subtitle }}</p>
+            <nuxt-link :to="card.link" class="b2b-card__link">
+              {{ card.cta }}
             </nuxt-link>
           </div>
         </div>
@@ -46,14 +24,30 @@ export default {
   props: ['data'],
   computed: {
     b2bData() {
-      return this.data['b2b'] || {
+      const b2b = this.data['b2b'] || {};
+      return {
+        title: b2b.subtitle || 'Private transfers for people who book travel for others',
         subtitle: 'Riderra helps travel planners, business travelers and AI agents book reliable private transfers through one managed transfer desk connected to local fleet partners.',
-        travelPlannersText: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
-        travelPlannersCta: 'Get agency access',
-        businessTravelText: 'Reliable airport transfers with clear rules, flight tracking, invoices and support.',
-        businessTravelCta: 'Business travel',
-        aiAgentsText: 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
-        aiAgentsCta: 'AI booking protocol'
+        cards: [
+          {
+            title: b2b.travelPlannersCta || 'Get agency access',
+            subtitle: b2b.travelPlannersText || 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
+            cta: b2b.travelPlannersCta || 'Get agency access',
+            link: '/for-travel-planners'
+          },
+          {
+            title: b2b.businessTravelCta || 'Business travel',
+            subtitle: b2b.businessTravelText || 'Reliable airport transfers with clear rules, flight tracking, invoices and support.',
+            cta: b2b.businessTravelCta || 'Business travel',
+            link: '/business-travel'
+          },
+          {
+            title: b2b.aiAgentsCta || 'AI booking protocol',
+            subtitle: b2b.aiAgentsText || 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
+            cta: b2b.aiAgentsCta || 'AI booking protocol',
+            link: '/ai'
+          }
+        ]
       };
     }
   }

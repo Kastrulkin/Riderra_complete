@@ -4,15 +4,17 @@ export const data = {
       "Почему выбирают нас?", "Классы машин"
     ],
         "main":{
-          "title": "Путешествуй",
-          "titleAccent": "с комфортом",
-          "badge": "Новое поколение поездок",
-          "description": "Современная платформа для быстрого и удобного заказа поездок. Безопасно, надежно, доступно.",
-          "orderButton": "Заказать поездку",
+          "title": "Частные трансферы для тех, кто бронирует поездки за других",
+          "titleAccent": "",
+          "badge": "B2B платформа",
+          "description": "Riderra помогает тревел-планировщикам, бизнес-путешественникам и AI-агентам бронировать надёжные трансферы через один управляемый transfer desk с локальными автопарками.",
+          "orderButton": "Создать запрос трансфера",
           "driverButton": "Стать перевозчиком",
           "users": "Пользователей",
           "trips": "Поездок",
-          "rating": "Рейтинг"
+          "rating": "Рейтинг",
+          "ctaPrimary": "Получить доступ агента",
+          "ctaSecondary": "/#booking-widget"
         },
     "slider":[
       {
@@ -118,15 +120,17 @@ export const data = {
       "title": "Why choose us?"
     },
         "main": {
-          "title": "Travel",
-          "titleAccent": "with comfort",
-          "badge": "New generation of rides",
-          "description": "Modern platform for fast and convenient ride booking. Safe, reliable, accessible.",
-          "orderButton": "Order a ride",
+          "title": "Private transfers for people who book travel for others",
+          "titleAccent": "",
+          "badge": "B2B platform",
+          "description": "Riderra helps travel planners, business travelers and AI agents book reliable transfers through one managed transfer desk with verified local fleets.",
+          "orderButton": "Create transfer request",
           "driverButton": "Become a carrier",
           "users": "Users",
           "trips": "Trips",
-          "rating": "Rating"
+          "rating": "Rating",
+          "ctaPrimary": "Get agency access",
+          "ctaSecondary": "/#booking-widget"
         },
     "slider":[
       {
@@ -843,5 +847,21 @@ data.ha = mergeLanguage(data.en, {
     minibus: { title: 'Minibus', desc: 'Kaya ga fasinjoji 3: guda 3' },
     electric_standard: { title: 'Electric standard', desc: 'Kaya ga fasinjoji 3: guda 3' }
   },
-  bookingTabs: { route: 'Daga da zuwa', transport: 'Sufuri' }
+  bookingTabs: { route: 'Daga da zuwa', transport: 'Sufuri' },
+  b2b: {
+    subtitle: 'Riderra помогает тревел-планировщикам, бизнес-путешественникам и AI-агентам бронировать надёжные частные трансферы через один управляемый transfer desk, подключенный к локальным автопаркам.',
+    travelPlannersText: 'Получайте цены локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционку на себя.',
+    travelPlannersCta: 'Получить доступ агента',
+    businessTravelText: 'Надёжные трансферы в аэропорт с понятными правилами, отслеживанием рейса, счетами и поддержкой.',
+    businessTravelCta: 'Для бизнес-поездок',
+    aiAgentsText: 'AI travel agents могут создавать структурированные draft-заявки. Riderra подтверждает цену и доступность перед финальным бронированием.',
+    aiAgentsCta: 'Протокол AI-бронирования'
+  },
+  layers: {
+    text: 'Во многих международных трансферах заказ проходит через несколько коммерческих слоёв, прежде чем доходит до локального исполнителя. Каждый слой забирает маржу, и меньше денег остаётся на качество сервиса. Riderra делает цепочку короче: один управляемый transfer desk, проверенный локальный автопарк и понятная ответственность.',
+    typicalTitle: 'Обычная цепочка:',
+    riderraTitle: 'Как работает Riderra:',
+    steps: ['Клиент', 'Тревел-платформа', 'Трансферный агрегатор', 'Локальный посредник', 'Автопарк', 'Водитель'],
+    riderraSteps: ['Тревел-планировщик / AI-агент / бизнес-клиент', 'Riderra managed transfer desk', 'Проверенный локальный автопарк', 'Водитель']
+  }
 })

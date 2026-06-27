@@ -2,40 +2,26 @@
   <section class="site-section layers-section">
     <div class="container">
       <div class="layers-content">
-        <h2 class="layers-title">Fewer layers. More value in the ride.</h2>
-        
+        <h2 class="layers-title">{{ layersData.title }}</h2>
+
         <p class="layers-text">
-          {{ data['layers']?.text || 'Many international transfer bookings pass through several commercial layers before reaching the local fleet. Each layer takes a margin, and less money remains for the actual service. Riderra keeps the chain shorter: one managed transfer desk, verified local fleet execution, and clear responsibility.' }}
+          {{ layersData.text }}
         </p>
 
         <div class="layers-comparison">
           <div class="layer-block">
-            <h3 class="layer-block__title">Typical transfer chain:</h3>
+            <h3 class="layer-block__title">{{ layersData.typicalTitle }}</h3>
             <div class="layer-chain">
-              <span class="layer-step">Client</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Travel platform</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Transfer aggregator</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Local reseller</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Fleet</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Driver</span>
+              <span class="layer-step" v-for="(step, index) in layersData.typicalSteps" :key="index">{{ step }}</span>
+              <span class="layer-arrow" v-for="i in layersData.typicalSteps.length - 1" :key="`arrow-${i}`">→</span>
             </div>
           </div>
 
           <div class="layer-block">
-            <h3 class="layer-block__title">Riderra way:</h3>
+            <h3 class="layer-block__title">{{ layersData.riderraTitle }}</h3>
             <div class="layer-chain">
-              <span class="layer-step">Travel planner / AI agent / business client</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Riderra managed transfer desk</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Verified local fleet</span>
-              <span class="layer-arrow">→</span>
-              <span class="layer-step">Driver</span>
+              <span class="layer-step" v-for="(step, index) in layersData.riderraSteps" :key="index">{{ step }}</span>
+              <span class="layer-arrow" v-for="i in layersData.riderraSteps.length - 1" :key="`riderra-arrow-${i}`">→</span>
             </div>
           </div>
         </div>
@@ -49,8 +35,14 @@ export default {
   props: ['data'],
   computed: {
     layersData() {
-      return this.data['layers'] || {
-        text: 'Many international transfer bookings pass through several commercial layers before reaching the local fleet. Each layer takes a margin, and less money remains for the actual service. Riderra keeps the chain shorter: one managed transfer desk, verified local fleet execution, and clear responsibility.'
+      const layers = this.data['layers'] || {};
+      return {
+        title: layers.text ? 'Fewer layers. More value in the ride.' : 'Fewer layers. More value in the ride.',
+        text: layers.text || 'Many international transfer bookings pass through several commercial layers before reaching the local fleet. Each layer takes a margin, and less money remains for the actual service. Riderra keeps the chain shorter: one managed transfer desk, verified local fleet execution, and clear responsibility.',
+        typicalTitle: layers.typicalTitle || 'Typical transfer chain:',
+        riderraTitle: layers.riderraTitle || 'Riderra way:',
+        typicalSteps: layers.steps || ['Client', 'Travel platform', 'Transfer aggregator', 'Local reseller', 'Fleet', 'Driver'],
+        riderraSteps: layers.riderraSteps || ['Travel planner / AI agent / business client', 'Riderra managed transfer desk', 'Verified local fleet', 'Driver']
       };
     }
   }
