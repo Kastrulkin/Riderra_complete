@@ -10,15 +10,15 @@
         <div class="bt-hero">
           <h1>{{ t.heroTitle }}</h1>
           <p class="hero-subtitle">{{ t.heroSubtitle }}</p>
-          
+
           <ul class="features-list">
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#1a237e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ t.features[0] }}</li>
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#1a237e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ t.features[1] }}</li>
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#1a237e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ t.features[2] }}</li>
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#1a237e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ t.features[3] }}</li>
           </ul>
-          
-          <a href="#booking-widget" class="btn btn--primary">{{ t.cta }}</a>
+
+          <a href="/#booking-widget" class="btn btn--primary">{{ t.cta }}</a>
         </div>
       </div>
     </section>

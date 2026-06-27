@@ -13,7 +13,7 @@
       </div>
       <ul class="footer__col col-xs-12 col-sm-2">
         <li class="footer__group-title">{{ t.forCustomers }}</li>
-        <li><a href="#booking-widget" class="footer__link">{{ t.bookTransfer }}</a></li>
+        <li><a href="/#booking-widget" class="footer__link">{{ t.bookTransfer }}</a></li>
         <li><a :href="publicPath('/business-travel')" class="footer__link">{{ textData.businessTravel || 'Business Travel' }}</a></li>
         <li><a :href="publicPath('/faq')" class="footer__link">{{ t.faq }}</a></li>
         <li><a :href="publicPath('/contact')" class="footer__link">{{ t.contact }}</a></li>

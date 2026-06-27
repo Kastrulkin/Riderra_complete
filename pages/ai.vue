@@ -40,7 +40,7 @@
 
         <!-- CTA -->
         <div class="ai-cta">
-          <a href="#booking-widget" class="btn btn--primary">{{ t.cta }}</a>
+          <a href="/#booking-widget" class="btn btn--primary">{{ t.cta }}</a>
         </div>
       </div>
     </section>

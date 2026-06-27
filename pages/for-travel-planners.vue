@@ -10,10 +10,10 @@
         <div class="planners-hero">
           <h1>{{ t.heroTitle }}</h1>
           <p class="hero-subtitle">{{ t.heroSubtitle }}</p>
-          
+
           <div class="cta-group">
             <a href="/for-travel-planners" class="btn btn--primary">{{ t.ctaPrimary }}</a>
-            <a href="#booking-widget" class="btn btn--secondary">{{ t.ctaSecondary }}</a>
+            <a href="/#booking-widget" class="btn btn--secondary">{{ t.ctaSecondary }}</a>
           </div>
         </div>
 

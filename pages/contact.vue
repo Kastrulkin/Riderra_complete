@@ -20,7 +20,7 @@
         <!-- CTA -->
         <div class="contact-cta">
           <h2>{{ t.ctaTitle }}</h2>
-          <a href="#booking-widget" class="btn btn--primary">{{ t.cta }}</a>
+          <a href="/#booking-widget" class="btn btn--primary">{{ t.cta }}</a>
         </div>
 
         <!-- Support Placeholder -->
