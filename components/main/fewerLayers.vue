@@ -33,16 +33,39 @@
 <script>
 export default {
   props: ['data'],
+  data() {
+    return {
+      dictionaries: {
+        ru: {
+          title: 'Меньше слоёв. Больше ценности в самой поездке.',
+          text: 'Во многих международных трансферах заказ проходит через несколько коммерческих слоёв, прежде чем доходит до локального исполнителя. Каждый слой забирает маржу, и меньше денег остаётся на качество сервиса. Riderra делает цепочку короче: один операционный центр, проверенный локальный автопарк и понятная ответственность.',
+          typicalTitle: 'Обычная цепочка:',
+          riderraTitle: 'Как работает Riderra:',
+          typicalSteps: ['Клиент', 'Тревел-платформа', 'Трансферный агрегатор', 'Локальный посредник', 'Автопарк', 'Водитель'],
+          riderraSteps: ['Тревел-планировщик / AI-агент / бизнес-клиент', 'Операционный центр Riderra', 'Проверенный локальный автопарк', 'Водитель']
+        },
+        en: {
+          title: 'Fewer layers. More value in the ride.',
+          text: 'Many international transfer bookings pass through several commercial layers before reaching the local fleet. Each layer takes a margin, and less money remains for the actual service. Riderra keeps the chain shorter: one managed transfer desk, verified local fleet execution, and clear responsibility.',
+          typicalTitle: 'Typical transfer chain:',
+          riderraTitle: 'Riderra way:',
+          typicalSteps: ['Client', 'Travel platform', 'Transfer aggregator', 'Local reseller', 'Fleet', 'Driver'],
+          riderraSteps: ['Travel planner / AI agent / business client', 'Riderra managed transfer desk', 'Verified local fleet', 'Driver']
+        }
+      }
+    };
+  },
   computed: {
     layersData() {
-      const layers = this.data['layers'] || {};
+      const lang = this.$store.state.language;
+      const dict = this.dictionaries[lang] || this.dictionaries.en;
       return {
-        title: layers.text ? 'Fewer layers. More value in the ride.' : 'Fewer layers. More value in the ride.',
-        text: layers.text || 'Many international transfer bookings pass through several commercial layers before reaching the local fleet. Each layer takes a margin, and less money remains for the actual service. Riderra keeps the chain shorter: one managed transfer desk, verified local fleet execution, and clear responsibility.',
-        typicalTitle: layers.typicalTitle || 'Typical transfer chain:',
-        riderraTitle: layers.riderraTitle || 'Riderra way:',
-        typicalSteps: layers.steps || ['Client', 'Travel platform', 'Transfer aggregator', 'Local reseller', 'Fleet', 'Driver'],
-        riderraSteps: layers.riderraSteps || ['Travel planner / AI agent / business client', 'Riderra managed transfer desk', 'Verified local fleet', 'Driver']
+        title: dict.title,
+        text: dict.text,
+        typicalTitle: dict.typicalTitle,
+        riderraTitle: dict.riderraTitle,
+        typicalSteps: dict.typicalSteps,
+        riderraSteps: dict.riderraSteps
       };
     }
   }

@@ -22,31 +22,67 @@
 <script>
 export default {
   props: ['data'],
-  computed: {
-    b2bData() {
-      const b2b = this.data['b2b'] || {};
-      return {
-        title: b2b.subtitle || 'Private transfers for people who book travel for others',
-        subtitle: 'Riderra helps travel planners, business travelers and AI agents book reliable private transfers through one managed transfer desk connected to local fleet partners.',
-        cards: [
-          {
-            title: b2b.travelPlannersCta || 'Get agency access',
-            subtitle: b2b.travelPlannersText || 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
-            cta: b2b.travelPlannersCta || 'Get agency access',
+  data() {
+    return {
+      dictionaries: {
+        ru: {
+          title: 'Для тех, кто бронирует поездки за других',
+          subtitle: 'Riderra помогает тревел-планировщикам, бизнес-клиентам и AI-агентам бронировать надёжные трансферы через один операционный центр с доступом к локальным автопаркам.',
+          travelPlanners: {
+            title: 'Для тревел-планировщиков',
+            subtitle: 'Получайте нетто-цены от локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционную часть на себя.',
+            cta: 'Для тревел-планировщиков',
             link: '/for-travel-planners'
           },
-          {
-            title: b2b.businessTravelCta || 'Business travel',
-            subtitle: b2b.businessTravelText || 'Reliable airport transfers with clear rules, flight tracking, invoices and support.',
-            cta: b2b.businessTravelCta || 'Business travel',
+          businessTravel: {
+            title: 'Для бизнес-поездок',
+            subtitle: 'Надёжные трансферы в аэропорт с понятными правилами, отслеживанием рейса, документами и поддержкой.',
+            cta: 'Для бизнес-поездок',
             link: '/business-travel'
           },
-          {
-            title: b2b.aiAgentsCta || 'AI booking protocol',
-            subtitle: b2b.aiAgentsText || 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
-            cta: b2b.aiAgentsCta || 'AI booking protocol',
+          aiAgents: {
+            title: 'Для AI-агентов',
+            subtitle: 'AI-агенты могут создавать структурированные draft-заявки. Riderra подтверждает цену и доступность перед финальным бронированием.',
+            cta: 'Для AI-агентов',
             link: '/ai'
           }
+        },
+        en: {
+          title: 'B2B Solutions',
+          subtitle: 'Riderra helps travel planners, business travelers and AI agents book reliable private transfers through one managed transfer desk connected to local fleet partners.',
+          travelPlanners: {
+            title: 'Get agency access',
+            subtitle: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
+            cta: 'Get agency access',
+            link: '/for-travel-planners'
+          },
+          businessTravel: {
+            title: 'Business travel',
+            subtitle: 'Reliable airport transfers with clear rules, flight tracking, invoices and support.',
+            cta: 'Business travel',
+            link: '/business-travel'
+          },
+          aiAgents: {
+            title: 'AI booking protocol',
+            subtitle: 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
+            cta: 'AI booking protocol',
+            link: '/ai'
+          }
+        }
+      }
+    };
+  },
+  computed: {
+    b2bData() {
+      const lang = this.$store.state.language;
+      const dict = this.dictionaries[lang] || this.dictionaries.en;
+      return {
+        title: dict.title,
+        subtitle: dict.subtitle,
+        cards: [
+          dict.travelPlanners,
+          dict.businessTravel,
+          dict.aiAgents
         ]
       };
     }
