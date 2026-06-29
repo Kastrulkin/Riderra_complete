@@ -31,8 +31,8 @@ export default {
           travelPlanners: {
             title: 'Тревел-планировщики',
             subtitle: 'Получайте нетто-цены от локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционную часть на себя.',
-            cta: 'Получить доступ агента',
-            link: '/contact'
+            cta: 'Получить доступ',
+            link: '/login'
           },
           businessTravel: {
             title: 'Бизнес-поездки',
@@ -53,8 +53,8 @@ export default {
           travelPlanners: {
             title: 'Travel planners',
             subtitle: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
-            cta: 'Get agency access',
-            link: '/contact'
+            cta: 'Get access',
+            link: '/login'
           },
           businessTravel: {
             title: 'Business travel',

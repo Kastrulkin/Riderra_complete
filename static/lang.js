@@ -13,8 +13,8 @@ export const data = {
           "users": "Пользователей",
           "trips": "Поездок",
           "rating": "Рейтинг",
-          "ctaPrimary": "Получить доступ агента",
-          "ctaPrimaryLink": "/contact",
+          "ctaPrimary": "Получить доступ",
+          "ctaPrimaryLink": "/login",
           "ctaSecondary": "Заказать трансфер",
           "ctaSecondaryLink": "/#booking-widget"
         },
@@ -135,8 +135,8 @@ export const data = {
           "users": "Users",
           "trips": "Trips",
           "rating": "Rating",
-          "ctaPrimary": "Get agency access",
-          "ctaPrimaryLink": "/contact",
+          "ctaPrimary": "Get access",
+          "ctaPrimaryLink": "/login",
           "ctaSecondary": "Book a transfer",
           "ctaSecondaryLink": "/#booking-widget"
         },
@@ -867,7 +867,7 @@ data.ha = mergeLanguage(data.en, {
   b2b: {
     subtitle: 'Riderra помогает тревел-планировщикам, бизнес-путешественникам и AI-агентам бронировать надёжные частные трансферы через один управляемый transfer desk, подключенный к локальным автопаркам.',
     travelPlannersText: 'Получайте цены локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционку на себя.',
-    travelPlannersCta: 'Получить доступ агента',
+    travelPlannersCta: 'Получить доступ',
     businessTravelText: 'Надёжные трансферы в аэропорт с понятными правилами, отслеживанием рейса, счетами и поддержкой.',
     businessTravelCta: 'Для бизнес-поездок',
     aiAgentsText: 'AI travel agents могут создавать структурированные draft-заявки. Riderra подтверждает цену и доступность перед финальным бронированием.',
