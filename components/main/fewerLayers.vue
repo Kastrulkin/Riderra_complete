@@ -37,16 +37,16 @@ export default {
     return {
       dictionaries: {
         ru: {
-          title: 'Меньше слоёв. Больше ценности в самой поездке.',
-          text: 'Во многих международных трансферах заказ проходит через несколько коммерческих слоёв, прежде чем доходит до локального исполнителя. Каждый слой забирает маржу, и меньше денег остаётся на качество сервиса. Riderra делает цепочку короче: один операционный центр, проверенный локальный автопарк и понятная ответственность.',
+          title: 'Меньше коммерческих слоёв. Понятнее ответственность.',
+          text: 'Во многих международных трансферах заказ проходит через несколько коммерческих слоёв, прежде чем доходит до локального исполнителя. Riderra делает цепочку короче: один операционный центр, проверенный локальный автопарк и понятная ответственность.',
           typicalTitle: 'Обычная цепочка:',
           riderraTitle: 'Как работает Riderra:',
           typicalSteps: ['Клиент', 'Тревел-платформа', 'Трансферный агрегатор', 'Локальный посредник', 'Автопарк', 'Водитель'],
           riderraSteps: ['Тревел-планировщик / AI-агент / бизнес-клиент', 'Операционный центр Riderra', 'Проверенный локальный автопарк', 'Водитель']
         },
         en: {
-          title: 'Fewer layers. More value in the ride.',
-          text: 'Many international transfer bookings pass through several commercial layers before reaching the local fleet. Each layer takes a margin, and less money remains for the actual service. Riderra keeps the chain shorter: one managed transfer desk, verified local fleet execution, and clear responsibility.',
+          title: 'Fewer commercial layers. Clearer responsibility.',
+          text: 'Many international transfer bookings pass through several commercial layers before reaching the local fleet. Riderra keeps the chain shorter: one managed operation, verified local fleet execution, and clear responsibility.',
           typicalTitle: 'Typical transfer chain:',
           riderraTitle: 'Riderra way:',
           typicalSteps: ['Client', 'Travel platform', 'Transfer aggregator', 'Local reseller', 'Fleet', 'Driver'],
@@ -130,7 +130,8 @@ export default {
             padding: 8px 16px;
             border-radius: 8px;
             font-weight: 600;
-            min-width: max-content;
+            max-width: 100%;
+            overflow-wrap: anywhere;
           }
 
           .layer-arrow {
@@ -162,6 +163,19 @@ export default {
 
       .layer-block {
         padding: 20px;
+
+        .layer-chain {
+          align-items: stretch;
+          flex-direction: column;
+
+          .layer-step {
+            text-align: center;
+          }
+
+          .layer-arrow {
+            transform: rotate(90deg);
+          }
+        }
       }
     }
   }

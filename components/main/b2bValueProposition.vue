@@ -3,7 +3,7 @@
     <div class="container">
       <div class="b2b-content">
         <h2 class="b2b-title">{{ b2bData.title }}</h2>
-        <p class="b2b-subtitle">{{ b2bData.subtitle }}</p>
+        <p v-if="b2bData.subtitle" class="b2b-subtitle">{{ b2bData.subtitle }}</p>
 
         <div class="b2b-cards">
           <div class="b2b-card" v-for="(card, index) in b2bData.cards" :key="index">
@@ -27,31 +27,31 @@ export default {
       dictionaries: {
         ru: {
           title: 'Для тех, кто бронирует поездки за других',
-          subtitle: 'Riderra помогает тревел-планировщикам, бизнес-клиентам и AI-агентам бронировать надёжные трансферы через один операционный центр с доступом к локальным автопаркам.',
+          subtitle: '',
           travelPlanners: {
-            title: 'Для тревел-планировщиков',
+            title: 'Тревел-планировщики',
             subtitle: 'Получайте нетто-цены от локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционную часть на себя.',
-            cta: 'Для тревел-планировщиков',
+            cta: 'Получить доступ агента',
             link: '/for-travel-planners'
           },
           businessTravel: {
-            title: 'Для бизнес-поездок',
+            title: 'Бизнес-поездки',
             subtitle: 'Надёжные трансферы в аэропорт с понятными правилами, отслеживанием рейса, документами и поддержкой.',
-            cta: 'Для бизнес-поездок',
+            cta: 'Бизнес-поездки',
             link: '/business-travel'
           },
           aiAgents: {
-            title: 'Для AI-агентов',
+            title: 'AI-агенты',
             subtitle: 'AI-агенты могут создавать структурированные draft-заявки. Riderra подтверждает цену и доступность перед финальным бронированием.',
-            cta: 'Для AI-агентов',
+            cta: 'Протокол для AI-агентов',
             link: '/ai'
           }
         },
         en: {
-          title: 'B2B Solutions',
-          subtitle: 'Riderra helps travel planners, business travelers and AI agents book reliable private transfers through one managed transfer desk connected to local fleet partners.',
+          title: 'Built for people who book travel for others',
+          subtitle: '',
           travelPlanners: {
-            title: 'Get agency access',
+            title: 'Travel planners',
             subtitle: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
             cta: 'Get agency access',
             link: '/for-travel-planners'
@@ -63,7 +63,7 @@ export default {
             link: '/business-travel'
           },
           aiAgents: {
-            title: 'AI booking protocol',
+            title: 'AI agents',
             subtitle: 'AI travel agents can create structured draft transfer requests. Riderra confirms price and availability before final booking.',
             cta: 'AI booking protocol',
             link: '/ai'
@@ -114,20 +114,18 @@ export default {
     }
 
     .b2b-cards {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 24px;
-      justify-content: center;
-      flex-wrap: wrap;
     }
 
     .b2b-card {
-      flex: 1;
-      min-width: 280px;
-      max-width: 320px;
       background: #f7fafc;
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 32px;
       border: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
 
       &:hover {
@@ -147,6 +145,7 @@ export default {
         color: #4a5568;
         line-height: 1.6;
         margin-bottom: 20px;
+        flex: 1;
       }
 
       &__link {
@@ -189,9 +188,27 @@ export default {
       }
 
       .b2b-card {
-        min-width: 100%;
-        max-width: 100%;
         padding: 24px;
+      }
+    }
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .b2b-section {
+    .b2b-content {
+      .b2b-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .b2b-section {
+    .b2b-content {
+      .b2b-cards {
+        grid-template-columns: 1fr;
       }
     }
   }

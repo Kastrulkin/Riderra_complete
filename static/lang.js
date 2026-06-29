@@ -4,17 +4,19 @@ export const data = {
       "Почему выбирают нас?", "Классы машин"
     ],
         "main":{
-          "title": "Частные трансферы для тех, кто бронирует поездки за других",
+          "title": "Трансферы для тревел-планировщиков, бизнес-клиентов и AI-агентов",
           "titleAccent": "",
-          "badge": "B2B платформа",
-          "description": "Riderra помогает тревел-планировщикам, бизнес-путешественникам и AI-агентам бронировать надёжные трансферы через один управляемый transfer desk с локальными автопарками.",
+          "badge": "Управляемые частные трансферы",
+          "description": "Riderra помогает тем, кто бронирует поездки за других: организует надёжные частные трансферы через единый операционный центр и локальные автопарки.",
           "orderButton": "Создать запрос трансфера",
           "driverButton": "Стать перевозчиком",
           "users": "Пользователей",
           "trips": "Поездок",
           "rating": "Рейтинг",
           "ctaPrimary": "Получить доступ агента",
-          "ctaSecondary": "/#booking-widget"
+          "ctaPrimaryLink": "/for-travel-planners",
+          "ctaSecondary": "Создать запрос трансфера",
+          "ctaSecondaryLink": "/#booking-widget"
         },
     "slider":[
       {
@@ -92,7 +94,7 @@ export const data = {
         "description": "Профессиональный водитель встретит вас на вокзале или в аэропорту, поможет разместить багаж в багажном отделении и отвезёт вашу группу на торжество или в туристическую поездку."
       },
     },
-	  howwework: "Как мы работаем",
+		  howwework: "Как это работает",
 	  park: "Классы машин",
 	  feedback: "Отзывым",
 	  enter: "Войти",
@@ -110,6 +112,10 @@ export const data = {
 	  returned: "Потребуется обратный маршрут",
 	  phoneConfirm: "Детали согласует оператор по телефону.",
 	  orderTitle: "Сделайте заказ, мы всё организуем:",
+	  travelPlanners: "Тревел-планировщикам",
+	  aiAgents: "AI-агентам",
+	  businessTravel: "Бизнес-поездки",
+	  howItWorks: "Как это работает",
   },
   en: {
     "nav": [
@@ -120,17 +126,19 @@ export const data = {
       "title": "Why choose us?"
     },
         "main": {
-          "title": "Private transfers for people who book travel for others",
-          "titleAccent": "",
-          "badge": "B2B platform",
-          "description": "Riderra helps travel planners, business travelers and AI agents book reliable transfers through one managed transfer desk with verified local fleets.",
+	          "title": "Private transfers for travel planners, business clients and AI agents",
+	          "titleAccent": "",
+	          "badge": "Managed private transfers",
+	          "description": "Riderra helps people who book travel for others arrange reliable private transfers through one managed operation connected to local fleet partners.",
           "orderButton": "Create transfer request",
           "driverButton": "Become a carrier",
           "users": "Users",
           "trips": "Trips",
           "rating": "Rating",
           "ctaPrimary": "Get agency access",
-          "ctaSecondary": "/#booking-widget"
+          "ctaPrimaryLink": "/for-travel-planners",
+          "ctaSecondary": "Create transfer request",
+          "ctaSecondaryLink": "/#booking-widget"
         },
     "slider":[
       {
@@ -204,8 +212,8 @@ export const data = {
         "models": "Setra, MAN, Golden Dragon or similar",
         "description": "A professional driver will meet you at the train station or airport, help you to place your luggage in the trunk and take your group to a celebration or a tourist trip."
       },
-	    howwework: "How we work",
-	    park: "Cars",
+		    howwework: "How it works",
+		    park: "Vehicle classes",
 	    feedback: "Reviews",
 	    enter: "Sign in",
 	    from: "From",
@@ -222,6 +230,10 @@ export const data = {
 	    returned: "Return route required",
 	    phoneConfirm: "Details will be confirmed by operator by phone.",
 	    orderTitle: "Make an order, we will organize everything:",
+	    travelPlanners: "Travel Planners",
+	    aiAgents: "AI Agents",
+	    businessTravel: "Business Travel",
+	    howItWorks: "How it works",
     }
   }
 }
@@ -244,7 +256,11 @@ const publicRootKeys = [
   'driveChange',
   'returned',
   'phoneConfirm',
-  'orderTitle'
+  'orderTitle',
+  'travelPlanners',
+  'aiAgents',
+  'businessTravel',
+  'howItWorks'
 ]
 
 publicRootKeys.forEach((key) => {

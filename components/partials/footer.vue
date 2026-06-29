@@ -14,20 +14,20 @@
       <ul class="footer__col col-xs-12 col-sm-2">
         <li class="footer__group-title">{{ t.forCustomers }}</li>
         <li><a href="/#booking-widget" class="footer__link">{{ t.bookTransfer }}</a></li>
-        <li><a :href="publicPath('/business-travel')" class="footer__link">{{ textData.businessTravel || 'Business Travel' }}</a></li>
+        <li><a :href="publicPath('/business-travel')" class="footer__link">{{ textData.businessTravel || t.businessTravel }}</a></li>
         <li><a :href="publicPath('/faq')" class="footer__link">{{ t.faq }}</a></li>
         <li><a :href="publicPath('/contact')" class="footer__link">{{ t.contact }}</a></li>
       </ul>
       <ul class="footer__col col-xs-12 col-sm-2">
         <li class="footer__group-title">{{ t.forPartners }}</li>
-        <li><a :href="publicPath('/for-travel-planners')" class="footer__link">{{ textData.travelPlanners || 'Travel Planners' }}</a></li>
+        <li><a :href="publicPath('/for-travel-planners')" class="footer__link">{{ textData.travelPlanners || t.travelPlanners }}</a></li>
         <li><a :href="publicPath('/drivers')" class="footer__link">{{ t.fleetPartners || 'Fleet Partners' }}</a></li>
-        <li><a :href="publicPath('/ai')" class="footer__link">{{ textData.aiAgents || 'AI Agents' }}</a></li>
+        <li><a :href="publicPath('/ai')" class="footer__link">{{ textData.aiAgents || t.aiAgents }}</a></li>
       </ul>
       <ul class="footer__col col-xs-12 col-sm-2">
         <li class="footer__group-title">{{ t.resources }}</li>
         <li><a :href="publicPath('/docs')" class="footer__link">{{ t.docs }}</a></li>
-        <li><a :href="publicPath('/how-it-works')" class="footer__link">{{ t.howItWorks || 'How it works' }}</a></li>
+        <li><a :href="publicPath('/how-it-works')" class="footer__link">{{ textData.howItWorks || t.howItWorks }}</a></li>
         <li><a :href="publicPath('/services')" class="footer__link">{{ t.services }}</a></li>
       </ul>
       <ul class="footer__col footer__col--contacts col-xs-12 col-sm-3 col-md-push-1">
@@ -102,6 +102,10 @@
             faq: 'FAQ',
             contact: 'Контакты',
             fleetPartners: 'Перевозчикам',
+            travelPlanners: 'Тревел-планировщикам',
+            aiAgents: 'AI-агентам',
+            businessTravel: 'Бизнес-поездки',
+            howItWorks: 'Как это работает',
             infoEmail: 'info@riderra.com',
             docs: 'Документация',
             services: 'Услуги'
@@ -114,6 +118,10 @@
             faq: 'FAQ',
             contact: 'Contact',
             fleetPartners: 'Fleet Partners',
+            travelPlanners: 'Travel Planners',
+            aiAgents: 'AI Agents',
+            businessTravel: 'Business Travel',
+            howItWorks: 'How it works',
             infoEmail: 'info@riderra.com',
             docs: 'Docs',
             services: 'Services'
@@ -124,7 +132,7 @@
     },
     methods: {
       publicPath(path) {
-        return this.$store.state.language === 'ru' ? `/ru${path}` : path;
+        return path;
       }
     },
     data(){

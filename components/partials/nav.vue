@@ -23,7 +23,7 @@
       <nuxt-link to="/for-travel-planners" class="nav-list__item">{{ textData.travelPlanners || 'Travel Planners' }}</nuxt-link>
       <nuxt-link to="/ai" class="nav-list__item">{{ textData.aiAgents || 'AI Agents' }}</nuxt-link>
       <nuxt-link to="/business-travel" class="nav-list__item">{{ textData.businessTravel || 'Business Travel' }}</nuxt-link>
-      <a :href="publicPath('/how-it-works')" class="nav-list__item">{{ textData.howItWorks || 'How it works' }}</a>
+      <nuxt-link to="/how-it-works" class="nav-list__item">{{ textData.howItWorks || 'How it works' }}</nuxt-link>
     </nav>
     <tabs-nav></tabs-nav>
     <div class="header__right">
@@ -78,15 +78,16 @@
       textData(){
 	      const data = this.$store.getters.textData;
 	      if (!data) {
+          const isRu = this.$store.state.language === 'ru'
 	        return {
-	          howwework: 'How we work',
-	          park: 'Cars',
-	          enter: 'Sign in',
-	          travelPlanners: 'Travel Planners',
-	          aiAgents: 'AI Agents',
-	          businessTravel: 'Business Travel',
-	          destinations: 'Destinations',
-	          howItWorks: 'How it works',
+	          howwework: isRu ? 'Как это работает' : 'How it works',
+	          park: isRu ? 'Классы машин' : 'Vehicle classes',
+	          enter: isRu ? 'Войти' : 'Sign in',
+	          travelPlanners: isRu ? 'Тревел-планировщикам' : 'Travel Planners',
+	          aiAgents: isRu ? 'AI-агентам' : 'AI Agents',
+	          businessTravel: isRu ? 'Бизнес-поездки' : 'Business Travel',
+	          destinations: isRu ? 'Направления' : 'Destinations',
+	          howItWorks: isRu ? 'Как это работает' : 'How it works',
 	          publicLinks: {}
 	        };
 	      }
@@ -158,7 +159,7 @@
         this.$router.push('/')
       },
       publicPath(path) {
-        return this.$store.state.language === 'ru' ? `/ru${path}` : path;
+        return path;
       }
     },
     beforeMount(){

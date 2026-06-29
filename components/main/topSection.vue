@@ -27,58 +27,18 @@
         </p>
 
         <div class="hero-actions">
-          <a :href="data['main'].ctaPrimaryLink || '#booking-widget'" class="btn btn--primary hero-btn-primary" @click="scrollToBooking">
+          <a :href="primaryLink" class="btn btn--primary hero-btn-primary" @click="handleCtaClick($event, primaryLink)">
             {{ data['main'].ctaPrimary || data['main'].orderButton }}
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </a>
-          <nuxt-link :to="data['main'].ctaSecondaryLink || '/drivers'" class="btn btn--ghost hero-btn-secondary">
+          <a :href="secondaryLink" class="btn btn--ghost hero-btn-secondary" @click="handleCtaClick($event, secondaryLink)">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M8 2L10 6L14 6L11 9L12 13L8 11L4 13L5 9L2 6L6 6L8 2Z" fill="#FFD700"/>
             </svg>
             {{ data['main'].ctaSecondary || data['main'].driverButton }}
-          </nuxt-link>
-        </div>
-
-        <div class="hero-stats">
-          <div class="stat-item">
-            <div class="stat-item__icon stat-item__icon--users">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" fill="#4CAF50"/>
-                <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z" fill="#4CAF50"/>
-              </svg>
-            </div>
-            <div class="stat-item__content">
-              <div class="stat-item__number">50K+</div>
-              <div class="stat-item__label">{{ data['main'].users }}</div>
-            </div>
-          </div>
-
-          <div class="stat-item">
-            <div class="stat-item__icon stat-item__icon--trips">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M4 16L6 18L10 14" stroke="#2F80ED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M20 8L18 6L14 10" stroke="#2F80ED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="stat-item__content">
-              <div class="stat-item__number">1M+</div>
-              <div class="stat-item__label">{{ data['main'].trips }}</div>
-            </div>
-          </div>
-
-          <div class="stat-item">
-            <div class="stat-item__icon stat-item__icon--rating">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" fill="#FFD700"/>
-              </svg>
-            </div>
-            <div class="stat-item__content">
-              <div class="stat-item__number">4.9</div>
-              <div class="stat-item__label">{{ data['main'].rating }}</div>
-            </div>
-          </div>
+          </a>
         </div>
       </div>
     </div>
@@ -96,10 +56,17 @@
     computed: {
       media(){
         return this.$store.state.media;
+      },
+      primaryLink() {
+        return this.data['main'].ctaPrimaryLink || '/for-travel-planners';
+      },
+      secondaryLink() {
+        return this.data['main'].ctaSecondaryLink || '/#booking-widget';
       }
     },
     methods:{
-      scrollToBooking(e) {
+      handleCtaClick(e, link) {
+        if (link !== '#booking-widget' && link !== '/#booking-widget') return;
         e.preventDefault();
         const bookingWidget = document.querySelector('#booking-widget');
         if (bookingWidget) {
@@ -107,7 +74,12 @@
             behavior: 'smooth',
             block: 'start'
           });
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', '/#booking-widget');
+          }
+          return;
         }
+        window.location.href = '/#booking-widget';
       }
     }
   }
@@ -115,20 +87,18 @@
 
 <style lang="scss">
   .main-section {
-    height: 88svh;
-    width: 100vw;
-    min-width: 100vw;
+    min-height: 680px;
+    width: 100%;
     /*background-image: url('/img/main_bg.jpg');*/
     background-size: cover;
-    min-height: 620px;
     display: flex;
     align-items: center;
     position: relative;
+    padding: 150px 0 90px;
 
     &__content{
-      opacity: 0;
-      transform: translate3d(0, 20%, 0);
-      transition: 400ms all ease;
+      opacity: 1;
+      transform: none;
       text-align: left;
       position: relative;
       z-index: 10;
@@ -168,6 +138,7 @@
       margin-bottom: 24px;
       color: #fff;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      max-width: 720px;
     }
 
     .hero-title__accent {
@@ -179,6 +150,14 @@
       font-size: 0.6em !important;
       line-height: 1.4;
       display: block;
+      margin-top: 10px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .hero-title__subtitle {
+      display: block;
+      font-size: 0.6em;
+      line-height: 1.35;
       margin-top: 10px;
       color: rgba(255, 255, 255, 0.9);
     }
@@ -196,7 +175,7 @@
       display: flex;
       gap: 16px;
       justify-content: flex-start;
-      margin-bottom: 60px;
+      margin-bottom: 36px;
       flex-wrap: wrap;
     }
 
@@ -243,57 +222,6 @@
       background: rgba(255, 255, 255, 0.1);
       color: #FFFFFF;
     }
-
-    .hero-stats {
-      display: flex;
-      justify-content: flex-start;
-      gap: 48px;
-      flex-wrap: wrap;
-    }
-
-    .stat-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .stat-item__icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(10px);
-    }
-
-    .stat-item__icon--users {
-      background: rgba(76, 175, 80, 0.2);
-    }
-
-    .stat-item__icon--trips {
-      background: rgba(47, 128, 237, 0.2);
-    }
-
-    .stat-item__icon--rating {
-      background: rgba(255, 215, 0, 0.2);
-    }
-
-    .stat-item__number {
-      font-size: 24px;
-      font-weight: 700;
-      color: #fff;
-      line-height: 1;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-    }
-
-    .stat-item__label {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.8);
-      font-weight: 500;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-    }
-
     &__background {
       position: absolute;
       left: 0;
@@ -348,6 +276,9 @@
 
   @media all and (max-width: 1024px) {
     .main-section {
+      min-height: 620px;
+      padding: 130px 0 72px;
+
       &__overlay {
         background: linear-gradient(90deg, rgba(7, 12, 22, 0.86) 0%, rgba(7, 12, 22, 0.68) 56%, rgba(7, 12, 22, 0.34) 100%);
       }
@@ -355,10 +286,6 @@
 
     .hero-title {
       font-size: 40px;
-    }
-
-    .hero-stats {
-      gap: 32px;
     }
   }
 
@@ -369,8 +296,9 @@
         margin-bottom: 25px;
       }
 
-      min-height: 680px;
+      min-height: auto;
       height: auto;
+      padding: 0;
 
       &__content {
         padding-top: 110px;
@@ -390,30 +318,6 @@
     .hero-description {
       font-size: 16px;
       margin-bottom: 28px;
-    }
-
-    .hero-stats {
-      gap: 12px;
-      width: 100%;
-    }
-
-    .stat-item {
-      flex: 1 1 0;
-      min-width: 0;
-      gap: 8px;
-    }
-
-    .stat-item__icon {
-      display: none;
-    }
-
-    .stat-item__number {
-      font-size: 20px;
-    }
-
-    .stat-item__label {
-      font-size: 12px;
-      line-height: 1.25;
     }
   }
 

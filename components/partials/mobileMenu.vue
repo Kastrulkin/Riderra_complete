@@ -5,17 +5,15 @@
         <language :data="langData"></language>
         <a class="mobile-menu__tel" href="tel:88009543212">8-800-954-32-12</a>
         <nav class="nav">
-          <component
-            :is="item.link ? 'nuxt-link' : 'a'"
+          <nuxt-link
             v-for="(item,i) in navList"
             :key="i"
             class="nav__link"
-            :to="item.link || null"
-            href=""
-            @click.prevent="handleNavClick(item)"
+            :to="item.link"
+            @click.native="closeMenu"
           >
             {{item.title}}
-          </component>
+          </nuxt-link>
         </nav>
         <nuxt-link to="/account" class="mobile-menu__signin">{{$store.getters.textData.enter || 'Sign in'}}</nuxt-link>
       </div>
@@ -33,46 +31,41 @@
     computed: {
       menu() {
         return this.$store.getters.getMenu;
+      },
+      textData() {
+        return this.$store.getters.textData || {};
+      },
+      navList() {
+        return [
+          {
+            title: this.textData.travelPlanners || 'Travel Planners',
+            link: '/for-travel-planners'
+          },
+          {
+            title: this.textData.aiAgents || 'AI Agents',
+            link: '/ai'
+          },
+          {
+            title: this.textData.businessTravel || 'Business Travel',
+            link: '/business-travel'
+          },
+          {
+            title: this.textData.howItWorks || 'How it works',
+            link: '/how-it-works'
+          }
+        ]
       }
     },
     methods:{
-      scrollTo(id){
-        const el = document.getElementById(id)
-        if (!el) return
-        el.scrollIntoView({block: "start", inline: "nearest", behavior: "smooth"});
+      closeMenu() {
         this.$store.commit('toggleMenu', false)
-      },
-      handleNavClick(item) {
-        if (item.link) {
-          this.$store.commit('toggleMenu', false)
-          return
-        }
-        this.scrollTo(item.to)
       }
     },
     data() {
       return {
         langData: {
           class: ''
-        },
-        navList:[
-          {
-            title: 'Как мы работаем',
-            to: 'howWorks'
-          },{
-            title: 'Автопарк',
-            to: 'park'
-          },{
-            title: 'Отзывы',
-            to: 'reviews'
-          },{
-            title: 'Условия перевозки',
-            link: '/transport'
-          },{
-            title: 'Политика конфиденциальности',
-            link: '/privacy-policy'
-          },
-        ]
+        }
       }
     }
   }

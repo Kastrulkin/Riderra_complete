@@ -12,7 +12,7 @@
           <p class="hero-subtitle">{{ t.heroSubtitle }}</p>
 
           <div class="cta-group">
-            <a href="/for-travel-planners" class="btn btn--primary">{{ t.ctaPrimary }}</a>
+            <a href="/contact" class="btn btn--primary">{{ t.ctaPrimary }}</a>
             <a href="/#booking-widget" class="btn btn--secondary">{{ t.ctaSecondary }}</a>
           </div>
         </div>
@@ -90,7 +90,7 @@
         <!-- Final CTA -->
         <div class="final-cta">
           <h2>{{ t.finalCtaTitle }}</h2>
-          <a href="/for-travel-planners" class="btn btn--primary">{{ t.finalCtaButton }}</a>
+          <a href="/contact" class="btn btn--primary">{{ t.finalCtaButton }}</a>
         </div>
       </div>
     </section>
@@ -105,17 +105,17 @@ export default {
     t() {
       const dict = {
         ru: {
-          heroTitle: 'Надежные частные перевозки для ваших клиентов — без многослойных посредников',
-          heroSubtitle: 'Получите сетевые цены от локальных перевозчиков, добавьте свою наценку, отправьте готовый к использованию ваучер клиенту и позволите Riderra заняться операционной частью.',
-          ctaPrimary: 'Получить доступ агента',
-          ctaSecondary: 'Создать запрос перевозки',
-          problemTitle: 'Перевозки просты в продаже, но сложны в эксплуатации',
-          problemText: 'Поездки в аэропорт часто проходят через несколько коммерческих уровней, прежде чем дойдут до локального водителя. Клиент платит больше, локальный перевозчик получает меньше, а агент всё равно должен разбираться с проблемами, если что-то пойдет не так.',
-          solutionTitle: 'Один управляющий деск между вами и локальными перевозчиками',
-          solutionText: 'Riderra соединяет агентов с проверенными локальными перевозчиками, сохраняя ценообразование, подтверждение, ваучеры, поддержку и обработку проблем в едином управляемом рабочем процессе.',
+          heroTitle: 'Частные трансферы для клиентов тревел-планировщиков',
+          heroSubtitle: 'Получайте нетто-цены от локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционную часть на себя.',
+          ctaPrimary: 'Обсудить доступ агента',
+          ctaSecondary: 'Создать запрос трансфера',
+          problemTitle: 'Трансферы легко продать, но сложно сопровождать',
+          problemText: 'Международный трансфер часто проходит через несколько коммерческих слоёв, прежде чем доходит до локального исполнителя. Каждый слой забирает маржу, а тревел-планировщик всё равно отвечает перед клиентом, если что-то меняется.',
+          solutionTitle: 'Один операционный центр между вами и локальными автопарками',
+          solutionText: 'Riderra соединяет тревел-планировщиков с проверенными локальными автопарками и держит цену, подтверждение доступности, ваучеры, поддержку и разбор изменений в одном управляемом процессе.',
           economicsTitle: 'Прозрачная экономика для агентов',
           economics: {
-            fleetPrice: 'Сетевая цена перевозчика',
+            fleetPrice: 'Нетто-цена автопарка',
             fleetPriceDesc: 'Оплачивается локальному оператору',
             serviceFee: 'Комиссия Riderra',
             serviceFeeDesc: 'Охватывает координацию, поддержку и операционный контроль',
@@ -126,11 +126,11 @@ export default {
           },
           featuresTitle: 'Создано для тех, кто бронирует поездки за других',
           features: [
-            'Сетевые цены от локальных перевозчиков',
+            'Нетто-цены от локальных автопарков',
             'Ваша собственная наценка агента',
             'Готовый к отправке PDF ваучер',
             'WhatsApp-сообщение для пассажира',
-            'Ссылка на статус бронирования',
+            'Ссылка на статус заявки',
             'Отслеживание рейсов и правила ожидания',
             'Опция ежемесячного счета-фактуры',
             'Ссылка для клиента с белым брендом',
@@ -139,30 +139,30 @@ export default {
           howItWorksTitle: 'Как это работает',
           steps: [
             { title: '1. Отправьте детали поездки', desc: 'Маршрут, дата, номер рейса, пассажиры, багаж и специальные пожелания.' },
-            { title: '2. Получите подтвержденное предложение', desc: 'Riderra проверяет доступность и подтверждает цену у локального перевозчика.' },
-            { title: '3. Отправьте ваучер', desc: 'Добавьте свою наценку, отправьте готовый к использованию ваучер клиенту и позвольте Riderra управлять перевозкой.' },
-            { title: '4. Оставайтесь под контролем', desc: 'Отслеживайте статус бронирования и обращайтесь в поддержку Riderra, если что-то изменится.' }
+            { title: '2. Получите проверенное предложение', desc: 'Riderra проверяет доступность и цену у локального автопарка перед финальным бронированием.' },
+            { title: '3. Отправьте ваучер', desc: 'Добавьте свою маржу, отправьте готовый ваучер клиенту и позвольте Riderra управлять трансфером.' },
+            { title: '4. Оставайтесь под контролем', desc: 'Отслеживайте статус заявки и обращайтесь в поддержку Riderra, если что-то изменится.' }
           ],
           faqTitle: 'Часто задаваемые вопросы',
           faq: [
-            { question: 'Увидит ли пассажир мою сетевую цену?', answer: 'Нет. Клиент получает готовый к использованию ваучер без вашей внутренней цены.' },
-            { question: 'Кто управляет локальным перевозчиком?', answer: 'Riderra управляет коммуникацией, подтверждением и обработкой проблем с локальным перевозчиком.' },
-            { question: 'Могу ли я добавить свою собственную наценку?', answer: 'Да. Вы можете установить свою собственную цену для клиента выше подтвержденной сетевой цены и комиссии Riderra.' },
-            { question: 'Нужна ли интеграция API?', answer: 'Нет. Вы можете начать с формы бронирования или доступа агента. API является дополнительным.' },
+            { question: 'Увидит ли пассажир мою нетто-цену?', answer: 'Нет. Клиент получает готовый ваучер без вашей внутренней цены.' },
+            { question: 'Кто управляет локальным автопарком?', answer: 'Riderra управляет коммуникацией, подтверждением и обработкой изменений с локальным автопарком.' },
+            { question: 'Могу ли я добавить свою маржу?', answer: 'Да. Вы можете установить клиентскую цену выше проверенной нетто-цены и комиссии Riderra.' },
+            { question: 'Нужна ли интеграция API?', answer: 'Нет. Можно начать с формы запроса и ручного согласования доступа. API является дополнительным.' },
             { question: 'Что происходит, если рейс задерживается?', answer: 'Riderra использует данные о рейсе и местные правила ожидания для координации встречи.' }
           ],
-          finalCtaTitle: 'Начните бронировать перевозки для своих клиентов',
-          finalCtaButton: 'Получить доступ агента'
+          finalCtaTitle: 'Начните отправлять трансферные заявки для своих клиентов',
+          finalCtaButton: 'Обсудить доступ агента'
         },
         en: {
-          heroTitle: 'Reliable private transfers for your clients — without stacked middlemen',
+          heroTitle: 'Private transfers for your travel clients',
           heroSubtitle: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
-          ctaPrimary: 'Get agency access',
+          ctaPrimary: 'Discuss agency access',
           ctaSecondary: 'Create transfer request',
           problemTitle: 'Transfers are simple to sell, but hard to operate',
-          problemText: 'Airport transfers often move through too many commercial layers before reaching the local driver. The client pays more, the local fleet receives less, and the travel planner still has to deal with the problem if something goes wrong.',
+          problemText: 'International transfers often move through several commercial layers before reaching the local operator. Each layer takes a margin, and the travel planner still has to deal with the problem if something changes.',
           solutionTitle: 'One managed transfer desk between you and local fleets',
-          solutionText: 'Riderra connects travel planners to verified local fleet partners while keeping pricing, confirmation, vouchers, support and issue handling in one managed workflow.',
+          solutionText: 'Riderra connects travel planners to verified local fleet partners while keeping pricing, availability confirmation, vouchers, support and issue handling in one managed workflow.',
           economicsTitle: 'Clear economics for agents',
           economics: {
             fleetPrice: 'Fleet net price',
@@ -180,7 +180,7 @@ export default {
             'Your own agency markup',
             'Client-ready PDF voucher',
             'WhatsApp message for the passenger',
-            'Booking status link',
+            'Request status link',
             'Flight tracking and waiting rules',
             'Monthly invoice option',
             'White-label client link',
@@ -189,20 +189,20 @@ export default {
           howItWorksTitle: 'How it works',
           steps: [
             { title: '1. Send the trip details', desc: 'Route, date, flight number, passengers, luggage and special requests.' },
-            { title: '2. Get a confirmed offer', desc: 'Riderra checks availability and confirms the local fleet price.' },
+            { title: '2. Get a reviewed offer', desc: 'Riderra checks availability and the local fleet price before final booking.' },
             { title: '3. Send the voucher', desc: 'Add your margin, send the client-ready voucher, and let Riderra manage the transfer.' },
-            { title: '4. Stay in control', desc: 'Track the booking status and contact Riderra support if anything changes.' }
+            { title: '4. Stay in control', desc: 'Track the request status and contact Riderra support if anything changes.' }
           ],
           faqTitle: 'Frequently asked questions',
           faq: [
             { question: 'Does the passenger see my net price?', answer: 'No. The client receives a client-ready voucher without your internal pricing.' },
             { question: 'Who handles the local fleet?', answer: 'Riderra manages communication, confirmation and issue handling with the local fleet.' },
-            { question: 'Can I add my own margin?', answer: 'Yes. You can set your own client price above the confirmed net price and Riderra service fee.' },
-            { question: 'Do I need API integration?', answer: 'No. You can start with the booking form or agent access. API is optional.' },
+            { question: 'Can I add my own margin?', answer: 'Yes. You can set your own client price above the reviewed net price and Riderra service fee.' },
+            { question: 'Do I need API integration?', answer: 'No. You can start with the request form and manually approved access. API is optional.' },
             { question: 'What happens if the flight is delayed?', answer: 'Riderra uses flight details and local waiting rules to coordinate the pickup.' }
           ],
-          finalCtaTitle: 'Start booking transfers for your clients',
-          finalCtaButton: 'Get agency access'
+          finalCtaTitle: 'Start sending transfer requests for your clients',
+          finalCtaButton: 'Discuss agency access'
         }
       };
       return dict[this.lang] || dict.en;
