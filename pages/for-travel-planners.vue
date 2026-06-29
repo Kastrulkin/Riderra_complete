@@ -105,14 +105,14 @@ export default {
     t() {
       const dict = {
         ru: {
-          heroTitle: 'Частные трансферы для клиентов тревел-планировщиков',
+          heroTitle: 'Частные трансферы для клиентов турагентов',
           heroSubtitle: 'Получайте нетто-цены от локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционную часть на себя.',
           ctaPrimary: 'Обсудить доступ агента',
           ctaSecondary: 'Создать запрос трансфера',
           problemTitle: 'Трансферы легко продать, но сложно сопровождать',
-          problemText: 'Международный трансфер часто проходит через несколько коммерческих слоёв, прежде чем доходит до локального исполнителя. Каждый слой забирает маржу, а тревел-планировщик всё равно отвечает перед клиентом, если что-то меняется.',
+          problemText: 'Международный трансфер часто проходит через несколько коммерческих слоёв, прежде чем доходит до локального исполнителя. Каждый слой забирает маржу, а турагент всё равно отвечает перед клиентом, если что-то меняется.',
           solutionTitle: 'Один операционный центр между вами и локальными автопарками',
-          solutionText: 'Riderra соединяет тревел-планировщиков с проверенными локальными автопарками и держит цену, подтверждение доступности, ваучеры, поддержку и разбор изменений в одном управляемом процессе.',
+          solutionText: 'Riderra соединяет турагентов с проверенными локальными автопарками и держит цену, подтверждение доступности, ваучеры, поддержку и разбор изменений в одном управляемом процессе.',
           economicsTitle: 'Прозрачная экономика для агентов',
           economics: {
             fleetPrice: 'Нетто-цена автопарка',
@@ -124,7 +124,7 @@ export default {
             clientPrice: 'Финальная цена клиента',
             clientPriceDesc: 'Показывается вашему клиенту'
           },
-          featuresTitle: 'Создано для тех, кто бронирует поездки за других',
+          featuresTitle: 'Создано для турагентов',
           features: [
             'Нетто-цены от локальных автопарков',
             'Ваша собственная наценка агента',
@@ -160,9 +160,9 @@ export default {
           ctaPrimary: 'Discuss agency access',
           ctaSecondary: 'Create transfer request',
           problemTitle: 'Transfers are simple to sell, but hard to operate',
-          problemText: 'International transfers often move through several commercial layers before reaching the local operator. Each layer takes a margin, and the travel planner still has to deal with the problem if something changes.',
+          problemText: 'International transfers often move through several commercial layers before reaching the local operator. Each layer takes a margin, and the tour agency still has to deal with the problem if something changes.',
           solutionTitle: 'One managed transfer desk between you and local fleets',
-          solutionText: 'Riderra connects travel planners to verified local fleet partners while keeping pricing, availability confirmation, vouchers, support and issue handling in one managed workflow.',
+          solutionText: 'Riderra connects tour agencies to verified local fleet partners while keeping pricing, availability confirmation, vouchers, support and issue handling in one managed workflow.',
           economicsTitle: 'Clear economics for agents',
           economics: {
             fleetPrice: 'Fleet net price',
@@ -174,7 +174,7 @@ export default {
             clientPrice: 'Final client price',
             clientPriceDesc: 'shown to your client'
           },
-          featuresTitle: 'Built for people who book travel for others',
+          featuresTitle: 'Built for tour agencies',
           features: [
             'Net rates from local fleets',
             'Your own agency markup',

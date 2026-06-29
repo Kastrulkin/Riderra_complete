@@ -7,7 +7,7 @@ export const data = {
           "title": "B2B-платформа сети автопарков.",
           "titleAccent": "",
           "badge": "Управляемые частные трансферы",
-          "description": "Для агентств, корпоративных тревел-менеджеров и ИИ-систем. Без лишних посредников вы получите больше за свои деньги.",
+          "description": "Для турагентов, бизнес-клиентов и ИИ-систем. Без лишних посредников вы получите больше за свои деньги.",
           "orderButton": "Заказать трансфер",
           "driverButton": "Стать перевозчиком",
           "users": "Пользователей",
@@ -112,7 +112,7 @@ export const data = {
 	  returned: "Потребуется обратный маршрут",
 	  phoneConfirm: "Детали согласует оператор по телефону.",
 	  orderTitle: "Сделайте заказ, мы всё организуем:",
-	  travelPlanners: "Тревел-планировщикам",
+	  travelPlanners: "Турагентам",
 	  aiAgents: "AI-агентам",
 	  businessTravel: "Бизнес-поездки",
 	  howItWorks: "Как это работает",
@@ -129,7 +129,7 @@ export const data = {
 	          "title": "B2B fleet network platform.",
 	          "titleAccent": "",
 	          "badge": "Managed private transfers",
-	          "description": "For agencies, corporate travel managers, and AI systems. With fewer middle layers, you get more for your money.",
+	          "description": "For tour agencies, business clients, and AI systems. With fewer middle layers, you get more for your money.",
           "orderButton": "Book a transfer",
           "driverButton": "Become a carrier",
           "users": "Users",
@@ -230,7 +230,7 @@ export const data = {
 	    returned: "Return route required",
 	    phoneConfirm: "Details will be confirmed by operator by phone.",
 	    orderTitle: "Make an order, we will organize everything:",
-	    travelPlanners: "Travel Planners",
+	    travelPlanners: "Tour Agencies",
 	    aiAgents: "AI Agents",
 	    businessTravel: "Business Travel",
 	    howItWorks: "How it works",
@@ -865,7 +865,7 @@ data.ha = mergeLanguage(data.en, {
   },
   bookingTabs: { route: 'Daga da zuwa', transport: 'Sufuri' },
   b2b: {
-    subtitle: 'Riderra помогает тревел-планировщикам, бизнес-путешественникам и AI-агентам бронировать надёжные частные трансферы через один управляемый transfer desk, подключенный к локальным автопаркам.',
+    subtitle: 'Riderra помогает турагентам, бизнес-клиентам и AI-агентам бронировать надёжные частные трансферы через один управляемый transfer desk, подключенный к локальным автопаркам.',
     travelPlannersText: 'Получайте цены локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционку на себя.',
     travelPlannersCta: 'Получить доступ',
     businessTravelText: 'Надёжные трансферы в аэропорт с понятными правилами, отслеживанием рейса, счетами и поддержкой.',
@@ -878,6 +878,6 @@ data.ha = mergeLanguage(data.en, {
     typicalTitle: 'Обычная цепочка:',
     riderraTitle: 'Как работает Riderra:',
     steps: ['Клиент', 'Тревел-платформа', 'Трансферный агрегатор', 'Локальный посредник', 'Автопарк', 'Водитель'],
-    riderraSteps: ['Тревел-планировщик / AI-агент / бизнес-клиент', 'Riderra managed transfer desk', 'Проверенный локальный автопарк', 'Водитель']
+    riderraSteps: ['Турагент / AI-агент / бизнес-клиент', 'Riderra managed transfer desk', 'Проверенный локальный автопарк', 'Водитель']
   }
 })

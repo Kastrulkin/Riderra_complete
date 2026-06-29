@@ -26,10 +26,10 @@ export default {
     return {
       dictionaries: {
         ru: {
-          title: 'Для тех, кто бронирует поездки за других',
+          title: 'Для профессионалов в сфере туризма',
           subtitle: '',
           travelPlanners: {
-            title: 'Тревел-планировщики',
+            title: 'Турагенты',
             subtitle: 'Получайте нетто-цены от локальных автопарков, добавляйте свою маржу, отправляйте клиенту готовый ваучер, а Riderra возьмёт операционную часть на себя.',
             cta: 'Получить доступ',
             link: '/login'
@@ -48,10 +48,10 @@ export default {
           }
         },
         en: {
-          title: 'Built for people who book travel for others',
+          title: 'Built for tourism professionals',
           subtitle: '',
           travelPlanners: {
-            title: 'Travel planners',
+            title: 'Tour agencies',
             subtitle: 'Get local fleet net rates, add your margin, send a client-ready voucher, and let Riderra handle the operation.',
             cta: 'Get access',
             link: '/login'

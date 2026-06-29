@@ -20,7 +20,7 @@
     </div>
       <language :data="langData"></language>
     <nav class="nav-list">
-      <nuxt-link to="/for-travel-planners" class="nav-list__item">{{ textData.travelPlanners || 'Travel Planners' }}</nuxt-link>
+      <nuxt-link to="/for-travel-planners" class="nav-list__item">{{ textData.travelPlanners || 'Tour Agencies' }}</nuxt-link>
       <nuxt-link to="/ai" class="nav-list__item">{{ textData.aiAgents || 'AI Agents' }}</nuxt-link>
       <nuxt-link to="/business-travel" class="nav-list__item">{{ textData.businessTravel || 'Business Travel' }}</nuxt-link>
       <nuxt-link to="/how-it-works" class="nav-list__item">{{ textData.howItWorks || 'How it works' }}</nuxt-link>
@@ -83,7 +83,7 @@
 	          howwework: isRu ? 'Как это работает' : 'How it works',
 	          park: isRu ? 'Классы машин' : 'Vehicle classes',
 	          enter: isRu ? 'Войти' : 'Sign in',
-	          travelPlanners: isRu ? 'Тревел-планировщикам' : 'Travel Planners',
+	          travelPlanners: isRu ? 'Турагентам' : 'Tour Agencies',
 	          aiAgents: isRu ? 'AI-агентам' : 'AI Agents',
 	          businessTravel: isRu ? 'Бизнес-поездки' : 'Business Travel',
 	          destinations: isRu ? 'Направления' : 'Destinations',

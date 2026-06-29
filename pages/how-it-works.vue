@@ -64,7 +64,7 @@ export default {
           typical5: 'Автопарк',
           typical6: 'Водитель',
           riderraTitle: 'Riderra',
-          riderra1: 'Планировщик путешествий / AI-агент / бизнес-клиент',
+          riderra1: 'Турагент / AI-агент / бизнес-клиент',
           riderra2: 'Управляемый деск перевозок Riderra',
           riderra3: 'Проверенный локальный автопарк',
           riderra4: 'Водитель'
@@ -80,7 +80,7 @@ export default {
           typical5: 'Fleet',
           typical6: 'Driver',
           riderraTitle: 'Riderra way',
-          riderra1: 'Travel planner / AI agent / business client',
+          riderra1: 'Tour agency / AI agent / business client',
           riderra2: 'Riderra managed transfer desk',
           riderra3: 'Verified local fleet',
           riderra4: 'Driver'

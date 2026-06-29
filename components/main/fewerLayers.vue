@@ -42,7 +42,7 @@ export default {
           typicalTitle: 'Обычная цепочка:',
           riderraTitle: 'Как работает Riderra:',
           typicalSteps: ['Клиент', 'Тревел-платформа', 'Трансферный агрегатор', 'Локальный посредник', 'Автопарк', 'Водитель'],
-          riderraSteps: ['Тревел-планировщик / AI-агент / бизнес-клиент', 'Операционный центр Riderra', 'Проверенный локальный автопарк', 'Водитель']
+          riderraSteps: ['Турагент / AI-агент / бизнес-клиент', 'Операционный центр Riderra', 'Проверенный локальный автопарк', 'Водитель']
         },
         en: {
           title: 'Fewer commercial layers. Clearer responsibility.',
@@ -50,7 +50,7 @@ export default {
           typicalTitle: 'Typical transfer chain:',
           riderraTitle: 'Riderra way:',
           typicalSteps: ['Client', 'Travel platform', 'Transfer aggregator', 'Local reseller', 'Fleet', 'Driver'],
-          riderraSteps: ['Travel planner / AI agent / business client', 'Riderra managed transfer desk', 'Verified local fleet', 'Driver']
+          riderraSteps: ['Tour agency / AI agent / business client', 'Riderra managed transfer desk', 'Verified local fleet', 'Driver']
         }
       }
     };

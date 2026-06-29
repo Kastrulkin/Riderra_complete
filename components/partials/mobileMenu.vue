@@ -38,7 +38,7 @@
       navList() {
         return [
           {
-            title: this.textData.travelPlanners || 'Travel Planners',
+            title: this.textData.travelPlanners || 'Tour Agencies',
             link: '/for-travel-planners'
           },
           {
