@@ -4,18 +4,18 @@ export const data = {
       "Почему выбирают нас?", "Классы машин"
     ],
         "main":{
-          "title": "Трансферы для тревел-планировщиков, бизнес-клиентов и AI-агентов",
+          "title": "B2B-платформа сети автопарков.",
           "titleAccent": "",
           "badge": "Управляемые частные трансферы",
-          "description": "Riderra помогает тем, кто бронирует поездки за других: организует надёжные частные трансферы через единый операционный центр и локальные автопарки.",
-          "orderButton": "Создать запрос трансфера",
+          "description": "Для агентств, корпоративных тревел-менеджеров и ИИ-систем. Без лишних посредников вы получите больше за свои деньги.",
+          "orderButton": "Заказать трансфер",
           "driverButton": "Стать перевозчиком",
           "users": "Пользователей",
           "trips": "Поездок",
           "rating": "Рейтинг",
           "ctaPrimary": "Получить доступ агента",
-          "ctaPrimaryLink": "/for-travel-planners",
-          "ctaSecondary": "Создать запрос трансфера",
+          "ctaPrimaryLink": "/contact",
+          "ctaSecondary": "Заказать трансфер",
           "ctaSecondaryLink": "/#booking-widget"
         },
     "slider":[
@@ -126,18 +126,18 @@ export const data = {
       "title": "Why choose us?"
     },
         "main": {
-	          "title": "Private transfers for travel planners, business clients and AI agents",
+	          "title": "B2B fleet network platform.",
 	          "titleAccent": "",
 	          "badge": "Managed private transfers",
-	          "description": "Riderra helps people who book travel for others arrange reliable private transfers through one managed operation connected to local fleet partners.",
-          "orderButton": "Create transfer request",
+	          "description": "For agencies, corporate travel managers, and AI systems. With fewer middle layers, you get more for your money.",
+          "orderButton": "Book a transfer",
           "driverButton": "Become a carrier",
           "users": "Users",
           "trips": "Trips",
           "rating": "Rating",
           "ctaPrimary": "Get agency access",
-          "ctaPrimaryLink": "/for-travel-planners",
-          "ctaSecondary": "Create transfer request",
+          "ctaPrimaryLink": "/contact",
+          "ctaSecondary": "Book a transfer",
           "ctaSecondaryLink": "/#booking-widget"
         },
     "slider":[
