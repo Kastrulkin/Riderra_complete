@@ -278,6 +278,10 @@
                       <div class="delivery-template-grid__wide template-help">
                         {{ templateHelp(deliveryForm(message).templateName) }}
                       </div>
+                      <div class="delivery-template-grid__wide template-preview">
+                        <strong>Точный текст approved-шаблона</strong>
+                        <p>{{ approvedTemplatePreview(message) }}</p>
+                      </div>
                     </div>
                     <details v-if="deliveryTrace(message)" class="policy-trace">
                       <summary>Почему выбран этот режим</summary>
@@ -1690,6 +1694,19 @@ export default {
       const variables = tpl.variables?.length ? ` Переменные: ${tpl.variables.join(', ')}.` : ''
       return `${tpl.description}${variables}`
     },
+    approvedTemplatePreview(message) {
+      const form = this.deliveryForm(message)
+      let variables = {}
+      try { variables = JSON.parse(form.variablesText || '{}') } catch (_) {}
+      const city = String(variables.city || '{{1}}')
+      const pickupDate = String(variables.pickup_date || '{{2}}')
+      const templates = {
+        riderra_baggage_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please clarify how many bags or suitcases you will have? Thank you!`,
+        riderra_flight_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Please clarify your flight details. Thank you!`,
+        riderra_passengers_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Please clarify the number of passengers. Thank you!`
+      }
+      return templates[form.templateName] || `Approved template: ${form.templateName || 'не выбран'}`
+    },
     deliveryHint(message) {
       if (!this.isWhatsappMessage(message)) return 'Для Telegram/OpenClaw можно отправлять обычный текст.'
       if (this.whatsappFreeTextAllowed) return 'Есть входящий ответ клиента за последние 24 часа: free text разрешён, template тоже можно выбрать вручную.'
@@ -2123,6 +2140,8 @@ export default {
 .delivery-template-grid__wide { grid-column: 1 / -1; }
 .delivery-vars { min-height: 74px; margin-bottom: 0; }
 .template-help { border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.35; padding: 8px; }
+.template-preview { border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; color: #14532d; padding: 10px; font-size: 13px; line-height: 1.45; }
+.template-preview p { margin: 5px 0 0; }
 .policy-trace { margin-top: 8px; border: 1px solid #dbe4f0; border-radius: 8px; background: #f8fafc; padding: 8px; }
 .policy-trace summary { cursor: pointer; font-weight: 800; color: #17233d; }
 .policy-trace__grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }

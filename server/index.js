@@ -5304,12 +5304,14 @@ app.get('/api/business/:businessId/conversations', authenticateToken, resolveAct
             sourceOrderNumber: true,
             sourceBookingId: true,
             sourceInternalOrderNumber: true,
+            sourceCityCode: true,
             pickupAt: true,
             fromPoint: true,
             toPoint: true,
             clientPrice: true,
             status: true,
-            comment: true
+            comment: true,
+            lang: true
           }
         },
         agentConfig: true,
