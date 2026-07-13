@@ -139,8 +139,11 @@
                     </div>
                   </div>
                   <div class="dialog-head-actions">
+                    <span class="badge" :class="selectedTask.agentPaused ? 'badge--sla-warning' : 'badge--sla-ok'">
+                      {{ agentStatusLabel(selectedTask) }}
+                    </span>
                     <button class="btn btn--small" @click="toggleConversationAgent(selectedTask)">
-                      {{ selectedTask.agentPaused ? 'Возобновить агента' : 'Пауза агента' }}
+                      {{ agentToggleLabel(selectedTask) }}
                     </button>
                   </div>
                 </div>
@@ -290,7 +293,7 @@
                   {{ primaryTaskActionLabel }}
                 </button>
                 <button class="btn btn--ghost" @click="toggleConversationAgent(selectedTask)">
-                  {{ selectedTask.agentPaused ? 'Возобновить агента' : 'Пауза агента' }}
+                  {{ agentToggleLabel(selectedTask) }}
                 </button>
               </div>
                 </div>
@@ -342,7 +345,8 @@
                 </div>
 
                 <div class="actions-block">
-              <h4>Сообщение клиенту</h4>
+              <h4>Черновик сообщения клиенту</h4>
+              <div class="hint">{{ draftEditorHint }}</div>
               <div v-if="selectedTask.taskType === 'clarification'" class="quick-templates">
                 <button class="btn btn--tiny" @click="applyClarificationTemplate('generic')">Общее уточнение</button>
                 <button class="btn btn--tiny" @click="applyClarificationTemplate('luggage')">Уточнить багаж</button>
@@ -351,22 +355,23 @@
               </div>
               <textarea v-model="draftText" class="input textarea" placeholder="Черновик сообщения клиенту"></textarea>
               <div class="message-draft-actions">
-                <button class="btn btn--ghost" @click="buildDraftWithAi">Собрать AI черновик</button>
                 <button
+                  v-if="selectedTask.taskType === 'clarification'"
                   class="btn btn--ghost"
-                  :disabled="quickSendLoading || !selectedTask || selectedTask.taskType !== 'clarification'"
+                  :disabled="draftBuildLoading || hasDraftAwaitingApproval(selectedTask)"
                   @click="sendClarificationQuick"
                 >
-                  {{ quickSendLoading ? 'Готовлю...' : 'Подготовить уточнение' }}
+                  {{ draftBuildLoading ? 'Создаю...' : 'Создать вопрос клиенту' }}
                 </button>
                 <button
+                  v-if="selectedTask.taskType === 'dispatch_info'"
                   class="btn btn--ghost"
-                  :disabled="quickDispatchLoading || !selectedTask || selectedTask.taskType !== 'dispatch_info'"
+                  :disabled="draftBuildLoading || hasDraftAwaitingApproval(selectedTask)"
                   @click="sendDispatchQuick"
                 >
-                  {{ quickDispatchLoading ? 'Готовлю...' : 'Подготовить детали' }}
+                  {{ draftBuildLoading ? 'Создаю...' : 'Создать подтверждение поездки' }}
                 </button>
-                <button class="btn btn--primary" @click="createDraft">Сохранить черновик</button>
+                <button class="btn btn--primary" :disabled="!draftText.trim()" @click="createDraft">Сохранить введённый текст</button>
               </div>
                 </div>
 
@@ -504,6 +509,7 @@ export default {
     inboundUpdateSaving: false,
     quickSendLoading: false,
     quickDispatchLoading: false,
+    draftBuildLoading: false,
     selectedTaskAgentId: '',
     assigningAgent: false,
     lastStepTrace: null,
@@ -690,7 +696,8 @@ export default {
     },
     taskFocusTitle() {
       if (!this.selectedTask) return ''
-      if (this.selectedTask.taskType === 'dispatch_info') return 'Готовим отправку клиенту'
+      if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Проверьте черновик сообщения'
+      if (this.selectedTask.taskType === 'dispatch_info') return 'Нужно подготовить сообщение клиенту'
       if (this.selectedTask.state === 'handoff_human') return 'Задача передана человеку'
       if (this.selectedTask.state === 'customer_replied') return 'Нужно разобрать ответ клиента'
       if (this.selectedTask.state === 'request_sent') return 'Ждём ответ клиента'
@@ -699,10 +706,11 @@ export default {
     taskFocusHint() {
       if (!this.selectedTask) return ''
       const reason = String(this.selectedTask?.order?.infoReason || '').trim()
+      if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Сообщение ещё не отправлено. Проверьте текст выше, затем одобрите или отклоните его.'
       if (this.selectedTask.state === 'pending_update_approval') return 'Проверьте предложенное обновление заказа и примените его только после подтверждения.'
       if (this.selectedTask.state === 'customer_replied') return 'Сначала разберите входящий ответ и подтвердите поле.'
       if (this.selectedTask.state === 'request_sent') return 'Проверьте, нужен ли follow-up или передача человеку.'
-      if (this.selectedTask.taskType === 'dispatch_info') return 'Подготовьте подтверждённые детали поездки, отправьте вручную и зафиксируйте результат.'
+      if (this.selectedTask.taskType === 'dispatch_info') return 'Создайте сообщение с подтверждёнными деталями поездки. Перед отправкой вы увидите и одобрите черновик.'
       if (reason) return `Фокус задачи: ${reason}`
       return 'Соберите короткое сообщение, получите ответ и доведите задачу до следующего статуса.'
     },
@@ -711,20 +719,27 @@ export default {
       if (this.isWaitingForCustomer(this.selectedTask)) return 'Ждём клиента'
       if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving ? 'Применяю...' : 'Применить обновление'
       if (this.selectedTask.state === 'customer_replied') return 'Разобрать ответ'
+      if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Черновик готов — проверьте выше'
       if (this.hasReadyDraft(this.selectedTask)) return 'Отправить'
       if (this.selectedTask.taskType === 'dispatch_info') {
-        return this.quickDispatchLoading ? 'Готовлю...' : 'Подготовить детали'
+        return this.draftBuildLoading ? 'Создаю...' : 'Создать подтверждение поездки'
       }
-      return this.quickSendLoading ? 'Готовлю...' : 'Подготовить уточнение'
+      return this.draftBuildLoading ? 'Создаю...' : 'Создать вопрос клиенту'
     },
     primaryTaskActionDisabled() {
       if (!this.selectedTask) return true
       if (this.isWaitingForCustomer(this.selectedTask)) return true
       if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving || !this.inboundOutcome?.hasPendingPatch
       if (this.selectedTask.state === 'customer_replied') return !this.inboundText.trim() || this.inboundProcessing
+      if (this.hasDraftAwaitingApproval(this.selectedTask)) return true
       if (this.hasReadyDraft(this.selectedTask)) return false
-      if (this.selectedTask.taskType === 'dispatch_info') return this.quickDispatchLoading
-      return this.quickSendLoading
+      return this.draftBuildLoading
+    },
+    draftEditorHint() {
+      if (!this.selectedTask) return ''
+      if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Сначала одобрите или отклоните уже созданный черновик выше.'
+      if (this.selectedTask.taskType === 'dispatch_info') return '«Создать подтверждение поездки» соберёт сообщение из данных заказа. Если нужен свой текст, введите его здесь и сохраните.'
+      return '«Создать вопрос клиенту» сформулирует вопрос по отмеченной проблеме. Если нужен свой текст, введите его здесь и сохраните.'
     }
   },
   mounted() {
@@ -1100,7 +1115,8 @@ export default {
       }
     },
     async buildDraftWithAi() {
-      if (!this.selectedTask?.id) return
+      if (!this.selectedTask?.id || this.draftBuildLoading || this.hasDraftAwaitingApproval(this.selectedTask)) return
+      this.draftBuildLoading = true
       try {
         const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/build`, {
           method: 'POST',
@@ -1118,14 +1134,17 @@ export default {
         await this.loadTasks()
       } catch (error) {
         this.notice = error?.message || 'Ошибка AI-черновика'
+      } finally {
+        this.draftBuildLoading = false
       }
     },
     async sendClarificationQuick() {
-      if (!this.selectedTask?.id || this.quickSendLoading) return
+      if (!this.selectedTask?.id || this.draftBuildLoading || this.hasDraftAwaitingApproval(this.selectedTask)) return
       if (this.selectedTask.taskType !== 'clarification') {
         this.notice = 'Подготовка доступна только для уточнений'
         return
       }
+      this.draftBuildLoading = true
       this.quickSendLoading = true
       this.notice = ''
       try {
@@ -1147,14 +1166,16 @@ export default {
         this.notice = error?.message || 'Ошибка подготовки уточнения'
       } finally {
         this.quickSendLoading = false
+        this.draftBuildLoading = false
       }
     },
     async sendDispatchQuick() {
-      if (!this.selectedTask?.id || this.quickDispatchLoading) return
+      if (!this.selectedTask?.id || this.draftBuildLoading || this.hasDraftAwaitingApproval(this.selectedTask)) return
       if (this.selectedTask.taskType !== 'dispatch_info') {
         this.notice = 'Подготовка рассылки доступна только для задач dispatch_info'
         return
       }
+      this.draftBuildLoading = true
       this.quickDispatchLoading = true
       this.notice = ''
       try {
@@ -1176,6 +1197,7 @@ export default {
         this.notice = error?.message || 'Ошибка подготовки деталей'
       } finally {
         this.quickDispatchLoading = false
+        this.draftBuildLoading = false
       }
     },
     async syncFromOrders() {
@@ -1670,6 +1692,16 @@ export default {
     },
     hasReadyDraft(task) {
       return Boolean(this.readyDraftMessage(task))
+    },
+    hasDraftAwaitingApproval(task) {
+      const messages = Array.isArray(task?.messages) ? task.messages : []
+      return messages.some((message) => message?.direction === 'outbound' && message?.approvalStatus === 'pending_human')
+    },
+    agentStatusLabel(task) {
+      return task?.agentPaused ? 'Агент на паузе' : 'Агент работает'
+    },
+    agentToggleLabel(task) {
+      return task?.agentPaused ? 'Возобновить работу агента' : 'Поставить агента на паузу'
     },
     cardActionLabel(task) {
       if (this.isWaitingForCustomer(task)) return 'Ждём клиента'

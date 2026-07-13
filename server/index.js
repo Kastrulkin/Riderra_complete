@@ -6273,6 +6273,33 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
       ? { delivery: recommendedDelivery }
       : null
 
+    // Repeated clicks or a retried request must not create an identical draft
+    // while the previous one is still waiting for human review.
+    const existingDraft = await prisma.chatMessage.findFirst({
+      where: {
+        tenantId,
+        chatTaskId: task.id,
+        direction: 'outbound',
+        approvalStatus: 'pending_human',
+        bodyText: draftText,
+        createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    if (existingDraft) {
+      return res.json({
+        message: existingDraft,
+        recommendedDelivery,
+        deduplicated: true,
+        runtime: {
+          configured: runtimeResult.configured,
+          ok: runtimeResult.ok,
+          status: runtimeResult.status,
+          error: runtimeResult.error || null
+        }
+      })
+    }
+
     const message = await prisma.chatMessage.create({
       data: {
         tenantId,
