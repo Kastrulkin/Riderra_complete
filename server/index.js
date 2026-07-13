@@ -74,7 +74,19 @@ async function proxyMetaWebhookToOpenClaw(req, res) {
   }
 }
 
-app.get('/api/webhooks/meta/whatsapp', proxyMetaWebhookToOpenClaw)
+app.get('/api/webhooks/meta/whatsapp', (req, res) => {
+  const mode = String(req.query?.['hub.mode'] || req.query?.hub_mode || '')
+  const providedToken = String(req.query?.['hub.verify_token'] || req.query?.hub_verify_token || '')
+  const challenge = String(req.query?.['hub.challenge'] || req.query?.hub_challenge || '')
+  const expectedToken = String(process.env.RIDERRA_META_VERIFY_TOKEN || '').trim()
+  const providedBuffer = Buffer.from(providedToken)
+  const expectedBuffer = Buffer.from(expectedToken)
+  const tokenMatches = Boolean(expectedToken) &&
+    providedBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+  if (mode !== 'subscribe' || !tokenMatches) return res.status(403).json({ error: 'Webhook verification failed' })
+  return res.status(200).type('text/plain').send(challenge)
+})
 app.post('/api/webhooks/meta/whatsapp', proxyMetaWebhookToOpenClaw)
 
 function createRateLimiter({ windowMs = 60 * 1000, max = 30, name = 'public' } = {}) {
