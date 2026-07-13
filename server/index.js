@@ -42,6 +42,41 @@ app.use(createCorsMiddleware(allowedOrigins))
 app.use(languageCookieMiddleware)
 app.use(jsonBodyParser())
 
+async function proxyMetaWebhookToOpenClaw(req, res) {
+  const baseUrl = String(process.env.OPENCLAW_RUNTIME_BASE_URL || '').trim().replace(/\/+$/, '')
+  if (!baseUrl) return res.status(503).json({ error: 'OpenClaw runtime is not configured' })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10000)
+  try {
+    const queryIndex = req.originalUrl.indexOf('?')
+    const query = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : ''
+    const rawBody = req.method === 'POST'
+      ? (req.rawBody?.length ? req.rawBody : Buffer.from(JSON.stringify(req.body || {})))
+      : undefined
+    const response = await fetch(`${baseUrl}/webhooks/meta/whatsapp${query}`, {
+      method: req.method,
+      headers: {
+        ...(req.headers['content-type'] ? { 'Content-Type': req.headers['content-type'] } : {}),
+        ...(req.headers['x-hub-signature-256'] ? { 'X-Hub-Signature-256': req.headers['x-hub-signature-256'] } : {})
+      },
+      body: rawBody,
+      signal: controller.signal
+    })
+    const body = Buffer.from(await response.arrayBuffer())
+    res.status(response.status)
+    res.set('Content-Type', response.headers.get('content-type') || 'application/json; charset=utf-8')
+    return res.send(body)
+  } catch (error) {
+    console.error('Error proxying Meta webhook to OpenClaw:', error)
+    return res.status(502).json({ error: error?.name === 'AbortError' ? 'OpenClaw webhook timeout' : 'OpenClaw webhook unavailable' })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+app.get('/api/webhooks/meta/whatsapp', proxyMetaWebhookToOpenClaw)
+app.post('/api/webhooks/meta/whatsapp', proxyMetaWebhookToOpenClaw)
+
 function createRateLimiter({ windowMs = 60 * 1000, max = 30, name = 'public' } = {}) {
   const hits = new Map()
   return (req, res, next) => {
@@ -3759,7 +3794,7 @@ const CHAT_STATE_TRANSITIONS = {
   missing_data_detected: ['request_sent', 'handoff_human', 'closed'],
   request_sent: ['customer_replied', 'handoff_human', 'closed'],
   customer_replied: ['pending_update_approval', 'field_validated', 'field_rejected', 'handoff_human'],
-  pending_update_approval: ['order_complete', 'field_rejected', 'handoff_human'],
+  pending_update_approval: ['order_complete', 'field_rejected', 'handoff_human', 'closed'],
   field_validated: ['missing_data_detected', 'order_complete', 'handoff_human'],
   field_rejected: ['request_sent', 'handoff_human'],
   order_complete: ['ready_to_notify', 'closed'],
@@ -4759,6 +4794,42 @@ function explainInboundDecision({ taskType, currentState, classification, extrac
   }
   if (candidateState === currentState) return 'Состояние не изменилось: подходящий переход не найден.'
   return 'Переход выбран по базовым правилам state machine.'
+}
+
+async function ensureCustomerReplyAcknowledgementDraft({ tenantId, task, inboundMessage, extraction, inboundExternalId = '' }) {
+  if (String(task?.taskType || '') !== 'clarification' || !extraction?.valid) return null
+  if (extraction?.confidence != null && Number(extraction.confidence) < 0.7) return null
+  const idempotencyKey = `customer-reply-ack:${String(inboundExternalId || inboundMessage?.id || task.id)}`
+  const isRu = String(task?.order?.lang || '').trim().toLowerCase() === 'ru'
+  const bodyText = isRu
+    ? 'Спасибо! Мы получили уточнение. Если потребуется дополнительная информация, оператор Riderra свяжется с вами.'
+    : 'Thank you! We have received the information. If anything else is needed, a Riderra operator will contact you.'
+  try {
+    return await prisma.chatMessage.create({
+      data: {
+        tenantId,
+        chatTaskId: task.id,
+        direction: 'outbound',
+        source: 'system',
+        channel: normalizeChannelName(task.channel || 'whatsapp'),
+        bodyText,
+        bodyJson: JSON.stringify({
+          kind: 'customer_reply_ack',
+          closesTaskOnSend: true,
+          replyToInboundMessageId: inboundMessage?.id || null,
+          extractedField: extraction?.field || null,
+          extractedValue: extraction?.value ?? null,
+          delivery: { mode: 'free_text' }
+        }),
+        approvalStatus: 'pending_human',
+        traceId: inboundMessage?.traceId || null,
+        idempotencyKey
+      }
+    })
+  } catch (error) {
+    if (error?.code !== 'P2002') throw error
+    return prisma.chatMessage.findFirst({ where: { tenantId, idempotencyKey } })
+  }
 }
 
 async function transitionChatTaskIfAllowed(taskId, currentState, targetState) {
@@ -6760,7 +6831,10 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         }
       })
 
-      const nextState = message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent'
+      const closesTaskOnSend = existingBodyJson?.closesTaskOnSend === true || existingBodyJson?.kind === 'customer_reply_ack'
+      const nextState = closesTaskOnSend
+        ? 'closed'
+        : (message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent')
       await prisma.chatTask.update({
         where: { id: message.chatTask.id },
         data: { state: nextState }
@@ -6837,7 +6911,11 @@ app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, re
 
     const wrapped = await withIdempotency(req, 'admin.chat_message.mark_manual_sent', payload, async () => {
       const providerMessageId = message.providerMessageId || `manual:${Date.now()}`
-      const nextState = message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent'
+      const messageBodyJson = parseMessageBodyJson(message.bodyJson)
+      const closesTaskOnSend = messageBodyJson?.closesTaskOnSend === true || messageBodyJson?.kind === 'customer_reply_ack'
+      const nextState = closesTaskOnSend
+        ? 'closed'
+        : (message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent')
       const currentState = String(message.chatTask.state || '')
       const transition = await transitionChatTaskIfAllowed(message.chatTask.id, currentState, nextState)
       if (!transition.changed && currentState !== nextState) {
@@ -7442,6 +7520,14 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         pendingOrderPatch = orderPatch.patch || null
       }
 
+      const acknowledgementDraft = await ensureCustomerReplyAcknowledgementDraft({
+        tenantId,
+        task,
+        inboundMessage,
+        extraction,
+        inboundExternalId
+      })
+
       const trace = {
         kind: 'inbound_trace',
         source: 'openclaw_internal',
@@ -7453,6 +7539,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         decisionReason,
         orderPatchPreview,
         pendingOrderPatch,
+        acknowledgementDraftId: acknowledgementDraft?.id || null,
         capabilities: [
           { name: 'riderra.customer.reply.classify', runtime: classifyRuntime, output: classification },
           { name: 'riderra.order.field.extract_validate', runtime: extractRuntime, output: extraction }
@@ -7504,6 +7591,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         taskState: currentState,
         classification,
         extraction,
+        acknowledgementDraft,
         pendingOrderPatch,
         trace,
         runtime: { classify: classifyRuntime, extract: extractRuntime }

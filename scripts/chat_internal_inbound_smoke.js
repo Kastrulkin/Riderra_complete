@@ -231,6 +231,12 @@ async function main() {
     assert(inbound.data?.taskState === 'pending_update_approval', `expected taskState=pending_update_approval, got ${inbound.data?.taskState}`)
     assert(inbound.data?.pendingOrderPatch?.needsInfo === false, 'pendingOrderPatch.needsInfo must be false')
     assert(inbound.data?.pendingOrderPatch?.luggage === 1, `pendingOrderPatch.luggage must be 1, got ${inbound.data?.pendingOrderPatch?.luggage}`)
+    assert(inbound.data?.acknowledgementDraft?.approvalStatus === 'pending_human', 'clear answer must create thank-you draft for human approval')
+    assert(inbound.data?.acknowledgementDraft?.bodyText?.startsWith('Thank you!'), 'thank-you draft must be customer-facing')
+
+    const acknowledgementBody = JSON.parse(inbound.data?.acknowledgementDraft?.bodyJson || '{}')
+    assert(acknowledgementBody.kind === 'customer_reply_ack', 'thank-you draft kind must be customer_reply_ack')
+    assert(acknowledgementBody.closesTaskOnSend === true, 'thank-you draft must close task only after send')
 
     const replay = await requestJson(baseUrl, '/api/internal/chats/inbound', {
       method: 'POST',
@@ -276,7 +282,7 @@ async function main() {
 
     console.log(JSON.stringify({
       ok: true,
-      checks: 14,
+      checks: 18,
       taskState: apply.data.taskState,
       inboundIdempotentReplay: replay.data?.idempotent === true,
       runtimeKinds: mock.stats.requestKinds
