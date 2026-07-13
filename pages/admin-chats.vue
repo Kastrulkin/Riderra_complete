@@ -148,15 +148,59 @@
                   </div>
                 </div>
 
+                <section class="recipient-card">
+                  <div class="recipient-card__head">
+                    <div>
+                      <h4>Получатель</h4>
+                      <p class="hint">Кому уйдёт сообщение из этой задачи</p>
+                    </div>
+                    <div class="recipient-card__badges">
+                      <span class="badge">{{ recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram' }}</span>
+                      <span v-if="recipientTest" class="badge badge--sla-warning">Тест</span>
+                    </div>
+                  </div>
+                  <div class="recipient-card__grid">
+                    <label>
+                      <span>Канал</span>
+                      <select v-model="recipientChannel" class="input">
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="telegram">Telegram</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Номер в формате E.164</span>
+                      <input v-model.trim="recipientPhone" class="input" inputmode="tel" placeholder="+79214224843">
+                    </label>
+                    <label class="recipient-test-toggle">
+                      <input v-model="recipientTest" type="checkbox">
+                      <span>Тестовый получатель</span>
+                    </label>
+                    <button class="btn btn--primary" :disabled="recipientSaving || !recipientValid" @click="saveRecipient">
+                      {{ recipientSaving ? 'Сохраняю...' : 'Сохранить получателя' }}
+                    </button>
+                  </div>
+                  <div v-if="recipientTest" class="recipient-warning">
+                    Подменный номер действует только в этой задаче. Номер заказа и Google Sheet не изменяются.
+                  </div>
+                </section>
+
                 <div class="messages">
                   <div v-for="message in selectedTask.messages || []" :key="message.id" class="message" :class="`message--${message.direction}`">
                   <div class="message-head">
                     <span>{{ directionLabel(message.direction) }}</span>
                     <span>{{ sourceLabel(message.source) }}</span>
                     <span v-if="message.approvalStatus" class="badge">{{ approvalLabel(message.approvalStatus) }}</span>
+                    <span v-if="message.deliveryStatus" class="badge" :class="deliveryStatusClass(message.deliveryStatus)">{{ deliveryStatusLabel(message.deliveryStatus) }}</span>
                     <span>{{ formatDate(message.createdAt) }}</span>
                   </div>
                   <div class="message-body">{{ message.bodyText }}</div>
+                  <div v-if="message.direction === 'outbound'" class="send-preview">
+                    <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
+                    <span><strong>Канал:</strong> {{ (message.channel || selectedTask.channel || '—') }}</span>
+                    <span><strong>Проблема:</strong> {{ selectedTask.order && selectedTask.order.infoReason || '—' }}</span>
+                    <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
+                    <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
+                  </div>
                   <div v-if="canSend(message)" class="delivery-panel" :class="{ 'delivery-panel--warning': isWhatsappMessage(message) && !whatsappFreeTextAllowed }">
                     <div class="delivery-panel__head">
                       <div>
@@ -263,7 +307,7 @@
                     <button class="btn btn--small btn--warn" @click="rejectMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Отклонить</button>
                     <button class="btn btn--small" @click="copyMessage(message)" v-if="message.direction === 'outbound'">Скопировать</button>
                     <button class="btn btn--small btn--primary" @click="markManualSent(message.id)" v-if="canMarkManualSent(message)">Отметить отправленным вручную</button>
-                    <button class="btn btn--small btn--ghost" @click="sendMessage(message.id)" v-if="canSend(message)">Отправить через OpenClaw</button>
+                    <button class="btn btn--small btn--ghost" :disabled="!recipientReady" @click="sendMessage(message.id)" v-if="canSend(message)">Отправить в {{ recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram' }}</button>
                   </div>
                   </div>
                   <div v-if="!(selectedTask.messages || []).length" class="empty">Сообщений пока нет</div>
@@ -514,6 +558,10 @@ export default {
     assigningAgent: false,
     lastStepTrace: null,
     deliveryForms: {},
+    recipientChannel: 'whatsapp',
+    recipientPhone: '',
+    recipientTest: false,
+    recipientSaving: false,
     whatsappTemplatePresets: [
       {
         name: 'riderra_baggage_request',
@@ -674,6 +722,14 @@ export default {
       const lastInboundMs = this.lastInboundAtMs()
       return lastInboundMs > 0 && (Date.now() - lastInboundMs) <= 24 * 60 * 60 * 1000
     },
+    recipientValid() {
+      return /^\+[1-9]\d{9,14}$/.test(String(this.recipientPhone || '').trim())
+    },
+    recipientReady() {
+      return this.recipientValid &&
+        String(this.selectedTask?.customerActorId || '') === String(this.recipientPhone || '').trim() &&
+        String(this.selectedTask?.channel || '') === String(this.recipientChannel || '')
+    },
     displayedTasks() {
       let rows = Array.isArray(this.tasks) ? this.tasks.slice() : []
       if (this.ownerFilter === '__mine') {
@@ -732,7 +788,7 @@ export default {
       if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving || !this.inboundOutcome?.hasPendingPatch
       if (this.selectedTask.state === 'customer_replied') return !this.inboundText.trim() || this.inboundProcessing
       if (this.hasDraftAwaitingApproval(this.selectedTask)) return true
-      if (this.hasReadyDraft(this.selectedTask)) return false
+      if (this.hasReadyDraft(this.selectedTask)) return !this.recipientReady
       return this.draftBuildLoading
     },
     draftEditorHint() {
@@ -1085,11 +1141,40 @@ export default {
       const data = await res.json()
       this.selectedTask = data.task || null
       this.selectedTaskAgentId = this.selectedTask?.agentConfigId || ''
+      this.recipientChannel = this.selectedTask?.channel || 'whatsapp'
+      this.recipientPhone = this.selectedTask?.customerActorId || ''
+      this.recipientTest = this.selectedTask?.recipientSource === 'test_override'
       this.lastStepTrace = data.lastTrace || null
       this.nextState = ''
       this.draftText = ''
       this.inboundText = ''
       this.initializeDeliveryForms()
+    },
+    async saveRecipient() {
+      if (!this.selectedTask?.id || !this.recipientValid || this.recipientSaving) return
+      this.recipientSaving = true
+      this.notice = ''
+      try {
+        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/recipient`, {
+          method: 'PUT',
+          headers: this.headers(),
+          body: JSON.stringify({
+            channel: this.recipientChannel,
+            phone: this.recipientPhone,
+            testRecipient: this.recipientTest,
+            recipientSource: this.recipientTest ? 'test_override' : 'manual'
+          })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось сохранить получателя')
+        this.notice = this.recipientTest ? 'Тестовый получатель сохранён только для этой задачи' : 'Получатель сохранён'
+        await this.openTask(this.selectedTask.id)
+        await this.loadTasks()
+      } catch (error) {
+        this.notice = error?.message || 'Ошибка сохранения получателя'
+      } finally {
+        this.recipientSaving = false
+      }
     },
     async assignAgentToTask() {
       if (!this.selectedTask?.id || this.assigningAgent) return
@@ -1234,7 +1319,7 @@ export default {
         body: JSON.stringify({
           direction: 'outbound',
           source: 'operator',
-          channel: 'telegram',
+          channel: this.selectedTask.channel || 'whatsapp',
           bodyText: this.draftText.trim(),
           approvalStatus: 'pending_human'
         })
@@ -1376,6 +1461,7 @@ export default {
     },
     async sendMessage(id) {
       try {
+        if (!this.recipientReady) throw new Error('Сначала сохраните канал и номер получателя')
         const delivery = this.buildDeliveryPayload(id)
         const response = await fetch(`/api/admin/chats/messages/${id}/send`, {
           method: 'POST',
@@ -1393,6 +1479,7 @@ export default {
           }
           throw new Error(data?.error || 'Не удалось отправить сообщение')
         }
+        this.notice = data?.alreadySent ? 'Сообщение уже было отправлено — повторная отправка не выполнена' : 'Meta приняла сообщение. Ждём подтверждение доставки.'
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
       } catch (error) {
@@ -1839,6 +1926,20 @@ export default {
       }
       return map[code] || code
     },
+    deliveryStatusLabel(code) {
+      const map = {
+        accepted: 'Принято Meta',
+        delivered: 'Доставлено',
+        read: 'Прочитано',
+        failed: 'Ошибка доставки'
+      }
+      return map[code] || code
+    },
+    deliveryStatusClass(code) {
+      if (code === 'failed') return 'badge--sla-critical'
+      if (code === 'delivered' || code === 'read') return 'badge--sla-ok'
+      return 'badge--state'
+    },
     orderLabel(order) {
       if (!order) return '-'
       return order.externalKey || order.id
@@ -1994,12 +2095,21 @@ export default {
 .dialog-head h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.25; color: #17233d; }
 .dialog-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .dialog-status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.recipient-card { border: 1px solid #dbe4f0; border-radius: 12px; background: #f8fafc; padding: 12px; margin-bottom: 10px; }
+.recipient-card__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.recipient-card__head h4, .recipient-card__head p { margin: 0; }
+.recipient-card__badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.recipient-card__grid { display: grid; grid-template-columns: 140px minmax(210px, 1fr) auto auto; gap: 10px; align-items: end; }
+.recipient-card__grid label:not(.recipient-test-toggle) { display: flex; flex-direction: column; gap: 4px; color: #475569; font-size: 12px; font-weight: 700; }
+.recipient-test-toggle { display: inline-flex; gap: 7px; align-items: center; min-height: 38px; color: #334155; font-weight: 700; }
+.recipient-warning { margin-top: 10px; border: 1px solid #fde68a; border-radius: 9px; background: #fffbeb; color: #92400e; padding: 9px 10px; font-size: 13px; }
 .messages { overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .message { border: 1px solid #e5eaf1; border-radius: 10px; padding: 8px 10px; background: #fff; }
 .message--outbound { background: #f0f9ff; border-color: #bae6fd; }
 .message--inbound { background: #f8fafc; }
 .message-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: #64748b; font-size: 12px; margin-bottom: 6px; }
 .message-body { white-space: pre-wrap; color: #1f2937; }
+.send-preview { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #475569; font-size: 12px; }
 .quick-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .btn--tiny { padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; }
 .message-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
@@ -2128,6 +2238,8 @@ export default {
     align-items: stretch;
   }
   .policy-trace__grid { grid-template-columns: 1fr; }
+  .recipient-card__head { flex-direction: column; }
+  .recipient-card__grid { grid-template-columns: 1fr; }
 
   .page-actions .btn,
   .queue-bulk .btn,

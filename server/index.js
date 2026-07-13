@@ -3690,7 +3690,7 @@ app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActo
   }
 })
 
-app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const { orderId } = req.params
     const { needsInfo, infoReason } = req.body || {}
@@ -3715,21 +3715,12 @@ app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActor
 
       if (updated.needsInfo) {
         const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
-        await prisma.chatTask.upsert({
-          where: { tenantId_orderId_taskType: { tenantId, orderId: updated.id, taskType: 'clarification' } },
-          create: {
-            tenantId,
-            orderId: updated.id,
-            taskType: 'clarification',
-            state: 'missing_data_detected',
-            priority: 50,
-            agentConfigId: defaultAgentId
-          },
-          update: {
-            state: 'missing_data_detected',
-            priority: 50,
-            ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {})
-          }
+        await queueChatTaskWithoutRewind({
+          tenantId,
+          orderId: updated.id,
+          taskType: 'clarification',
+          priority: 50,
+          agentConfigId: defaultAgentId
         })
       } else {
         await prisma.chatTask.updateMany({
@@ -3798,7 +3789,10 @@ async function queueChatTaskWithoutRewind({
   taskType,
   priority,
   agentConfigId = null,
-  assignedToUserId = undefined
+  assignedToUserId = undefined,
+  channel = undefined,
+  customerActorId = undefined,
+  recipientSource = undefined
 }) {
   const existing = await prisma.chatTask.findUnique({
     where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } }
@@ -3809,7 +3803,10 @@ async function queueChatTaskWithoutRewind({
       data: {
         priority,
         ...(agentConfigId ? { agentConfigId } : {}),
-        ...(assignedToUserId !== undefined ? { assignedToUserId } : {})
+        ...(assignedToUserId !== undefined ? { assignedToUserId } : {}),
+        ...(channel !== undefined ? { channel } : {}),
+        ...(customerActorId !== undefined ? { customerActorId } : {}),
+        ...(recipientSource !== undefined ? { recipientSource } : {})
       }
     })
     return { task, queueStatus: chatTaskQueueStatus(task) }
@@ -3824,7 +3821,10 @@ async function queueChatTaskWithoutRewind({
         state: CHAT_TASK_INITIAL_STATE[taskType],
         priority,
         agentConfigId,
-        ...(assignedToUserId !== undefined ? { assignedToUserId } : {})
+        ...(assignedToUserId !== undefined ? { assignedToUserId } : {}),
+        ...(channel !== undefined ? { channel } : {}),
+        ...(customerActorId !== undefined ? { customerActorId } : {}),
+        ...(recipientSource !== undefined ? { recipientSource } : {})
       }
     })
     return { task, queueStatus: chatTaskQueueStatus(task, true) }
@@ -5582,15 +5582,27 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
   }
 })
 
-app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const orderId = String(req.body?.orderId || '').trim()
     const taskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
     const assignToMe = req.body?.assignToMe !== false
+    const requestedChannel = req.body?.channel === undefined ? undefined : normalizeChannelName(req.body.channel)
+    const requestedPhone = req.body?.recipientPhone === undefined ? undefined : normalizeE164Phone(req.body.recipientPhone)
+    const recipientSource = req.body?.recipientSource === undefined ? undefined : String(req.body.recipientSource || '').trim()
     if (!orderId) return res.status(400).json({ error: 'orderId is required' })
     if (!['clarification', 'dispatch_info'].includes(taskType)) {
       return res.status(400).json({ error: 'Unsupported taskType' })
+    }
+    if (requestedChannel !== undefined && !['whatsapp', 'telegram'].includes(requestedChannel)) {
+      return res.status(400).json({ error: 'Unsupported channel' })
+    }
+    if (req.body?.recipientPhone !== undefined && !requestedPhone) {
+      return res.status(400).json({ error: 'recipientPhone must be a valid E.164 number' })
+    }
+    if (recipientSource !== undefined && !['order', 'manual', 'test_override'].includes(recipientSource)) {
+      return res.status(400).json({ error: 'Unsupported recipientSource' })
     }
 
     const order = await prisma.order.findFirst({
@@ -5613,7 +5625,7 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
     const state = taskType === 'clarification' ? 'missing_data_detected' : 'ready_to_notify'
     const priority = taskType === 'clarification' ? 50 : 80
     const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, taskType)
-    const payload = { orderId, taskType, state, priority, agentConfigId: defaultAgentId }
+    const payload = { orderId, taskType, state, priority, agentConfigId: defaultAgentId, requestedChannel, requestedPhone, recipientSource }
     ensureIdempotencyKey(req, 'chat_task.queue_one', payload)
     const wrapped = await withIdempotency(req, 'chat_task.queue_one', payload, async () => {
       return queueChatTaskWithoutRewind({
@@ -5622,7 +5634,10 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
         taskType,
         priority,
         agentConfigId: defaultAgentId,
-        ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {})
+        ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {}),
+        ...(requestedChannel !== undefined ? { channel: requestedChannel } : {}),
+        ...(requestedPhone !== undefined ? { customerActorId: requestedPhone } : {}),
+        ...(recipientSource !== undefined ? { recipientSource } : {})
       })
     })
     const currentTask = wrapped.replayed
@@ -5638,6 +5653,49 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
   } catch (error) {
     console.error('Error queueing single chat order:', error)
     res.status(500).json({ error: 'Failed to queue order for chats' })
+  }
+})
+
+app.put('/api/admin/chats/tasks/:id/recipient', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const channel = normalizeChannelName(req.body?.channel || 'whatsapp')
+    const customerActorId = normalizeE164Phone(req.body?.phone || req.body?.customerActorId)
+    const recipientSource = req.body?.testRecipient === true ? 'test_override' : String(req.body?.recipientSource || 'manual').trim()
+    if (!['whatsapp', 'telegram'].includes(channel)) return res.status(400).json({ error: 'Unsupported channel' })
+    if (!customerActorId) return res.status(400).json({ error: 'Phone must be a valid E.164 number' })
+    if (!['order', 'manual', 'test_override'].includes(recipientSource)) return res.status(400).json({ error: 'Unsupported recipientSource' })
+
+    const task = await prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId } })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+    const sentOutbound = await prisma.chatMessage.findFirst({
+      where: { tenantId, chatTaskId: task.id, direction: 'outbound', approvalStatus: 'sent' },
+      select: { id: true }
+    })
+    if (sentOutbound && (task.channel !== channel || task.customerActorId !== customerActorId)) {
+      return res.status(409).json({ error: 'Recipient cannot be changed after an outbound message was sent', code: 'RECIPIENT_LOCKED' })
+    }
+
+    const updated = await prisma.chatTask.update({
+      where: { id: task.id },
+      data: { channel, customerActorId, recipientSource }
+    })
+    await writeAuditLog({
+      tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'chat_task.recipient.update',
+      resource: 'chat_task',
+      resourceId: task.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: { channel, recipientSource, testRecipient: recipientSource === 'test_override' }
+    })
+    res.json({ task: updated })
+  } catch (error) {
+    console.error('Error updating chat recipient:', error)
+    res.status(500).json({ error: 'Failed to update recipient' })
   }
 })
 
@@ -6035,7 +6093,7 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const { toState, reason = '' } = req.body || {}
     const target = String(toState || '').trim()
@@ -6137,7 +6195,7 @@ app.post('/api/admin/chats/tasks/:id/assign-agent', authenticateToken, resolveAc
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const task = await prisma.chatTask.findFirst({
@@ -6357,14 +6415,14 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
-    const { direction = 'outbound', source = 'operator', channel = 'telegram', bodyText = '', bodyJson = null, approvalStatus = null } = req.body || {}
+    const { direction = 'outbound', source = 'operator', channel = null, bodyText = '', bodyJson = null, approvalStatus = null } = req.body || {}
     if (!String(bodyText || '').trim()) return res.status(400).json({ error: 'bodyText is required' })
     const tenantId = req.actorContext.tenantId
     const task = await prisma.chatTask.findFirst({
       where: { id: req.params.id, tenantId },
-      select: { id: true, taskType: true, state: true }
+      select: { id: true, taskType: true, state: true, channel: true }
     })
     if (!task) return res.status(404).json({ error: 'Chat task not found' })
 
@@ -6372,7 +6430,7 @@ app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorC
       taskId: task.id,
       direction: String(direction),
       source: String(source),
-      channel: String(channel),
+      channel: normalizeChannelName(channel || task.channel || 'telegram'),
       bodyText: String(bodyText),
       bodyJson: bodyJson ? JSON.stringify(bodyJson) : null,
       approvalStatus: approvalStatus || null
@@ -6424,7 +6482,7 @@ app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorC
   }
 })
 
-app.post('/api/admin/chats/messages/:id/approve', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/messages/:id/approve', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
@@ -6446,7 +6504,7 @@ app.post('/api/admin/chats/messages/:id/approve', authenticateToken, resolveActo
   }
 })
 
-app.post('/api/admin/chats/messages/:id/reject', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/messages/:id/reject', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
@@ -6468,7 +6526,7 @@ app.post('/api/admin/chats/messages/:id/reject', authenticateToken, resolveActor
   }
 })
 
-app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
@@ -6495,7 +6553,19 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
     const effectiveChannel = normalizeChannelName(message.channel || message.chatTask.channel || 'telegram')
     const existingBodyJson = parseMessageBodyJson(message.bodyJson)
     const requestDelivery = req.body?.delivery && typeof req.body.delivery === 'object' ? req.body.delivery : {}
-    const delivery = Object.keys(requestDelivery).length ? requestDelivery : (existingBodyJson?.delivery || {})
+    const baseDelivery = Object.keys(requestDelivery).length ? requestDelivery : (existingBodyJson?.delivery || {})
+    const delivery = { ...(baseDelivery || {}) }
+    delete delivery.to
+    delete delivery.phone
+    delete delivery.recipient
+    delete delivery.recipientPhone
+    if (effectiveChannel === 'whatsapp') {
+      const taskRecipient = normalizeE164Phone(message.chatTask.customerActorId)
+      if (!taskRecipient) {
+        return res.status(409).json({ error: 'Set a valid WhatsApp recipient before sending', code: 'WHATSAPP_RECIPIENT_REQUIRED' })
+      }
+      delivery.to = taskRecipient
+    }
     const isTemplateSend = isWhatsappTemplatePayload(delivery)
 
     if (effectiveChannel === 'whatsapp') {
@@ -6649,13 +6719,23 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         error.details = { runtimeStatus: runtimeResult.status || 0 }
         throw error
       }
+      if (!runtimeResult.configured) {
+        const error = new Error('OpenClaw runtime is not configured; external send was not attempted')
+        error.statusCode = 502
+        throw error
+      }
       const providerMessageId = String(
         runtimeResult.data?.provider_message_id ||
         runtimeResult.data?.providerMessageId ||
         runtimeResult.data?.message_id ||
         runtimeResult.data?.id ||
         ''
-      ).trim() || `manual:${Date.now()}`
+      ).trim()
+      if (!providerMessageId) {
+        const error = new Error('Meta did not return a provider message id; message remains unsent')
+        error.statusCode = 502
+        throw error
+      }
 
       let nextBodyJson = existingBodyJson || {}
       if (delivery && Object.keys(delivery).length) {
@@ -6667,6 +6747,8 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         data: {
           approvalStatus: 'sent',
           providerMessageId: message.providerMessageId || providerMessageId,
+          deliveryStatus: 'accepted',
+          deliveryError: null,
           source: runtimeResult.configured ? 'openclaw' : message.source,
           bodyJson: nextBodyJson && Object.keys(nextBodyJson).length ? JSON.stringify(nextBodyJson) : null
         }
@@ -6729,7 +6811,7 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
   }
 })
 
-app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
@@ -6831,7 +6913,7 @@ app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, re
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const task = await prisma.chatTask.findFirst({
@@ -7112,6 +7194,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
     const orderId = String(req.body?.orderId || '').trim()
     const orderExternalKey = String(req.body?.orderExternalKey || req.body?.externalKey || req.body?.bookingNumber || '').trim()
     const providerMessageId = String(req.body?.providerMessageId || req.body?.provider_message_id || req.body?.replyToProviderMessageId || '').trim()
+    const senderPhone = normalizeE164Phone(req.body?.from || req.body?.phone || req.body?.sender)
     const requestedTaskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
 
     let task = null
@@ -7140,6 +7223,28 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
       }
     }
 
+    if (!task && senderPhone) {
+      const recipientMatches = await prisma.chatTask.findMany({
+        where: {
+          tenantId,
+          channel: 'whatsapp',
+          customerActorId: senderPhone,
+          state: { notIn: ['closed'] }
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 2,
+        include
+      })
+      if (recipientMatches.length > 1) {
+        return res.status(409).json({
+          error: 'Multiple active WhatsApp tasks match this sender; manual review required',
+          code: 'AMBIGUOUS_RECIPIENT_TASK',
+          senderPhone
+        })
+      }
+      task = recipientMatches[0] || null
+    }
+
     if (!task && orderId) {
       task = await prisma.chatTask.findFirst({
         where: { tenantId, orderId, taskType: requestedTaskType },
@@ -7163,7 +7268,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
     if (!task) {
       return res.status(404).json({
         error: 'Chat task not found for inbound message',
-        lookup: { taskId, orderId, orderExternalKey, providerMessageId, taskType: requestedTaskType }
+        lookup: { taskId, orderId, orderExternalKey, providerMessageId, senderPhone, taskType: requestedTaskType }
       })
     }
 
@@ -7406,7 +7511,46 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActorContext, async (req, res) => {
+  try {
+    if (!hasValidOpenClawInternalToken(req)) {
+      return res.status(401).json({ error: 'Invalid internal token for chat delivery status' })
+    }
+    const tenantId = req.actorContext.tenantId
+    const providerMessageId = String(req.body?.providerMessageId || req.body?.wamid || req.body?.id || '').trim()
+    const rawStatus = String(req.body?.status || '').trim().toLowerCase()
+    const status = rawStatus === 'sent' ? 'accepted' : rawStatus
+    if (!providerMessageId) return res.status(400).json({ error: 'providerMessageId is required' })
+    if (!['accepted', 'delivered', 'read', 'failed'].includes(status)) {
+      return res.status(400).json({ error: 'Unsupported delivery status' })
+    }
+    const message = await prisma.chatMessage.findFirst({ where: { tenantId, providerMessageId } })
+    if (!message) return res.status(404).json({ error: 'Outbound message not found', providerMessageId })
+
+    const rank = { accepted: 1, delivered: 2, read: 3, failed: 4 }
+    const currentStatus = String(message.deliveryStatus || '').toLowerCase()
+    if (currentStatus !== 'failed' && rank[status] < (rank[currentStatus] || 0)) {
+      return res.json({ message, ignored: true, reason: 'status_regression' })
+    }
+    const now = new Date()
+    const errorText = String(req.body?.error || req.body?.errorMessage || '').trim() || null
+    const updated = await prisma.chatMessage.update({
+      where: { id: message.id },
+      data: {
+        deliveryStatus: status,
+        ...(status === 'delivered' ? { deliveredAt: message.deliveredAt || now } : {}),
+        ...(status === 'read' ? { readAt: message.readAt || now, deliveredAt: message.deliveredAt || now } : {}),
+        ...(status === 'failed' ? { failedAt: message.failedAt || now, deliveryError: errorText || 'Meta delivery failed' } : {})
+      }
+    })
+    res.json({ message: updated })
+  } catch (error) {
+    console.error('Error updating internal chat delivery status:', error)
+    res.status(500).json({ error: 'Failed to update delivery status' })
+  }
+})
+
+app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.apply_inbound_update')
@@ -7506,7 +7650,7 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.manage', 'order'), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
     const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.reject_inbound_update')
@@ -12242,6 +12386,14 @@ function normalizeChannelName(value = '') {
   if (!raw) return 'telegram'
   if (raw === 'wa' || raw === 'waba') return 'whatsapp'
   return raw
+}
+
+function normalizeE164Phone(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length < 10 || digits.length > 15) return null
+  return `+${digits}`
 }
 
 function parseMessageBodyJson(raw) {

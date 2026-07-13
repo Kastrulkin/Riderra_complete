@@ -8,46 +8,46 @@ datasource db {
 }
 
 model Tenant {
-  id                String                  @id @default(cuid())
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  code              String                  @unique
-  name              String
-  isActive          Boolean                 @default(true)
-  memberships       TenantMembership[]
-  idempotencyKeys   IdempotencyKey[]
-  auditLogs         AuditLog[]
-  approvals         HumanApproval[]
-  orders            Order[]
+  id                  String                  @id @default(cuid())
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  code                String                  @unique
+  name                String
+  isActive            Boolean                 @default(true)
+  memberships         TenantMembership[]
+  idempotencyKeys     IdempotencyKey[]
+  auditLogs           AuditLog[]
+  approvals           HumanApproval[]
+  orders              Order[]
   orderQualitySignals OrderQualitySignal[]
-  orderStatusEvents OrderStatusHistory[]
-  pricingRows       CityPricing[]
-  counterpartyRules CounterpartyPriceRule[]
-  drivers           Driver[]
-  driverRoutes      DriverRoute[]
-  cityRoutes        CityRoute[]
-  driverCityRoutes  DriverCityRoute[]
-  requests          Request[]
-  reviews           Review[]
-  customerCompanies CustomerCompany[]
-  customerContacts  CustomerContact[]
-  crmCompanies      CrmCompany[]
-  crmContacts       CrmContact[]
-  opsEventDrafts    OpsEventDraft[]
-  opsEvents         OpsEvent[]
-  driverBlocks      DriverUnavailability[]
-  opsTasks          OpsTask[]
-  orderAdjustments  OrderAdjustment[]
-  telegramLinks     TelegramLink[]
-  fleetVehicles     FleetVehicle[]
-  chatTasks         ChatTask[]
-  chatMessages      ChatMessage[]
-  chatAgentConfigs  ChatAgentConfig[]
-  promptTemplates   PromptTemplate[]
-  aiLearningEvents  AiLearningEvent[]
-  vpnProfiles       VpnProfile[]
-  vpnAccessGrants   VpnAccessGrant[]
-  wikiPages         WikiPage[]
+  orderStatusEvents   OrderStatusHistory[]
+  pricingRows         CityPricing[]
+  counterpartyRules   CounterpartyPriceRule[]
+  drivers             Driver[]
+  driverRoutes        DriverRoute[]
+  cityRoutes          CityRoute[]
+  driverCityRoutes    DriverCityRoute[]
+  requests            Request[]
+  reviews             Review[]
+  customerCompanies   CustomerCompany[]
+  customerContacts    CustomerContact[]
+  crmCompanies        CrmCompany[]
+  crmContacts         CrmContact[]
+  opsEventDrafts      OpsEventDraft[]
+  opsEvents           OpsEvent[]
+  driverBlocks        DriverUnavailability[]
+  opsTasks            OpsTask[]
+  orderAdjustments    OrderAdjustment[]
+  telegramLinks       TelegramLink[]
+  fleetVehicles       FleetVehicle[]
+  chatTasks           ChatTask[]
+  chatMessages        ChatMessage[]
+  chatAgentConfigs    ChatAgentConfig[]
+  promptTemplates     PromptTemplate[]
+  aiLearningEvents    AiLearningEvent[]
+  vpnProfiles         VpnProfile[]
+  vpnAccessGrants     VpnAccessGrant[]
+  wikiPages           WikiPage[]
 }
 
 model TenantMembership {
@@ -135,25 +135,25 @@ model WikiPage {
 }
 
 model Driver {
-  id              String   @id @default(cuid())
-  tenantId        String?
-  createdAt       DateTime @default(now())
-  name            String
-  email           String?
-  phone           String
+  id                String   @id @default(cuid())
+  tenantId          String?
+  createdAt         DateTime @default(now())
+  name              String
+  email             String?
+  phone             String
   supplierContactId String?
   supplierCompanyId String?
-  country         String?
-  city            String
-  telegramUserId  String?
-  fixedFrom       String?
-  fixedTo         String?
-  fixedPrice      String?
-  fixedCurrency   String?
-  pricePerKm      String?
-  comment         String?
-  lang            String?
-  fixedRoutesJson String?
+  country           String?
+  city              String
+  telegramUserId    String?
+  fixedFrom         String?
+  fixedTo           String?
+  fixedPrice        String?
+  fixedCurrency     String?
+  pricePerKm        String?
+  comment           String?
+  lang              String?
+  fixedRoutesJson   String?
 
   // Новые поля для системы комиссий
   commissionRate     Float?   @default(15.0) // Комиссия водителя (5-30%)
@@ -174,19 +174,19 @@ model Driver {
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Связь с маршрутами
-  routes         DriverRoute[]
+  routes           DriverRoute[]
   // Связь с заказами
-  orders         Order[]
+  orders           Order[]
   orderAdjustments OrderAdjustment[]
   // Связь с отзывами
-  reviews        Review[]
+  reviews          Review[]
   // Связь с предустановленными маршрутами городов
-  cityRoutes     DriverCityRoute[]
-  unavailability DriverUnavailability[]
-  vehicles       FleetVehicle[]
-  supplierContact CustomerContact?       @relation("SupplierContactDriverLink", fields: [supplierContactId], references: [id], onDelete: SetNull)
-  supplierCompany CustomerCompany?       @relation("SupplierCompanyDriverLink", fields: [supplierCompanyId], references: [id], onDelete: SetNull)
-  tenant         Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  cityRoutes       DriverCityRoute[]
+  unavailability   DriverUnavailability[]
+  vehicles         FleetVehicle[]
+  supplierContact  CustomerContact?       @relation("SupplierContactDriverLink", fields: [supplierContactId], references: [id], onDelete: SetNull)
+  supplierCompany  CustomerCompany?       @relation("SupplierCompanyDriverLink", fields: [supplierCompanyId], references: [id], onDelete: SetNull)
+  tenant           Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, country, city])
   @@index([country, city])
@@ -219,90 +219,90 @@ model FleetVehicle {
 }
 
 model DriverRoute {
-  id          String   @id @default(cuid())
-  tenantId    String?
-  driverId    String
-  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  fromPoint   String
-  toPoint     String
-  vehicleType String?
-  driverPrice Float // Цена водителя
-  ourPrice    Float? // Наша целевая цена
-  currency    String   @default("EUR")
+  id             String    @id @default(cuid())
+  tenantId       String?
+  driverId       String
+  driver         Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  fromPoint      String
+  toPoint        String
+  vehicleType    String?
+  driverPrice    Float // Цена водителя
+  ourPrice       Float? // Наша целевая цена
+  currency       String    @default("EUR")
   sourceType     String? // whatsapp, email, call, manual, sheet
   sourceLabel    String?
   sourceQuotedAt DateTime?
   sourceMessage  String?
-  sourceStatus   String   @default("approved") // approved, pending_clarification, archived
+  sourceStatus   String    @default("approved") // approved, pending_clarification, archived
   sourceMetaJson String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, driverId, isActive])
   @@index([tenantId, vehicleType, isActive])
 }
 
 model Order {
-  id          String    @id @default(cuid())
-  tenantId    String?
-  createdAt   DateTime  @default(now())
-  source      String    @default("internal") // internal, easytaxi, google_sheet
-  externalKey String?   @unique // Уникальный ключ заказа во внешней системе
-  sourceRow   Int? // Номер строки в исходной таблице
-  pickupAt    DateTime? // Дата и время подачи
-  fromPoint   String
-  toPoint     String
-  clientPrice Float // Цена для клиента (от EasyTaxi)
-  driverPrice Float? // Цена водителя
-  commission  Float? // Комиссия платформы
-  driverId    String? // ID назначенного водителя
-  driver      Driver?   @relation(fields: [driverId], references: [id])
-  status      String    @default("pending") // pending, assigned, accepted, completed, cancelled
-  vehicleType String // Тип транспорта
-  counterpartyName String?
-  driverNameRaw String?
-  sourceComment String?
-  sourceCurrency String?
-  sourceCityCode String?
-  sourceVehicleCode String?
-  sourceDirection String?
-  sourceOrderNumber String?
-  sourceBookingId String?
+  id                        String    @id @default(cuid())
+  tenantId                  String?
+  createdAt                 DateTime  @default(now())
+  source                    String    @default("internal") // internal, easytaxi, google_sheet
+  externalKey               String?   @unique // Уникальный ключ заказа во внешней системе
+  sourceRow                 Int? // Номер строки в исходной таблице
+  pickupAt                  DateTime? // Дата и время подачи
+  fromPoint                 String
+  toPoint                   String
+  clientPrice               Float // Цена для клиента (от EasyTaxi)
+  driverPrice               Float? // Цена водителя
+  commission                Float? // Комиссия платформы
+  driverId                  String? // ID назначенного водителя
+  driver                    Driver?   @relation(fields: [driverId], references: [id])
+  status                    String    @default("pending") // pending, assigned, accepted, completed, cancelled
+  vehicleType               String // Тип транспорта
+  counterpartyName          String?
+  driverNameRaw             String?
+  sourceComment             String?
+  sourceCurrency            String?
+  sourceCityCode            String?
+  sourceVehicleCode         String?
+  sourceDirection           String?
+  sourceOrderNumber         String?
+  sourceBookingId           String?
   sourceInternalOrderNumber String?
-  hasComplaint Boolean @default(false)
-  issueFlagsJson String?
-  passengers  Int?
-  luggage     Int?
-  needsInfo   Boolean   @default(false)
-  infoReason  String?
-  flightNumber String?
-  flightStatus String?
-  flightProvider String?
-  flightCheckedAt DateTime?
-  flightArrivalScheduled DateTime?
-  flightArrivalEstimated DateTime?
-  flightArrivalActual DateTime?
-  flightVerificationJson String?
-  addressProvider String?
-  addressCheckedAt DateTime?
-  fromPointNormalized String?
-  fromPointLat Float?
-  fromPointLon Float?
-  toPointNormalized String?
-  toPointLat Float?
-  toPointLon Float?
-  addressVerificationJson String?
-  comment     String?
-  lang        String?
-  updatedAt   DateTime  @updatedAt
+  hasComplaint              Boolean   @default(false)
+  issueFlagsJson            String?
+  passengers                Int?
+  luggage                   Int?
+  needsInfo                 Boolean   @default(false)
+  infoReason                String?
+  flightNumber              String?
+  flightStatus              String?
+  flightProvider            String?
+  flightCheckedAt           DateTime?
+  flightArrivalScheduled    DateTime?
+  flightArrivalEstimated    DateTime?
+  flightArrivalActual       DateTime?
+  flightVerificationJson    String?
+  addressProvider           String?
+  addressCheckedAt          DateTime?
+  fromPointNormalized       String?
+  fromPointLat              Float?
+  fromPointLon              Float?
+  toPointNormalized         String?
+  toPointLat                Float?
+  toPointLon                Float?
+  addressVerificationJson   String?
+  comment                   String?
+  lang                      String?
+  updatedAt                 DateTime  @updatedAt
 
   // Связь с отзывами
   reviews        Review[]
   sourceHistory  OrderSourceSnapshot[]
   priceConflicts PriceConflict[]
-  adjustments     OrderAdjustment[]
+  adjustments    OrderAdjustment[]
   statusHistory  OrderStatusHistory[]
   chatTasks      ChatTask[]
   qualitySignals OrderQualitySignal[]
@@ -368,24 +368,24 @@ model OrderAdjustment {
 }
 
 model VpnProfile {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   tenantId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  name        String   @default("Corporate VPN")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  name        String           @default("Corporate VPN")
   serverHost  String
-  serverPort  Int      @default(443)
-  protocol    String   @default("vless")
-  security    String   @default("reality")
-  transport   String   @default("tcp")
-  flow        String   @default("xtls-rprx-vision")
+  serverPort  Int              @default(443)
+  protocol    String           @default("vless")
+  security    String           @default("reality")
+  transport   String           @default("tcp")
+  flow        String           @default("xtls-rprx-vision")
   publicKey   String
   shortId     String
   serverName  String
-  fingerprint String?  @default("chrome")
-  isActive    Boolean  @default(true)
+  fingerprint String?          @default("chrome")
+  isActive    Boolean          @default(true)
   notes       String?
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   accesses    VpnAccessGrant[]
 
   @@unique([tenantId])
@@ -393,12 +393,12 @@ model VpnProfile {
 }
 
 model VpnAccessGrant {
-  id              String   @id @default(cuid())
+  id              String      @id @default(cuid())
   tenantId        String
   profileId       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  issuedAt        DateTime @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  issuedAt        DateTime    @default(now())
   disabledAt      DateTime?
   rotatedAt       DateTime?
   employeeName    String
@@ -407,14 +407,14 @@ model VpnAccessGrant {
   deviceKind      String?
   deviceName      String
   platform        String?
-  uuid            String   @unique
-  status          String   @default("pending")
+  uuid            String      @unique
+  status          String      @default("pending")
   comment         String?
   connectionLabel String?
-  syncState       String   @default("pending")
+  syncState       String      @default("pending")
   appliedAt       DateTime?
   lastSyncError   String?
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   profile         VpnProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, updatedAt])
@@ -487,22 +487,22 @@ model CityRoute {
 
 // Индивидуальные цены водителей для предустановленных маршрутов
 model DriverCityRoute {
-  id          String    @id @default(cuid())
-  tenantId    String?
-  driverId    String
-  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  cityRouteId String
-  cityRoute   CityRoute @relation(fields: [cityRouteId], references: [id], onDelete: Cascade)
-  bestPrice   Float? // Ваше лучшее предложение (может быть null, если водитель еще не указал)
+  id             String    @id @default(cuid())
+  tenantId       String?
+  driverId       String
+  driver         Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  cityRouteId    String
+  cityRoute      CityRoute @relation(fields: [cityRouteId], references: [id], onDelete: Cascade)
+  bestPrice      Float? // Ваше лучшее предложение (может быть null, если водитель еще не указал)
   sourceType     String? // whatsapp, email, call, manual, sheet
   sourceLabel    String?
   sourceQuotedAt DateTime?
   sourceMessage  String?
-  sourceStatus   String   @default("approved") // approved, pending_clarification, archived
+  sourceStatus   String    @default("approved") // approved, pending_clarification, archived
   sourceMetaJson String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([driverId, cityRouteId]) // Одна цена водителя на маршрут
   @@index([tenantId, driverId, cityRouteId])
@@ -658,7 +658,7 @@ model CustomerCompany {
   segments            CustomerCompanySegment[]
   pricingRules        CounterpartyPriceRule[]
   orderAdjustments    OrderAdjustment[]
-  supplierDrivers     Driver[]                  @relation("SupplierCompanyDriverLink")
+  supplierDrivers     Driver[]                 @relation("SupplierCompanyDriverLink")
   tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])
@@ -690,7 +690,7 @@ model CustomerContact {
   ownerName           String?
   links               CustomerCompanyContact[]
   segments            CustomerContactSegment[]
-  supplierDrivers     Driver[]                  @relation("SupplierContactDriverLink")
+  supplierDrivers     Driver[]                 @relation("SupplierContactDriverLink")
   tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])
@@ -959,6 +959,7 @@ model ChatTask {
   assignedToUserId String?
   channel          String? // telegram, whatsapp, email, sms
   customerActorId  String?
+  recipientSource  String? // order, manual, test_override
   openclawThreadId String?
   lastError        String?
   createdAt        DateTime          @default(now())
@@ -972,6 +973,7 @@ model ChatTask {
   @@unique([tenantId, orderId, taskType])
   @@index([tenantId, taskType, state, updatedAt])
   @@index([tenantId, priority, updatedAt])
+  @@index([tenantId, channel, customerActorId, state])
 }
 
 model ChatMessage {
@@ -984,6 +986,11 @@ model ChatMessage {
   bodyText          String
   bodyJson          String?
   providerMessageId String?
+  deliveryStatus    String? // accepted, delivered, read, failed
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failedAt          DateTime?
+  deliveryError     String?
   confidence        Float?
   approvalStatus    String? // pending_human, approved, rejected, expired, sent
   traceId           String?
