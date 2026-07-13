@@ -3781,6 +3781,65 @@ const CHAT_STATE_TRANSITIONS = {
   closed: []
 }
 
+const CHAT_TASK_INITIAL_STATE = {
+  clarification: 'missing_data_detected',
+  dispatch_info: 'ready_to_notify'
+}
+
+function chatTaskQueueStatus(task, created = false) {
+  if (created) return 'created'
+  const initialState = CHAT_TASK_INITIAL_STATE[String(task?.taskType || '')]
+  return String(task?.state || '') === initialState ? 'already_queued' : 'already_in_progress'
+}
+
+async function queueChatTaskWithoutRewind({
+  tenantId,
+  orderId,
+  taskType,
+  priority,
+  agentConfigId = null,
+  assignedToUserId = undefined
+}) {
+  const existing = await prisma.chatTask.findUnique({
+    where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } }
+  })
+  if (existing) {
+    const task = await prisma.chatTask.update({
+      where: { id: existing.id },
+      data: {
+        priority,
+        ...(agentConfigId ? { agentConfigId } : {}),
+        ...(assignedToUserId !== undefined ? { assignedToUserId } : {})
+      }
+    })
+    return { task, queueStatus: chatTaskQueueStatus(task) }
+  }
+
+  try {
+    const task = await prisma.chatTask.create({
+      data: {
+        tenantId,
+        orderId,
+        taskType,
+        state: CHAT_TASK_INITIAL_STATE[taskType],
+        priority,
+        agentConfigId,
+        ...(assignedToUserId !== undefined ? { assignedToUserId } : {})
+      }
+    })
+    return { task, queueStatus: chatTaskQueueStatus(task, true) }
+  } catch (error) {
+    // A concurrent queue request may win the unique constraint race. Treat it
+    // as the same safe operation and never rewind the winning task's state.
+    if (error?.code !== 'P2002') throw error
+    const task = await prisma.chatTask.findUnique({
+      where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } }
+    })
+    if (!task) throw error
+    return { task, queueStatus: chatTaskQueueStatus(task) }
+  }
+}
+
 function parseJsonFieldOrNull(value, fieldName) {
   if (value === undefined || value === null || value === '') return null
   if (typeof value === 'object') return JSON.stringify(value)
@@ -5478,54 +5537,28 @@ app.post('/api/admin/chats/sync-from-orders', authenticateToken, resolveActorCon
     for (const order of orders) {
       if (order.needsInfo) {
         const defaultClarificationAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
-        const existing = await prisma.chatTask.findFirst({
-          where: { tenantId, orderId: order.id, taskType: 'clarification' },
-          select: { id: true }
+        const queued = await queueChatTaskWithoutRewind({
+          tenantId,
+          orderId: order.id,
+          taskType: 'clarification',
+          priority: 50,
+          agentConfigId: defaultClarificationAgentId
         })
-        await prisma.chatTask.upsert({
-          where: { tenantId_orderId_taskType: { tenantId, orderId: order.id, taskType: 'clarification' } },
-          create: {
-            tenantId,
-            orderId: order.id,
-            taskType: 'clarification',
-            state: 'missing_data_detected',
-            priority: 50,
-            agentConfigId: defaultClarificationAgentId
-          },
-          update: {
-            state: 'missing_data_detected',
-            priority: 50,
-            ...(defaultClarificationAgentId ? { agentConfigId: defaultClarificationAgentId } : {})
-          }
-        })
-        if (existing) clarificationUpdated += 1
-        else clarificationCreated += 1
+        if (queued.queueStatus === 'created') clarificationCreated += 1
+        else clarificationUpdated += 1
       }
 
       if (!order.needsInfo && dispatchReadyStatuses.has(String(order.status || '').toLowerCase())) {
         const defaultDispatchAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'dispatch_info')
-        const existing = await prisma.chatTask.findFirst({
-          where: { tenantId, orderId: order.id, taskType: 'dispatch_info' },
-          select: { id: true, state: true }
+        const queued = await queueChatTaskWithoutRewind({
+          tenantId,
+          orderId: order.id,
+          taskType: 'dispatch_info',
+          priority: 80,
+          agentConfigId: defaultDispatchAgentId
         })
-        await prisma.chatTask.upsert({
-          where: { tenantId_orderId_taskType: { tenantId, orderId: order.id, taskType: 'dispatch_info' } },
-          create: {
-            tenantId,
-            orderId: order.id,
-            taskType: 'dispatch_info',
-            state: 'ready_to_notify',
-            priority: 80,
-            agentConfigId: defaultDispatchAgentId
-          },
-          update: {
-            state: ['notify_sent', 'notify_ack', 'closed'].includes(existing?.state) ? existing.state : 'ready_to_notify',
-            priority: 80,
-            ...(defaultDispatchAgentId ? { agentConfigId: defaultDispatchAgentId } : {})
-          }
-        })
-        if (existing) dispatchUpdated += 1
-        else dispatchCreated += 1
+        if (queued.queueStatus === 'created') dispatchCreated += 1
+        else dispatchUpdated += 1
       }
     }
 
@@ -5583,28 +5616,22 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
     const payload = { orderId, taskType, state, priority, agentConfigId: defaultAgentId }
     ensureIdempotencyKey(req, 'chat_task.queue_one', payload)
     const wrapped = await withIdempotency(req, 'chat_task.queue_one', payload, async () => {
-      return prisma.chatTask.upsert({
-        where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } },
-        create: {
-          tenantId,
-          orderId,
-          taskType,
-          state,
-          priority,
-          agentConfigId: defaultAgentId,
-          ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {})
-        },
-        update: {
-          state,
-          priority,
-          ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {}),
-          ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {})
-        }
+      return queueChatTaskWithoutRewind({
+        tenantId,
+        orderId,
+        taskType,
+        priority,
+        agentConfigId: defaultAgentId,
+        ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {})
       })
     })
+    const currentTask = wrapped.replayed
+      ? await prisma.chatTask.findUnique({ where: { id: wrapped.data.task.id } })
+      : wrapped.data.task
 
     res.json({
-      task: wrapped.data,
+      task: currentTask,
+      queueStatus: wrapped.replayed ? chatTaskQueueStatus(currentTask) : wrapped.data.queueStatus,
       prefillText: buildOrderChatPrefill(order, taskType),
       idempotent: wrapped.replayed
     })
@@ -5657,6 +5684,25 @@ app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorC
         }
       })
 
+      const existingSentMessage = await prisma.chatMessage.findFirst({
+        where: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'outbound',
+          approvalStatus: 'sent',
+          bodyText: messageText
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+      if (existingSentMessage) {
+        return {
+          taskId: task.id,
+          messageId: existingSentMessage.id,
+          alreadySent: true,
+          runtime: { configured: true, ok: true, status: 200, error: null }
+        }
+      }
+
       if (task.state === 'ready_to_notify') {
         await prisma.chatTask.update({
           where: { id: task.id },
@@ -5674,7 +5720,7 @@ app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorC
           bodyText: messageText,
           approvalStatus: 'pending_human',
           traceId: req.actorContext.traceId,
-          idempotencyKey: `${req.idempotencyKey || ''}:msg`,
+          idempotencyKey: `${getIdempotencyKey(req)}:msg`,
           createdByUserId: req.user?.id || null
         }
       })
@@ -5687,7 +5733,7 @@ app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorC
       const runtimePayload = buildOpenClawEnvelope({
         tenantId,
         traceId: req.actorContext.traceId,
-        idempotencyKey: req.idempotencyKey || null,
+        idempotencyKey: getIdempotencyKey(req) || null,
         actor: {
           id: req.actorContext.actorId || req.user?.id || null,
           role: req.actorContext.actorRole || 'staff'
@@ -5722,7 +5768,7 @@ app.post('/api/admin/chats/dispatch-one-click', authenticateToken, resolveActorC
         payload: runtimePayload,
         kind: 'send',
         traceId: req.actorContext.traceId,
-        idempotencyKey: req.idempotencyKey || null
+        idempotencyKey: getIdempotencyKey(req) || null
       })
       if (runtimeResult.configured && !runtimeResult.ok) {
         await prisma.chatMessage.update({
@@ -5810,35 +5856,43 @@ app.post('/api/admin/chats/queue-marked', authenticateToken, resolveActorContext
       select: { id: true }
     })
 
-    let created = 0
-    let updated = 0
-    for (const order of markedOrders) {
-      const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
-      const existing = await prisma.chatTask.findFirst({
-        where: { tenantId, orderId: order.id, taskType: 'clarification' },
-        select: { id: true }
-      })
-      await prisma.chatTask.upsert({
-        where: { tenantId_orderId_taskType: { tenantId, orderId: order.id, taskType: 'clarification' } },
-        create: {
+    const payload = { orderIds: markedOrders.map((order) => order.id).sort() }
+    ensureIdempotencyKey(req, 'chat_task.queue_marked', payload)
+    const wrapped = await withIdempotency(req, 'chat_task.queue_marked', payload, async () => {
+      let created = 0
+      let alreadyQueued = 0
+      let alreadyInProgress = 0
+      for (const order of markedOrders) {
+        const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, 'clarification')
+        const queued = await queueChatTaskWithoutRewind({
           tenantId,
           orderId: order.id,
           taskType: 'clarification',
-          state: 'missing_data_detected',
           priority: 50,
           agentConfigId: defaultAgentId
-        },
-        update: {
-          state: 'missing_data_detected',
-          priority: 50,
-          ...(defaultAgentId ? { agentConfigId: defaultAgentId } : {})
-        }
-      })
-      if (existing) updated += 1
-      else created += 1
-    }
+        })
+        if (queued.queueStatus === 'created') created += 1
+        else if (queued.queueStatus === 'already_queued') alreadyQueued += 1
+        else alreadyInProgress += 1
+      }
+      return { totalMarked: markedOrders.length, created, alreadyQueued, alreadyInProgress }
+    })
 
-    res.json({ totalMarked: markedOrders.length, created, updated })
+    if (wrapped.replayed) {
+      const currentTasks = await prisma.chatTask.findMany({
+        where: { tenantId, orderId: { in: payload.orderIds }, taskType: 'clarification' },
+        select: { taskType: true, state: true }
+      })
+      const alreadyQueued = currentTasks.filter((task) => chatTaskQueueStatus(task) === 'already_queued').length
+      return res.json({
+        totalMarked: markedOrders.length,
+        created: 0,
+        alreadyQueued,
+        alreadyInProgress: currentTasks.length - alreadyQueued,
+        idempotent: true
+      })
+    }
+    res.json({ ...wrapped.data, idempotent: false })
   } catch (error) {
     console.error('Error queueing marked orders:', error)
     res.status(500).json({ error: 'Failed to queue marked orders' })
@@ -6132,7 +6186,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
     const capabilityPayload = buildOpenClawEnvelope({
       tenantId,
       traceId: req.actorContext.traceId,
-      idempotencyKey: req.idempotencyKey || null,
+      idempotencyKey: getIdempotencyKey(req) || null,
       actor: {
         id: req.actorContext.actorId || req.user?.id || null,
         role: req.actorContext.actorRole || 'staff'
@@ -6187,7 +6241,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
       payload: capabilityPayload,
       kind: 'build',
       traceId: req.actorContext.traceId,
-      idempotencyKey: req.idempotencyKey || null
+      idempotencyKey: getIdempotencyKey(req) || null
     })
 
     let draftText = extractTextFromOpenClawResponse(runtimeResult.data || {})
@@ -6230,7 +6284,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
         bodyJson: messageBodyJson ? JSON.stringify(messageBodyJson) : null,
         approvalStatus: task.agentConfig.requiresApproval ? 'pending_human' : 'approved',
         traceId: req.actorContext.traceId,
-        idempotencyKey: req.idempotencyKey || null,
+        idempotencyKey: getIdempotencyKey(req) || null,
         createdByUserId: req.user?.id || null
       }
     })
@@ -6311,7 +6365,7 @@ app.post('/api/admin/chats/tasks/:id/messages', authenticateToken, resolveActorC
           bodyJson: payload.bodyJson,
           approvalStatus: payload.approvalStatus || (payload.direction === 'outbound' ? 'pending_human' : null),
           traceId: req.actorContext.traceId,
-          idempotencyKey: req.idempotencyKey || null,
+          idempotencyKey: getIdempotencyKey(req) || null,
           createdByUserId: req.user?.id || null
         }
       })
@@ -6349,9 +6403,12 @@ app.post('/api/admin/chats/messages/:id/approve', authenticateToken, resolveActo
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
       where: { id: req.params.id, tenantId },
-      select: { id: true }
+      select: { id: true, approvalStatus: true }
     })
     if (!message) return res.status(404).json({ error: 'Message not found' })
+    if (message.approvalStatus === 'sent') {
+      return res.status(409).json({ error: 'Sent message cannot be approved again', code: 'MESSAGE_ALREADY_SENT' })
+    }
     const updated = await prisma.chatMessage.update({
       where: { id: message.id },
       data: { approvalStatus: 'approved' }
@@ -6368,9 +6425,12 @@ app.post('/api/admin/chats/messages/:id/reject', authenticateToken, resolveActor
     const tenantId = req.actorContext.tenantId
     const message = await prisma.chatMessage.findFirst({
       where: { id: req.params.id, tenantId },
-      select: { id: true }
+      select: { id: true, approvalStatus: true }
     })
     if (!message) return res.status(404).json({ error: 'Message not found' })
+    if (message.approvalStatus === 'sent') {
+      return res.status(409).json({ error: 'Sent message cannot be rejected', code: 'MESSAGE_ALREADY_SENT' })
+    }
     const updated = await prisma.chatMessage.update({
       where: { id: message.id },
       data: { approvalStatus: 'rejected' }
@@ -6393,7 +6453,16 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
     if (String(message.direction || '') !== 'outbound') {
       return res.status(409).json({ error: 'Only outbound messages can be sent' })
     }
-    if (message.approvalStatus && message.approvalStatus !== 'approved' && message.approvalStatus !== 'sent') {
+    if (message.approvalStatus === 'sent') {
+      return res.json({
+        message,
+        taskState: message.chatTask.state,
+        alreadySent: true,
+        idempotent: true,
+        runtime: { configured: true, ok: true, status: 200, error: null }
+      })
+    }
+    if (message.approvalStatus && message.approvalStatus !== 'approved') {
       return res.status(409).json({ error: 'Message must be approved before send' })
     }
 
@@ -6507,7 +6576,7 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
     const runtimePayload = buildOpenClawEnvelope({
       tenantId,
       traceId: req.actorContext.traceId,
-      idempotencyKey: req.idempotencyKey || null,
+      idempotencyKey: getIdempotencyKey(req) || null,
       actor: {
         id: req.actorContext.actorId || req.user?.id || null,
         role: req.actorContext.actorRole || 'staff'
@@ -6546,7 +6615,7 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
         payload: runtimePayload,
         kind: 'send',
         traceId: req.actorContext.traceId,
-        idempotencyKey: req.idempotencyKey || null
+        idempotencyKey: getIdempotencyKey(req) || null
       })
       if (runtimeResult.configured && !runtimeResult.ok) {
         const error = new Error(runtimeResult.error || 'OpenClaw send failed')
@@ -6768,7 +6837,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
           channel: task.channel || 'telegram',
           bodyText,
           traceId: req.actorContext.traceId,
-          idempotencyKey: req.idempotencyKey || null,
+          idempotencyKey: getIdempotencyKey(req) || null,
           createdByUserId: req.user?.id || null
         }
       })
@@ -6777,7 +6846,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
       const classifyPayload = buildOpenClawEnvelope({
         tenantId,
         traceId: req.actorContext.traceId,
-        idempotencyKey: req.idempotencyKey || null,
+        idempotencyKey: getIdempotencyKey(req) || null,
         actor: { id: req.actorContext.actorId || req.user?.id || null, role: req.actorContext.actorRole || 'staff' },
         capability: 'riderra.customer.reply.classify',
         approval: { mode: 'not_required' },
@@ -6812,7 +6881,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
           payload: classifyPayload,
           kind: 'classify',
           traceId: req.actorContext.traceId,
-          idempotencyKey: req.idempotencyKey || null
+          idempotencyKey: getIdempotencyKey(req) || null
         })
         classifyRuntime = {
           configured: classifyResult.configured,
@@ -6838,7 +6907,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         const extractPayload = buildOpenClawEnvelope({
           tenantId,
           traceId: req.actorContext.traceId,
-          idempotencyKey: req.idempotencyKey || null,
+          idempotencyKey: getIdempotencyKey(req) || null,
           actor: { id: req.actorContext.actorId || req.user?.id || null, role: req.actorContext.actorRole || 'staff' },
           capability: 'riderra.order.field.extract_validate',
           approval: { mode: 'not_required' },
@@ -6861,7 +6930,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
           payload: extractPayload,
           kind: 'extract',
           traceId: req.actorContext.traceId,
-          idempotencyKey: req.idempotencyKey || null
+          idempotencyKey: getIdempotencyKey(req) || null
         })
         extractRuntime = {
           configured: extractResult.configured,

@@ -595,6 +595,7 @@ export default {
     dispatchModal: {
       open: false,
       orderId: null,
+      requestKey: '',
       label: '',
       text: '',
       confirmed: false,
@@ -616,7 +617,7 @@ export default {
       return this.$store.state.language === 'ru'
         ? {
             title: 'Таблица заказов',
-            subtitle: 'Главная очередь: что уточнить, что назначить и что отправить дальше.',
+            subtitle: 'Выберите в строке, что нужно уточнить, затем создайте задачу. AI подготовит черновик в Чатах; пассажиру он уйдёт только после проверки и подтверждения сотрудником.',
             tableTab: 'Таблица',
             rawTab: 'Подробности',
             search: 'Поиск по заказам',
@@ -634,12 +635,12 @@ export default {
             archivingMonth: 'Закрываю...',
             archiveConfirm: 'Закрыть выбранный месяц и перенести его в Экономика → Архив заказов?',
             archiveDone: 'Месяц закрыт и перенесён в архив',
-            queueOne: 'В чат',
+            queueOne: 'Добавить в очередь',
             sendToChat: 'Открыть чат',
             sendingToChat: 'Открываю...',
             sendDispatchNow: 'Отправить клиенту',
             sendingDispatchNow: 'Отправляю...',
-            queueAllMarked: 'Добавить все отмеченные к рассылке',
+            queueAllMarked: 'Создать задачи по отмеченным в списке',
             queueing: 'Добавляю...',
             source: 'Источник',
             sourceRow: 'Строка',
@@ -736,7 +737,7 @@ export default {
             infoMarkedSuccess: 'Пометка сохранена',
             infoRemovedSuccess: 'Пометка снята',
             infoModalError: 'Не удалось обновить пометку',
-            queueOneDone: 'Заказ добавлен в очередь чатов',
+            queueOneDone: 'Задача по заказу готова',
             sendToChatDone: 'Открываю задачу в Чатах',
             sendDispatchDone: 'Детали поездки отправлены клиенту',
             dispatchModalTitle: 'Отправить клиенту (проверка перед отправкой)',
@@ -745,11 +746,11 @@ export default {
             dispatchConfirmLabel: 'Подтверждаю отправку этого сообщения клиенту',
             dispatchSendButton: 'Подтвердить и отправить',
             dispatchRollbackError: 'Отправка не прошла. Сообщение откатили в handoff человеку.',
-            queueBulkDone: 'В очередь чатов добавлено/обновлено',
+            queueBulkDone: 'Задачи по отмеченным обработаны',
           }
         : {
             title: 'Orders Table',
-            subtitle: 'Main queue: what to clarify, assign, or send next.',
+            subtitle: 'Choose what needs clarification in the row, then create a task. AI prepares a draft in Chats; it is sent only after staff review and approval.',
             tableTab: 'Table',
             rawTab: 'Details',
             search: 'Search',
@@ -767,12 +768,12 @@ export default {
             archivingMonth: 'Closing...',
             archiveConfirm: 'Close selected month and move it to Economics → Order archive?',
             archiveDone: 'Month closed and moved to archive',
-            queueOne: 'To chat',
+            queueOne: 'Add to queue',
             sendToChat: 'Open chat',
             sendingToChat: 'Opening...',
             sendDispatchNow: 'Send to client',
             sendingDispatchNow: 'Sending...',
-            queueAllMarked: 'Queue all flagged',
+            queueAllMarked: 'Create tasks for flagged in view',
             queueing: 'Queueing...',
             source: 'Source',
             sourceRow: 'Row',
@@ -869,7 +870,7 @@ export default {
             infoMarkedSuccess: 'Flag saved',
             infoRemovedSuccess: 'Flag removed',
             infoModalError: 'Failed to update flag',
-            queueOneDone: 'Order queued for chats',
+            queueOneDone: 'Order task is ready',
             sendToChatDone: 'Opening task in Chats',
             sendDispatchDone: 'Trip details sent to client',
             dispatchModalTitle: 'Send to client (review before send)',
@@ -878,7 +879,7 @@ export default {
             dispatchConfirmLabel: 'I confirm sending this message to client',
             dispatchSendButton: 'Confirm and send',
             dispatchRollbackError: 'Send failed. Message was rolled back to human handoff.',
-            queueBulkDone: 'Chat queue updated',
+            queueBulkDone: 'Flagged tasks processed',
           }
     },
     savedViews () {
@@ -1107,7 +1108,7 @@ export default {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': `chat-queue-order-${order.id}-${Date.now()}`,
+          'Idempotency-Key': `chat-queue-order-${order.id}-${taskType}-${assignToMe ? 'assign' : 'queue'}`,
           ...this.headers()
         },
         body: JSON.stringify({ orderId: order.id, taskType, assignToMe })
@@ -1121,8 +1122,13 @@ export default {
       this.queueNotice = ''
       this.$set(this.queueSavingByOrder, order.id, true)
       try {
-        await this.queueOrderRequest(order, { assignToMe: false })
-        this.queueNotice = `${this.t.queueOneDone}: ${order.orderNumber || order.internalOrderNumber || order.id}`
+        const data = await this.queueOrderRequest(order, { assignToMe: false })
+        const status = data?.queueStatus === 'created'
+          ? (this.$store.state.language === 'ru' ? 'создана' : 'created')
+          : (data?.queueStatus === 'already_queued'
+              ? (this.$store.state.language === 'ru' ? 'уже была в очереди' : 'already queued')
+              : (this.$store.state.language === 'ru' ? 'уже обрабатывается — этап сохранён' : 'already in progress — stage preserved'))
+        this.queueNotice = `${this.t.queueOneDone}: ${order.orderNumber || order.internalOrderNumber || order.id} · ${status}`
       } catch (error) {
         this.queueNotice = error?.message || 'Failed to queue order'
       } finally {
@@ -1164,6 +1170,7 @@ export default {
       if (!order || !order.id || order.needsInfo || this.quickDispatchSavingByOrder[order.id]) return
       this.dispatchModal.open = true
       this.dispatchModal.orderId = order.id
+      this.dispatchModal.requestKey = `chat-dispatch-oneclick-${order.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
       this.dispatchModal.label = order.orderNumber || order.internalOrderNumber || order.contractor || order.id
       this.dispatchModal.text = this.buildDispatchPrefill(order)
       this.dispatchModal.confirmed = false
@@ -1173,6 +1180,7 @@ export default {
     closeDispatchModal () {
       this.dispatchModal.open = false
       this.dispatchModal.orderId = null
+      this.dispatchModal.requestKey = ''
       this.dispatchModal.label = ''
       this.dispatchModal.text = ''
       this.dispatchModal.confirmed = false
@@ -1191,7 +1199,7 @@ export default {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Idempotency-Key': `chat-dispatch-oneclick-${orderId}-${Date.now()}`,
+            'Idempotency-Key': this.dispatchModal.requestKey || `chat-dispatch-oneclick-${orderId}`,
             ...this.headers()
           },
           body: JSON.stringify({
@@ -1236,14 +1244,15 @@ export default {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Idempotency-Key': `chat-queue-marked-${Date.now()}`,
-            ...this.headers()
+          ...this.headers()
           },
           body: JSON.stringify({ orderIds: markedIds })
         })
         const data = await response.json()
         if (!response.ok) throw new Error(data?.error || 'bulk_queue_failed')
-        this.queueNotice = `${this.t.queueBulkDone}: total=${data.totalMarked || 0}, created=${data.created || 0}, updated=${data.updated || 0}`
+        this.queueNotice = this.$store.state.language === 'ru'
+          ? `${this.t.queueBulkDone}: отмечено ${data.totalMarked || 0}, создано ${data.created || 0}, уже в очереди ${data.alreadyQueued || 0}, уже обрабатывается ${data.alreadyInProgress || 0}`
+          : `${this.t.queueBulkDone}: flagged ${data.totalMarked || 0}, created ${data.created || 0}, already queued ${data.alreadyQueued || 0}, in progress ${data.alreadyInProgress || 0}`
       } catch (error) {
         this.queueNotice = error?.message || 'Failed to queue marked orders'
       } finally {

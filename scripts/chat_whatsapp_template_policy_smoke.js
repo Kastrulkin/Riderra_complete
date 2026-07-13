@@ -338,6 +338,77 @@ async function main() {
     assert(sent.data?.taskState === 'request_sent', `task state should be request_sent, got ${sent.data?.taskState}`)
     assert(mock.requests.length === 1, `OpenClaw mock should receive exactly one valid send, got ${mock.requests.length}`)
 
+    const repeatedSend = await requestJson(baseUrl, `/api/admin/chats/messages/${message.id}/send`, {
+      method: 'POST',
+      token,
+      tenantCode,
+      idempotencyKey: `ci-wa-repeat-${Date.now()}`,
+      body: {
+        delivery: {
+          mode: 'template',
+          templateName: 'riderra_baggage_request',
+          language: 'en',
+          variables: { city: 'Los Angeles', pickup_date: '2 June' }
+        }
+      }
+    })
+    assert(repeatedSend.status === 200, `repeated send should be a safe 200, got ${repeatedSend.status}`)
+    assert(repeatedSend.data?.alreadySent === true, 'repeated send should report alreadySent=true')
+    assert(mock.requests.length === 1, `repeated send must not call OpenClaw again, got ${mock.requests.length} calls`)
+
+    const approveSent = await requestJson(baseUrl, `/api/admin/chats/messages/${message.id}/approve`, {
+      method: 'POST', token, tenantCode, body: {}
+    })
+    assert(approveSent.status === 409, `sent message must not be approved again, got ${approveSent.status}`)
+    assert(approveSent.data?.code === 'MESSAGE_ALREADY_SENT', `expected MESSAGE_ALREADY_SENT, got ${approveSent.data?.code}`)
+
+    const repeatedQueue = await requestJson(baseUrl, '/api/admin/chats/queue-order', {
+      method: 'POST',
+      token,
+      tenantCode,
+      idempotencyKey: `ci-wa-queue-repeat-${Date.now()}`,
+      body: { orderId: order.id, taskType: 'clarification', assignToMe: false }
+    })
+    assert(repeatedQueue.status === 200, `repeated queue should return 200, got ${repeatedQueue.status}`)
+    assert(repeatedQueue.data?.queueStatus === 'already_in_progress', `expected already_in_progress, got ${repeatedQueue.data?.queueStatus}`)
+    assert(repeatedQueue.data?.task?.state === 'request_sent', `queue must preserve request_sent, got ${repeatedQueue.data?.task?.state}`)
+
+    const repeatedBulkQueue = await requestJson(baseUrl, '/api/admin/chats/queue-marked', {
+      method: 'POST',
+      token,
+      tenantCode,
+      idempotencyKey: `ci-wa-bulk-repeat-${Date.now()}`,
+      body: { orderIds: [order.id] }
+    })
+    assert(repeatedBulkQueue.status === 200, `repeated bulk queue should return 200, got ${repeatedBulkQueue.status}`)
+    assert(repeatedBulkQueue.data?.created === 0, `repeated bulk queue must create 0 tasks, got ${repeatedBulkQueue.data?.created}`)
+    assert(repeatedBulkQueue.data?.alreadyInProgress === 1, `expected one in-progress task, got ${repeatedBulkQueue.data?.alreadyInProgress}`)
+    const taskAfterBulkQueue = await prisma.chatTask.findUnique({ where: { id: task.id } })
+    assert(taskAfterBulkQueue?.state === 'request_sent', `bulk queue must preserve request_sent, got ${taskAfterBulkQueue?.state}`)
+
+    const dispatchText = 'Your confirmed trip details are ready.'
+    const firstDispatch = await requestJson(baseUrl, '/api/admin/chats/dispatch-one-click', {
+      method: 'POST',
+      token,
+      tenantCode,
+      idempotencyKey: `ci-dispatch-first-${Date.now()}`,
+      body: { orderId: order.id, messageText: dispatchText, confirmed: true }
+    })
+    assert(firstDispatch.status === 200, `first one-click dispatch should return 200, got ${firstDispatch.status}: ${JSON.stringify(firstDispatch.data)}`)
+    assert(firstDispatch.data?.alreadySent !== true, 'first one-click dispatch must be a real send')
+    assert(mock.requests.length === 2, `first one-click dispatch should add one OpenClaw call, got ${mock.requests.length}`)
+
+    const repeatedDispatch = await requestJson(baseUrl, '/api/admin/chats/dispatch-one-click', {
+      method: 'POST',
+      token,
+      tenantCode,
+      idempotencyKey: `ci-dispatch-repeat-${Date.now()}`,
+      body: { orderId: order.id, messageText: dispatchText, confirmed: true }
+    })
+    assert(repeatedDispatch.status === 200, `repeated one-click dispatch should return 200, got ${repeatedDispatch.status}`)
+    assert(repeatedDispatch.data?.alreadySent === true, 'repeated one-click dispatch should report alreadySent=true')
+    assert(mock.requests.length === 2, `repeated one-click dispatch must not call OpenClaw again, got ${mock.requests.length}`)
+
     const blockedAuditCount = await prisma.auditLog.count({
       where: {
         tenantId: tenant.id,
@@ -358,7 +429,7 @@ async function main() {
 
     console.log(JSON.stringify({
       ok: true,
-      checks: 10,
+      checks: 28,
       blockedAuditCount,
       policyGuardMessages,
       openclawSends: mock.requests.length

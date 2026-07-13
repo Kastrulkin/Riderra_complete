@@ -1357,7 +1357,10 @@ export default {
         const delivery = this.buildDeliveryPayload(id)
         const response = await fetch(`/api/admin/chats/messages/${id}/send`, {
           method: 'POST',
-          headers: this.headers(),
+          headers: {
+            ...this.headers(),
+            'Idempotency-Key': `chat-message-send-${id}`
+          },
           body: JSON.stringify({ delivery })
         })
         const data = await response.json().catch(() => ({}))
