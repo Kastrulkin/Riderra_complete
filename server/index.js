@@ -6281,8 +6281,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
         chatTaskId: task.id,
         direction: 'outbound',
         approvalStatus: 'pending_human',
-        bodyText: draftText,
-        createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }
+        bodyText: draftText
       },
       orderBy: { createdAt: 'desc' }
     })
