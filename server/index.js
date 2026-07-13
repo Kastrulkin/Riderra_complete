@@ -5493,6 +5493,7 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
             sourceOrderNumber: true,
             sourceBookingId: true,
             sourceInternalOrderNumber: true,
+            sourceCityCode: true,
             pickupAt: true,
             fromPoint: true,
             toPoint: true,
@@ -6057,7 +6058,8 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
             status: true,
             needsInfo: true,
             infoReason: true,
-            comment: true
+            comment: true,
+            lang: true
           }
         },
         messages: {
@@ -6213,6 +6215,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
             sourceOrderNumber: true,
             sourceBookingId: true,
             sourceInternalOrderNumber: true,
+            sourceCityCode: true,
             pickupAt: true,
             fromPoint: true,
             toPoint: true,
@@ -6220,7 +6223,8 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
             status: true,
             needsInfo: true,
             infoReason: true,
-            comment: true
+            comment: true,
+            lang: true
           }
         },
         messages: {
