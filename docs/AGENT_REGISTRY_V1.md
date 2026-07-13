@@ -60,7 +60,7 @@ Required invariants:
 | `riderra.ai_inbox.draft.approve_to_order` | available | creates/updates order draft | human required | `POST /api/admin/ops/drafts/:draftId/approve` |
 | `riderra.ai_inbox.draft.reject` | available | closes draft | human required | `POST /api/admin/ops/drafts/:draftId/reject` |
 | `riderra.ai_inbox.draft.bulk_delete` | available | deletes selected drafts | human required | `POST /api/admin/ops/drafts/bulk-delete` |
-| `riderra.orders.sheet.sync_month` | available | reads sheet into Riderra | settings/admin human required | `POST /api/admin/orders/months/:monthLabel/sync` |
+| `riderra.orders.sheet.sync_month` | available | reads sheet into Riderra | authenticated staff with order access | `POST /api/admin/orders/months/:monthLabel/sync` |
 | `riderra.orders.month.archive` | available | closes month into archive | owner/financial human required | `POST /api/admin/orders/months/:monthLabel/archive` |
 | `riderra.orders.status.change` | available | changes order status | human required | `POST /api/admin/orders/:orderId/status` |
 | `riderra.orders.address_check` | available | records/checks validation result | operator-authenticated | `GET/POST /api/admin/orders/:orderId/address-check` |

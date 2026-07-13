@@ -8950,7 +8950,7 @@ app.post('/api/admin/orders/months/:monthLabel/archive', authenticateToken, reso
   }
 })
 
-app.post('/api/admin/orders/months/:monthLabel/sync', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+app.post('/api/admin/orders/months/:monthLabel/sync', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const { monthLabel } = req.params
     const tenantId = req.actorContext.tenantId
