@@ -1,0 +1,26 @@
+{
+	email demyanov@riderra.com
+}
+
+(relay_routes) {
+	encode zstd gzip
+
+	@webhook path /api/webhooks/meta/whatsapp /webhooks/meta/whatsapp
+	handle @webhook {
+		reverse_proxy 127.0.0.1:8787
+	}
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:8787
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+# The sslip.io hostname is the temporary default. Set RELAY_PUBLIC_HOST in a
+# Caddy systemd drop-in after meta-hook.riderra.com DNS becomes live.
+{$RELAY_PUBLIC_HOST:77-239-100-125.sslip.io} {
+	import relay_routes
+}

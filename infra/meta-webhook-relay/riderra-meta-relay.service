@@ -1,0 +1,33 @@
+[Unit]
+Description=Riderra durable Meta WhatsApp webhook relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=riderra-relay
+Group=riderra-relay
+WorkingDirectory=/opt/riderra-meta-relay
+EnvironmentFile=-/etc/riderra-meta-relay.env
+ExecStart=/usr/bin/python3 /opt/riderra-meta-relay/relay.py
+Restart=always
+RestartSec=3
+StateDirectory=riderra-meta-relay
+StateDirectoryMode=0750
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
