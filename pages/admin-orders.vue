@@ -9,10 +9,17 @@
       <div class="container">
         <admin-tabs />
 
+        <div class="workspace-heading">
+          <div><h1>Работа с заказами</h1><p>Заказы из таблицы, письма и диалоги — в одной рабочей очереди.</p></div>
+        </div>
+        <nav class="workspace-tabs" aria-label="Работа с заказами">
+          <button v-for="item in workspaceTabs" :key="item.value" type="button" :class="{ active: workspaceView === item.value }" @click="setWorkspaceView(item.value)">{{ item.label }}</button>
+        </nav>
+        <order-workspace-queues v-if="workspaceView !== 'orders'" :view="workspaceView" />
+
+        <div v-if="workspaceView === 'orders'">
+
         <div class="section-actions">
-          <button class="btn btn--ghost" :disabled="queueBulkSaving" @click="queueAllMarked">
-            {{ queueBulkSaving ? t.queueing : t.queueAllMarked }}
-          </button>
           <button class="btn btn--ghost" :disabled="!selectedMonth || loading || syncSaving" @click="syncSelectedMonth">
             {{ syncSaving ? t.syncingSheet : t.syncSheet }}
           </button>
@@ -35,6 +42,7 @@
           <div class="month-workbar__meta">
             <span>{{ t.currentSource }}:</span>
             <strong>{{ currentSourceLabel }}</strong>
+            <span class="source-health" :class="`source-health--${sourceHealth.tone}`">{{ sourceHealth.label }}</span>
             <button v-if="canArchiveMonth" class="btn btn--small btn--danger" :disabled="!selectedMonth || archiveSaving" @click="archiveSelectedMonth">
               {{ archiveSaving ? t.archivingMonth : t.archiveMonth }}
             </button>
@@ -180,14 +188,6 @@
                   <button class="card-link" type="button" :disabled="!o.id" @click="openOrderCard(o)">
                     {{ t.openCard }}
                   </button>
-                  <button
-                    class="card-link"
-                    type="button"
-                    :disabled="!o.id || queueSavingByOrder[o.id] || infoPresetFromRow(o) === 'none'"
-                    @click="queueOrder(o)"
-                  >
-                    {{ queueSavingByOrder[o.id] ? t.queueing : t.queueOne }}
-                  </button>
                 </div>
                 <select
                   class="action-select"
@@ -228,6 +228,7 @@
 
         <div v-if="drilldownNotice" class="hint">{{ drilldownNotice }}</div>
         <div class="hint">{{ t.total }}: {{ mode === 'table' ? displayedTableRows.length : filteredRawRows.length }}</div>
+        </div>
       </div>
     </section>
 
@@ -552,11 +553,20 @@
 <script>
 import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
+import OrderWorkspaceQueues from '~/components/admin/orders/OrderWorkspaceQueues.vue'
 
 export default {
   middleware: 'staff',
-  components: { navigation, adminTabs },
+  components: { navigation, adminTabs, OrderWorkspaceQueues },
   data: () => ({
+    workspaceView: 'action',
+    workspaceTabs: [
+      { value: 'action', label: 'Требуют действия' },
+      { value: 'orders', label: 'Все заказы' },
+      { value: 'email', label: 'Письма' },
+      { value: 'chats', label: 'Диалоги' }
+    ],
+    autoSyncTimer: null,
     mode: 'table',
     q: '',
     activeView: 'all',
@@ -949,6 +959,14 @@ export default {
       const source = this.currentSource || {}
       return [source.name, source.monthLabel].filter(Boolean).join(' · ') || '-'
     },
+    sourceHealth () {
+      if (this.syncSaving) return { tone: 'loading', label: 'Обновляем данные…' }
+      const source = this.currentSource || {}
+      if (source.lastSyncStatus && source.lastSyncStatus !== 'success') return { tone: 'error', label: 'Есть ошибки синхронизации' }
+      const timestamp = source.lastSyncAt ? new Date(source.lastSyncAt).getTime() : 0
+      if (!timestamp || Date.now() - timestamp > 15 * 60 * 1000) return { tone: 'stale', label: source.lastSyncAt ? `Давно не обновлялись · ${new Date(source.lastSyncAt).toLocaleString('ru-RU')}` : 'Ещё не синхронизировались' }
+      return { tone: 'ok', label: `Данные актуальны · ${new Date(source.lastSyncAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` }
+    },
     currentUserEmail () {
       const fromStore = String(this.$store.state.user?.email || '').trim().toLowerCase()
       if (fromStore) return fromStore
@@ -968,11 +986,22 @@ export default {
     }
   },
   mounted () {
+    this.workspaceView = ['action', 'orders', 'email', 'chats'].includes(String(this.$route.query.view || '')) ? String(this.$route.query.view) : 'action'
     this.loadOpenMonths()
       .then(() => this.load())
       .catch(() => this.load().catch(() => {}))
+    this.autoSyncTimer = setInterval(() => {
+      if (this.selectedMonth && !this.syncSaving) this.syncSelectedMonth()
+    }, 5 * 60 * 1000)
+  },
+  beforeDestroy () {
+    if (this.autoSyncTimer) clearInterval(this.autoSyncTimer)
   },
   methods: {
+    setWorkspaceView (view) {
+      this.workspaceView = view
+      this.$router.replace({ path: '/admin-orders', query: view === 'action' ? {} : { view } })
+    },
     headers () {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '' }
@@ -1032,7 +1061,7 @@ export default {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Idempotency-Key': `sync-order-month-${this.selectedMonth}-${Date.now()}`,
+            'Idempotency-Key': `sync-order-month-${this.selectedMonth}-${Math.floor(Date.now() / (5 * 60 * 1000))}`,
             ...this.headers()
           },
           body: JSON.stringify({})
@@ -2824,4 +2853,5 @@ export default {
     padding: 14px;
   }
 }
+.workspace-heading{display:flex;justify-content:space-between;align-items:flex-end;margin:24px 0 14px}.workspace-heading h1{margin:0;color:#1f2d4d;font-size:30px}.workspace-heading p{margin:7px 0 0;color:#66748b}.workspace-tabs{display:flex;gap:4px;margin-bottom:18px;padding:4px;border:1px solid #dfe5ee;border-radius:14px;background:#f4f7fa;overflow:auto}.workspace-tabs button{flex:0 0 auto;padding:10px 16px;border:0;border-radius:10px;background:transparent;color:#5c6b82;font-weight:800;cursor:pointer}.workspace-tabs button.active{background:#fff;color:#1f2d4d;box-shadow:0 1px 4px rgba(20,32,61,.1)}.source-health{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800}.source-health--ok{background:#dcfce7;color:#166534}.source-health--stale{background:#fff7ed;color:#9a3412}.source-health--error{background:#fee2e2;color:#991b1b}.source-health--loading{background:#e0f2fe;color:#075985}
 </style>

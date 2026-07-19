@@ -21,6 +21,11 @@ const {
   getClientIp,
   normalizeText
 } = require('./utils/helpers')
+const {
+  buildGoogleSheetTripExternalKey,
+  normalizeOrderNumberIdentity,
+  shouldReuseOrderForPickupChange
+} = require('./utils/orderIdentity')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
@@ -2287,6 +2292,33 @@ async function syncSheetSource(sheetSourceId, tenantId) {
   const headers = rows[0].map((h) => String(h || '').trim())
   const mapping = parseColumnMapping(source.columnMapping)
   const stats = { created: 0, updated: 0, unchanged: 0, errors: 0, total: 0 }
+  const incomingTripKeys = new Set()
+
+  // Build the complete set first. It lets us distinguish a time correction from
+  // row reordering when two legs share the same order number.
+  for (let i = 1; i < rows.length; i++) {
+    const cells = rows[i]
+    if (!cells || cells.every((cell) => String(cell || '').trim() === '')) continue
+    const raw = {}
+    headers.forEach((header, idx) => {
+      if (header) raw[header] = cells[idx] !== undefined ? String(cells[idx]).trim() : ''
+    })
+    const orderNumber = pickField(raw, aliasesWithMapping(['external key', 'order id', 'номер заказа', 'id', 'номер'], mapping, 'orderNumber')) || ''
+    const pickupRaw = pickField(raw, aliasesWithMapping([
+      'pickup datetime',
+      'pickup time',
+      'дата и время подачи',
+      'дата подачи',
+      'дата',
+      'время'
+    ], mapping, 'date'))
+    const key = buildGoogleSheetTripExternalKey({
+      tenantId: effectiveTenantId,
+      orderNumber,
+      pickupAt: parseDateTimeFlexible(pickupRaw)
+    })
+    if (key) incomingTripKeys.add(key)
+  }
 
   for (let i = 1; i < rows.length; i++) {
     const cells = rows[i]
@@ -2332,7 +2364,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       const sourceInternalOrderNumberRaw = pickField(raw, aliasesWithMapping(['internal_order_number', 'internalOrderNumber', 'внутренний номер заказа'], mapping, 'internalOrderNumber')) || ''
       const sourceBookingId = parseOrderMetaFromSourceOrderNumber(sourceOrderNumberRaw).bookingId || ''
       const stableSourceId = sourceInternalOrderNumberRaw || sourceBookingId || sourceOrderNumberRaw || 'row'
-      const externalKey = `google_sheet:${normalizeGoogleSheetId(source.googleSheetId)}:${source.tabName}:${sourceRow}:${stableSourceId}`
+      const legacyExternalKey = `google_sheet:${normalizeGoogleSheetId(source.googleSheetId)}:${source.tabName}:${sourceRow}:${stableSourceId}`
 
       const fromPoint = pickField(raw, aliasesWithMapping(['from', 'откуда', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || 'UNKNOWN'
       const toPoint = pickField(raw, aliasesWithMapping(['to', 'куда', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || 'UNKNOWN'
@@ -2351,6 +2383,12 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         'время'
       ], mapping, 'date'))
       const pickupAt = parseDateTimeFlexible(pickupRaw)
+      const stableExternalKey = buildGoogleSheetTripExternalKey({
+        tenantId: effectiveTenantId,
+        orderNumber: sourceOrderNumberRaw,
+        pickupAt
+      })
+      const externalKey = stableExternalKey || legacyExternalKey
       const lang = pickField(raw, aliasesWithMapping(['lang', 'язык'], mapping, 'lang')) || null
       const comment = pickFieldLoose(raw, aliasesWithMapping(['comment', 'комментарий', 'примечание'], mapping, 'comment')) || null
       const sourceData = normalizedOrderSourceDataFromRaw({
@@ -2386,10 +2424,73 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         orderPayload.driverPrice = driverPrice
       }
 
-      const existingOrder = await prisma.order.findUnique({
+      let existingOrder = await prisma.order.findUnique({
         where: { externalKey },
-        select: { id: true, status: true, tenantId: true }
+        select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true }
       })
+
+      // Existing rows used a row-based key. Match them by the stable trip identity
+      // before replacing the key so moving rows in Google Sheets does not create duplicates.
+      if (!existingOrder && stableExternalKey) {
+        const samePickupCandidates = await prisma.order.findMany({
+          where: {
+            tenantId: effectiveTenantId,
+            source: 'google_sheet',
+            pickupAt
+          },
+          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true },
+          take: 20
+        })
+        const normalizedOrderNumber = normalizeOrderNumberIdentity(sourceOrderNumberRaw)
+        existingOrder = samePickupCandidates.find((candidate) => (
+          normalizeOrderNumberIdentity(candidate.sourceOrderNumber) === normalizedOrderNumber
+        )) || null
+      }
+
+      // If the composite key changed because the pickup time was corrected in the
+      // same source row, keep the existing Order id. We only reuse it when its old
+      // composite key is absent from the current sheet, so reordered return legs
+      // with the same order number still match their own date/time.
+      if (!existingOrder && stableExternalKey && latestSnapshot?.orderId) {
+        const rowCandidate = await prisma.order.findFirst({
+          where: { id: latestSnapshot.orderId, tenantId: effectiveTenantId, source: 'google_sheet' },
+          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true }
+        })
+        if (rowCandidate && shouldReuseOrderForPickupChange({
+          tenantId: effectiveTenantId,
+          incomingOrderNumber: sourceOrderNumberRaw,
+          candidateOrderNumber: rowCandidate.sourceOrderNumber,
+          candidatePickupAt: rowCandidate.pickupAt,
+          incomingTripKeys
+        })) {
+          existingOrder = rowCandidate
+        }
+      }
+
+      // A row can be moved and its time corrected in the same edit. In that case
+      // the previous row candidate may belong to the other leg. Reuse an older
+      // same-number trip only when exactly one previous composite disappeared.
+      if (!existingOrder && stableExternalKey) {
+        const sameNumberCandidates = await prisma.order.findMany({
+          where: {
+            tenantId: effectiveTenantId,
+            source: 'google_sheet',
+            sourceOrderNumber: sourceOrderNumberRaw
+          },
+          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true },
+          take: 20
+        })
+        const reusableCandidates = sameNumberCandidates.filter((candidate) => shouldReuseOrderForPickupChange({
+          tenantId: effectiveTenantId,
+          incomingOrderNumber: sourceOrderNumberRaw,
+          candidateOrderNumber: candidate.sourceOrderNumber,
+          candidatePickupAt: candidate.pickupAt,
+          incomingTripKeys
+        }))
+        if (reusableCandidates.length === 1) existingOrder = reusableCandidates[0]
+      }
+
+      const orderAlreadyExisted = Boolean(existingOrder)
 
       let upserted
       if (!existingOrder) {
@@ -2407,7 +2508,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         }
         upserted = await prisma.order.update({
           where: { id: existingOrder.id },
-          data: { ...orderPayload, tenantId: existingOrder.tenantId || effectiveTenantId }
+          data: { externalKey, ...orderPayload, tenantId: existingOrder.tenantId || effectiveTenantId }
         })
         if (normalizeOrderStatus(existingOrder.status) !== incomingStatus) {
           try {
@@ -2447,8 +2548,8 @@ async function syncSheetSource(sheetSourceId, tenantId) {
 
       await upsertOrderQualitySignals(effectiveTenantId, upserted.id, sourceData)
 
-      if (!latestSnapshot) stats.created++
-      else stats.updated++
+      if (orderAlreadyExisted) stats.updated++
+      else stats.created++
     } catch (error) {
       stats.errors++
       await prisma.orderSourceSnapshot.create({
@@ -2474,6 +2575,31 @@ async function syncSheetSource(sheetSourceId, tenantId) {
   })
 
   return stats
+}
+
+async function reconcileEmailDraftsWithSheetOrders(tenantId) {
+  const drafts = await prisma.opsEventDraft.findMany({
+    where: { tenantId, parsedType: 'openclaw_order_draft', queueState: 'waiting_sheet' },
+    orderBy: { updatedAt: 'desc' }, take: 500
+  })
+  if (!drafts.length) return 0
+  const numbers = [...new Set(drafts.map((row) => String(parseJsonSafe(row.payloadJson, {})?.orderDraft?.orderNumber || '').trim()).filter(Boolean))]
+  if (!numbers.length) return 0
+  const orders = await prisma.order.findMany({
+    where: { tenantId, OR: [{ sourceOrderNumber: { in: numbers } }, { sourceBookingId: { in: numbers } }, { sourceInternalOrderNumber: { in: numbers } }] },
+    select: { id: true, sourceOrderNumber: true, sourceBookingId: true, sourceInternalOrderNumber: true }
+  })
+  const byNumber = new Map()
+  for (const order of orders) for (const value of [order.sourceOrderNumber, order.sourceBookingId, order.sourceInternalOrderNumber]) if (value) byNumber.set(String(value).trim(), order.id)
+  let matched = 0
+  for (const draft of drafts) {
+    const number = String(parseJsonSafe(draft.payloadJson, {})?.orderDraft?.orderNumber || '').trim()
+    const orderId = byNumber.get(number)
+    if (!orderId) continue
+    await prisma.opsEventDraft.update({ where: { id: draft.id }, data: { queueState: 'matched', matchedOrderId: orderId } })
+    matched++
+  }
+  return matched
 }
 
 async function promoteStagingToCustomerCrm(tenantId) {
@@ -3734,6 +3860,58 @@ app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActo
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'failed' })
+  }
+})
+
+app.get('/api/admin/order-workspace', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const [source, emailDrafts, chats, notifications] = await Promise.all([
+      prisma.sheetSource.findFirst({ where: { tenantId, isActive: true }, orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }] }),
+      prisma.opsEventDraft.findMany({ where: { tenantId, parsedType: 'openclaw_order_draft', status: 'pending' }, orderBy: { createdAt: 'desc' }, take: 50 }),
+      prisma.chatTask.findMany({
+        where: { tenantId, state: { notIn: ['closed', 'notify_ack'] } },
+        orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }], take: 50,
+        include: { order: { select: { id: true, pickupAt: true, fromPoint: true, toPoint: true, sourceBookingId: true, sourceOrderNumber: true, infoReason: true } }, _count: { select: { messages: true } } }
+      }),
+      prisma.opsTask.findMany({ where: { tenantId, status: { in: ['open', 'in_progress'] } }, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: 50 })
+    ])
+    const actionableEmails = emailDrafts.filter((row) => row.queueState !== 'quarantine' && row.queueState !== 'archived')
+    res.json({
+      source,
+      counts: { action: actionableEmails.length + chats.length + notifications.length, email: actionableEmails.length, quarantine: emailDrafts.filter((row) => row.queueState === 'quarantine').length, chats: chats.length, notifications: notifications.length },
+      emailDrafts,
+      chats,
+      notifications
+    })
+  } catch (error) {
+    console.error('Error loading order workspace:', error)
+    res.status(500).json({ error: 'Failed to load order workspace' })
+  }
+})
+
+app.get('/api/admin/notifications', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const rows = await prisma.opsTask.findMany({
+      where: { tenantId, status: { in: ['open', 'in_progress'] }, OR: [{ assignedUserId: null }, { assignedUserId: req.user?.id || null }] },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: 50
+    })
+    res.json({ rows, unread: rows.filter((row) => !row.readAt).length })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load notifications' })
+  }
+})
+
+app.patch('/api/admin/notifications/:id', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const task = await prisma.opsTask.findFirst({ where: { id: req.params.id, tenantId: req.actorContext.tenantId } })
+    if (!task) return res.status(404).json({ error: 'Notification not found' })
+    const status = req.body?.done === true ? 'done' : task.status
+    const updated = await prisma.opsTask.update({ where: { id: task.id }, data: { readAt: task.readAt || new Date(), status } })
+    res.json({ notification: updated })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update notification' })
   }
 })
 
@@ -6965,6 +7143,20 @@ app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, re
         }
       })
 
+      await createOpsTask({
+        tenantId,
+        userId: task.assignedToUserId || req.user?.id || null,
+        title: `Получен ответ клиента по заказу ${publicOrderReference(task.order) || task.orderId}`,
+        details: bodyText,
+        type: classification?.requiresHuman || classification?.class === 'unclassified' ? 'customer_reply_review' : 'customer_reply',
+        priority: classification?.requiresHuman ? 'high' : 'normal',
+        source: 'customer_chat',
+        sourceRef: inboundMessage.id,
+        dedupKey: `customer-reply:${inboundMessage.id}`,
+        linkUrl: `/admin-orders?view=chats&taskId=${task.id}`,
+        payload: { taskId: task.id, orderId: task.orderId, classification: classification?.class || 'unclassified' }
+      })
+
       await writeAuditLog({
         tenantId,
         actorId: req.actorContext.actorId,
@@ -7571,6 +7763,20 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         }
       })
 
+      await createOpsTask({
+        tenantId,
+        userId: task.assignedToUserId || null,
+        title: `Получен ответ клиента по заказу ${publicOrderReference(task.order) || task.orderId}`,
+        details: bodyText,
+        type: classification?.requiresHuman || classification?.class === 'unclassified' ? 'customer_reply_review' : 'customer_reply',
+        priority: classification?.requiresHuman ? 'high' : 'normal',
+        source: 'customer_chat',
+        sourceRef: inboundMessage.id,
+        dedupKey: `customer-reply:${inboundMessage.id}`,
+        linkUrl: `/admin-orders?view=chats&taskId=${task.id}`,
+        payload: { taskId: task.id, orderId: task.orderId, classification: classification?.class || 'unclassified' }
+      })
+
       await writeAuditLog({
         tenantId,
         actorId: 'openclaw',
@@ -7649,6 +7855,21 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
         ...(status === 'failed' ? { failedAt: message.failedAt || now, deliveryError: errorText || 'Meta delivery failed' } : {})
       }
     })
+    if (status === 'failed') {
+      const failedTask = await prisma.chatTask.findFirst({ where: { id: message.chatTaskId, tenantId }, include: { order: true } })
+      if (failedTask) {
+        await createOpsTask({
+          tenantId,
+          userId: failedTask.assignedToUserId || null,
+          title: `Не отправлено сообщение по заказу ${publicOrderReference(failedTask.order) || failedTask.orderId}`,
+          details: errorText || 'Meta не доставила сообщение',
+          type: 'message_delivery_failed', priority: 'high', source: 'whatsapp', sourceRef: message.id,
+          dedupKey: `delivery-failed:${message.id}`,
+          linkUrl: `/admin-orders?view=chats&taskId=${failedTask.id}`,
+          payload: { taskId: failedTask.id, orderId: failedTask.orderId, messageId: message.id }
+        })
+      }
+    }
     res.json({ message: updated })
   } catch (error) {
     console.error('Error updating internal chat delivery status:', error)
@@ -7656,10 +7877,10 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
   }
 })
 
-app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+app.post('/api/admin/chats/tasks/:id/confirm-inbound-comment', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
-    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.apply_inbound_update')
+    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.confirm_inbound_comment')
     if (replay) return res.json({ ...replay.data, idempotent: true })
 
     const task = await prisma.chatTask.findFirst({
@@ -7669,7 +7890,7 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 30,
-          select: { id: true, bodyJson: true, createdAt: true, direction: true, source: true }
+          select: { id: true, bodyJson: true, bodyText: true, channel: true, createdAt: true, direction: true, source: true }
         }
       }
     })
@@ -7686,18 +7907,21 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
     if (!traceMessage) return res.status(404).json({ error: 'Pending inbound update was not found' })
 
     const trace = parseJsonSafe(traceMessage.bodyJson, null)
-    const pendingOrderPatch = trace?.pendingOrderPatch || null
-    if (!pendingOrderPatch || typeof pendingOrderPatch !== 'object') {
-      return res.status(409).json({ error: 'Pending inbound update is empty' })
-    }
+    const inboundMessage = (task.messages || []).find((message) => message.direction === 'inbound')
+    if (!inboundMessage) return res.status(409).json({ error: 'Inbound reply was not found' })
+    const extraction = (trace?.capabilities || []).find((item) => item.name === 'riderra.order.field.extract_validate')?.output || null
+    const extracted = extraction?.value ?? extraction?.normalizedValue ?? extraction?.extractedValue ?? null
+    const channelLabel = String(task.channel || inboundMessage.channel || 'chat').toUpperCase()
+    const receivedAt = new Date(inboundMessage.createdAt || Date.now()).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
+    const commentLine = `[Ответ клиента ${receivedAt}, ${channelLabel}]${extracted == null || String(extracted).trim() === '' ? '' : ` ${extraction?.field || 'значение'}: ${String(extracted)}.`} Оригинал: "${String(inboundMessage.bodyText || '').trim()}"`
 
-    const payload = { taskId: task.id, orderId: task.orderId, traceMessageId: traceMessage.id, pendingOrderPatch }
-    ensureIdempotencyKey(req, 'admin.chat_task.apply_inbound_update', payload)
+    const payload = { taskId: task.id, orderId: task.orderId, traceMessageId: traceMessage.id, inboundMessageId: inboundMessage.id }
+    ensureIdempotencyKey(req, 'admin.chat_task.confirm_inbound_comment', payload)
 
-    const wrapped = await withIdempotency(req, 'admin.chat_task.apply_inbound_update', payload, async () => {
+    const wrapped = await withIdempotency(req, 'admin.chat_task.confirm_inbound_comment', payload, async () => {
       const updatedOrder = await prisma.order.update({
         where: { id: task.orderId },
-        data: pendingOrderPatch,
+        data: { comment: appendOrderComment(task.order.comment, commentLine), needsInfo: false, infoReason: null },
         select: {
           id: true,
           needsInfo: true,
@@ -7721,12 +7945,12 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
           direction: 'internal',
           source: 'system',
           channel: task.channel || 'manual',
-          bodyText: 'Оператор применил обновление заказа из ответа клиента.',
+          bodyText: 'Ответ клиента сохранён во внутреннем комментарии заказа.',
           bodyJson: JSON.stringify({
-            kind: 'inbound_update_approved',
+            kind: 'inbound_comment_confirmed',
             traceMessageId: traceMessage.id,
-            appliedPatch: pendingOrderPatch,
-            orderPatchPreview: trace.orderPatchPreview || []
+            inboundMessageId: inboundMessage.id,
+            comment: commentLine
           }),
           traceId: req.actorContext.traceId,
           createdByUserId: req.user?.id || null
@@ -7737,13 +7961,13 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
         tenantId,
         actorId: req.actorContext.actorId,
         actorRole: req.actorContext.actorRole,
-        action: 'chat_task.apply_inbound_update',
+        action: 'chat_task.confirm_inbound_comment',
         resource: 'chat_task',
         resourceId: task.id,
         traceId: req.actorContext.traceId,
         decision: 'human_approved',
         result: 'ok',
-        context: { orderId: task.orderId, traceMessageId: traceMessage.id, appliedPatch: pendingOrderPatch, nextState }
+        context: { orderId: task.orderId, traceMessageId: traceMessage.id, inboundMessageId: inboundMessage.id, nextState }
       })
 
       return { order: updatedOrder, taskState: nextState }
@@ -7751,9 +7975,13 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
 
     res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
-    console.error('Error applying inbound chat update:', error)
-    res.status(500).json({ error: 'Failed to apply inbound update' })
+    console.error('Error confirming inbound comment:', error)
+    res.status(500).json({ error: 'Failed to save inbound comment' })
   }
+})
+
+app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), (_req, res) => {
+  res.status(410).json({ error: 'Direct order field updates are disabled; save the customer reply as a comment', code: 'COMMENT_ONLY_FLOW' })
 })
 
 app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
@@ -9232,13 +9460,26 @@ app.post('/api/admin/orders/months/:monthLabel/sync', authenticateToken, resolve
     const tenantId = req.actorContext.tenantId
     const sources = await prisma.sheetSource.findMany({ where: { tenantId, monthLabel, syncEnabled: true } })
     if (!sources.length) return res.status(404).json({ error: 'Sync-enabled order month not found' })
-    const results = []
-    for (const source of sources) {
-      results.push({ sourceId: source.id, stats: await syncSheetSource(source.id, tenantId) })
-    }
-    res.json({ success: true, monthLabel, results })
+    const payload = { monthLabel, sourceIds: sources.map((source) => source.id) }
+    ensureIdempotencyKey(req, 'orders.month.sync', payload)
+    const wrapped = await withIdempotency(req, 'orders.month.sync', payload, async () => {
+      const results = []
+      for (const source of sources) results.push({ sourceId: source.id, stats: await syncSheetSource(source.id, tenantId) })
+      const matchedEmailDrafts = await reconcileEmailDraftsWithSheetOrders(tenantId)
+      return { monthLabel, results, matchedEmailDrafts }
+    })
+    res.json({ success: true, ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error syncing order month:', error)
+    await createOpsTask({
+      tenantId: req.actorContext?.tenantId || null,
+      userId: req.user?.id || null,
+      title: `Не обновилась таблица заказов ${req.params.monthLabel}`,
+      details: error.message || 'Ошибка синхронизации Google Sheet',
+      type: 'sheet_sync_failed', priority: 'high', source: 'google_sheet',
+      dedupKey: `sheet-sync-failed:${req.params.monthLabel}:${Math.floor(Date.now() / (5 * 60 * 1000))}`,
+      linkUrl: '/admin-orders?view=orders'
+    }).catch(() => null)
     res.status(500).json({ error: 'Failed to sync order month', details: error.message })
   }
 })
@@ -9392,15 +9633,9 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
 
     const existingOrderIds = new Set(rows.map((row) => String(row.id || '')).filter(Boolean))
 
-    const approvedDrafts = await prisma.opsEventDraft.findMany({
-      where: {
-        tenantId: req.actorContext.tenantId,
-        parsedType: 'openclaw_order_draft',
-        status: 'approved'
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 500
-    })
+    // Email drafts are proposals for the Google Sheet and must never appear as
+    // synthetic orders in the operational Sheet view.
+    const approvedDrafts = []
 
     let syntheticSourceRow = -1
     for (const draft of approvedDrafts) {
@@ -9567,7 +9802,10 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         name: source.name,
         monthLabel: source.monthLabel,
         tabName: source.tabName,
-        detailsTabName: source.detailsTabName || 'подробности'
+        detailsTabName: source.detailsTabName || 'подробности',
+        lastSyncAt: source.lastSyncAt,
+        lastSyncStatus: source.lastSyncStatus,
+        lastSyncError: source.lastSyncError
       },
       headers,
       rows,
@@ -14308,6 +14546,11 @@ async function saveOpsDraftFromOpenClaw({ tenantId, payload, skipFlightCheck = f
   const withAddressPayload = await maybeAutoAttachAddressVerification(withFlightPayload, tenantId)
   const normalizedPayload = await refreshOpenClawDraftPayloadPricingOnly(withAddressPayload, tenantId)
   const orderDraft = normalizedPayload.orderDraft || {}
+  const externalMessageId = String(orderDraft.externalMessageId || payload?.externalMessageId || '').trim() || null
+  const externalThreadId = String(orderDraft.sourceChatId || payload?.sourceChatId || '').trim() || null
+  const sourceSender = String(orderDraft.sourceActorId || payload?.sourceActorId || '').trim() || null
+  const knownSender = Boolean(inferEmailCounterpartyName({ fromEmail: sourceSender, rawText: normalizedPayload.rawText || '' }))
+  const sourceClassification = String(orderDraft.eventType || 'new')
   return prisma.opsEventDraft.create({
     data: {
       tenantId: tenantId || null,
@@ -14316,7 +14559,12 @@ async function saveOpsDraftFromOpenClaw({ tenantId, payload, skipFlightCheck = f
       messageText: normalizedPayload.rawText || JSON.stringify(payload || {}),
       parsedType: 'openclaw_order_draft',
       payloadJson: JSON.stringify(normalizedPayload),
-      status: 'pending'
+      status: 'pending',
+      externalMessageId,
+      externalThreadId,
+      sourceSender,
+      sourceClassification,
+      queueState: normalizedPayload.sourceType === 'gmail_forward' && !knownSender ? 'quarantine' : 'pending'
     }
   })
 }
@@ -14846,10 +15094,11 @@ async function createOpsTask({
   source = 'telegram_private',
   sourceRef = null,
   dueAt = null,
-  payload = null
+  payload = null,
+  dedupKey = null,
+  linkUrl = null
 }) {
-  return prisma.opsTask.create({
-    data: {
+  const data = {
       tenantId,
       assignedUserId: userId,
       title,
@@ -14859,9 +15108,23 @@ async function createOpsTask({
       source,
       sourceRef,
       dueAt,
-      payloadJson: payload ? JSON.stringify(payload) : null
+      payloadJson: payload ? JSON.stringify(payload) : null,
+      dedupKey,
+      linkUrl
+  }
+  if (dedupKey) {
+    const existing = await prisma.opsTask.findFirst({ where: { tenantId, dedupKey } })
+    if (existing) return prisma.opsTask.update({ where: { id: existing.id }, data: { title, details, priority, dueAt, assignedUserId: userId, payloadJson: data.payloadJson, linkUrl } })
+  }
+  const task = await prisma.opsTask.create({ data })
+  if (userId && ['high', 'urgent'].includes(priority) && process.env.TELEGRAM_BOT_TOKEN) {
+    const link = await prisma.telegramLink.findFirst({ where: { tenantId, userId, telegramChatId: { not: null } }, orderBy: { createdAt: 'desc' } })
+    if (link?.telegramChatId) {
+      const absoluteLink = linkUrl ? `${String(process.env.PUBLIC_BASE_URL || 'https://riderra.com').replace(/\/$/, '')}${linkUrl}` : null
+      await telegramSendMessage(link.telegramChatId, [title, details, absoluteLink].filter(Boolean).join('\n')).catch(() => null)
     }
-  })
+  }
+  return task
 }
 
 async function getOpenOpsTasksForUser(userId, tenantId = null, limit = 10) {
@@ -15017,6 +15280,15 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
       return res.status(400).json({ error: 'rawText is required' })
     }
 
+    if (gmailMessageId) {
+      const existingDraft = await prisma.opsEventDraft.findFirst({
+        where: { tenantId: req.actorContext.tenantId, externalMessageId: gmailMessageId }
+      })
+      if (existingDraft) {
+        return res.json({ success: true, draftId: existingDraft.id, draft: existingDraft, order: null, promoted: null, idempotent: true })
+      }
+    }
+
     const payload = buildManualEmailOrderDraftPayload({ rawText, subject, fromEmail })
     if (gmailMessageId) payload.externalMessageId = gmailMessageId
     payload.sourceType = sourceType
@@ -15050,6 +15322,23 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
         payload,
         skipFlightCheck: true
       })
+      const emailEventType = String(payload?.orderDraft?.eventType || 'new')
+      if (emailEventType === 'change' || emailEventType === 'cancel') {
+        const responsible = await pickEmailOrderResponsibleUser(req.actorContext.tenantId, null)
+        await createOpsTask({
+          tenantId: req.actorContext.tenantId,
+          userId: responsible?.id || null,
+          title: `${emailEventType === 'cancel' ? 'Проверить отмену' : 'Проверить изменение'} заказа ${payload?.orderDraft?.orderNumber || 'из письма'}`,
+          details: subject || fromEmail || 'Новое письмо требует проверки',
+          type: emailEventType === 'cancel' ? 'email_order_cancel' : 'email_order_change',
+          priority: emailEventType === 'cancel' ? 'high' : 'normal',
+          source: 'email_ingest',
+          sourceRef: draft.id,
+          dedupKey: `email-event:${draft.id}`,
+          linkUrl: `/admin-ai-inbox?draftId=${draft.id}`,
+          payload: { draftId: draft.id, eventType: emailEventType }
+        })
+      }
       let promoted = null
       let responseDraft = draft
       if (EMAIL_INGEST_AUTO_PROMOTE) {
@@ -15180,7 +15469,7 @@ app.post('/api/admin/ops/drafts/manual-email', authenticateToken, resolveActorCo
 
 app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
-    const { status = 'pending', parsedType = '', limit = '100', period = '', sort = 'created_desc' } = req.query
+    const { status = 'pending', parsedType = '', limit = '100', period = '', sort = 'created_desc', queueState = '' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
     const fromPickupRaw = String(req.query.fromPickup || '').trim()
     const toPickupRaw = String(req.query.toPickup || '').trim()
@@ -15210,7 +15499,8 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
       where: {
         tenantId: req.actorContext.tenantId,
         ...(status ? { status: String(status) } : {}),
-        ...(parsedType ? { parsedType: String(parsedType) } : {})
+        ...(parsedType ? { parsedType: String(parsedType) } : {}),
+        ...(queueState === 'work' ? { queueState: { notIn: ['quarantine', 'archived'] } } : (queueState ? { queueState: String(queueState) } : {}))
       },
       orderBy: { createdAt: 'desc' },
       take: needsPayloadFilter ? Math.max(take, 1000) : take
@@ -15608,27 +15898,21 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
         })
         conflicts = await findAvailabilityConflicts(unavailability, req.actorContext.tenantId)
       } else if (draft.parsedType === 'openclaw_order_draft') {
-        const promoted = await promoteOpenClawDraftToOrder({
-          draft,
-          tenantId: req.actorContext.tenantId,
-          actorContext: req.actorContext,
-          user: req.user,
-          comment
-        })
-        promotedOrder = promoted.order
-        const eventPayload = parseJsonSafe(event.payloadJson || '{}', {})
+        // Google Sheet remains the order source of truth. Approval prepares a
+        // reviewed row/diff; it does not create or mutate an operational order.
         draftPayloadForSave = {
           ...parsedPayload,
-          promotedOrder: promoted.payload
+          sheetAction: {
+            status: 'waiting_sheet',
+            eventType: parsedPayload?.orderDraft?.eventType || 'new',
+            sheetRowPreview: parsedPayload?.sheetRowPreview || null,
+            approvedAt: new Date().toISOString(),
+            approvedBy: req.user.email
+          }
         }
         await prisma.opsEvent.update({
           where: { id: event.id },
-          data: {
-            payloadJson: JSON.stringify({
-              ...eventPayload,
-              promotedOrder: promoted.payload
-            })
-          }
+          data: { payloadJson: JSON.stringify(draftPayloadForSave) }
         })
       }
 
@@ -15642,6 +15926,7 @@ app.post('/api/admin/ops/drafts/:draftId/approve', authenticateToken, resolveAct
           reviewComment: comment || null,
           promotedEventId: event.id,
           promotedUnavailabilityId: unavailability?.id || null,
+          queueState: draft.parsedType === 'openclaw_order_draft' ? 'waiting_sheet' : draft.queueState,
           payloadJson: JSON.stringify(draftPayloadForSave)
         }
       })

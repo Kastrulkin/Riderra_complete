@@ -374,16 +374,16 @@
                 </div>
               </div>
               <div v-if="inboundOutcome.orderPatchItems.length" class="outcome-panel__patch">
-                <span>Будет изменено в заказе</span>
+                <span>Распознано из ответа</span>
                 <div class="patch-chips">
                   <span v-for="item in inboundOutcome.orderPatchItems" :key="item" class="patch-chip">{{ item }}</span>
                 </div>
               </div>
               <div v-if="inboundOutcome.hasPendingPatch" class="review-gate review-gate--inline">
-                <div class="hint">Заказ ещё не обновлён. Это human gate: проверьте значение и примените вручную.</div>
+                <div class="hint">Проверьте распознанное значение. В поля поездки ничего не записывается — ответ сохранится только во внутреннем комментарии.</div>
                 <div class="review-gate__actions">
                   <button class="btn btn--primary" :disabled="inboundUpdateSaving" @click="applyInboundUpdate">
-                    {{ inboundUpdateSaving ? 'Применяю...' : 'Применить в заказ' }}
+                    {{ inboundUpdateSaving ? 'Сохраняю...' : 'Сохранить ответ в комментарии' }}
                   </button>
                   <button class="btn btn--warn" :disabled="inboundUpdateSaving" @click="rejectInboundUpdate">
                     Отклонить
@@ -440,7 +440,7 @@
                 <div class="trace-row"><strong>Поле:</strong> {{ inboundOutcome.fieldLabel }}</div>
                 <div class="trace-row"><strong>Извлеченное значение:</strong> {{ inboundOutcome.valueLabel }}</div>
                 <div class="trace-row"><strong>Источник разбора:</strong> {{ inboundOutcome.sourceLabel }}</div>
-                <div v-if="inboundOutcome.orderPatchLabel" class="trace-row"><strong>Обновление заказа:</strong> {{ inboundOutcome.orderPatchLabel }}</div>
+                <div v-if="inboundOutcome.orderPatchLabel" class="trace-row"><strong>Распознанные данные:</strong> {{ inboundOutcome.orderPatchLabel }}</div>
                 <div class="trace-row"><strong>Следующий статус:</strong> {{ stateLabel(inboundOutcome.nextState) }}</div>
                 <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
               </div>
@@ -777,7 +777,7 @@ export default {
     primaryTaskActionLabel() {
       if (!this.selectedTask) return 'Действие'
       if (this.isWaitingForCustomer(this.selectedTask)) return 'Ждём клиента'
-      if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving ? 'Применяю...' : 'Применить обновление'
+      if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving ? 'Сохраняю...' : 'Сохранить ответ в комментарии'
       if (this.selectedTask.state === 'customer_replied') return 'Разобрать ответ'
       if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Черновик готов — проверьте выше'
       if (this.hasReadyDraft(this.selectedTask)) return 'Отправить'
@@ -1401,18 +1401,18 @@ export default {
       if (!this.selectedTask?.id || this.inboundUpdateSaving) return
       this.inboundUpdateSaving = true
       try {
-        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/apply-inbound-update`, {
+        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/confirm-inbound-comment`, {
           method: 'POST',
           headers: this.headers(),
           body: JSON.stringify({})
         })
         const data = await response.json()
-        if (!response.ok) throw new Error(data?.error || 'Не удалось применить обновление')
-        this.notice = 'Обновление применено в заказ'
+        if (!response.ok) throw new Error(data?.error || 'Не удалось сохранить ответ')
+        this.notice = 'Ответ клиента сохранён во внутреннем комментарии'
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
       } catch (error) {
-        this.notice = error?.message || 'Ошибка применения обновления'
+        this.notice = error?.message || 'Ошибка сохранения ответа'
       } finally {
         this.inboundUpdateSaving = false
       }

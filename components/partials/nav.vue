@@ -29,6 +29,7 @@
     <div class="header__right">
       <template v-if="$store.state.isAuthenticated">
         <div class="user-menu">
+          <notification-bell />
           <nuxt-link
             v-if="$store.state.user?.role === 'admin' || ($store.state.user?.permissions || []).includes('crm.read')"
             to="/admin-crm"
@@ -59,11 +60,12 @@
 
   import tabsNav from '~/components/partials/orderCaption.vue'
   import language from '~/components/partials/language.vue'
+  import NotificationBell from '~/components/admin/NotificationBell.vue'
 
 
   export default {
     components: {
-      tabsNav,language
+      tabsNav,language,NotificationBell
     },
     computed:{
       menu(){

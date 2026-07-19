@@ -82,7 +82,7 @@ export default {
             { to: '/admin-orders', label: 'Заказы', hint: 'Основная очередь' },
             { to: '/admin-chats', label: 'Чаты', hint: 'Диалоги и SLA' },
             { to: '/admin-ai-requests', label: 'AI заявки', hint: 'Публичные драфты' },
-            { to: '/admin-ai-inbox', label: 'AI Inbox', hint: 'Черновики' }
+            { to: '/admin-ai-inbox', label: 'Заказы из почты', hint: 'Новые, изменения, отмены' }
           ]
         },
         {

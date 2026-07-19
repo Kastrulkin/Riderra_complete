@@ -219,7 +219,7 @@ async function main() {
     assert(taskAfter && String(taskAfter.state) === 'pending_update_approval', `chatTask.state must be pending_update_approval, got ${taskAfter?.state}`)
 
     const applyKey = `chat-e2e-apply-${crypto.randomUUID()}`
-    const applied = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/apply-inbound-update`, {
+    const applied = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/confirm-inbound-comment`, {
       method: 'POST',
       token,
       tenantCode,
@@ -229,9 +229,10 @@ async function main() {
     assert(applied.status === 200, `expected 200 from apply API, got ${applied.status}`)
     assert(applied.data?.taskState === 'order_complete', `expected applied taskState=order_complete, got ${applied.data?.taskState}`)
     assert(applied.data?.order?.needsInfo === false, 'applied order.needsInfo must be false')
-    assert(applied.data?.order?.luggage === 2, `applied order.luggage must be 2, got ${applied.data?.order?.luggage}`)
+    assert(applied.data?.order?.luggage == null, `order.luggage must not be changed, got ${applied.data?.order?.luggage}`)
+    assert(String(applied.data?.order?.comment || '').includes('Ответ клиента'), 'customer reply must be appended to order.comment')
 
-    const replay = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/apply-inbound-update`, {
+    const replay = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/confirm-inbound-comment`, {
       method: 'POST',
       token,
       tenantCode,
@@ -244,13 +245,14 @@ async function main() {
     const orderApplied = await prisma.order.findUnique({ where: { id: order.id } })
     const taskApplied = await prisma.chatTask.findUnique({ where: { id: task.id } })
     assert(orderApplied && orderApplied.needsInfo === false, 'order.needsInfo must be false after human approval')
-    assert(orderApplied && orderApplied.luggage === 2, `order.luggage must be 2 after human approval, got ${orderApplied?.luggage}`)
+    assert(orderApplied && orderApplied.luggage == null, `order.luggage must remain unchanged, got ${orderApplied?.luggage}`)
+    assert(String(orderApplied?.comment || '').includes('Ответ клиента'), 'order.comment must contain the customer reply')
     assert(taskApplied && String(taskApplied.state) === 'order_complete', `chatTask.state must be order_complete after approval, got ${taskApplied?.state}`)
 
     const auditApproved = await prisma.auditLog.findFirst({
       where: {
         tenantId: tenant.id,
-        action: 'chat_task.apply_inbound_update',
+        action: 'chat_task.confirm_inbound_comment',
         resourceId: task.id,
         decision: 'human_approved'
       }

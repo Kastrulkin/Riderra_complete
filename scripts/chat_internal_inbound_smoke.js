@@ -256,7 +256,7 @@ async function main() {
     const orderBeforeApply = await prisma.order.findUnique({ where: { id: order.id } })
     assert(orderBeforeApply?.needsInfo === true, 'order.needsInfo must remain true before human approval')
 
-    const apply = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/apply-inbound-update`, {
+    const apply = await requestJson(baseUrl, `/api/admin/chats/tasks/${task.id}/confirm-inbound-comment`, {
       method: 'POST',
       token,
       tenantCode,
@@ -265,7 +265,8 @@ async function main() {
     })
     assert(apply.status === 200, `expected 200 from apply API, got ${apply.status}`)
     assert(apply.data?.taskState === 'order_complete', `expected applied taskState=order_complete, got ${apply.data?.taskState}`)
-    assert(apply.data?.order?.luggage === 1, `applied order.luggage must be 1, got ${apply.data?.order?.luggage}`)
+    assert(apply.data?.order?.luggage == null, `order.luggage must not be changed, got ${apply.data?.order?.luggage}`)
+    assert(String(apply.data?.order?.comment || '').includes('Ответ клиента'), 'customer reply must be appended to order.comment')
 
     const kinds = mock.stats.requestKinds.slice().sort().join(',')
     assert(kinds === 'classify,extract', `expected classify,extract runtime calls, got ${kinds}`)

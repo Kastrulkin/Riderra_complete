@@ -21,8 +21,8 @@
 
         <div class="ops-rail">
           <div>
-            <strong>AI Inbox — очередь черновиков.</strong>
-            <p class="hint">Здесь проверяем, что распозналось из письма, уточняем проблемные поля и только потом подтверждаем заказ.</p>
+            <strong>Заказы из почты</strong>
+            <p class="hint">Проверьте письмо и скопируйте подготовленную строку в Google Sheet. Таблица остаётся источником истины.</p>
           </div>
         </div>
 
@@ -63,6 +63,11 @@
         </div>
 
         <div class="toolbar">
+          <select v-model="queueState" class="input" @change="load">
+            <option value="work">Рабочая очередь</option>
+            <option value="quarantine">Карантин</option>
+            <option value="">Все письма</option>
+          </select>
           <select v-model="status" class="input" @change="load">
             <option value="pending">Pending</option>
             <option value="">All statuses</option>
@@ -428,6 +433,7 @@ export default {
   middleware: 'staff',
   components: { navigation, adminTabs },
   data: () => ({
+    queueState: 'work',
     status: 'pending',
     period: 'future',
     fromPickup: '',
@@ -524,18 +530,20 @@ export default {
       if (this.payload.infoReason) return `Нужно уточнить: ${this.payload.infoReason}`
       if (this.missingFields.length) return `Перед подтверждением нужно проверить: ${this.missingFields.join(', ')}`
       if (this.pricing.conflict) return 'Найдено расхождение по цене, лучше проверить перед созданием заказа.'
-      return 'Черновик выглядит целостным. Можно перенести в базу.'
+      return 'Черновик выглядит целостным. Можно подготовить строку для Google Sheet.'
     },
     primaryDraftAction () {
       const eventType = this.eventTypeFromPayload(this.payload)
       if (eventType === 'cancel') return 'Разобрать отмену'
       if (eventType === 'change') return 'Разобрать изменение'
-      if (this.payload.infoReason || this.missingFields.length || this.pricing.conflict) return 'Проверить и перенести в базу'
-      return 'Перенести в базу'
+      if (this.payload.infoReason || this.missingFields.length || this.pricing.conflict) return 'Проверить и подготовить строку'
+      return 'Подготовить строку для таблицы'
     }
   },
-  mounted () {
-    this.load()
+  async mounted () {
+    await this.load()
+    const draftId = String(this.$route.query.draftId || '').trim()
+    if (draftId) await this.openDraft(draftId)
   },
   methods: {
     headers () {
@@ -945,6 +953,7 @@ export default {
       const params = new URLSearchParams()
       if (this.status) params.set('status', this.status)
       params.set('parsedType', 'openclaw_order_draft')
+      if (this.queueState) params.set('queueState', this.queueState)
       params.set('sort', 'pickup_future')
       if (this.period) params.set('period', this.period)
       if (this.fromPickup) params.set('fromPickup', this.fromPickup)
@@ -1141,9 +1150,7 @@ export default {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Approve failed')
-        this.actionResult = data.order
-          ? `Черновик перенесён в базу. Заказ ${data.order.id}, статус ${data.order.status}.`
-          : 'Черновик перенесён в базу.'
+        this.actionResult = 'Черновик проверен. Скопируйте строку в Google Sheet; после синхронизации Riderra найдёт заказ автоматически.'
         await this.openDraft(this.draft.id)
         await this.load()
       } catch (error) {

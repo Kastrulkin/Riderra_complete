@@ -887,9 +887,17 @@ model OpsEventDraft {
   reviewComment            String?
   promotedEventId          String?
   promotedUnavailabilityId String?
+  externalMessageId        String?
+  externalThreadId         String?
+  sourceSender             String?
+  sourceClassification     String?
+  queueState               String    @default("pending") // pending, quarantine, waiting_sheet, matched, archived
+  matchedOrderId           String?
   tenant                   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
+  @@unique([tenantId, externalMessageId], map: "uq_ops_draft_external_message")
+  @@index([tenantId, queueState, createdAt])
 }
 
 model OpsEvent {
@@ -940,11 +948,15 @@ model OpsTask {
   assignedUserId String?
   assignedUser   User?     @relation("OpsTaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
   payloadJson    String?
+  dedupKey       String?
+  readAt         DateTime?
+  linkUrl        String?
   tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, dueAt])
   @@index([status, dueAt])
   @@index([assignedUserId, status])
+  @@unique([tenantId, dedupKey], map: "uq_ops_task_dedup")
 }
 
 model ChatTask {
