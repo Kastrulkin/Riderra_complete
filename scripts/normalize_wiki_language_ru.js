@@ -304,6 +304,68 @@ async function main () {
     renamed.push(`${oldTitle} -> ${newTitle}`)
   }
 
+  const idealVendor = await prisma.wikiPage.findFirst({ where: { title: 'Идеальный вендор', isPublished: true } })
+  if (!idealVendor) throw new Error('Wiki page not found: Идеальный вендор')
+  const penaltiesTitle = 'Штрафы за неисполнение поездок'
+  const penaltiesContent = `# Штрафы за неисполнение поездок
+
+Единой таблицы штрафов для всех заказчиков нет. Размер и основание всегда проверяйте в статье конкретного партнёра и в действующем договоре.
+
+## Основные причины штрафов
+
+- водитель или автомобиль не поданы;
+- водитель опоздал;
+- назначен неверный класс или тип автомобиля;
+- не предоставлена обязательная услуга;
+- водитель потребовал доплату у пассажира;
+- не соблюдено время ожидания;
+- при неявке пассажира не собраны доказательства;
+- диспетчер не сообщил заказчику о проблеме вовремя;
+- нарушены требования безопасности или конфиденциальности.
+
+## Что делать при проблеме
+
+1. Сразу сообщить заказчику и ответственному сотруднику Riderra.
+2. Попытаться выполнить заказ: найти замену, согласовать новое время или другой автомобиль.
+3. Сохранить звонки, сообщения, GPS, фотографии, чеки и данные рейса.
+4. Проверить правила партнёра в разделе [[Действующие партнёры: правила работы]].
+5. Подготовить ответ на претензию и передать его на проверку ответственному сотруднику.
+
+## Важно
+
+Не обещайте размер возврата и не признавайте штраф до проверки договора и доказательств.
+
+**ДАННЫХ НЕТ:** требуется единая внутренняя таблица заказчиков со штрафами и ответственными за согласование.`
+  const existingPenalties = await prisma.wikiPage.findFirst({
+    where: { tenantId: idealVendor.tenantId, title: penaltiesTitle }
+  })
+  if (existingPenalties) {
+    await prisma.wikiPage.update({
+      where: { id: existingPenalties.id },
+      data: {
+        contentMarkdown: penaltiesContent,
+        contentText: plainText(penaltiesContent),
+        parentId: idealVendor.id,
+        isPublished: true
+      }
+    })
+  } else {
+    await prisma.wikiPage.create({
+      data: {
+        tenantId: idealVendor.tenantId,
+        title: penaltiesTitle,
+        slug: slugify(penaltiesTitle),
+        contentMarkdown: penaltiesContent,
+        contentText: plainText(penaltiesContent),
+        parentId: idealVendor.id,
+        sortOrder: 3,
+        isPublished: true,
+        sourceProvider: 'riderra',
+        sourcePageId: 'riderra-vendor-penalties'
+      }
+    })
+  }
+
   const refreshed = await prisma.wikiPage.findMany({ where: { isPublished: true } })
   let linkedPages = 0
   for (const page of refreshed) {
