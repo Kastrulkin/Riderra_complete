@@ -211,6 +211,7 @@
                           @click="openWikiLink(part.title)"
                         >{{ part.title }}</button>
                         <a v-else-if="part.type === 'external-link'" :key="partIndex" :href="part.url" target="_blank" rel="noopener">{{ part.text }}</a>
+                        <strong v-else-if="part.type === 'strong'" :key="partIndex">{{ part.text }}</strong>
                         <span v-else :key="partIndex">{{ part.text }}</span>
                       </template>
                     </component>
@@ -219,6 +220,7 @@
                         <template v-for="(part, partIndex) in item">
                           <button v-if="part.type === 'wiki-link'" :key="partIndex" class="wiki-inline-link" type="button" @click="openWikiLink(part.title)">{{ part.title }}</button>
                           <a v-else-if="part.type === 'external-link'" :key="partIndex" :href="part.url" target="_blank" rel="noopener">{{ part.text }}</a>
+                          <strong v-else-if="part.type === 'strong'" :key="partIndex">{{ part.text }}</strong>
                           <span v-else :key="partIndex">{{ part.text }}</span>
                         </template>
                       </li>
@@ -228,6 +230,7 @@
                         <template v-for="(part, partIndex) in item">
                           <button v-if="part.type === 'wiki-link'" :key="partIndex" class="wiki-inline-link" type="button" @click="openWikiLink(part.title)">{{ part.title }}</button>
                           <a v-else-if="part.type === 'external-link'" :key="partIndex" :href="part.url" target="_blank" rel="noopener">{{ part.text }}</a>
+                          <strong v-else-if="part.type === 'strong'" :key="partIndex">{{ part.text }}</strong>
                           <span v-else :key="partIndex">{{ part.text }}</span>
                         </template>
                       </li>
@@ -236,6 +239,7 @@
                       <template v-for="(part, partIndex) in block.parts">
                         <button v-if="part.type === 'wiki-link'" :key="partIndex" class="wiki-inline-link" type="button" @click="openWikiLink(part.title)">{{ part.title }}</button>
                         <a v-else-if="part.type === 'external-link'" :key="partIndex" :href="part.url" target="_blank" rel="noopener">{{ part.text }}</a>
+                        <strong v-else-if="part.type === 'strong'" :key="partIndex">{{ part.text }}</strong>
                         <span v-else :key="partIndex">{{ part.text }}</span>
                       </template>
                     </blockquote>
@@ -245,6 +249,7 @@
                       <template v-for="(part, partIndex) in block.parts">
                         <button v-if="part.type === 'wiki-link'" :key="partIndex" class="wiki-inline-link" type="button" @click="openWikiLink(part.title)">{{ part.title }}</button>
                         <a v-else-if="part.type === 'external-link'" :key="partIndex" :href="part.url" target="_blank" rel="noopener">{{ part.text }}</a>
+                        <strong v-else-if="part.type === 'strong'" :key="partIndex">{{ part.text }}</strong>
                         <span v-else :key="partIndex">{{ part.text }}</span>
                       </template>
                     </p>
@@ -560,13 +565,14 @@ export default {
     inlineParts (text) {
       const source = String(text || '')
       const parts = []
-      const pattern = /\[\[([^\]]+)\]\]|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g
+      const pattern = /\[\[([^\]]+)\]\]|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|\*\*([^*]+)\*\*/g
       let lastIndex = 0
       let match
       while ((match = pattern.exec(source))) {
         if (match.index > lastIndex) parts.push({ type: 'text', text: source.slice(lastIndex, match.index) })
         if (match[1]) parts.push({ type: 'wiki-link', title: String(match[1]).trim() })
-        else parts.push({ type: 'external-link', text: match[2], url: match[3] })
+        else if (match[2]) parts.push({ type: 'external-link', text: match[2], url: match[3] })
+        else parts.push({ type: 'strong', text: match[4] })
         lastIndex = pattern.lastIndex
       }
       if (lastIndex < source.length) parts.push({ type: 'text', text: source.slice(lastIndex) })
