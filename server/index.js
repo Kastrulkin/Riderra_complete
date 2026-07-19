@@ -15893,6 +15893,16 @@ function notionBlockToMarkdown(block = {}) {
   const type = block.type
   const data = block[type] || {}
   const text = notionPlainText(data.rich_text)
+  if (type === 'image') {
+    const url = data.type === 'external' ? data.external?.url : data.file?.url
+    const caption = notionPlainText(data.caption) || 'Изображение'
+    return url ? `![${caption}](${url})` : ''
+  }
+  if (type === 'video') {
+    const url = data.type === 'external' ? data.external?.url : data.file?.url
+    const caption = notionPlainText(data.caption) || 'Видео'
+    return url ? `[video:${caption}](${url})` : ''
+  }
   if (!text && !['divider', 'child_page'].includes(type)) return ''
   if (type === 'heading_1') return `# ${text}`
   if (type === 'heading_2') return `## ${text}`
@@ -16024,6 +16034,7 @@ app.get('/api/admin/wiki/pages', authenticateToken, resolveActorContext, require
         id: true,
         title: true,
         slug: true,
+        contentText: true,
         parentId: true,
         sortOrder: true,
         sourceProvider: true,
@@ -16033,7 +16044,10 @@ app.get('/api/admin/wiki/pages', authenticateToken, resolveActorContext, require
       }
     })
     res.json({
-      rows,
+      rows: rows.map(({ contentText, ...row }) => ({
+        ...row,
+        contentPreview: String(contentText || '').trim().slice(0, 180)
+      })),
       canManage: hasPermission(req, 'settings.manage') || hasPermission(req, 'admin.panel')
     })
   } catch (error) {
