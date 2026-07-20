@@ -87,7 +87,7 @@
               <div v-if="message.deliveryProblem" class="send-error">
                 <strong>{{ message.deliveryProblem.title }}</strong>
                 <span>{{ message.deliveryProblem.action }}</span>
-                <button type="button" :disabled="busy" @click="sendApproved(message)">Повторить отправку</button>
+                <button type="button" :disabled="busy" @click="retryMessage(message)">Повторить отправку</button>
               </div>
               <div v-if="message.direction === 'outbound' && message.approvalStatus === 'pending_human'" class="approval">
                 <span>Проверьте точный текст перед отправкой</span>
@@ -213,6 +213,14 @@ export default {
     async prepareReply () { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}/reply`, { method: 'POST', fixedKey: `inquiry-reply-${this.selected.id}-${Date.now()}`, body: JSON.stringify({ bodyText: this.replyText.trim() }) }); this.replyText = ''; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error) } finally { this.busy = false } },
     async approveAndSend (message) { this.busy = true; try { await this.request(`/api/admin/chats/messages/${message.id}/approve`, { method: 'POST', body: '{}' }); await this.sendApproved(message) } catch (error) { this.showError(error) } finally { this.busy = false } },
     async sendApproved (message) { this.busy = true; try { const data = await this.request(`/api/admin/chats/messages/${message.id}/send`, { method: 'POST', fixedKey: `inquiry-send-${message.id}`, body: '{}' }); this.banner = { kind: 'success', text: data.alreadySent ? 'Сообщение уже было отправлено. Дубль не создан.' : 'WhatsApp принял сообщение. Ждём доставку.' }; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error); await this.open(this.selected.id, false) } finally { this.busy = false } },
+    async retryMessage (message) {
+      this.busy = true
+      try {
+        const draft = await this.request(`/api/admin/chats/inquiries/${this.selected.id}/reply`, { method: 'POST', fixedKey: `inquiry-retry-draft-${message.id}`, body: JSON.stringify({ bodyText: message.bodyText }) })
+        await this.request(`/api/admin/chats/messages/${draft.message.id}/approve`, { method: 'POST', body: '{}' })
+        await this.sendApproved(draft.message)
+      } catch (error) { this.showError(error); await this.open(this.selected.id, false) } finally { this.busy = false }
+    },
     scheduleOrderSearch () { clearTimeout(this.orderTimer); this.orderTimer = setTimeout(() => this.searchOrders(), 300) },
     async searchOrders () { if (this.orderSearch.length < 2) { this.orderResults = []; return } try { const data = await this.request(`/api/admin/chats/inquiries/orders?q=${encodeURIComponent(this.orderSearch)}`); this.orderResults = data.rows || [] } catch (error) { this.showError(error) } },
     async linkOrder (orderId) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}/link-order`, { method: 'POST', body: JSON.stringify({ orderId }) }); this.banner = { kind: 'success', text: 'Диалог связан с заказом и доступен в его истории.' }; this.selected = null; await this.changeView('linked') } catch (error) { this.showError(error) } finally { this.busy = false } },
