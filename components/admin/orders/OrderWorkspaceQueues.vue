@@ -10,9 +10,9 @@
         <div v-if="!actionItems.length" class="work-empty"><strong>На сейчас всё обработано</strong><span>Новые письма, ответы и ошибки появятся здесь.</span></div>
       </div>
       <div v-else-if="view === 'email'" class="work-list">
-        <button v-for="row in activeEmails" :key="row.id" class="work-row" type="button" :disabled="Boolean(openingDraftId)" @click="openEmail(row.id)">
-          <span class="work-row__source">Почта</span><span class="work-row__main"><strong>{{ emailTitle(row) }}</strong><small>{{ emailHint(row) }}</small></span><span class="work-row__action">{{ openingDraftId === row.id ? 'Открываем…' : 'Проверить →' }}</span>
-        </button>
+        <nuxt-link v-for="row in activeEmails" :key="row.id" class="work-row" :to="`/admin-ai-inbox?draftId=${row.id}`" prefetch>
+          <span class="work-row__source">Почта</span><span class="work-row__main"><strong>{{ emailTitle(row) }}</strong><small>{{ emailHint(row) }}</small></span><span class="work-row__action">Проверить →</span>
+        </nuxt-link>
         <div v-if="!activeEmails.length" class="work-empty">Новых заказов из почты нет</div>
       </div>
       <div v-else class="work-list">
@@ -49,14 +49,10 @@ export default {
     openItem (item) {
       if (String(item?.key || '').startsWith('e-')) this.openingDraftId = String(item.key).slice(2)
       this.$router.push(item.url).catch(() => { this.openingDraftId = '' })
-    },
-    openEmail (draftId) {
-      this.openingDraftId = draftId
-      this.$router.push(`/admin-ai-inbox?draftId=${draftId}`).catch(() => { this.openingDraftId = '' })
     }
   }
 }
 </script>
 <style scoped>
-.work-queue{background:#fff;border:1px solid #dfe5ee;border-radius:16px;overflow:hidden}.work-list{display:flex;flex-direction:column}.work-row{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:16px;align-items:center;padding:15px 18px;border:0;border-bottom:1px solid #edf1f6;background:#fff;text-align:left;cursor:pointer}.work-row:hover{background:#f8fafc}.work-row__source{color:#65738a;font-size:12px;font-weight:800;text-transform:uppercase}.work-row__main strong,.work-row__main small{display:block}.work-row__main small{margin-top:4px;color:#65738a}.work-row__action{color:#20355f;font-weight:800}.work-empty{display:flex;flex-direction:column;gap:8px;align-items:center;padding:48px 20px;color:#65738a;text-align:center}.work-empty--error{color:#991b1b}@media(max-width:700px){.work-row{grid-template-columns:1fr;gap:6px}.work-row__action{margin-top:4px}}
+.work-queue{background:#fff;border:1px solid #dfe5ee;border-radius:16px;overflow:hidden}.work-list{display:flex;flex-direction:column}.work-row{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:16px;align-items:center;padding:15px 18px;border:0;border-bottom:1px solid #edf1f6;background:#fff;color:inherit;text-align:left;text-decoration:none;cursor:pointer}.work-row:hover{background:#f8fafc}.work-row__source{color:#65738a;font-size:12px;font-weight:800;text-transform:uppercase}.work-row__main strong,.work-row__main small{display:block}.work-row__main small{margin-top:4px;color:#65738a}.work-row__action{color:#20355f;font-weight:800}.work-empty{display:flex;flex-direction:column;gap:8px;align-items:center;padding:48px 20px;color:#65738a;text-align:center}.work-empty--error{color:#991b1b}@media(max-width:700px){.work-row{grid-template-columns:1fr;gap:6px}.work-row__action{margin-top:4px}}
 </style>
