@@ -1081,17 +1081,30 @@ async function withIdempotency(req, action, requestPayload, operation) {
     }
   }
 
-  const result = await operation()
-  await prisma.idempotencyKey.update({
-    where: { id: keyRow.id },
-    data: {
-      status: 'completed',
-      requestHash,
-      responseJson: JSON.stringify(result),
-      traceId: req.actorContext?.traceId || null
-    }
-  })
-  return { replayed: false, data: result }
+  try {
+    const result = await operation()
+    await prisma.idempotencyKey.update({
+      where: { id: keyRow.id },
+      data: {
+        status: 'completed',
+        requestHash,
+        responseJson: JSON.stringify(result),
+        traceId: req.actorContext?.traceId || null
+      }
+    })
+    return { replayed: false, data: result }
+  } catch (error) {
+    await prisma.idempotencyKey.update({
+      where: { id: keyRow.id },
+      data: {
+        status: 'failed',
+        requestHash,
+        responseJson: null,
+        traceId: req.actorContext?.traceId || null
+      }
+    }).catch(() => null)
+    throw error
+  }
 }
 
 async function getCompletedIdempotencyReplay(req, action) {
@@ -2363,7 +2376,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         if (unchangedOrder) {
           // A row can be unchanged while Riderra gains support for new source
           // columns. Backfill those values without replacing a manual override.
-          const manualOverrideFields = new Set(Object.keys(parseJsonSafe(unchangedOrder.manualOverridesJson, {})))
+          const manualOverrideFields = new Set(Object.keys(parseJsonSafe(unchangedOrder.manualOverridesJson, {}) || {}))
           const sourceContacts = {
             customerName: pickFieldLoose(raw, aliasesWithMapping(['customer name', 'passenger name', 'имя клиента', 'имя пассажира', 'пассажир'], mapping, 'customerName')) || null,
             customerEmail: pickFieldLoose(raw, aliasesWithMapping(['customer email', 'passenger email', 'email клиента', 'email пассажира', 'email'], mapping, 'customerEmail')) || null,
