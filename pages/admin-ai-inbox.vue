@@ -60,6 +60,14 @@
             <span class="overview-card__label">Готовы к созданию</span>
             <strong>{{ readyCount }}</strong>
           </div>
+          <div class="overview-card">
+            <span class="overview-card__label">Проверяются</span>
+            <strong>{{ processingCount }}</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-card__label">Ошибки проверки</span>
+            <strong>{{ failedCheckCount }}</strong>
+          </div>
         </div>
 
         <div class="toolbar">
@@ -187,8 +195,8 @@
               </div>
             </div>
             <div class="row-actions">
-              <button class="btn btn--small btn--primary" @click="openDraft(row.id)">{{ draftActionLabel(row) }}</button>
-              <button class="btn btn--small btn--ghost" type="button" @click="copyDraftRow(row)">Скопировать</button>
+              <button class="btn btn--small btn--primary" :disabled="isEmailChecking(row) || retryingDraftId === row.id" @click="handleDraftAction(row)">{{ draftActionLabel(row) }}</button>
+              <button class="btn btn--small btn--ghost" type="button" :disabled="isEmailChecking(row)" @click="copyDraftRow(row)">Скопировать</button>
               <button class="btn btn--small btn--ghost" type="button" @click="hideDraft(row)">Убрать</button>
             </div>
           </div>
@@ -458,6 +466,8 @@ export default {
     refreshingChecks: false,
     flightCheckError: '',
     manualSaving: false,
+    retryingDraftId: '',
+    refreshTimer: null,
     cleanupSaving: false,
     bulkDeleting: false,
     manualResult: '',
@@ -514,22 +524,30 @@ export default {
       return this.eventNoticeFromPayload(this.payload)
     },
     pendingCount () {
-      return this.rows.filter((row) => row.status === 'pending').length
+      return this.rows.filter((row) => row.status === 'pending' && !this.isEmailChecking(row) && row.queueState !== 'check_failed').length
+    },
+    processingCount () {
+      return this.rows.filter((row) => this.isEmailChecking(row)).length
+    },
+    failedCheckCount () {
+      return this.rows.filter((row) => row.queueState === 'check_failed').length
     },
     needsReviewCount () {
       return this.rows.filter((row) => {
+        if (this.isEmailChecking(row) || row.queueState === 'check_failed') return false
         const payload = this.parsePayload(row.payloadJson)
         return (Array.isArray(payload.missingFields) && payload.missingFields.length) || String(payload.infoReason || '').trim()
       }).length
     },
     readyCount () {
       return this.rows.filter((row) => {
+        if (this.isEmailChecking(row) || row.queueState === 'check_failed') return false
         const payload = this.parsePayload(row.payloadJson)
         return row.status === 'pending' && !(Array.isArray(payload.missingFields) && payload.missingFields.length) && !String(payload.infoReason || '').trim()
       }).length
     },
     selectableRows () {
-      return this.rows.filter((row) => row.status === 'pending')
+      return this.rows.filter((row) => row.status === 'pending' && !this.isEmailChecking(row) && row.queueState !== 'check_failed')
     },
     allVisibleSelected () {
       return this.selectableRows.length > 0 && this.selectableRows.every((row) => this.selectedDraftIds.includes(row.id))
@@ -557,6 +575,9 @@ export default {
       return
     }
     await this.load()
+  },
+  beforeDestroy () {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer)
   },
   methods: {
     headers () {
@@ -733,6 +754,8 @@ export default {
       }
     },
     draftStateLabel (row) {
+      if (this.isEmailChecking(row)) return 'Проверяем письмо — результат появится автоматически'
+      if (row.queueState === 'check_failed') return 'Проверка не завершилась — письмо сохранено'
       const payload = this.parsePayload(row.payloadJson)
       const eventType = this.eventTypeFromPayload(payload)
       if (row.status === 'approved') return 'Уже подтверждён'
@@ -896,11 +919,40 @@ export default {
       }
     },
     draftActionLabel (row) {
+      if (this.isEmailChecking(row)) return 'Проверяем…'
+      if (row.queueState === 'check_failed') return this.retryingDraftId === row.id ? 'Запускаем…' : 'Повторить проверку'
       const payload = this.parsePayload(row.payloadJson)
       const eventType = this.eventTypeFromPayload(payload)
       if (eventType === 'cancel') return 'Разобрать отмену'
       if (eventType === 'change') return 'Разобрать изменение'
       return this.draftStateLabel(row).includes('Можно') ? 'Проверить' : 'Разобрать'
+    },
+    isEmailChecking (row) {
+      return ['checking_queued', 'checking'].includes(String(row?.queueState || ''))
+    },
+    async handleDraftAction (row) {
+      if (this.isEmailChecking(row)) return
+      if (row.queueState === 'check_failed') return this.retryChecks(row)
+      return this.openDraft(row.id)
+    },
+    async retryChecks (row) {
+      this.retryingDraftId = row.id
+      this.actionResult = ''
+      try {
+        const res = await fetch(`/api/admin/ops/drafts/${row.id}/retry-checks`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось повторить проверку')
+        this.actionResult = 'Проверка запущена. Результат появится автоматически.'
+        await this.load()
+      } catch (error) {
+        this.actionResult = error.message || 'Не удалось повторить проверку'
+      } finally {
+        this.retryingDraftId = ''
+      }
     },
     parsePayload (raw) {
       try {
@@ -977,6 +1029,10 @@ export default {
       this.rows = data.rows || []
       const visible = new Set(this.rows.map((row) => row.id))
       this.selectedDraftIds = this.selectedDraftIds.filter((id) => visible.has(id))
+      if (this.refreshTimer) clearTimeout(this.refreshTimer)
+      if (this.rows.some((row) => this.isEmailChecking(row))) {
+        this.refreshTimer = setTimeout(() => this.load(), 3000)
+      }
     },
     toggleAllVisible (event) {
       const checked = Boolean(event?.target?.checked)
@@ -1047,10 +1103,9 @@ export default {
         if (!res.ok) throw new Error(data.error || 'Не удалось создать черновик')
         this.manualResult = data.idempotent
           ? 'Такой черновик уже был создан ранее.'
-          : 'Черновик создан и добавлен в очередь.'
+          : 'Письмо сохранено. Проверяем адреса и цену в фоне.'
         this.manualEmail.rawText = ''
         await this.load()
-        if (data.draft?.id) await this.openDraft(data.draft.id)
       } catch (error) {
         this.manualResult = error.message || 'Не удалось создать черновик'
       } finally {

@@ -253,6 +253,8 @@ const TECHNICAL_INBOX_EMAIL = String(
 ).trim()
 const EMAIL_INGEST_AUTO_PROMOTE = String(process.env.RIDERRA_EMAIL_INGEST_AUTO_PROMOTE || '').trim().toLowerCase() === 'true'
 const AUTO_FLIGHT_CHECK_ENABLED = String(process.env.RIDERRA_AUTO_FLIGHT_CHECK || '').trim().toLowerCase() === 'true'
+const EMAIL_DRAFT_CHECK_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.RIDERRA_EMAIL_CHECK_CONCURRENCY) || 2))
+const EMAIL_DRAFT_CHECK_POLL_MS = Math.max(2000, Number(process.env.RIDERRA_EMAIL_CHECK_POLL_MS) || 5000)
 const EMAIL_INGEST_INTERNAL_TOKEN = String(
   process.env.RIDERRA_EMAIL_INGEST_TOKEN ||
   process.env.OPENCLAW_INTERNAL_TOKEN ||
@@ -3911,6 +3913,7 @@ app.get('/api/admin/orders', authenticateToken, resolveActorContext, requireActo
 
 app.get('/api/admin/order-workspace', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
+    kickEmailDraftCheckWorker()
     const tenantId = req.actorContext.tenantId
     const [source, emailDrafts, chats, notifications] = await Promise.all([
       prisma.sheetSource.findFirst({ where: { tenantId, isActive: true }, orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }] }),
@@ -15155,6 +15158,62 @@ function buildManualEmailOrderDraftPayload({ rawText, subject = '', fromEmail = 
 }
 
 async function saveOpsDraftFromOpenClaw({ tenantId, payload, skipFlightCheck = false }) {
+  const incomingDraft = payload?.orderDraft && typeof payload.orderDraft === 'object' ? payload.orderDraft : {}
+  const sourceType = String(payload?.sourceType || incomingDraft.sourceType || '').trim().toLowerCase()
+  const sourceChannel = String(payload?.sourceChannel || incomingDraft.sourceChannel || '').trim().toLowerCase()
+  const isEmailDraft = sourceChannel === 'email' || sourceType === 'gmail_forward' || sourceType.includes('email')
+
+  // Email ingestion must acknowledge quickly. External address/flight checks and
+  // pricing enrichment are performed by the database-backed worker below.
+  if (isEmailDraft && !EMAIL_INGEST_AUTO_PROMOTE) {
+    const rawText = String(payload?.rawText || payload?.messageText || incomingDraft.rawText || '').trim()
+    const externalMessageId = String(incomingDraft.externalMessageId || payload?.externalMessageId || '').trim() || null
+    const externalThreadId = String(incomingDraft.sourceChatId || payload?.sourceChatId || '').trim() || null
+    const sourceSender = String(incomingDraft.sourceActorId || payload?.sourceActorId || '').trim() || null
+    const knownSender = Boolean(inferEmailCounterpartyName({
+      fromEmail: sourceSender,
+      rawText,
+      current: incomingDraft.counterpartyName || payload?.counterpartyName || ''
+    }))
+    const quarantined = sourceType === 'gmail_forward' && !knownSender
+    const queuedPayload = {
+      ...payload,
+      rawText,
+      orderDraft: {
+        ...incomingDraft,
+        sourceType: sourceType || 'email',
+        sourceChannel: 'email',
+        externalMessageId,
+        sourceChatId: externalThreadId || incomingDraft.sourceChatId || 'technical-inbox',
+        sourceActorId: sourceSender || incomingDraft.sourceActorId || 'technical-inbox'
+      },
+      emailProcessing: {
+        status: quarantined ? 'quarantine' : 'queued',
+        queuedAt: new Date().toISOString(),
+        attempts: 0,
+        skipFlightCheck: Boolean(skipFlightCheck)
+      }
+    }
+    const created = await prisma.opsEventDraft.create({
+      data: {
+        tenantId: tenantId || null,
+        chatId: queuedPayload.orderDraft.sourceChatId,
+        telegramUserId: queuedPayload.orderDraft.sourceActorId,
+        messageText: rawText || JSON.stringify(payload || {}),
+        parsedType: 'openclaw_order_draft',
+        payloadJson: JSON.stringify(queuedPayload),
+        status: 'pending',
+        externalMessageId,
+        externalThreadId,
+        sourceSender,
+        sourceClassification: String(incomingDraft.eventType || payload?.eventType || 'new'),
+        queueState: quarantined ? 'quarantine' : 'checking_queued'
+      }
+    })
+    if (!quarantined) kickEmailDraftCheckWorker()
+    return created
+  }
+
   const basePayload = await buildOpenClawDraftPayload(payload, tenantId)
   const withFlightPayload = skipFlightCheck ? basePayload : await maybeAutoAttachFlightCheck(basePayload)
   const withAddressPayload = await maybeAutoAttachAddressVerification(withFlightPayload, tenantId)
@@ -15181,6 +15240,116 @@ async function saveOpsDraftFromOpenClaw({ tenantId, payload, skipFlightCheck = f
       queueState: normalizedPayload.sourceType === 'gmail_forward' && !knownSender ? 'quarantine' : 'pending'
     }
   })
+}
+
+let emailDraftCheckTimer = null
+let emailDraftCheckRunning = false
+
+function emailProcessingPayload(payload, patch) {
+  return {
+    ...payload,
+    emailProcessing: {
+      ...(payload.emailProcessing || {}),
+      ...patch
+    }
+  }
+}
+
+async function processQueuedEmailDraft(row) {
+  const initialPayload = parseJsonSafe(row.payloadJson || '{}', {})
+  const attempts = Number(initialPayload.emailProcessing?.attempts || 0) + 1
+  const claimedPayload = emailProcessingPayload(initialPayload, {
+    status: 'checking',
+    startedAt: new Date().toISOString(),
+    completedAt: null,
+    failedAt: null,
+    error: null,
+    attempts
+  })
+  const claimed = await prisma.opsEventDraft.updateMany({
+    where: { id: row.id, queueState: 'checking_queued' },
+    data: { queueState: 'checking', payloadJson: JSON.stringify(claimedPayload) }
+  })
+  if (!claimed.count) return
+
+  try {
+    let checkedPayload = await buildOpenClawDraftPayload(claimedPayload, row.tenantId)
+    if (!claimedPayload.emailProcessing?.skipFlightCheck) {
+      checkedPayload = await maybeAutoAttachFlightCheck(checkedPayload)
+    }
+    checkedPayload = await maybeAutoAttachAddressVerification(checkedPayload, row.tenantId)
+    checkedPayload = await refreshOpenClawDraftPayloadPricingOnly(checkedPayload, row.tenantId)
+    const readyPayload = emailProcessingPayload(checkedPayload, {
+      status: 'ready',
+      startedAt: claimedPayload.emailProcessing.startedAt,
+      completedAt: new Date().toISOString(),
+      failedAt: null,
+      error: null,
+      attempts,
+      skipFlightCheck: Boolean(claimedPayload.emailProcessing?.skipFlightCheck)
+    })
+    await prisma.opsEventDraft.update({
+      where: { id: row.id },
+      data: { queueState: 'pending', payloadJson: JSON.stringify(readyPayload) }
+    })
+  } catch (error) {
+    const failedPayload = emailProcessingPayload(claimedPayload, {
+      status: 'failed',
+      failedAt: new Date().toISOString(),
+      error: String(error?.message || 'Не удалось проверить письмо').slice(0, 500),
+      attempts
+    })
+    await prisma.opsEventDraft.update({
+      where: { id: row.id },
+      data: { queueState: 'check_failed', payloadJson: JSON.stringify(failedPayload) }
+    }).catch(() => null)
+    await createOpsTask({
+      tenantId: row.tenantId,
+      userId: null,
+      title: 'Не удалось проверить письмо',
+      details: 'Откройте письмо и повторите проверку. Само письмо сохранено и не потеряно.',
+      type: 'email_check_failed',
+      priority: 'normal',
+      source: 'email_ingest',
+      sourceRef: row.id,
+      dedupKey: `email-check-failed:${row.id}`,
+      linkUrl: `/admin-orders?view=email`,
+      payload: { draftId: row.id }
+    }).catch(() => null)
+    console.error('Background email draft check failed:', { draftId: row.id, error: error?.message || error })
+  }
+}
+
+async function runEmailDraftCheckWorker() {
+  if (emailDraftCheckRunning) return
+  emailDraftCheckRunning = true
+  try {
+    const staleBefore = new Date(Date.now() - 15 * 60 * 1000)
+    await prisma.opsEventDraft.updateMany({
+      where: { parsedType: 'openclaw_order_draft', queueState: 'checking', updatedAt: { lt: staleBefore } },
+      data: { queueState: 'checking_queued' }
+    })
+    const rows = await prisma.opsEventDraft.findMany({
+      where: { parsedType: 'openclaw_order_draft', status: 'pending', queueState: 'checking_queued' },
+      orderBy: { createdAt: 'asc' },
+      take: EMAIL_DRAFT_CHECK_CONCURRENCY
+    })
+    await Promise.all(rows.map(processQueuedEmailDraft))
+  } catch (error) {
+    console.error('Email draft check worker failed:', error)
+  } finally {
+    emailDraftCheckRunning = false
+  }
+}
+
+function kickEmailDraftCheckWorker() {
+  if (!emailDraftCheckTimer) {
+    emailDraftCheckTimer = setInterval(() => {
+      runEmailDraftCheckWorker().catch(() => null)
+    }, EMAIL_DRAFT_CHECK_POLL_MS)
+    emailDraftCheckTimer.unref?.()
+  }
+  setImmediate(() => runEmailDraftCheckWorker().catch(() => null))
 }
 
 function buildOrderFlightPersistence(payload = {}) {
@@ -16083,6 +16252,7 @@ app.post('/api/admin/ops/drafts/manual-email', authenticateToken, resolveActorCo
 
 app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
+    kickEmailDraftCheckWorker()
     const { status = 'pending', parsedType = '', limit = '100', period = '', sort = 'created_desc', queueState = '', refreshPricing = '' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
     const fromPickupRaw = String(req.query.fromPickup || '').trim()
@@ -16397,6 +16567,54 @@ app.post('/api/admin/ops/drafts/:draftId/refresh-checks', authenticateToken, res
   } catch (error) {
     console.error('Error refreshing ops draft checks:', error)
     res.status(error.statusCode || 500).json({ error: error.message || 'Failed to refresh draft checks' })
+  }
+})
+
+app.post('/api/admin/ops/drafts/:draftId/retry-checks', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const row = await prisma.opsEventDraft.findFirst({
+      where: {
+        id: req.params.draftId,
+        tenantId: req.actorContext.tenantId,
+        parsedType: 'openclaw_order_draft',
+        status: 'pending'
+      }
+    })
+    if (!row) return res.status(404).json({ error: 'Draft not found' })
+    if (row.queueState !== 'check_failed') {
+      return res.status(409).json({ error: 'Письмо уже проверено или не требует фоновой проверки' })
+    }
+
+    const payload = parseJsonSafe(row.payloadJson || '{}', {})
+    const nextPayload = emailProcessingPayload(payload, {
+      status: 'queued',
+      queuedAt: new Date().toISOString(),
+      startedAt: null,
+      completedAt: null,
+      failedAt: null,
+      error: null
+    })
+    const updated = await prisma.opsEventDraft.update({
+      where: { id: row.id },
+      data: { queueState: 'checking_queued', payloadJson: JSON.stringify(nextPayload) }
+    })
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'ops.draft.retry_checks',
+      resource: 'ops_draft',
+      resourceId: row.id,
+      traceId: req.actorContext.traceId,
+      decision: 'policy_allowed',
+      result: 'ok',
+      context: { previousQueueState: row.queueState }
+    })
+    kickEmailDraftCheckWorker()
+    res.json({ success: true, draft: updated })
+  } catch (error) {
+    console.error('Error queueing ops draft checks:', error)
+    res.status(500).json({ error: 'Не удалось повторить проверку письма' })
   }
 })
 
