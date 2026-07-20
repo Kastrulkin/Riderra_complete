@@ -9973,7 +9973,8 @@ app.get('/api/admin/orders/open-months', authenticateToken, resolveActorContext,
       where: { tenantId, isActive: true },
       orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }]
     })
-    const openSources = sources.filter((source) => sheetSourceMonthStatus(source) === 'open')
+    const latestOpenMonth = sources.find((source) => sheetSourceMonthStatus(source) === 'open')?.monthLabel || null
+    const openSources = sources.filter((source) => sheetSourceMonthStatus(source) === 'open' && source.monthLabel === latestOpenMonth)
     const grouped = new Map()
     for (const source of openSources) {
       if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])

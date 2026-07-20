@@ -31,7 +31,7 @@
         <div class="month-workbar">
           <div class="month-workbar__main">
             <span class="month-workbar__label">{{ t.openMonths }}</span>
-            <select v-model="selectedMonth" class="input month-select" @change="load">
+            <select v-model="selectedMonth" class="input month-select" @change="selectMonth">
               <option value="">{{ t.defaultMonth }}</option>
               <option v-if="!openMonths.length" value="" disabled>{{ t.noOpenMonths }}</option>
               <option v-for="month in openMonths" :key="month.monthLabel" :value="month.monthLabel">
@@ -1135,6 +1135,7 @@ export default {
   },
   mounted () {
     this.workspaceView = ['action', 'orders', 'email', 'chats'].includes(String(this.$route.query.view || '')) ? String(this.$route.query.view) : 'action'
+    this.restoreOrdersWorkspace()
     this.loadOpenMonths()
       .then(() => this.load())
       .catch(() => this.load().catch(() => {}))
@@ -1146,6 +1147,34 @@ export default {
     if (this.autoSyncTimer) clearInterval(this.autoSyncTimer)
   },
   methods: {
+    restoreOrdersWorkspace () {
+      if (typeof window === 'undefined') return
+      try {
+        const rememberedMonth = String(window.localStorage.getItem('riderra.orders.activeMonth') || '')
+        const cached = JSON.parse(window.sessionStorage.getItem('riderra.orders.workspace') || 'null')
+        if (rememberedMonth) this.selectedMonth = rememberedMonth
+        if (!cached || cached.monthLabel !== this.selectedMonth || !Array.isArray(cached.rows)) return
+        this.rows = cached.rows
+        this.currentSource = cached.source || null
+        this.applyFilter()
+      } catch (_) {}
+    },
+    persistOrdersWorkspace () {
+      if (typeof window === 'undefined' || !this.selectedMonth) return
+      try {
+        window.localStorage.setItem('riderra.orders.activeMonth', this.selectedMonth)
+        window.sessionStorage.setItem('riderra.orders.workspace', JSON.stringify({
+          monthLabel: this.selectedMonth,
+          source: this.currentSource,
+          rows: this.rows,
+          savedAt: new Date().toISOString()
+        }))
+      } catch (_) {}
+    },
+    selectMonth () {
+      if (typeof window !== 'undefined' && this.selectedMonth) window.localStorage.setItem('riderra.orders.activeMonth', this.selectedMonth)
+      this.load()
+    },
     setWorkspaceView (view) {
       this.workspaceView = view
       this.$router.replace({ path: '/admin-orders', query: view === 'action' ? {} : { view } })
@@ -1165,7 +1194,8 @@ export default {
         if (this.openMonths.length && (!this.selectedMonth || !available.has(this.selectedMonth))) {
           this.selectedMonth = this.openMonths[0].monthLabel
         }
-        if (!this.openMonths.length) this.selectedMonth = ''
+        if (this.selectedMonth && typeof window !== 'undefined') window.localStorage.setItem('riderra.orders.activeMonth', this.selectedMonth)
+        if (!this.openMonths.length && !this.currentSource) this.selectedMonth = ''
       } catch (_) {
         this.openMonths = []
       }
@@ -1260,17 +1290,20 @@ export default {
         this.rawRows = data.rawRows || []
         this.rawHeaders = data.headers || []
         this.currentSource = data.source || null
+        if (data.source?.monthLabel) this.selectedMonth = data.source.monthLabel
         this.drilldownNotice = ''
         this.drilldownToken = ''
         this.queueNotice = ''
         this.applyFilter()
+        this.persistOrdersWorkspace()
       } catch (error) {
-        this.rows = []
-        this.rawRows = []
-        this.rawHeaders = []
-        this.currentSource = null
-        this.filteredRows = []
-        this.filteredRawRows = []
+        if (!this.rows.length) {
+          this.rawRows = []
+          this.rawHeaders = []
+          this.currentSource = null
+          this.filteredRows = []
+          this.filteredRawRows = []
+        }
         this.loadError = this.$store.state.language === 'ru'
           ? `Не удалось загрузить таблицу заказов: ${error?.message || 'unknown'}`
           : `Failed to load orders table: ${error?.message || 'unknown'}`
