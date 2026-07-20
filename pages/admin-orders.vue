@@ -396,10 +396,10 @@
             </fieldset>
             <fieldset class="order-edit-group">
               <legend>{{ t.editTripGroup }}</legend>
-              <label class="order-edit-field"><span>{{ t.passengersLabel }}</span><input v-model="orderEditForm.passengers" class="input" type="number" min="0" max="999" /></label>
-              <label class="order-edit-field"><span>{{ t.luggageLabel }}</span><input v-model="orderEditForm.luggage" class="input" type="number" min="0" max="999" /></label>
-              <label class="order-edit-field"><span>{{ t.flightNumberLabel }}</span><input v-model="orderEditForm.flightNumber" class="input" /></label>
-              <label class="order-edit-field"><span>{{ t.vehicleTypeLabel }}</span><input v-model="orderEditForm.vehicleType" class="input" /></label>
+              <label class="order-edit-field"><span>{{ t.passengersLabel }}</span><input v-model="orderEditForm.passengers" class="input" type="number" min="0" max="999" :placeholder="t.passengersPlaceholder" /></label>
+              <label class="order-edit-field"><span>{{ t.luggageLabel }}</span><input v-model="orderEditForm.luggage" class="input" type="number" min="0" max="999" :placeholder="t.luggagePlaceholder" /></label>
+              <label class="order-edit-field"><span>{{ t.flightNumberLabel }}</span><input v-model="orderEditForm.flightNumber" class="input" :placeholder="t.flightNumberPlaceholder" /></label>
+              <label class="order-edit-field"><span>{{ t.vehicleTypeLabel }}</span><input v-model="orderEditForm.vehicleType" class="input" :placeholder="t.vehicleTypePlaceholder" /></label>
             </fieldset>
             <fieldset class="order-edit-group">
               <legend>{{ t.editBusinessGroup }}</legend>
@@ -800,9 +800,12 @@ export default {
             customerNameLabel: 'Имя пассажира',
             customerPhoneLabel: 'Телефон',
             languageLabel: 'Язык',
-            passengersLabel: 'Пассажиров',
-            luggageLabel: 'Мест багажа',
+            passengersLabel: 'Количество пассажиров',
+            passengersPlaceholder: 'Например, 4',
+            luggageLabel: 'Количество мест багажа',
+            luggagePlaceholder: 'Например, 3',
             vehicleTypeLabel: 'Класс автомобиля',
+            vehicleTypePlaceholder: 'Например, седан или минивэн',
             currencyLabel: 'Валюта',
             willChangeTitle: 'Будет изменено',
             editReasonLabel: 'Основание изменения',
@@ -815,7 +818,8 @@ export default {
             flightCheckTitle: 'Проверка рейса',
             flightCheckRun: 'Проверить рейс',
             flightChecking: 'Проверяю...',
-            flightNumberLabel: 'Рейс',
+            flightNumberLabel: 'Номер рейса',
+            flightNumberPlaceholder: 'Например, AY123',
             flightSourceLabel: 'Источник',
             flightCheckedAtLabel: 'Проверено',
             flightStatusLabel: 'Статус рейса',
@@ -954,9 +958,12 @@ export default {
             customerNameLabel: 'Passenger name',
             customerPhoneLabel: 'Phone',
             languageLabel: 'Language',
-            passengersLabel: 'Passengers',
-            luggageLabel: 'Luggage items',
+            passengersLabel: 'Number of passengers',
+            passengersPlaceholder: 'For example, 4',
+            luggageLabel: 'Number of luggage items',
+            luggagePlaceholder: 'For example, 3',
             vehicleTypeLabel: 'Vehicle class',
+            vehicleTypePlaceholder: 'For example, sedan or minivan',
             currencyLabel: 'Currency',
             willChangeTitle: 'Changes to save',
             editReasonLabel: 'Reason for change',
@@ -969,7 +976,8 @@ export default {
             flightCheckTitle: 'Flight check',
             flightCheckRun: 'Check flight',
             flightChecking: 'Checking...',
-            flightNumberLabel: 'Flight',
+            flightNumberLabel: 'Flight number',
+            flightNumberPlaceholder: 'For example, AY123',
             flightSourceLabel: 'Source',
             flightCheckedAtLabel: 'Checked at',
             flightStatusLabel: 'Flight status',
@@ -3071,6 +3079,8 @@ export default {
 .order-edit-group {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  align-content: start;
   gap: 10px;
   min-width: 0;
   margin: 0;
@@ -3086,16 +3096,29 @@ export default {
 }
 .order-edit-field {
   display: grid;
+  grid-template-rows: auto auto;
+  align-content: start;
   gap: 5px;
   min-width: 0;
   color: #475569;
   font-size: 12px;
   font-weight: 700;
 }
+.order-edit-field > span {
+  min-height: 18px;
+  line-height: 1.35;
+}
+.order-edit-field > .input:not(textarea) {
+  height: 38px;
+  min-height: 38px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
 .order-edit-field--wide {
   grid-column: 1 / -1;
 }
 .order-edit-textarea {
+  height: auto;
   min-height: 76px;
   resize: vertical;
 }
