@@ -186,7 +186,7 @@ export default {
     },
     async loadAll () { this.loading = true; this.banner = null; try { await Promise.all([this.loadCount(), this.loadList()]); if (this.selected) await this.open(this.selected.id) } catch (error) { this.showError(error) } finally { this.loading = false } },
     async refreshSilently () { try { await Promise.all([this.loadCount(), this.loadList(false)]); if (this.selected) await this.open(this.selected.id, false) } catch (_) { this.banner = { kind: 'warning', text: 'Связь прервана. Новые сообщения появятся после восстановления.', retry: true } } },
-    async loadCount () { const data = await this.request('/api/admin/chats/inquiries/unread-count'); this.unread = data.unread || 0 },
+    async loadCount () { const data = await this.request('/api/admin/chats/inquiries/unread-count'); this.unread = data.unread || 0; window.dispatchEvent(new CustomEvent('riderra:inquiry-unread', { detail: { unread: this.unread } })) },
     async loadList (showLoading = true) {
       if (showLoading) this.loading = true
       try {
@@ -201,12 +201,12 @@ export default {
       try {
         const data = await this.request(`/api/admin/chats/inquiries/${id}`); this.selected = data.inquiry
         await this.request(`/api/admin/chats/inquiries/${id}/read`, { method: 'POST', body: '{}' })
-        this.unread = Math.max(0, this.unread - Number(this.selected.unreadCount || 0)); this.selected.unreadCount = 0
+        this.unread = Math.max(0, this.unread - Number(this.selected.unreadCount || 0)); this.selected.unreadCount = 0; window.dispatchEvent(new CustomEvent('riderra:inquiry-unread', { detail: { unread: this.unread } }))
         await this.$router.replace({ query: { ...this.$route.query, chatView: this.view, inquiry: id } }).catch(() => {})
         this.$nextTick(() => { if (this.$refs.messages) this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight })
       } catch (error) { this.showError(error) } finally { this.detailLoading = false }
     },
-    async take () { await this.update({ take: true }, 'Обращение назначено вам') },
+    async take () { const id = this.selected.id; await this.update({ take: true }, 'Обращение назначено вам'); this.view = 'work'; await this.$router.replace({ query: { ...this.$route.query, chatView: 'work', inquiry: id } }).catch(() => {}); await this.loadList(false); await this.open(id, false) },
     async assign (assignedToUserId) { await this.update({ assignedToUserId }, 'Ответственный обновлён') },
     async setStatus (status) { await this.update({ status }, status === 'spam' ? 'Обращение отмечено как спам' : 'Обращение закрыто'); this.selected = null; await this.loadList() },
     async update (body, success) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}`, { method: 'PATCH', body: JSON.stringify(body) }); this.banner = { kind: 'success', text: success }; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error) } finally { this.busy = false } },

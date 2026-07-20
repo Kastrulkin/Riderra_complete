@@ -231,6 +231,7 @@ export default {
   },
   mounted () {
     this.loadInquiryUnread()
+    window.addEventListener('riderra:inquiry-unread', this.handleInquiryUnread)
     if (!this.sticky) return
     this.handleScroll()
     window.addEventListener('scroll', this.handleScroll, { passive: true })
@@ -241,10 +242,14 @@ export default {
     }
   },
   beforeDestroy () {
+    window.removeEventListener('riderra:inquiry-unread', this.handleInquiryUnread)
     if (!this.sticky) return
     window.removeEventListener('scroll', this.handleScroll)
   },
   methods: {
+    handleInquiryUnread (event) {
+      this.inquiryUnread = Number(event?.detail?.unread || 0)
+    },
     async loadInquiryUnread () {
       try {
         const token = localStorage.getItem('authToken')
