@@ -82,8 +82,7 @@ export default {
             { to: '/admin', label: 'Обзор', hint: 'Сегодня и риски' },
             { to: '/admin-orders', label: 'Заказы', hint: 'Основная очередь' },
             { to: '/admin-chats', label: 'Чаты', hint: 'Диалоги и SLA', badge: this.inquiryUnread },
-            { to: '/admin-ai-requests', label: 'AI заявки', hint: 'Публичные драфты' },
-            { to: '/admin-ai-inbox', label: 'Заказы из почты', hint: 'Новые, изменения, отмены' }
+            { to: '/admin-ai-requests', label: 'AI заявки', hint: 'Публичные драфты' }
           ]
         },
         {
@@ -149,8 +148,7 @@ export default {
             { to: '/admin', label: 'Overview', hint: 'Today and risks' },
             { to: '/admin-orders', label: 'Orders', hint: 'Main queue' },
             { to: '/admin-chats', label: 'Chats', hint: 'Dialogs and SLA', badge: this.inquiryUnread },
-            { to: '/admin-ai-requests', label: 'AI requests', hint: 'Public drafts' },
-            { to: '/admin-ai-inbox', label: 'AI Inbox', hint: 'Drafts' }
+            { to: '/admin-ai-requests', label: 'AI requests', hint: 'Public drafts' }
           ]
         },
         {
