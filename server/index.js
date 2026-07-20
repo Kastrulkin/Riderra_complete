@@ -2096,47 +2096,40 @@ function toInt(value, fallback = null) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function buildUtcDateExact(year, month, day, hour = 0, minute = 0, second = 0) {
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second), 0))
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day) ||
+    date.getUTCHours() !== Number(hour) ||
+    date.getUTCMinutes() !== Number(minute)
+  ) return null
+  return date
+}
+
 function parseDateTimeFlexible(input) {
   if (!input) return null
   const raw = String(input).trim()
   if (!raw) return null
 
-  const isoAttempt = new Date(raw)
-  if (!Number.isNaN(isoAttempt.getTime())) return isoAttempt
-
-  // dd.mm.yyyy [hh:mm]
-  const ru = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/)
-  if (ru) {
-    const [, d, m, y, hh = '0', mm = '0'] = ru
-    const dt = new Date(
-      Number(y),
-      Number(m) - 1,
-      Number(d),
-      Number(hh),
-      Number(mm),
-      0,
-      0
-    )
-    if (!Number.isNaN(dt.getTime())) return dt
+  // Google Sheets in Riderra uses day-first dates. Parse these before the
+  // JavaScript Date fallback, which treats 1/6/2026 as January 6.
+  const dayFirst = raw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/)
+  if (dayFirst) {
+    const [, d, m, y, hh = '0', mm = '0', ss = '0'] = dayFirst
+    return buildUtcDateExact(y, m, d, hh, mm, ss)
   }
 
-  // yyyy-mm-dd [hh:mm]
-  const en = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/)
+  // yyyy-mm-dd [hh:mm] without a timezone is also a local Riderra time.
+  const en = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]+(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?$/)
   if (en) {
-    const [, y, m, d, hh = '0', mm = '0'] = en
-    const dt = new Date(
-      Number(y),
-      Number(m) - 1,
-      Number(d),
-      Number(hh),
-      Number(mm),
-      0,
-      0
-    )
-    if (!Number.isNaN(dt.getTime())) return dt
+    const [, y, m, d, hh = '0', mm = '0', ss = '0'] = en
+    return buildUtcDateExact(y, m, d, hh, mm, ss)
   }
 
-  return null
+  const isoAttempt = new Date(raw)
+  return Number.isNaN(isoAttempt.getTime()) ? null : isoAttempt
 }
 
 function parseDateBoundary(input, boundary = 'start') {
@@ -2343,7 +2336,9 @@ async function syncSheetSource(sheetSourceId, tenantId) {
     headers.forEach((header, idx) => {
       if (header) raw[header] = cells[idx] !== undefined ? String(cells[idx]).trim() : ''
     })
-    const rowHash = crypto.createHash('sha256').update(JSON.stringify(raw)).digest('hex')
+    // Include the parser version so a date parsing fix reprocesses unchanged
+    // sheet rows exactly once instead of leaving their old pickupAt values.
+    const rowHash = crypto.createHash('sha256').update(`sheet-date-day-first-v2:${JSON.stringify(raw)}`).digest('hex')
 
     const latestSnapshot = await prisma.orderSourceSnapshot.findFirst({
       where: { sheetSourceId: source.id, sourceRow },
