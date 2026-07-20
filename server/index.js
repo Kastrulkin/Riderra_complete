@@ -10053,7 +10053,7 @@ app.post('/api/admin/orders/months/:monthLabel/sync', authenticateToken, resolve
 
 app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
-    const { sourceId = '', monthLabel = '' } = req.query
+    const { sourceId = '', monthLabel = '', includeRaw = '' } = req.query
     const tenantId = req.actorContext.tenantId
     let source = null
     if (sourceId) {
@@ -10305,60 +10305,62 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
 
     let headers = []
     let rawRows = []
-    try {
-      const detailsTabName = String(source.detailsTabName || '').trim() || 'подробности'
-      const detailRows = await fetchGoogleSheetRows({
-        googleSheetId: source.googleSheetId,
-        tabName: detailsTabName
-      })
-      let detailHeaders = (detailRows[0] || []).map((h) => String(h || '').trim())
-      const hasNamedHeaders = detailHeaders.some((h) => h.length > 0)
-      if (!hasNamedHeaders) {
-        const maxCols = detailRows.reduce((max, row) => Math.max(max, Array.isArray(row) ? row.length : 0), 0)
-        detailHeaders = Array.from({ length: maxCols }, (_, idx) => `Колонка ${idx + 1}`)
-      } else {
-        detailHeaders = detailHeaders.map((h, idx) => h || `Колонка ${idx + 1}`)
-      }
-      headers = detailHeaders
-      rawRows = detailRows.slice(1).map((cells, idx) => {
-        const values = {}
-        detailHeaders.forEach((header, colIdx) => {
-          values[header] = cells[colIdx] !== undefined ? String(cells[colIdx]).trim() : ''
+    if (String(includeRaw).toLowerCase() === 'true') {
+      try {
+        const detailsTabName = String(source.detailsTabName || '').trim() || 'подробности'
+        const detailRows = await fetchGoogleSheetRows({
+          googleSheetId: source.googleSheetId,
+          tabName: detailsTabName
         })
-        return {
-          id: '',
-          source: `${source.name || source.monthLabel || 'google_sheet'}:${detailsTabName}`,
-          sourceRow: idx + 2,
-          values
+        let detailHeaders = (detailRows[0] || []).map((h) => String(h || '').trim())
+        const hasNamedHeaders = detailHeaders.some((h) => h.length > 0)
+        if (!hasNamedHeaders) {
+          const maxCols = detailRows.reduce((max, row) => Math.max(max, Array.isArray(row) ? row.length : 0), 0)
+          detailHeaders = Array.from({ length: maxCols }, (_, idx) => `Колонка ${idx + 1}`)
+        } else {
+          detailHeaders = detailHeaders.map((h, idx) => h || `Колонка ${idx + 1}`)
         }
-      })
-    } catch (detailsError) {
-      console.error('Error fetching details tab for sheet view:', detailsError)
-      const headerSet = new Set()
-      headers = []
-      rawRows = []
-      for (const snapshot of snapshots) {
-        if (!snapshot?.rawPayload) continue
-        let payload = {}
-        try {
-          payload = JSON.parse(snapshot.rawPayload || '{}')
-        } catch (_) {
-          payload = {}
-        }
-        const raw = payload && payload.row && typeof payload.row === 'object' ? payload.row : payload
-        if (!raw || typeof raw !== 'object') continue
-        for (const key of Object.keys(raw)) {
-          if (!headerSet.has(key)) {
-            headerSet.add(key)
-            headers.push(key)
+        headers = detailHeaders
+        rawRows = detailRows.slice(1).map((cells, idx) => {
+          const values = {}
+          detailHeaders.forEach((header, colIdx) => {
+            values[header] = cells[colIdx] !== undefined ? String(cells[colIdx]).trim() : ''
+          })
+          return {
+            id: '',
+            source: `${source.name || source.monthLabel || 'google_sheet'}:${detailsTabName}`,
+            sourceRow: idx + 2,
+            values
           }
-        }
-        rawRows.push({
-          id: snapshot.order?.id || '',
-          source: source.name || source.monthLabel || 'google_sheet',
-          sourceRow: snapshot.sourceRow,
-          values: raw
         })
+      } catch (detailsError) {
+        console.error('Error fetching details tab for sheet view:', detailsError)
+        const headerSet = new Set()
+        headers = []
+        rawRows = []
+        for (const snapshot of snapshots) {
+          if (!snapshot?.rawPayload) continue
+          let payload = {}
+          try {
+            payload = JSON.parse(snapshot.rawPayload || '{}')
+          } catch (_) {
+            payload = {}
+          }
+          const raw = payload && payload.row && typeof payload.row === 'object' ? payload.row : payload
+          if (!raw || typeof raw !== 'object') continue
+          for (const key of Object.keys(raw)) {
+            if (!headerSet.has(key)) {
+              headerSet.add(key)
+              headers.push(key)
+            }
+          }
+          rawRows.push({
+            id: snapshot.order?.id || '',
+            source: source.name || source.monthLabel || 'google_sheet',
+            sourceRow: snapshot.sourceRow,
+            values: raw
+          })
+        }
       }
     }
 
@@ -10410,7 +10412,7 @@ app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requir
     const requestedMonth = String(req.query.month || '').trim()
     const sources = await prisma.sheetSource.findMany({
       where: { tenantId, isActive: true },
-      orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }],
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       select: {
         id: true,
         name: true,
@@ -10442,7 +10444,9 @@ app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requir
       cancelled: 0,
       pending: 0,
       complaints: 0,
-      issueCount: 0
+      issueCount: 0,
+      needsInfo: 0,
+      unassigned: 0
     }
 
     const ensure = (map, key, field) => {
@@ -10482,11 +10486,15 @@ app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requir
       const driverName = normalizeDriverNameForStats(row.driver) || '(empty)'
       const counterpartyName = normalizeCounterpartyName(row.counterparty || '(empty)') || '(empty)'
       const issueFlags = Array.isArray(row.issue_flags) ? row.issue_flags : []
+      const needsInfo = Boolean(row.needs_info || issueFlags.includes('needs_info'))
+      const unassigned = !String(row.driver || '').trim()
 
       summary.total += 1
       summary[status] = (summary[status] || 0) + 1
       summary.complaints += row.has_complaint ? 1 : 0
       summary.issueCount += issueFlags.length
+      summary.needsInfo += needsInfo ? 1 : 0
+      summary.unassigned += unassigned ? 1 : 0
       grossByCurrency[currency] = Number(((grossByCurrency[currency] || 0) + amount).toFixed(2))
 
       const driver = ensure(byDriver, driverName, 'driver')
@@ -16075,7 +16083,7 @@ app.post('/api/admin/ops/drafts/manual-email', authenticateToken, resolveActorCo
 
 app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
-    const { status = 'pending', parsedType = '', limit = '100', period = '', sort = 'created_desc', queueState = '' } = req.query
+    const { status = 'pending', parsedType = '', limit = '100', period = '', sort = 'created_desc', queueState = '', refreshPricing = '' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
     const fromPickupRaw = String(req.query.fromPickup || '').trim()
     const toPickupRaw = String(req.query.toPickup || '').trim()
@@ -16145,8 +16153,12 @@ app.get('/api/admin/ops/drafts', authenticateToken, resolveActorContext, require
       })
     }
     const pageRows = filteredRows.slice(0, take)
-    const refreshedRows = await Promise.all(pageRows.map((row) => maybeAutoRefreshDraftPricing(row, req.actorContext.tenantId)))
-    res.json({ rows: refreshedRows })
+    // A list read must stay fast and side-effect free. Pricing refresh can fan
+    // out into many database lookups, so run it only for an explicit refresh.
+    const responseRows = String(refreshPricing).toLowerCase() === 'true'
+      ? await Promise.all(pageRows.map((row) => maybeAutoRefreshDraftPricing(row, req.actorContext.tenantId)))
+      : pageRows
+    res.json({ rows: responseRows })
   } catch (error) {
     console.error('Error fetching ops drafts:', error)
     res.status(500).json({ error: 'Failed to fetch ops drafts' })

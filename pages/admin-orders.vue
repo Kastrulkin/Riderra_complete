@@ -59,7 +59,7 @@
 
         <div class="subtabs">
           <button class="subtab" :class="{ 'subtab--active': mode === 'table' }" @click="mode = 'table'">{{ t.tableTab }}</button>
-          <button class="subtab" :class="{ 'subtab--active': mode === 'raw' }" @click="mode = 'raw'">{{ t.rawTab }}</button>
+          <button class="subtab" :class="{ 'subtab--active': mode === 'raw' }" :disabled="rawLoading" @click="openRawView">{{ rawLoading ? t.loading : t.rawTab }}</button>
         </div>
 
         <div v-if="mode === 'table'" class="view-strip">
@@ -206,6 +206,7 @@
         </div>
 
         <div v-else class="table-wrap">
+          <div v-if="rawLoading" class="empty">{{ t.loading }}</div>
           <div class="table-head raw-grid" :style="rawGridStyle">
             <div class="tech">{{ t.orderBlock }}</div>
             <div class="tech">id</div>
@@ -643,6 +644,8 @@ export default {
     rows: [],
     rawRows: [],
     rawHeaders: [],
+    rawLoading: false,
+    rawLoaded: false,
     openMonths: [],
     selectedMonth: '',
     currentSource: null,
@@ -1296,6 +1299,7 @@ export default {
         this.rows = data.rows || []
         this.rawRows = data.rawRows || []
         this.rawHeaders = data.headers || []
+        this.rawLoaded = false
         this.currentSource = data.source || null
         if (data.source?.monthLabel) this.selectedMonth = data.source.monthLabel
         this.drilldownNotice = ''
@@ -1317,6 +1321,28 @@ export default {
       } finally {
         if (timeoutId) clearTimeout(timeoutId)
         this.loading = false
+      }
+    },
+    async openRawView () {
+      this.mode = 'raw'
+      if (this.rawLoaded || this.rawLoading) return
+      this.rawLoading = true
+      try {
+        const params = new URLSearchParams({ includeRaw: 'true' })
+        if (this.selectedMonth) params.set('monthLabel', this.selectedMonth)
+        const response = await fetch(`/api/admin/orders-sheet-view?${params.toString()}`, { headers: this.headers() })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`)
+        this.rawRows = data.rawRows || []
+        this.rawHeaders = data.headers || []
+        this.rawLoaded = true
+        this.applyFilter()
+      } catch (error) {
+        this.loadError = this.$store.state.language === 'ru'
+          ? `Не удалось загрузить подробности: ${error?.message || 'unknown'}`
+          : `Failed to load details: ${error?.message || 'unknown'}`
+      } finally {
+        this.rawLoading = false
       }
     },
     async queueOrderRequest (order, { assignToMe = false } = {}) {

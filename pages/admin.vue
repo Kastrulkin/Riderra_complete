@@ -358,13 +358,14 @@ export default {
     },
     stats () {
       const rows = this.sheetView?.rows || []
-      const needsInfo = rows.filter((row) => row.needsInfo).length
-      const unassigned = rows.filter((row) => !String(row.driver || '').trim()).length
+      const summary = this.orderStats?.summary || {}
+      const needsInfo = Number(summary.needsInfo ?? rows.filter((row) => row.needsInfo).length)
+      const unassigned = Number(summary.unassigned ?? rows.filter((row) => !String(row.driver || '').trim()).length)
       const pendingChats = (this.chatTasks || []).filter((task) => !['closed', 'notify_ack'].includes(String(task.state || ''))).length
       const aiDrafts = (this.aiDrafts || []).length
       const conflicts = (this.pricingConflicts || []).length
       return {
-        totalOrders: rows.length,
+        totalOrders: Number(summary.total ?? rows.length),
         needsInfo,
         unassigned,
         pendingChats,
@@ -377,7 +378,7 @@ export default {
       }
     },
     activeSheetLabel () {
-      const source = this.sheetView?.source
+      const source = this.orderStats?.source || this.sheetView?.source
       if (!source) return '—'
       return source.name || source.monthLabel || source.googleSheetId || '—'
     },
@@ -431,7 +432,6 @@ export default {
       this.loading = true
       this.notice = ''
       const tasks = [
-        this.safeJson('/api/admin/orders-sheet-view').then((body) => { this.sheetView = body }).catch(() => { this.sheetView = { rows: [], source: null } }),
         this.safeJson('/api/admin/chats/tasks?limit=200').then((body) => { this.chatTasks = body.rows || [] }).catch(() => { this.chatTasks = [] }),
         this.safeJson('/api/admin/ops/drafts?status=pending&parsedType=openclaw_order_draft').then((body) => { this.aiDrafts = body.rows || [] }).catch(() => { this.aiDrafts = [] }),
         this.safeJson('/api/admin/crm/companies?limit=1').then((body) => { this.crmCompaniesTotal = body.total || 0 }).catch(() => { this.crmCompaniesTotal = 0 }),

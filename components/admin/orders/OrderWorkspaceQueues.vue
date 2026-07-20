@@ -10,8 +10,8 @@
         <div v-if="!actionItems.length" class="work-empty"><strong>На сейчас всё обработано</strong><span>Новые письма, ответы и ошибки появятся здесь.</span></div>
       </div>
       <div v-else-if="view === 'email'" class="work-list">
-        <button v-for="row in activeEmails" :key="row.id" class="work-row" type="button" @click="$router.push(`/admin-ai-inbox?draftId=${row.id}`)">
-          <span class="work-row__source">Почта</span><span class="work-row__main"><strong>{{ emailTitle(row) }}</strong><small>{{ emailHint(row) }}</small></span><span class="work-row__action">Проверить →</span>
+        <button v-for="row in activeEmails" :key="row.id" class="work-row" type="button" :disabled="Boolean(openingDraftId)" @click="openEmail(row.id)">
+          <span class="work-row__source">Почта</span><span class="work-row__main"><strong>{{ emailTitle(row) }}</strong><small>{{ emailHint(row) }}</small></span><span class="work-row__action">{{ openingDraftId === row.id ? 'Открываем…' : 'Проверить →' }}</span>
         </button>
         <div v-if="!activeEmails.length" class="work-empty">Новых заказов из почты нет</div>
       </div>
@@ -27,7 +27,7 @@
 <script>
 export default {
   props: { view: { type: String, required: true } },
-  data: () => ({ workspace: {}, loading: true, error: '' }),
+  data: () => ({ workspace: {}, loading: true, error: '', openingDraftId: '' }),
   computed: {
     activeEmails () { return (this.workspace.emailDrafts || []).filter((row) => !['quarantine', 'archived'].includes(row.queueState)) },
     actionItems () {
@@ -46,7 +46,14 @@ export default {
     emailHint (row) { const o = this.payload(row).orderDraft || {}; return [o.counterpartyName, o.pickupAt, [o.fromPoint, o.toPoint].filter(Boolean).join(' → ')].filter(Boolean).join(' · ') },
     chatTitle (task) { const o = task.order || {}; return `${o.sourceBookingId || o.sourceOrderNumber || 'Заказ'} · ${[o.fromPoint, o.toPoint].filter(Boolean).join(' → ')}` },
     chatState (state) { return ({ missing_data_detected: 'Нужно создать вопрос клиенту', request_sent: 'Ждём ответ клиента', customer_replied: 'Получен ответ клиента', pending_update_approval: 'Сохраните ответ в комментарии', handoff_human: 'Нужен сотрудник', order_complete: 'Уточнение завершено' })[state] || 'Требует внимания' },
-    openItem (item) { this.$router.push(item.url) }
+    openItem (item) {
+      if (String(item?.key || '').startsWith('e-')) this.openingDraftId = String(item.key).slice(2)
+      this.$router.push(item.url).catch(() => { this.openingDraftId = '' })
+    },
+    openEmail (draftId) {
+      this.openingDraftId = draftId
+      this.$router.push(`/admin-ai-inbox?draftId=${draftId}`).catch(() => { this.openingDraftId = '' })
+    }
   }
 }
 </script>

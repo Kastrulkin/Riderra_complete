@@ -197,6 +197,13 @@
       </div>
     </section>
 
+    <div v-if="draftLoading" class="modal-overlay">
+      <div class="modal-card modal-card--loading" role="status" aria-live="polite">
+        <strong>Открываем письмо…</strong>
+        <span class="hint">Загружаем данные выбранного заказа.</span>
+      </div>
+    </div>
+
     <div v-if="draft" class="modal-overlay" @click.self="closeDraft">
       <div class="modal-card">
         <div class="modal-head">
@@ -441,6 +448,8 @@ export default {
     selectedDraftIds: [],
     rows: [],
     draft: null,
+    draftLoading: false,
+    draftLoadError: '',
     reviewComment: '',
     actionResult: '',
     copyNotice: '',
@@ -541,9 +550,13 @@ export default {
     }
   },
   async mounted () {
-    await this.load()
     const draftId = String(this.$route.query.draftId || '').trim()
-    if (draftId) await this.openDraft(draftId)
+    if (draftId) {
+      await this.openDraft(draftId)
+      this.load().catch(() => {})
+      return
+    }
+    await this.load()
   },
   methods: {
     headers () {
@@ -958,6 +971,7 @@ export default {
       if (this.period) params.set('period', this.period)
       if (this.fromPickup) params.set('fromPickup', this.fromPickup)
       if (this.toPickup) params.set('toPickup', this.toPickup)
+      params.set('limit', '50')
       const res = await fetch(`/api/admin/ops/drafts?${params.toString()}`, { headers: this.headers() })
       const data = await res.json()
       this.rows = data.rows || []
@@ -1081,13 +1095,23 @@ export default {
       }
     },
     async openDraft (id) {
-      const res = await fetch(`/api/admin/ops/drafts/${id}`, { headers: this.headers() })
-      const data = await res.json()
-      this.draft = data
-      this.reviewComment = ''
-      this.actionResult = ''
-      this.copyNotice = ''
-      this.flightCheckError = ''
+      this.draftLoading = true
+      this.draftLoadError = ''
+      try {
+        const res = await fetch(`/api/admin/ops/drafts/${id}`, { headers: this.headers() })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+        this.draft = data
+        this.reviewComment = ''
+        this.actionResult = ''
+        this.copyNotice = ''
+        this.flightCheckError = ''
+      } catch (error) {
+        this.draftLoadError = error.message || 'Не удалось открыть письмо'
+        this.actionResult = this.draftLoadError
+      } finally {
+        this.draftLoading = false
+      }
     },
     closeDraft () {
       this.draft = null
@@ -1228,6 +1252,7 @@ export default {
 .status-pill--rejected { background: #fee2e2; color: #991b1b; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: flex; justify-content: center; align-items: center; z-index: 1200; padding: 20px; }
 .modal-card { width: min(1100px, 96vw); max-height: 90vh; overflow: auto; background: #fff; border-radius: 16px; padding: 18px; }
+.modal-card--loading { width: min(420px, 92vw); display: grid; gap: 8px; padding: 28px; text-align: center; }
 .modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .modal-close { border: 0; background: transparent; font-size: 28px; cursor: pointer; color: #334155; }
 .banner { margin: 12px 0; padding: 12px 14px; border-radius: 10px; background: #fbf2ff; color: #702283; line-height: 1.45; }
