@@ -21,6 +21,7 @@ model Tenant {
   orders              Order[]
   orderQualitySignals OrderQualitySignal[]
   orderStatusEvents   OrderStatusHistory[]
+  orderChangeLogs     OrderChangeLog[]
   pricingRows         CityPricing[]
   counterpartyRules   CounterpartyPriceRule[]
   drivers             Driver[]
@@ -271,6 +272,10 @@ model Order {
   sourceOrderNumber         String?
   sourceBookingId           String?
   sourceInternalOrderNumber String?
+  customerName              String?
+  customerEmail             String?
+  customerPhone             String?
+  manualOverridesJson       String?
   hasComplaint              Boolean   @default(false)
   issueFlagsJson            String?
   passengers                Int?
@@ -304,6 +309,7 @@ model Order {
   priceConflicts PriceConflict[]
   adjustments    OrderAdjustment[]
   statusHistory  OrderStatusHistory[]
+  changeLogs     OrderChangeLog[]
   chatTasks      ChatTask[]
   qualitySignals OrderQualitySignal[]
   tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
@@ -312,6 +318,25 @@ model Order {
   @@index([tenantId, counterpartyName])
   @@index([tenantId, driverNameRaw])
   @@index([tenantId, sourceCurrency])
+}
+
+model OrderChangeLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  orderId     String
+  actorUserId String?
+  actorEmail  String?
+  actorRole   String?
+  reason      String?
+  changesJson String
+  beforeJson  String
+  afterJson   String
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, orderId, createdAt])
+  @@index([tenantId, actorUserId, createdAt])
 }
 
 model OrderQualitySignal {

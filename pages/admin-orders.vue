@@ -367,6 +367,75 @@
           </div>
         </details>
 
+        <details class="detail-panel" open>
+          <summary class="section-summary">{{ t.editDetailsTitle }}</summary>
+          <p class="hint order-edit-hint">{{ t.editDetailsHint }}</p>
+          <div class="order-edit-groups">
+            <fieldset class="order-edit-group">
+              <legend>{{ t.editRouteGroup }}</legend>
+              <label class="order-edit-field"><span>{{ t.date }}</span><input v-model="orderEditForm.pickupAt" class="input" type="datetime-local" /></label>
+              <label class="order-edit-field order-edit-field--wide"><span>{{ t.from }}</span><input v-model="orderEditForm.fromPoint" class="input" /></label>
+              <label class="order-edit-field order-edit-field--wide"><span>{{ t.to }}</span><input v-model="orderEditForm.toPoint" class="input" /></label>
+            </fieldset>
+            <fieldset class="order-edit-group">
+              <legend>{{ t.editPassengerGroup }}</legend>
+              <label class="order-edit-field"><span>{{ t.customerNameLabel }}</span><input v-model="orderEditForm.customerName" class="input" /></label>
+              <label class="order-edit-field"><span>Email</span><input v-model="orderEditForm.customerEmail" class="input" type="email" /></label>
+              <label class="order-edit-field"><span>{{ t.customerPhoneLabel }}</span><input v-model="orderEditForm.customerPhone" class="input" type="tel" placeholder="+79214224843" /></label>
+              <label class="order-edit-field"><span>{{ t.languageLabel }}</span><input v-model="orderEditForm.lang" class="input" placeholder="ru / en" /></label>
+            </fieldset>
+            <fieldset class="order-edit-group">
+              <legend>{{ t.editTripGroup }}</legend>
+              <label class="order-edit-field"><span>{{ t.passengersLabel }}</span><input v-model="orderEditForm.passengers" class="input" type="number" min="0" max="999" /></label>
+              <label class="order-edit-field"><span>{{ t.luggageLabel }}</span><input v-model="orderEditForm.luggage" class="input" type="number" min="0" max="999" /></label>
+              <label class="order-edit-field"><span>{{ t.flightNumberLabel }}</span><input v-model="orderEditForm.flightNumber" class="input" /></label>
+              <label class="order-edit-field"><span>{{ t.vehicleTypeLabel }}</span><input v-model="orderEditForm.vehicleType" class="input" /></label>
+            </fieldset>
+            <fieldset class="order-edit-group">
+              <legend>{{ t.editBusinessGroup }}</legend>
+              <label class="order-edit-field"><span>{{ t.contractor }}</span><input v-model="orderEditForm.counterpartyName" class="input" /></label>
+              <label class="order-edit-field"><span>{{ t.driver }}</span><input v-model="orderEditForm.driverNameRaw" class="input" /></label>
+              <label class="order-edit-field"><span>{{ t.clientPrice }}</span><input v-model="orderEditForm.clientPrice" class="input" type="number" min="0" step="0.01" /></label>
+              <label class="order-edit-field"><span>{{ t.driverPrice }}</span><input v-model="orderEditForm.driverPrice" class="input" type="number" min="0" step="0.01" /></label>
+              <label class="order-edit-field"><span>{{ t.currencyLabel }}</span><input v-model="orderEditForm.sourceCurrency" class="input" maxlength="3" /></label>
+              <label class="order-edit-field order-edit-field--wide"><span>{{ t.comment }}</span><textarea v-model="orderEditForm.comment" class="input order-edit-textarea" rows="3"></textarea></label>
+            </fieldset>
+          </div>
+          <div v-if="orderEditChanges.length" class="order-edit-preview">
+            <strong>{{ t.willChangeTitle }}</strong>
+            <div v-for="change in orderEditChanges" :key="change.field" class="order-edit-change">
+              <span>{{ orderEditFieldLabel(change.field) }}</span>
+              <span>{{ displayOrderEditValue(change.before) }} → {{ displayOrderEditValue(change.after) }}</span>
+            </div>
+          </div>
+          <label class="order-edit-field order-edit-reason"><span>{{ t.editReasonLabel }}</span><input v-model="orderEditReason" class="input" :placeholder="t.editReasonPlaceholder" /></label>
+          <div v-if="orderEditMessage" class="hint">{{ orderEditMessage }}</div>
+          <div v-if="orderEditError" class="hint hint--error">{{ orderEditError }}</div>
+          <div class="order-edit-actions">
+            <button class="btn btn--primary" type="button" :disabled="orderEditSaving || !orderEditChanges.length" @click="saveOrderDetails">
+              {{ orderEditSaving ? t.saving : t.saveDetails }}
+            </button>
+          </div>
+        </details>
+
+        <details class="detail-panel">
+          <summary class="section-summary">{{ t.detailsHistoryTitle }} · {{ orderChangeHistory.length }}</summary>
+          <div v-if="!orderChangeHistory.length" class="hint">{{ t.noDetailsHistory }}</div>
+          <div v-else class="history-list">
+            <div v-for="entry in orderChangeHistory" :key="entry.id" class="history-item">
+              <div class="history-meta">
+                <strong>{{ entry.actorEmail || t.unknownEmployee }}</strong>
+                <span>{{ formatDateTime(entry.createdAt) }}</span>
+              </div>
+              <div v-if="entry.reason" class="history-reason">{{ entry.reason }}</div>
+              <div v-for="(value, field) in entry.changes" :key="`${entry.id}-${field}`" class="order-edit-change">
+                <span>{{ orderEditFieldLabel(field) }}</span>
+                <span>{{ displayOrderEditValue(entry.before && entry.before[field]) }} → {{ displayOrderEditValue(value) }}</span>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <details v-if="selectedOrder.qualityChecks && selectedOrder.qualityChecks.length" class="detail-panel" :open="Boolean(selectedOrder.needsInfo)">
           <summary class="section-summary">{{ t.qualityChecksTitle }}</summary>
           <div class="checks-list">
@@ -593,6 +662,32 @@ export default {
     flightCheckSaving: false,
     addressCheckSaving: false,
     transitionsError: '',
+    orderEditForm: {
+      pickupAt: '',
+      fromPoint: '',
+      toPoint: '',
+      customerName: '',
+      customerEmail: '',
+      customerPhone: '',
+      passengers: '',
+      luggage: '',
+      flightNumber: '',
+      vehicleType: '',
+      lang: '',
+      counterpartyName: '',
+      driverNameRaw: '',
+      clientPrice: '',
+      driverPrice: '',
+      sourceCurrency: '',
+      comment: ''
+    },
+    orderEditOriginal: {},
+    orderEditReason: '',
+    orderEditSaving: false,
+    orderEditError: '',
+    orderEditMessage: '',
+    orderChangeHistory: [],
+    manualOverrideFields: [],
     infoModal: {
       open: false,
       orderId: null,
@@ -681,6 +776,27 @@ export default {
             statusHistory: 'История статусов',
             loadingHistory: 'Загрузка истории...',
             noHistory: 'История статусов пока пуста',
+            editDetailsTitle: 'Изменить детали поездки',
+            editDetailsHint: 'Ручные уточнения сохраняются в Riderra и не стираются при обновлении из Google Таблицы. Таблица при этом не изменяется.',
+            editRouteGroup: 'Дата и маршрут',
+            editPassengerGroup: 'Пассажир и связь',
+            editTripGroup: 'Поездка',
+            editBusinessGroup: 'Исполнение и стоимость',
+            customerNameLabel: 'Имя пассажира',
+            customerPhoneLabel: 'Телефон',
+            languageLabel: 'Язык',
+            passengersLabel: 'Пассажиров',
+            luggageLabel: 'Мест багажа',
+            vehicleTypeLabel: 'Класс автомобиля',
+            currencyLabel: 'Валюта',
+            willChangeTitle: 'Будет изменено',
+            editReasonLabel: 'Основание изменения',
+            editReasonPlaceholder: 'Например: сообщил пассажир в WhatsApp',
+            saveDetails: 'Сохранить изменения',
+            detailsSaved: 'Детали поездки сохранены',
+            detailsHistoryTitle: 'История изменений деталей',
+            noDetailsHistory: 'Ручных изменений пока не было',
+            unknownEmployee: 'Сотрудник',
             flightCheckTitle: 'Проверка рейса',
             flightCheckRun: 'Проверить рейс',
             flightChecking: 'Проверяю...',
@@ -814,6 +930,27 @@ export default {
             statusHistory: 'Status history',
             loadingHistory: 'Loading history...',
             noHistory: 'No status history yet',
+            editDetailsTitle: 'Edit trip details',
+            editDetailsHint: 'Manual clarifications are kept in Riderra and survive Google Sheet sync. The Sheet itself is not changed.',
+            editRouteGroup: 'Date and route',
+            editPassengerGroup: 'Passenger and contact',
+            editTripGroup: 'Trip',
+            editBusinessGroup: 'Fulfilment and price',
+            customerNameLabel: 'Passenger name',
+            customerPhoneLabel: 'Phone',
+            languageLabel: 'Language',
+            passengersLabel: 'Passengers',
+            luggageLabel: 'Luggage items',
+            vehicleTypeLabel: 'Vehicle class',
+            currencyLabel: 'Currency',
+            willChangeTitle: 'Changes to save',
+            editReasonLabel: 'Reason for change',
+            editReasonPlaceholder: 'For example: passenger confirmed in WhatsApp',
+            saveDetails: 'Save changes',
+            detailsSaved: 'Trip details saved',
+            detailsHistoryTitle: 'Trip detail change history',
+            noDetailsHistory: 'No manual changes yet',
+            unknownEmployee: 'Employee',
             flightCheckTitle: 'Flight check',
             flightCheckRun: 'Check flight',
             flightChecking: 'Checking...',
@@ -979,6 +1116,17 @@ export default {
     },
     canArchiveMonth () {
       return ['demyanov@riderra.com', 'shilin@riderra.com'].includes(this.currentUserEmail)
+    },
+    orderEditChanges () {
+      return Object.keys(this.orderEditForm).filter((field) => {
+        const before = this.orderEditOriginal[field] === null || this.orderEditOriginal[field] === undefined ? '' : String(this.orderEditOriginal[field])
+        const after = this.orderEditForm[field] === null || this.orderEditForm[field] === undefined ? '' : String(this.orderEditForm[field])
+        return before.trim() !== after.trim()
+      }).map((field) => ({
+        field,
+        before: this.orderEditOriginal[field],
+        after: this.orderEditForm[field]
+      }))
     },
     rawGridStyle () {
       const cols = Math.max(this.rawHeaders.length, 1)
@@ -1822,6 +1970,123 @@ export default {
         ? `Причина: ${reason}`
         : `Reason: ${reason}`
     },
+    toDateTimeLocalInput (value) {
+      if (!value) return ''
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return ''
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      return local.toISOString().slice(0, 16)
+    },
+    setOrderEditForm (detail) {
+      const form = {
+        pickupAt: this.toDateTimeLocalInput(detail.pickupAt),
+        fromPoint: detail.fromPoint || '',
+        toPoint: detail.toPoint || '',
+        customerName: detail.customerName || '',
+        customerEmail: detail.customerEmail || '',
+        customerPhone: detail.customerPhone || '',
+        passengers: detail.passengers === null || detail.passengers === undefined ? '' : String(detail.passengers),
+        luggage: detail.luggage === null || detail.luggage === undefined ? '' : String(detail.luggage),
+        flightNumber: detail.flightNumber || '',
+        vehicleType: detail.vehicleType || '',
+        lang: detail.lang || '',
+        counterpartyName: detail.counterpartyName || '',
+        driverNameRaw: detail.driverNameRaw || '',
+        clientPrice: detail.clientPrice === null || detail.clientPrice === undefined ? '' : String(detail.clientPrice),
+        driverPrice: detail.driverPrice === null || detail.driverPrice === undefined ? '' : String(detail.driverPrice),
+        sourceCurrency: detail.sourceCurrency || '',
+        comment: detail.comment || ''
+      }
+      this.orderEditForm = form
+      this.orderEditOriginal = { ...form }
+      this.orderChangeHistory = Array.isArray(detail.changeHistory) ? detail.changeHistory : []
+      this.manualOverrideFields = Array.isArray(detail.manualOverrideFields) ? detail.manualOverrideFields : []
+    },
+    orderEditFieldLabel (field) {
+      const labels = {
+        pickupAt: this.t.date,
+        fromPoint: this.t.from,
+        toPoint: this.t.to,
+        customerName: this.t.customerNameLabel,
+        customerEmail: 'Email',
+        customerPhone: this.t.customerPhoneLabel,
+        passengers: this.t.passengersLabel,
+        luggage: this.t.luggageLabel,
+        flightNumber: this.t.flightNumberLabel,
+        vehicleType: this.t.vehicleTypeLabel,
+        lang: this.t.languageLabel,
+        counterpartyName: this.t.contractor,
+        driverNameRaw: this.t.driver,
+        clientPrice: this.t.clientPrice,
+        driverPrice: this.t.driverPrice,
+        sourceCurrency: this.t.currencyLabel,
+        comment: this.t.comment
+      }
+      return labels[field] || field
+    },
+    displayOrderEditValue (value) {
+      if (value === null || value === undefined || String(value).trim() === '') return '—'
+      const text = String(value)
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text)) return this.formatDateTime(text)
+      return text
+    },
+    async saveOrderDetails () {
+      if (!this.selectedOrder?.id || this.orderEditSaving || !this.orderEditChanges.length) return
+      this.orderEditSaving = true
+      this.orderEditError = ''
+      this.orderEditMessage = ''
+      try {
+        const changes = Object.fromEntries(this.orderEditChanges.map((change) => {
+          if (change.field === 'pickupAt') {
+            const value = change.after ? new Date(change.after).toISOString() : null
+            return [change.field, value]
+          }
+          return [change.field, change.after]
+        }))
+        const response = await fetch(`/api/admin/orders/${encodeURIComponent(this.selectedOrder.id)}/details`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `order-details-${this.selectedOrder.id}-${Date.now()}`,
+            ...this.headers()
+          },
+          body: JSON.stringify({ changes, reason: String(this.orderEditReason || '').trim() })
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data?.error || 'Failed to update order details')
+        const updated = data?.order || {}
+        this.rows = this.rows.map((row) => row.id === this.selectedOrder.id
+          ? {
+              ...row,
+              date: updated.pickupAt || row.date,
+              fromPoint: updated.fromPoint ?? row.fromPoint,
+              toPoint: updated.toPoint ?? row.toPoint,
+              contractor: updated.counterpartyName ?? row.contractor,
+              driver: updated.driverNameRaw ?? row.driver,
+              customerName: updated.customerName ?? row.customerName,
+              customerEmail: updated.customerEmail ?? row.customerEmail,
+              customerPhone: updated.customerPhone ?? row.customerPhone,
+              passengers: updated.passengers ?? null,
+              luggage: updated.luggage ?? null,
+              flightNumber: updated.flightNumber ?? '',
+              vehicleType: updated.vehicleType ?? row.vehicleType,
+              lang: updated.lang ?? row.lang,
+              orderClientPrice: updated.clientPrice ?? row.orderClientPrice,
+              orderDriverPrice: updated.driverPrice ?? null,
+              sum: `${updated.clientPrice ?? row.orderClientPrice ?? ''}${updated.sourceCurrency ? ` ${updated.sourceCurrency}` : ''}`,
+              orderUpdatedAt: new Date().toISOString()
+            }
+          : row)
+        this.applyFilter()
+        this.orderEditReason = ''
+        await this.loadOrderCardData(this.selectedOrder.id)
+        this.orderEditMessage = this.t.detailsSaved
+      } catch (error) {
+        this.orderEditError = error?.message || 'Failed to update order details'
+      } finally {
+        this.orderEditSaving = false
+      }
+    },
     async loadOrderCardData (orderId) {
       this.historyLoading = true
       this.historyError = ''
@@ -1857,7 +2122,21 @@ export default {
           const detail = detailData?.detail || {}
           this.selectedOrder = {
             ...this.selectedOrder,
+            date: detail.pickupAt || this.selectedOrder.date,
+            fromPoint: detail.fromPoint ?? this.selectedOrder.fromPoint,
+            toPoint: detail.toPoint ?? this.selectedOrder.toPoint,
+            customerName: detail.customerName || null,
+            customerEmail: detail.customerEmail || null,
+            customerPhone: detail.customerPhone || null,
+            passengers: detail.passengers ?? null,
+            luggage: detail.luggage ?? null,
             flightNumber: detail.flightNumber || null,
+            vehicleType: detail.vehicleType || this.selectedOrder.vehicleType,
+            lang: detail.lang || null,
+            contractor: detail.counterpartyName ?? this.selectedOrder.contractor,
+            driver: detail.driverNameRaw ?? this.selectedOrder.driver,
+            orderClientPrice: detail.clientPrice ?? this.selectedOrder.orderClientPrice,
+            orderDriverPrice: detail.driverPrice ?? this.selectedOrder.orderDriverPrice,
             flightCheck: detail.flightCheck || null,
             addressVerification: detail.addressVerification || null,
             geoZones: detail.geoZones || null,
@@ -1872,6 +2151,7 @@ export default {
               : null,
             commission: detail.commission ?? this.selectedOrder.commission ?? null
           }
+          this.setOrderEditForm(detail)
         } else {
           this.orderCardDetailError = this.$store.state.language === 'ru'
             ? 'Не удалось загрузить детали карточки'
@@ -2006,6 +2286,13 @@ export default {
       this.flightCheckSaving = false
       this.addressCheckSaving = false
       this.transitionsError = ''
+      this.orderEditOriginal = {}
+      this.orderEditReason = ''
+      this.orderEditSaving = false
+      this.orderEditError = ''
+      this.orderEditMessage = ''
+      this.orderChangeHistory = []
+      this.manualOverrideFields = []
     },
     flightArrivalValue (flightCheck) {
       const match = flightCheck && flightCheck.bestMatch ? flightCheck.bestMatch : null
@@ -2670,6 +2957,74 @@ export default {
 .detail-panel > :not(summary) {
   padding: 14px 16px 16px;
 }
+.order-edit-hint {
+  margin: 0;
+}
+.order-edit-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.order-edit-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.order-edit-group legend {
+  padding: 0 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+.order-edit-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+.order-edit-field--wide {
+  grid-column: 1 / -1;
+}
+.order-edit-textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+.order-edit-preview {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+.order-edit-change {
+  display: grid;
+  grid-template-columns: minmax(130px, .4fr) minmax(0, 1fr);
+  gap: 10px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.order-edit-change > :first-child {
+  color: #64748b;
+  font-weight: 700;
+}
+.order-edit-reason {
+  margin-top: 12px;
+}
+.order-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
 .section-head {
   display: flex;
   align-items: center;
@@ -2803,6 +3158,7 @@ export default {
   .economics-grid { grid-template-columns: 1fr; }
   .recommended-supplier { grid-template-columns: 1fr; }
   .supplier-option-row { grid-template-columns: 1fr; }
+  .order-edit-groups { grid-template-columns: 1fr; }
   .main-grid {
     min-width: 1180px;
   }
@@ -2823,6 +3179,11 @@ export default {
   }
 
   .overview-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .order-edit-group,
+  .order-edit-change {
     grid-template-columns: 1fr;
   }
 

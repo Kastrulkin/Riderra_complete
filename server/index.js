@@ -26,6 +26,14 @@ const {
   normalizeOrderNumberIdentity,
   shouldReuseOrderForPickupChange
 } = require('./utils/orderIdentity')
+const {
+  ORDER_MANUAL_EDITABLE_FIELDS,
+  applyOrderManualOverrides,
+  manualOrderJsonValue,
+  manualOrderSnapshot,
+  manualOrderValuesEqual,
+  normalizeManualOrderPatch
+} = require('./utils/orderManualDetails')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
@@ -2342,9 +2350,35 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       if (latestSnapshot.orderId) {
         const unchangedOrder = await prisma.order.findFirst({
           where: { id: latestSnapshot.orderId, tenantId: effectiveTenantId },
-          select: { id: true, tenantId: true, driverId: true, clientPrice: true, driverPrice: true }
+          select: {
+            id: true,
+            tenantId: true,
+            driverId: true,
+            clientPrice: true,
+            driverPrice: true,
+            customerName: true,
+            customerEmail: true,
+            customerPhone: true,
+            manualOverridesJson: true
+          }
         })
         if (unchangedOrder) {
+          // A row can be unchanged while Riderra gains support for new source
+          // columns. Backfill those values without replacing a manual override.
+          const manualOverrideFields = new Set(Object.keys(parseJsonSafe(unchangedOrder.manualOverridesJson, {})))
+          const sourceContacts = {
+            customerName: pickFieldLoose(raw, aliasesWithMapping(['customer name', 'passenger name', 'имя клиента', 'имя пассажира', 'пассажир'], mapping, 'customerName')) || null,
+            customerEmail: pickFieldLoose(raw, aliasesWithMapping(['customer email', 'passenger email', 'email клиента', 'email пассажира', 'email'], mapping, 'customerEmail')) || null,
+            customerPhone: pickFieldLoose(raw, aliasesWithMapping(['customer phone', 'passenger phone', 'телефон клиента', 'телефон пассажира', 'phone', 'телефон'], mapping, 'customerPhone')) || null
+          }
+          if (sourceContacts.customerPhone) sourceContacts.customerPhone = normalizeE164Phone(sourceContacts.customerPhone)
+          const contactBackfill = {}
+          for (const [field, value] of Object.entries(sourceContacts)) {
+            if (!manualOverrideFields.has(field) && value && unchangedOrder[field] !== value) contactBackfill[field] = value
+          }
+          if (Object.keys(contactBackfill).length > 0) {
+            await prisma.order.update({ where: { id: unchangedOrder.id }, data: contactBackfill })
+          }
           await syncOrderAdjustmentFromSheetRow({
             tenantId: effectiveTenantId,
             source,
@@ -2391,6 +2425,10 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       const externalKey = stableExternalKey || legacyExternalKey
       const lang = pickField(raw, aliasesWithMapping(['lang', 'язык'], mapping, 'lang')) || null
       const comment = pickFieldLoose(raw, aliasesWithMapping(['comment', 'комментарий', 'примечание'], mapping, 'comment')) || null
+      const customerName = pickFieldLoose(raw, aliasesWithMapping(['customer name', 'passenger name', 'имя клиента', 'имя пассажира', 'пассажир'], mapping, 'customerName')) || null
+      const customerEmail = pickFieldLoose(raw, aliasesWithMapping(['customer email', 'passenger email', 'email клиента', 'email пассажира', 'email'], mapping, 'customerEmail')) || null
+      const customerPhoneRaw = pickFieldLoose(raw, aliasesWithMapping(['customer phone', 'passenger phone', 'телефон клиента', 'телефон пассажира', 'phone', 'телефон'], mapping, 'customerPhone')) || null
+      const customerPhone = customerPhoneRaw ? normalizeE164Phone(customerPhoneRaw) : null
       const sourceData = normalizedOrderSourceDataFromRaw({
         ...raw,
         comment,
@@ -2418,6 +2456,9 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         luggage,
         pickupAt,
         lang,
+        customerName,
+        customerEmail,
+        customerPhone,
         ...sourceData
       }
       if (driverPriceRaw !== null) {
@@ -2426,7 +2467,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
 
       let existingOrder = await prisma.order.findUnique({
         where: { externalKey },
-        select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true }
+        select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true, manualOverridesJson: true }
       })
 
       // Existing rows used a row-based key. Match them by the stable trip identity
@@ -2438,7 +2479,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
             source: 'google_sheet',
             pickupAt
           },
-          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true },
+          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true, manualOverridesJson: true },
           take: 20
         })
         const normalizedOrderNumber = normalizeOrderNumberIdentity(sourceOrderNumberRaw)
@@ -2454,7 +2495,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
       if (!existingOrder && stableExternalKey && latestSnapshot?.orderId) {
         const rowCandidate = await prisma.order.findFirst({
           where: { id: latestSnapshot.orderId, tenantId: effectiveTenantId, source: 'google_sheet' },
-          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true }
+          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true, manualOverridesJson: true }
         })
         if (rowCandidate && shouldReuseOrderForPickupChange({
           tenantId: effectiveTenantId,
@@ -2477,7 +2518,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
             source: 'google_sheet',
             sourceOrderNumber: sourceOrderNumberRaw
           },
-          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true },
+          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true, manualOverridesJson: true },
           take: 20
         })
         const reusableCandidates = sameNumberCandidates.filter((candidate) => shouldReuseOrderForPickupChange({
@@ -2508,7 +2549,11 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         }
         upserted = await prisma.order.update({
           where: { id: existingOrder.id },
-          data: { externalKey, ...orderPayload, tenantId: existingOrder.tenantId || effectiveTenantId }
+          data: {
+            externalKey,
+            ...applyOrderManualOverrides(orderPayload, existingOrder.manualOverridesJson),
+            tenantId: existingOrder.tenantId || effectiveTenantId
+          }
         })
         if (normalizeOrderStatus(existingOrder.status) !== incomingStatus) {
           try {
@@ -4023,6 +4068,7 @@ async function queueChatTaskWithoutRewind({
     where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } }
   })
   if (existing) {
+    const keepExplicitRecipient = ['manual', 'test_override'].includes(String(existing.recipientSource || '')) && recipientSource === 'order'
     const task = await prisma.chatTask.update({
       where: { id: existing.id },
       data: {
@@ -4030,8 +4076,8 @@ async function queueChatTaskWithoutRewind({
         ...(agentConfigId ? { agentConfigId } : {}),
         ...(assignedToUserId !== undefined ? { assignedToUserId } : {}),
         ...(channel !== undefined ? { channel } : {}),
-        ...(customerActorId !== undefined ? { customerActorId } : {}),
-        ...(recipientSource !== undefined ? { recipientSource } : {})
+        ...(!keepExplicitRecipient && customerActorId !== undefined ? { customerActorId } : {}),
+        ...(!keepExplicitRecipient && recipientSource !== undefined ? { recipientSource } : {})
       }
     })
     return { task, queueStatus: chatTaskQueueStatus(task) }
@@ -5881,7 +5927,8 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
         pickupAt: true,
         fromPoint: true,
         toPoint: true,
-        infoReason: true
+        infoReason: true,
+        customerPhone: true
       }
     })
     if (!order) return res.status(404).json({ error: 'Order not found' })
@@ -5889,7 +5936,9 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
     const state = taskType === 'clarification' ? 'missing_data_detected' : 'ready_to_notify'
     const priority = taskType === 'clarification' ? 50 : 80
     const defaultAgentId = await pickDefaultAgentIdForTaskType(tenantId, taskType)
-    const payload = { orderId, taskType, state, priority, agentConfigId: defaultAgentId, requestedChannel, requestedPhone, recipientSource }
+    const effectivePhone = requestedPhone === undefined ? normalizeE164Phone(order.customerPhone) : requestedPhone
+    const effectiveRecipientSource = recipientSource === undefined && effectivePhone ? 'order' : recipientSource
+    const payload = { orderId, taskType, state, priority, agentConfigId: defaultAgentId, requestedChannel, requestedPhone: effectivePhone, recipientSource: effectiveRecipientSource }
     ensureIdempotencyKey(req, 'chat_task.queue_one', payload)
     const wrapped = await withIdempotency(req, 'chat_task.queue_one', payload, async () => {
       return queueChatTaskWithoutRewind({
@@ -5900,8 +5949,8 @@ app.post('/api/admin/chats/queue-order', authenticateToken, resolveActorContext,
         agentConfigId: defaultAgentId,
         ...(assignToMe ? { assignedToUserId: req.user?.id || null } : {}),
         ...(requestedChannel !== undefined ? { channel: requestedChannel } : {}),
-        ...(requestedPhone !== undefined ? { customerActorId: requestedPhone } : {}),
-        ...(recipientSource !== undefined ? { recipientSource } : {})
+        ...(effectivePhone !== undefined && effectivePhone !== null ? { customerActorId: effectivePhone } : {}),
+        ...(effectiveRecipientSource !== undefined ? { recipientSource: effectiveRecipientSource } : {})
       })
     })
     const currentTask = wrapped.replayed
@@ -8213,8 +8262,15 @@ app.get(
           driverPrice: true,
           commission: true,
           comment: true,
+          customerName: true,
+          customerEmail: true,
+          customerPhone: true,
+          manualOverridesJson: true,
           status: true,
           vehicleType: true,
+          counterpartyName: true,
+          driverNameRaw: true,
+          sourceCurrency: true,
           passengers: true,
           luggage: true,
           needsInfo: true,
@@ -8299,6 +8355,22 @@ app.get(
           createdAt: true
         }
       })
+      const changeHistory = await prisma.orderChangeLog.findMany({
+        where: { orderId: order.id, tenantId: req.actorContext.tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: {
+          id: true,
+          actorUserId: true,
+          actorEmail: true,
+          actorRole: true,
+          reason: true,
+          changesJson: true,
+          beforeJson: true,
+          afterJson: true,
+          createdAt: true
+        }
+      })
 
       res.json({
         orderId: order.id,
@@ -8310,7 +8382,13 @@ app.get(
           driverPrice: order.driverPrice,
           commission: order.commission,
           comment: order.comment,
+          customerName: order.customerName || orderDraft.customerName || null,
+          customerEmail: order.customerEmail || orderDraft.customerEmail || null,
+          customerPhone: order.customerPhone || orderDraft.customerPhone || orderDraft.phone || null,
           vehicleType: order.vehicleType,
+          counterpartyName: order.counterpartyName,
+          driverNameRaw: order.driverNameRaw,
+          sourceCurrency: order.sourceCurrency,
           passengers: order.passengers,
           luggage: order.luggage,
           needsInfo: order.needsInfo,
@@ -8324,11 +8402,17 @@ app.get(
           geoZones,
           qualityChecks,
           sourceType: orderDraft.sourceType || draftPayload.sourceType || null,
-          customerName: orderDraft.customerName || null,
           supplierCost,
           supplierDisplay,
           supplierOptions,
           rawText: String(draftPayload.rawText || draft?.messageText || '').trim() || null,
+          manualOverrideFields: Object.keys(parseJsonSafe(order.manualOverridesJson || '{}', {})),
+          changeHistory: changeHistory.map(({ changesJson, beforeJson, afterJson, ...entry }) => ({
+            ...entry,
+            changes: parseJsonSafe(changesJson, {}),
+            before: parseJsonSafe(beforeJson, {}),
+            after: parseJsonSafe(afterJson, {})
+          })),
           latestSnapshot: latestSnapshot
             ? {
                 id: latestSnapshot.id,
@@ -8341,6 +8425,121 @@ app.get(
     } catch (error) {
       console.error('Error loading order card detail:', error)
       res.status(500).json({ error: 'Failed to load order card detail' })
+    }
+  }
+)
+
+app.patch(
+  '/api/admin/orders/:orderId/details',
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requireAnyPermission(['ops.manage', 'ops.drafts.resolve']),
+  async (req, res) => {
+    try {
+      const tenantId = req.actorContext.tenantId
+      const orderId = String(req.params.orderId || '').trim()
+      const requestedChanges = req.body?.changes && typeof req.body.changes === 'object' ? req.body.changes : {}
+      const reason = String(req.body?.reason || '').trim().slice(0, 1000) || null
+      const normalizedPatch = normalizeManualOrderPatch(requestedChanges)
+      if (!Object.keys(normalizedPatch).length) return res.status(400).json({ error: 'No editable fields were provided' })
+
+      const select = {
+        id: true,
+        tenantId: true,
+        manualOverridesJson: true,
+        ...Object.fromEntries(ORDER_MANUAL_EDITABLE_FIELDS.map((field) => [field, true]))
+      }
+      const existing = await prisma.order.findFirst({ where: { id: orderId, tenantId }, select })
+      if (!existing) return res.status(404).json({ error: 'Order not found' })
+
+      const before = manualOrderSnapshot(existing)
+      const dbChanges = {}
+      const publicChanges = {}
+      for (const [field, value] of Object.entries(normalizedPatch)) {
+        if (manualOrderValuesEqual(field, existing[field], value)) continue
+        dbChanges[field] = value
+        publicChanges[field] = manualOrderJsonValue(field, value)
+      }
+      if (!Object.keys(dbChanges).length) {
+        const publicExisting = { ...existing }
+        delete publicExisting.manualOverridesJson
+        return res.json({ success: true, unchanged: true, order: publicExisting })
+      }
+
+      const payload = { orderId, changes: publicChanges, reason }
+      ensureIdempotencyKey(req, 'admin.order.details.update', payload)
+      const wrapped = await withIdempotency(req, 'admin.order.details.update', payload, async () => {
+        const overrides = parseJsonSafe(existing.manualOverridesJson || '{}', {})
+        Object.assign(overrides, publicChanges)
+        const after = { ...before, ...publicChanges }
+
+        const result = await prisma.$transaction(async (tx) => {
+          const updatedOrder = await tx.order.update({
+            where: { id: existing.id },
+            data: { ...dbChanges, manualOverridesJson: JSON.stringify(overrides) },
+            select
+          })
+          const changeLog = await tx.orderChangeLog.create({
+            data: {
+              tenantId,
+              orderId: existing.id,
+              actorUserId: req.user?.id || null,
+              actorEmail: String(req.user?.email || '').trim().toLowerCase() || null,
+              actorRole: req.actorContext.actorRole || null,
+              reason,
+              changesJson: JSON.stringify(publicChanges),
+              beforeJson: JSON.stringify(before),
+              afterJson: JSON.stringify(after)
+            }
+          })
+
+          if (Object.prototype.hasOwnProperty.call(publicChanges, 'customerPhone')) {
+            await tx.chatTask.updateMany({
+              where: {
+                tenantId,
+                orderId: existing.id,
+                state: { notIn: ['closed', 'notify_ack'] },
+                OR: [{ recipientSource: null }, { recipientSource: 'order' }],
+                messages: { none: { direction: 'outbound', approvalStatus: 'sent' } }
+              },
+              data: { customerActorId: publicChanges.customerPhone, recipientSource: 'order' }
+            })
+          }
+          return { updatedOrder, changeLog }
+        })
+
+        await writeAuditLog({
+          tenantId,
+          actorId: req.actorContext.actorId,
+          actorRole: req.actorContext.actorRole,
+          action: 'order.details.update',
+          resource: 'order',
+          resourceId: existing.id,
+          traceId: req.actorContext.traceId,
+          decision: 'policy_allowed',
+          result: 'ok',
+          context: { reason, changes: publicChanges, before, after }
+        })
+        const publicOrder = { ...result.updatedOrder }
+        delete publicOrder.manualOverridesJson
+        return {
+          success: true,
+          order: { ...publicOrder, manualOverrideFields: Object.keys(overrides) },
+          change: {
+            ...result.changeLog,
+            changes: publicChanges,
+            before,
+            after
+          }
+        }
+      })
+
+      res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message })
+      console.error('Error updating order details:', error)
+      res.status(500).json({ error: 'Failed to update order details' })
     }
   }
 )
@@ -9517,6 +9716,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
           select: {
             id: true,
             status: true,
+            pickupAt: true,
             needsInfo: true,
             infoReason: true,
             fromPoint: true,
@@ -9532,6 +9732,13 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
             sourceOrderNumber: true,
             sourceBookingId: true,
             sourceInternalOrderNumber: true,
+            customerName: true,
+            customerEmail: true,
+            customerPhone: true,
+            passengers: true,
+            luggage: true,
+            flightNumber: true,
+            lang: true,
             addressVerificationJson: true,
             hasComplaint: true,
             issueFlagsJson: true,
@@ -9564,15 +9771,19 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
 
       const contractor = snapshot.order?.counterpartyName || pickField(raw, aliasesWithMapping(['контрагент', 'counterparty', 'contractor'], mapping, 'contractor')) || ''
       const orderNumber = snapshot.order?.sourceOrderNumber || pickField(raw, aliasesWithMapping(['номер заказа', 'order id', 'номер'], mapping, 'orderNumber')) || ''
-      const date = pickField(raw, aliasesWithMapping(['дата', 'date', 'pickup datetime', 'pickup time', 'дата подачи'], mapping, 'date')) || ''
-      const fromPoint = pickField(raw, aliasesWithMapping(['откуда', 'from', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || ''
-      const toPoint = pickField(raw, aliasesWithMapping(['куда', 'to', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || ''
-      const sum = pickField(raw, aliasesWithMapping(['сумма', 'цена', 'стоимость', 'price', 'client price'], mapping, 'sum')) || ''
+      const sourceDate = pickField(raw, aliasesWithMapping(['дата', 'date', 'pickup datetime', 'pickup time', 'дата подачи'], mapping, 'date')) || ''
+      const date = snapshot.order?.pickupAt ? snapshot.order.pickupAt.toISOString() : sourceDate
+      const fromPoint = snapshot.order?.fromPoint || pickField(raw, aliasesWithMapping(['откуда', 'from', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || ''
+      const toPoint = snapshot.order?.toPoint || pickField(raw, aliasesWithMapping(['куда', 'to', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || ''
+      const sourceSum = pickField(raw, aliasesWithMapping(['сумма', 'цена', 'стоимость', 'price', 'client price'], mapping, 'sum')) || ''
+      const sum = snapshot.order?.clientPrice === null || snapshot.order?.clientPrice === undefined
+        ? sourceSum
+        : `${snapshot.order.clientPrice}${snapshot.order.sourceCurrency ? ` ${snapshot.order.sourceCurrency}` : ''}`
       const driver = snapshot.order?.driverNameRaw || pickField(raw, aliasesWithMapping(['водитель', 'driver'], mapping, 'driver')) || ''
       const comment = snapshot.order?.sourceComment || pickField(raw, aliasesWithMapping(['комментарий', 'comment', 'примечание'], mapping, 'comment')) || ''
       const internalOrderNumber = snapshot.order?.sourceInternalOrderNumber || pickField(raw, aliasesWithMapping(['внутренний номер заказа', 'internal order number'], mapping, 'internalOrderNumber')) || ''
-      const effectiveFromPoint = snapshot.order?.fromPoint || fromPoint
-      const effectiveToPoint = snapshot.order?.toPoint || toPoint
+      const effectiveFromPoint = fromPoint
+      const effectiveToPoint = toPoint
       const effectiveVehicleType = snapshot.order?.vehicleType || ''
       const orderAddressVerification = snapshot.order?.addressVerificationJson
         ? parseJsonSafe(snapshot.order.addressVerificationJson, null)
@@ -9609,6 +9820,14 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         driver,
         comment,
         internalOrderNumber,
+        customerName: snapshot.order?.customerName || '',
+        customerEmail: snapshot.order?.customerEmail || '',
+        customerPhone: snapshot.order?.customerPhone || '',
+        passengers: snapshot.order?.passengers ?? null,
+        luggage: snapshot.order?.luggage ?? null,
+        flightNumber: snapshot.order?.flightNumber || '',
+        vehicleType: snapshot.order?.vehicleType || '',
+        lang: snapshot.order?.lang || '',
         status: snapshot.order?.status || '',
         needsInfo: Boolean(snapshot.order?.needsInfo),
         infoReason: snapshot.order?.infoReason || null,
@@ -12735,7 +12954,8 @@ function normalizeChannelName(value = '') {
 function normalizeE164Phone(value = '') {
   const raw = String(value || '').trim()
   if (!raw) return null
-  const digits = raw.replace(/\D/g, '')
+  let digits = raw.replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('8')) digits = `7${digits.slice(1)}`
   if (digits.length < 10 || digits.length > 15) return null
   return `+${digits}`
 }

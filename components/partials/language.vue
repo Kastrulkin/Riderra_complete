@@ -142,6 +142,7 @@
     margin-left: 25px;
     position: relative;
     cursor: pointer;
+    flex: 0 0 auto;
 
     &__wrap {
       display: flex;

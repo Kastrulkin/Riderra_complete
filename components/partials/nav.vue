@@ -294,6 +294,8 @@
       display: flex;
       align-items: center;
       margin: 0 auto;
+      width: 100%;
+      max-width: 1500px;
       gap: clamp(12px, 1.2vw, 24px);
       min-width: 0;
     }
@@ -462,6 +464,7 @@
   }
 
   .logo{
+    flex: 0 0 auto;
 
     &__img{
 
@@ -484,6 +487,7 @@
     min-width: 0;
 
     &__item{
+      flex: 0 0 auto;
       text-decoration: none;
       font-size: 15px;
       position: relative;
