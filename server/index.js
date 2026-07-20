@@ -2482,6 +2482,17 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true, manualOverridesJson: true }
       })
 
+      // A parser-version bump deliberately changes rowHash even when the Sheet
+      // row itself did not change. Keep the Order linked to that identical raw
+      // row so correcting the parsed date updates it instead of creating a
+      // second order with a new date-based external key.
+      if (!existingOrder && latestSnapshot?.orderId && latestSnapshot.rawPayload === JSON.stringify(raw)) {
+        existingOrder = await prisma.order.findFirst({
+          where: { id: latestSnapshot.orderId, tenantId: effectiveTenantId, source: 'google_sheet' },
+          select: { id: true, status: true, tenantId: true, externalKey: true, sourceOrderNumber: true, pickupAt: true, manualOverridesJson: true }
+        })
+      }
+
       // Existing rows used a row-based key. Match them by the stable trip identity
       // before replacing the key so moving rows in Google Sheets does not create duplicates.
       if (!existingOrder && stableExternalKey) {
