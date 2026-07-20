@@ -7482,7 +7482,7 @@ app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, re
         source: 'customer_chat',
         sourceRef: inboundMessage.id,
         dedupKey: `customer-reply:${inboundMessage.id}`,
-        linkUrl: `/admin-orders?view=chats&taskId=${task.id}`,
+        linkUrl: `/admin-chats?taskId=${task.id}`,
         payload: { taskId: task.id, orderId: task.orderId, classification: classification?.class || 'unclassified' }
       })
 
@@ -8184,7 +8184,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         source: 'customer_chat',
         sourceRef: inboundMessage.id,
         dedupKey: `customer-reply:${inboundMessage.id}`,
-        linkUrl: `/admin-orders?view=chats&taskId=${task.id}`,
+        linkUrl: `/admin-chats?taskId=${task.id}`,
         payload: { taskId: task.id, orderId: task.orderId, classification: classification?.class || 'unclassified' }
       })
 
@@ -8278,7 +8278,7 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
           details: errorText || 'Meta не доставила сообщение',
           type: 'message_delivery_failed', priority: 'high', source: 'whatsapp', sourceRef: message.id,
           dedupKey: `delivery-failed:${message.id}`,
-          linkUrl: failedTask.taskType === 'inbound_inquiry' ? `/admin-chats?inquiry=${failedTask.id}` : `/admin-orders?view=chats&taskId=${failedTask.id}`,
+          linkUrl: failedTask.taskType === 'inbound_inquiry' ? `/admin-chats?inquiry=${failedTask.id}` : `/admin-chats?taskId=${failedTask.id}`,
           payload: { taskId: failedTask.id, orderId: failedTask.orderId, messageId: message.id }
         })
       }

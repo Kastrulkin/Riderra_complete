@@ -634,8 +634,7 @@ export default {
     workspaceTabs: [
       { value: 'action', label: 'Требуют действия' },
       { value: 'orders', label: 'Все заказы' },
-      { value: 'email', label: 'Письма' },
-      { value: 'chats', label: 'Диалоги' }
+      { value: 'email', label: 'Письма' }
     ],
     autoSyncTimer: null,
     mode: 'table',
@@ -1136,7 +1135,12 @@ export default {
     }
   },
   mounted () {
-    this.workspaceView = ['action', 'orders', 'email', 'chats'].includes(String(this.$route.query.view || '')) ? String(this.$route.query.view) : 'orders'
+    if (String(this.$route.query.view || '') === 'chats') {
+      const query = this.$route.query.taskId ? { taskId: this.$route.query.taskId } : {}
+      this.$router.replace({ path: '/admin-chats', query })
+      return
+    }
+    this.workspaceView = ['action', 'orders', 'email'].includes(String(this.$route.query.view || '')) ? String(this.$route.query.view) : 'orders'
     this.restoreOrdersWorkspace()
     this.loadOpenMonths()
       .then(() => this.load())
