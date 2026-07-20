@@ -2128,10 +2128,11 @@ function parseDateTimeFlexible(input) {
 
   // Google Sheets in Riderra uses day-first dates. Parse these before the
   // JavaScript Date fallback, which treats 1/6/2026 as January 6.
-  const dayFirst = raw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/)
+  const dayFirst = raw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2}|\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/)
   if (dayFirst) {
     const [, d, m, y, hh = '0', mm = '0', ss = '0'] = dayFirst
-    return buildUtcDateExact(y, m, d, hh, mm, ss)
+    const fullYear = y.length === 2 ? 2000 + Number(y) : Number(y)
+    return buildUtcDateExact(fullYear, m, d, hh, mm, ss)
   }
 
   // yyyy-mm-dd [hh:mm] without a timezone is also a local Riderra time.
@@ -2351,7 +2352,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
     })
     // Include the parser version so a date parsing fix reprocesses unchanged
     // sheet rows exactly once instead of leaving their old pickupAt values.
-    const rowHash = crypto.createHash('sha256').update(`sheet-date-day-first-v2:${JSON.stringify(raw)}`).digest('hex')
+    const rowHash = crypto.createHash('sha256').update(`sheet-date-day-first-v3:${JSON.stringify(raw)}`).digest('hex')
 
     const latestSnapshot = await prisma.orderSourceSnapshot.findFirst({
       where: { sheetSourceId: source.id, sourceRow },
