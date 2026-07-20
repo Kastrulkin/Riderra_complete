@@ -69,7 +69,7 @@
             type="button"
             class="view-pill"
             :class="{ 'view-pill--active': activeView === view.key }"
-            @click="activeView = view.key"
+            @click="setActiveView(view.key)"
           >
             <span class="view-pill__label">{{ view.label }}</span>
             <span class="view-pill__count">{{ viewCount(view.key) }}</span>
@@ -203,6 +203,15 @@
               </div>
             </div>
           </template>
+        </div>
+
+        <div v-if="mode === 'table' && displayedTableRows.length > pageSize" class="table-pagination">
+          <span>{{ tablePageStart }}–{{ tablePageEnd }} из {{ displayedTableRows.length }}</span>
+          <div class="table-pagination__actions">
+            <button class="btn btn--small btn--ghost" type="button" :disabled="currentPage <= 1" @click="currentPage -= 1">Назад</button>
+            <span>{{ currentPage }} / {{ totalPages }}</span>
+            <button class="btn btn--small btn--ghost" type="button" :disabled="currentPage >= totalPages" @click="currentPage += 1">Дальше</button>
+          </div>
         </div>
 
         <div v-else class="table-wrap">
@@ -641,6 +650,8 @@ export default {
     mode: 'table',
     q: '',
     activeView: 'all',
+    currentPage: 1,
+    pageSize: 100,
     rows: [],
     rawRows: [],
     rawHeaders: [],
@@ -1053,8 +1064,22 @@ export default {
     displayedTableRows () {
       return this.filteredRows.filter((row) => this.matchesActiveView(row))
     },
+    totalPages () {
+      return Math.max(1, Math.ceil(this.displayedTableRows.length / this.pageSize))
+    },
+    paginatedTableRows () {
+      const safePage = Math.min(this.currentPage, this.totalPages)
+      const start = (safePage - 1) * this.pageSize
+      return this.displayedTableRows.slice(start, start + this.pageSize)
+    },
+    tablePageStart () {
+      return this.displayedTableRows.length ? ((this.currentPage - 1) * this.pageSize) + 1 : 0
+    },
+    tablePageEnd () {
+      return Math.min(this.currentPage * this.pageSize, this.displayedTableRows.length)
+    },
     operationalZones () {
-      const rows = this.displayedTableRows
+      const rows = this.paginatedTableRows
       const zones = [
         { key: 'attention', title: this.t.attentionZoneTitle, hint: this.t.attentionZoneHint, tone: 'critical', rows: [] },
         { key: 'flow', title: this.t.flowZoneTitle, hint: this.t.flowZoneHint, tone: 'info', rows: [] },
@@ -1188,6 +1213,10 @@ export default {
     setWorkspaceView (view) {
       this.workspaceView = view
       this.$router.replace({ path: '/admin-orders', query: view === 'action' ? {} : { view } })
+    },
+    setActiveView (view) {
+      this.activeView = view
+      this.currentPage = 1
     },
     headers () {
       const token = localStorage.getItem('authToken')
@@ -1648,6 +1677,7 @@ export default {
       return key.startsWith('row-') ? '-' : key
     },
     applyFilter () {
+      this.currentPage = 1
       const q = this.q.trim().toLowerCase()
       if (!q) {
         this.filteredRows = this.rows
@@ -3281,4 +3311,5 @@ export default {
   }
 }
 .workspace-heading{display:flex;justify-content:space-between;align-items:flex-end;margin:24px 0 14px}.workspace-heading h1{margin:0;color:#1f2d4d;font-size:30px}.workspace-heading p{margin:7px 0 0;color:#66748b}.workspace-tabs{display:flex;gap:4px;margin-bottom:18px;padding:4px;border:1px solid #dfe5ee;border-radius:14px;background:#f4f7fa;overflow:auto}.workspace-tabs button{flex:0 0 auto;padding:10px 16px;border:0;border-radius:10px;background:transparent;color:#5c6b82;font-weight:800;cursor:pointer}.workspace-tabs button.active{background:#fff;color:#1f2d4d;box-shadow:0 1px 4px rgba(20,32,61,.1)}.source-health{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800}.source-health--ok{background:#dcfce7;color:#166534}.source-health--stale{background:#fff7ed;color:#9a3412}.source-health--error{background:#fee2e2;color:#991b1b}.source-health--loading{background:#e0f2fe;color:#075985}
+.table-pagination{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:12px;padding:12px 16px;border:1px solid #dfe5ee;border-radius:12px;background:#fff;color:#5c6b82;font-weight:700}.table-pagination__actions{display:flex;align-items:center;gap:10px}@media(max-width:640px){.table-pagination{align-items:flex-start;flex-direction:column}.table-pagination__actions{width:100%;justify-content:space-between}}
 </style>
