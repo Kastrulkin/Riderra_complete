@@ -38,7 +38,7 @@
             class="admin-subtab"
             active-class="admin-subtab--active"
           >
-            <span>{{ tab.label }}</span>
+            <span class="admin-subtab__label">{{ tab.label }} <b v-if="tab.badge" class="admin-subtab__badge">{{ tab.badge }}</b></span>
             <small v-if="tab.hint">{{ tab.hint }}</small>
           </nuxt-link>
           <div
@@ -63,7 +63,8 @@ export default {
   },
   data: () => ({
     isCondensed: false,
-    selectedSectionKey: ''
+    selectedSectionKey: '',
+    inquiryUnread: 0
   }),
   computed: {
     lang () { return this.$store.state.language },
@@ -80,7 +81,7 @@ export default {
           tabs: [
             { to: '/admin', label: 'Обзор', hint: 'Сегодня и риски' },
             { to: '/admin-orders', label: 'Заказы', hint: 'Основная очередь' },
-            { to: '/admin-chats', label: 'Чаты', hint: 'Диалоги и SLA' },
+            { to: '/admin-chats', label: 'Чаты', hint: 'Диалоги и SLA', badge: this.inquiryUnread },
             { to: '/admin-ai-requests', label: 'AI заявки', hint: 'Публичные драфты' },
             { to: '/admin-ai-inbox', label: 'Заказы из почты', hint: 'Новые, изменения, отмены' }
           ]
@@ -147,7 +148,7 @@ export default {
           tabs: [
             { to: '/admin', label: 'Overview', hint: 'Today and risks' },
             { to: '/admin-orders', label: 'Orders', hint: 'Main queue' },
-            { to: '/admin-chats', label: 'Chats', hint: 'Dialogs and SLA' },
+            { to: '/admin-chats', label: 'Chats', hint: 'Dialogs and SLA', badge: this.inquiryUnread },
             { to: '/admin-ai-requests', label: 'AI requests', hint: 'Public drafts' },
             { to: '/admin-ai-inbox', label: 'AI Inbox', hint: 'Drafts' }
           ]
@@ -229,6 +230,7 @@ export default {
     }
   },
   mounted () {
+    this.loadInquiryUnread()
     if (!this.sticky) return
     this.handleScroll()
     window.addEventListener('scroll', this.handleScroll, { passive: true })
@@ -243,6 +245,15 @@ export default {
     window.removeEventListener('scroll', this.handleScroll)
   },
   methods: {
+    async loadInquiryUnread () {
+      try {
+        const token = localStorage.getItem('authToken')
+        const response = await fetch('/api/admin/chats/inquiries/unread-count', { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        if (!response.ok) return
+        const data = await response.json()
+        this.inquiryUnread = Number(data.unread || 0)
+      } catch (_) {}
+    },
     handleScroll () {
       if (window.innerWidth <= 640) {
         this.isCondensed = false
@@ -388,6 +399,24 @@ export default {
   font-size: 11px;
   font-weight: 500;
   color: #6b7280;
+}
+
+.admin-subtab__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.admin-subtab__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: #d92d20;
+  color: #fff;
+  font-size: 11px;
 }
 
 .admin-subtab--active {

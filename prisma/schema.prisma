@@ -987,8 +987,8 @@ model OpsTask {
 model ChatTask {
   id               String            @id @default(cuid())
   tenantId         String
-  orderId          String
-  taskType         String // clarification, dispatch_info
+  orderId          String?
+  taskType         String // clarification, dispatch_info, inbound_inquiry
   state            String // missing_data_detected, request_sent, customer_replied, order_complete, ready_to_notify, notify_draft, notify_sent, notify_ack, notify_no_reply, handoff_human, closed
   priority         Int               @default(100)
   agentConfigId    String?
@@ -996,18 +996,26 @@ model ChatTask {
   assignedToUserId String?
   channel          String? // telegram, whatsapp, email, sms
   customerActorId  String?
+  customerDisplayName String?
   recipientSource  String? // order, manual, test_override
+  conversationKey  String? // channel:external_sender_id for an inbound inquiry
+  unreadCount      Int               @default(0)
+  lastMessageAt    DateTime?
+  lastInboundAt    DateTime?
+  lastReadAt       DateTime?
+  closedAt         DateTime?
   openclawThreadId String?
   lastError        String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  order            Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order            Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
   agentConfig      ChatAgentConfig?  @relation(fields: [agentConfigId], references: [id], onDelete: SetNull)
   messages         ChatMessage[]
   learningEvents   AiLearningEvent[]
 
   @@unique([tenantId, orderId, taskType])
+  @@unique([tenantId, conversationKey], map: "uq_chat_task_conversation")
   @@index([tenantId, taskType, state, updatedAt])
   @@index([tenantId, priority, updatedAt])
   @@index([tenantId, channel, customerActorId, state])

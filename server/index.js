@@ -34,6 +34,7 @@ const {
   manualOrderValuesEqual,
   normalizeManualOrderPatch
 } = require('./utils/orderManualDetails')
+const { inquiryInboundIdempotencyKey, nextInquiryState } = require('./utils/chatInquiry')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
@@ -4026,6 +4027,11 @@ app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActor
 })
 
 const CHAT_STATE_TRANSITIONS = {
+  new: ['in_progress', 'closed', 'spam'],
+  in_progress: ['waiting_customer', 'linked_order', 'closed', 'spam'],
+  waiting_customer: ['in_progress', 'linked_order', 'closed', 'spam'],
+  linked_order: ['in_progress', 'waiting_customer', 'closed', 'spam'],
+  spam: ['new', 'closed'],
   missing_data_detected: ['request_sent', 'handoff_human', 'closed'],
   request_sent: ['customer_replied', 'handoff_human', 'closed'],
   customer_replied: ['pending_update_approval', 'field_validated', 'field_rejected', 'handoff_human'],
@@ -4039,12 +4045,38 @@ const CHAT_STATE_TRANSITIONS = {
   notify_ack: ['closed'],
   notify_no_reply: ['notify_sent', 'handoff_human', 'closed'],
   handoff_human: ['request_sent', 'notify_draft', 'closed'],
-  closed: []
+  closed: ['new', 'in_progress']
 }
 
 const CHAT_TASK_INITIAL_STATE = {
   clarification: 'missing_data_detected',
-  dispatch_info: 'ready_to_notify'
+  dispatch_info: 'ready_to_notify',
+  inbound_inquiry: 'new'
+}
+
+function inquiryConversationKey(channel, senderId) {
+  const normalizedChannel = normalizeChannelName(channel || 'whatsapp')
+  const normalizedSender = normalizedChannel === 'whatsapp'
+    ? normalizeE164Phone(senderId)
+    : String(senderId || '').trim()
+  return normalizedSender ? `${normalizedChannel}:${normalizedSender}` : null
+}
+
+function inquiryViewWhere(view) {
+  const normalized = String(view || 'new').trim().toLowerCase()
+  if (normalized === 'work') return { state: { in: ['in_progress', 'waiting_customer'] }, orderId: null }
+  if (normalized === 'linked') return { orderId: { not: null }, state: { notIn: ['closed', 'spam'] } }
+  if (normalized === 'closed') return { state: { in: ['closed', 'spam'] } }
+  return { state: 'new', orderId: null }
+}
+
+function chatDeliveryProblem(message) {
+  if (!message || message.deliveryStatus !== 'failed') return null
+  return {
+    title: 'Сообщение не отправлено',
+    action: 'Проверьте соединение и нажмите «Повторить отправку».',
+    detail: String(message.deliveryError || '').trim() || null
+  }
 }
 
 function chatTaskQueueStatus(task, created = false) {
@@ -5736,6 +5768,234 @@ app.post('/api/conversations/:conversationId/toggle-agent', authenticateToken, r
   }
 })
 
+app.get('/api/admin/chats/inquiries/unread-count', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const aggregate = await prisma.chatTask.aggregate({
+      where: { tenantId: req.actorContext.tenantId, taskType: 'inbound_inquiry', state: { notIn: ['closed', 'spam'] } },
+      _sum: { unreadCount: true }
+    })
+    res.json({ unread: aggregate._sum.unreadCount || 0 })
+  } catch (error) {
+    console.error('Error loading inquiry unread count:', error)
+    res.status(500).json({ error: 'Не удалось загрузить счётчик новых сообщений' })
+  }
+})
+
+app.get('/api/admin/chats/inquiries/staff', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const memberships = await prisma.tenantMembership.findMany({
+      where: { tenantId: req.actorContext.tenantId, isActive: true, user: { role: { not: 'driver' } } },
+      include: { user: { select: { id: true, email: true } } },
+      orderBy: { createdAt: 'asc' }
+    })
+    res.json({ rows: memberships.map((row) => ({ id: row.user.id, email: row.user.email })) })
+  } catch (error) {
+    console.error('Error loading inquiry staff:', error)
+    res.status(500).json({ error: 'Не удалось загрузить сотрудников' })
+  }
+})
+
+app.get('/api/admin/chats/inquiries/orders', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const q = String(req.query?.q || '').trim()
+    if (q.length < 2) return res.json({ rows: [] })
+    const rows = await prisma.order.findMany({
+      where: {
+        tenantId: req.actorContext.tenantId,
+        OR: [
+          { sourceOrderNumber: { contains: q, mode: 'insensitive' } },
+          { sourceBookingId: { contains: q, mode: 'insensitive' } },
+          { sourceInternalOrderNumber: { contains: q, mode: 'insensitive' } },
+          { customerPhone: { contains: q } },
+          { customerName: { contains: q, mode: 'insensitive' } }
+        ]
+      },
+      orderBy: { pickupAt: 'desc' },
+      take: 20,
+      select: { id: true, sourceOrderNumber: true, sourceBookingId: true, sourceInternalOrderNumber: true, pickupAt: true, fromPoint: true, toPoint: true, customerName: true, customerPhone: true }
+    })
+    res.json({ rows })
+  } catch (error) {
+    console.error('Error searching inquiry orders:', error)
+    res.status(500).json({ error: 'Не удалось найти заказы' })
+  }
+})
+
+app.get('/api/admin/chats/inquiries', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const view = String(req.query?.view || 'new')
+    const assignee = String(req.query?.assignee || '').trim()
+    const search = String(req.query?.search || '').trim()
+    const where = {
+      tenantId,
+      taskType: 'inbound_inquiry',
+      ...inquiryViewWhere(view),
+      ...(assignee === 'me' ? { assignedToUserId: req.user?.id || '__none__' } : {}),
+      ...(assignee === 'unassigned' ? { assignedToUserId: null } : {}),
+      ...(assignee && !['me', 'unassigned'].includes(assignee) ? { assignedToUserId: assignee } : {}),
+      ...(search ? { OR: [{ customerActorId: { contains: search } }, { customerDisplayName: { contains: search, mode: 'insensitive' } }] } : {})
+    }
+    const rowsRaw = await prisma.chatTask.findMany({
+      where,
+      orderBy: [{ unreadCount: 'desc' }, { lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
+      take: 200,
+      include: {
+        order: { select: { id: true, sourceOrderNumber: true, sourceBookingId: true, sourceInternalOrderNumber: true, pickupAt: true, fromPoint: true, toPoint: true } },
+        messages: { where: { direction: { not: 'internal' } }, orderBy: { createdAt: 'desc' }, take: 1 }
+      }
+    })
+    const ownerMap = await buildTaskOwnerMap(rowsRaw)
+    const rows = rowsRaw.map((row) => ({ ...attachTaskOwner(row, ownerMap), lastMessage: row.messages?.[0] || null, messages: undefined }))
+    res.json({ rows, view })
+  } catch (error) {
+    console.error('Error loading chat inquiries:', error)
+    res.status(500).json({ error: 'Не удалось загрузить обращения' })
+  }
+})
+
+app.get('/api/admin/chats/inquiries/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.id, tenantId: req.actorContext.tenantId, taskType: 'inbound_inquiry' },
+      include: {
+        order: { select: { id: true, sourceOrderNumber: true, sourceBookingId: true, sourceInternalOrderNumber: true, pickupAt: true, fromPoint: true, toPoint: true, customerName: true, customerPhone: true } },
+        messages: { where: { direction: { not: 'internal' } }, orderBy: { createdAt: 'asc' } }
+      }
+    })
+    if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
+    const ownerMap = await buildTaskOwnerMap([task])
+    const row = attachTaskOwner(task, ownerMap)
+    res.json({ inquiry: { ...row, messages: row.messages.map((message) => ({ ...message, deliveryProblem: chatDeliveryProblem(message), bodyJson: undefined })) } })
+  } catch (error) {
+    console.error('Error loading chat inquiry:', error)
+    res.status(500).json({ error: 'Не удалось открыть обращение' })
+  }
+})
+
+app.post('/api/admin/chats/inquiries/:id/read', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const task = await prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId: req.actorContext.tenantId, taskType: 'inbound_inquiry' }, select: { id: true } })
+    if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
+    const updated = await prisma.chatTask.update({ where: { id: task.id }, data: { unreadCount: 0, lastReadAt: new Date() } })
+    res.json({ inquiry: updated })
+  } catch (error) {
+    res.status(500).json({ error: 'Не удалось отметить сообщения прочитанными' })
+  }
+})
+
+app.post('/api/admin/chats/inquiries/:id/reply', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const bodyText = String(req.body?.bodyText || '').trim()
+    if (!bodyText) return res.status(400).json({ error: 'Введите текст ответа' })
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId, taskType: 'inbound_inquiry' } })
+    if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
+    if (task.state === 'spam') return res.status(409).json({ error: 'Сначала уберите отметку «Спам»' })
+    const payload = { taskId: task.id, bodyText }
+    ensureIdempotencyKey(req, 'chat_inquiry.reply_draft', payload)
+    const wrapped = await withIdempotency(req, 'chat_inquiry.reply_draft', payload, async () => {
+      const message = await prisma.chatMessage.create({ data: {
+        tenantId, chatTaskId: task.id, direction: 'outbound', source: 'operator', channel: task.channel || 'whatsapp', bodyText,
+        approvalStatus: 'pending_human', traceId: req.actorContext.traceId, idempotencyKey: getIdempotencyKey(req), createdByUserId: req.user?.id || null
+      } })
+      await prisma.chatTask.update({ where: { id: task.id }, data: { assignedToUserId: task.assignedToUserId || req.user?.id || null, state: task.state === 'new' ? 'in_progress' : task.state, lastMessageAt: new Date() } })
+      return message
+    })
+    res.json({ message: wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error creating inquiry reply:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Не удалось подготовить ответ' })
+  }
+})
+
+app.patch('/api/admin/chats/inquiries/:id', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId, taskType: 'inbound_inquiry' } })
+    if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
+    const data = {}
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'assignedToUserId')) {
+      const assignee = String(req.body?.assignedToUserId || '').trim() || null
+      if (assignee) {
+        const membership = await prisma.tenantMembership.findFirst({ where: { tenantId, userId: assignee, isActive: true } })
+        if (!membership) return res.status(400).json({ error: 'Сотрудник недоступен в этом бизнесе' })
+      }
+      data.assignedToUserId = assignee
+    }
+    if (req.body?.take === true) {
+      data.assignedToUserId = req.user?.id || null
+      data.state = 'in_progress'
+    }
+    if (req.body?.status) {
+      const status = String(req.body.status).trim()
+      if (!['new', 'in_progress', 'waiting_customer', 'closed', 'spam'].includes(status)) return res.status(400).json({ error: 'Недопустимый статус' })
+      data.state = status
+      data.closedAt = ['closed', 'spam'].includes(status) ? new Date() : null
+      if (status === 'in_progress' && !task.assignedToUserId && data.assignedToUserId === undefined) data.assignedToUserId = req.user?.id || null
+    }
+    const updated = await prisma.chatTask.update({ where: { id: task.id }, data })
+    await writeAuditLog({ tenantId, actorId: req.actorContext.actorId, actorRole: req.actorContext.actorRole, action: 'chat_inquiry.update', resource: 'chat_task', resourceId: task.id, traceId: req.actorContext.traceId, decision: 'policy_allowed', result: 'ok', context: data })
+    res.json({ inquiry: updated })
+  } catch (error) {
+    console.error('Error updating inquiry:', error)
+    res.status(500).json({ error: 'Не удалось обновить обращение' })
+  }
+})
+
+app.post('/api/admin/chats/inquiries/:id/link-order', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const orderId = String(req.body?.orderId || '').trim()
+    const [task, order] = await Promise.all([
+      prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId, taskType: 'inbound_inquiry' } }),
+      prisma.order.findFirst({ where: { id: orderId, tenantId } })
+    ])
+    if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
+    if (!order) return res.status(404).json({ error: 'Заказ не найден' })
+    const updated = await prisma.chatTask.update({ where: { id: task.id }, data: { orderId: order.id, state: 'linked_order', unreadCount: 0, lastReadAt: new Date() }, include: { order: true } })
+    await writeAuditLog({ tenantId, actorId: req.actorContext.actorId, actorRole: req.actorContext.actorRole, action: 'chat_inquiry.link_order', resource: 'chat_task', resourceId: task.id, traceId: req.actorContext.traceId, decision: 'human_approved', result: 'ok', context: { orderId: order.id } })
+    res.json({ inquiry: updated })
+  } catch (error) {
+    console.error('Error linking inquiry order:', error)
+    res.status(500).json({ error: 'Не удалось связать обращение с заказом' })
+  }
+})
+
+app.post('/api/admin/chats/inquiries/:id/create-order', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId, taskType: 'inbound_inquiry' } })
+    if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
+    if (task.orderId) return res.status(409).json({ error: 'Обращение уже связано с заказом' })
+    const fromPoint = String(req.body?.fromPoint || '').trim()
+    const toPoint = String(req.body?.toPoint || '').trim()
+    if (!fromPoint || !toPoint) return res.status(400).json({ error: 'Укажите место подачи и назначения' })
+    const order = await prisma.order.create({ data: {
+      tenantId,
+      source: 'customer_inquiry',
+      externalKey: `inquiry-${task.id}`,
+      fromPoint,
+      toPoint,
+      pickupAt: req.body?.pickupAt ? new Date(req.body.pickupAt) : null,
+      clientPrice: Number(req.body?.clientPrice || 0),
+      vehicleType: String(req.body?.vehicleType || 'standard'),
+      customerName: task.customerDisplayName || null,
+      customerPhone: task.customerActorId || null,
+      status: 'pending',
+      needsInfo: true,
+      infoReason: 'Создано из обращения клиента; добавьте заказ в Google Sheet',
+      comment: 'Черновик создан из входящего WhatsApp. Google Sheet остаётся источником истины.'
+    } })
+    const updated = await prisma.chatTask.update({ where: { id: task.id }, data: { orderId: order.id, state: 'linked_order', unreadCount: 0, lastReadAt: new Date() } })
+    await writeAuditLog({ tenantId, actorId: req.actorContext.actorId, actorRole: req.actorContext.actorRole, action: 'chat_inquiry.create_order', resource: 'order', resourceId: order.id, traceId: req.actorContext.traceId, decision: 'human_approved', result: 'ok', context: { chatTaskId: task.id, source: 'customer_inquiry' } })
+    res.status(201).json({ order, inquiry: updated, sourceOfTruthNotice: 'Добавьте заказ в Google Sheet; Riderra не изменяет таблицу автоматически.' })
+  } catch (error) {
+    console.error('Error creating order from inquiry:', error)
+    res.status(500).json({ error: 'Не удалось создать заказ из обращения' })
+  }
+})
+
 app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const { limit = '100', state = '', taskType = '' } = req.query
@@ -7073,10 +7333,12 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       const closesTaskOnSend = existingBodyJson?.closesTaskOnSend === true || existingBodyJson?.kind === 'customer_reply_ack'
       const nextState = closesTaskOnSend
         ? 'closed'
-        : (message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent')
+        : (message.chatTask.taskType === 'inbound_inquiry'
+            ? (message.chatTask.orderId ? 'linked_order' : 'waiting_customer')
+            : (message.chatTask.taskType === 'clarification' ? 'request_sent' : 'notify_sent'))
       await prisma.chatTask.update({
         where: { id: message.chatTask.id },
-        data: { state: nextState }
+        data: { state: nextState, lastMessageAt: new Date(), lastError: null, ...(nextState === 'closed' ? { closedAt: new Date() } : {}) }
       })
 
       await writeAuditLog({
@@ -7123,8 +7385,26 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
     })
   } catch (error) {
     console.error('Error sending chat message:', error)
+    const tenantId = req.actorContext?.tenantId
+    const messageId = String(req.params?.id || '').trim()
+    if (tenantId && messageId) {
+      try {
+        const failedMessage = await prisma.chatMessage.findFirst({ where: { id: messageId, tenantId }, select: { id: true, chatTaskId: true } })
+        if (failedMessage) {
+          const humanError = error.statusCode === 502
+            ? 'WhatsApp временно недоступен. Проверьте соединение и повторите отправку.'
+            : 'Сообщение не отправлено. Повторите попытку.'
+          await prisma.$transaction([
+            prisma.chatMessage.update({ where: { id: failedMessage.id }, data: { deliveryStatus: 'failed', failedAt: new Date(), deliveryError: humanError } }),
+            prisma.chatTask.update({ where: { id: failedMessage.chatTaskId }, data: { lastError: humanError } })
+          ])
+        }
+      } catch (persistError) {
+        console.error('Failed to persist chat send error:', persistError)
+      }
+    }
     if (error.statusCode === 502) {
-      return res.status(502).json({ error: 'OpenClaw send failed', details: error.message, ...(error.details || {}) })
+      return res.status(502).json({ error: 'WhatsApp временно недоступен. Повторите отправку.', action: 'retry', ...(error.details || {}) })
     }
     res.status(500).json({ error: 'Failed to send chat message' })
   }
@@ -7533,6 +7813,17 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
     const providerMessageId = String(req.body?.providerMessageId || req.body?.provider_message_id || req.body?.replyToProviderMessageId || '').trim()
     const senderPhone = normalizeE164Phone(req.body?.from || req.body?.phone || req.body?.sender)
     const requestedTaskType = String(req.body?.taskType || 'clarification').trim().toLowerCase() || 'clarification'
+    const channel = normalizeChannelName(req.body?.channel || 'whatsapp')
+    const conversationKey = inquiryConversationKey(channel, senderPhone)
+    const inboundExternalId = String(
+      req.body?.externalMessageId ||
+      req.body?.providerInboundMessageId ||
+      req.body?.messageId ||
+      req.body?.id ||
+      providerMessageId ||
+      ''
+    ).trim()
+    if (!inboundExternalId) return res.status(400).json({ error: 'externalMessageId is required' })
 
     let task = null
     const include = {
@@ -7560,12 +7851,20 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
       }
     }
 
+    if (!task && conversationKey) {
+      task = await prisma.chatTask.findUnique({
+        where: { tenantId_conversationKey: { tenantId, conversationKey } },
+        include
+      })
+    }
+
     if (!task && senderPhone) {
       const recipientMatches = await prisma.chatTask.findMany({
         where: {
           tenantId,
           channel: 'whatsapp',
           customerActorId: senderPhone,
+          taskType: { not: 'inbound_inquiry' },
           state: { notIn: ['closed'] }
         },
         orderBy: { updatedAt: 'desc' },
@@ -7602,27 +7901,46 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
       }
     }
 
-    if (!task) {
-      return res.status(404).json({
-        error: 'Chat task not found for inbound message',
-        lookup: { taskId, orderId, orderExternalKey, providerMessageId, senderPhone, taskType: requestedTaskType }
-      })
+    if (!task && conversationKey) {
+      const customerDisplayName = String(req.body?.customerName || req.body?.profileName || req.body?.name || '').trim() || null
+      try {
+        task = await prisma.chatTask.create({
+          data: {
+            tenantId,
+            orderId: null,
+            taskType: 'inbound_inquiry',
+            state: 'new',
+            priority: 30,
+            channel,
+            customerActorId: senderPhone,
+            customerDisplayName,
+            recipientSource: 'customer_initiated',
+            conversationKey,
+            lastMessageAt: new Date(),
+            lastInboundAt: new Date()
+          },
+          include
+        })
+      } catch (createError) {
+        if (createError?.code !== 'P2002') throw createError
+        task = await prisma.chatTask.findUnique({
+          where: { tenantId_conversationKey: { tenantId, conversationKey } },
+          include
+        })
+      }
     }
 
-    const inboundExternalId = String(
-      req.body?.externalMessageId ||
-      req.body?.providerInboundMessageId ||
-      req.body?.messageId ||
-      req.body?.id ||
-      providerMessageId ||
-      ''
-    ).trim()
+    if (!task) {
+      return res.status(404).json({ error: 'No conversation recipient could be identified' })
+    }
+
     const payload = {
       taskId: task.id,
       bodyText,
       channel: normalizeChannelName(req.body?.channel || task.channel || 'whatsapp'),
       inboundExternalId
     }
+    req.body.idempotency_key = inquiryInboundIdempotencyKey(payload.channel, inboundExternalId)
     ensureIdempotencyKey(req, 'internal.chat_task.inbound', payload)
 
     const wrapped = await withIdempotency(req, 'internal.chat_task.inbound', payload, async () => {
@@ -7646,6 +7964,50 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
           idempotencyKey: getIdempotencyKey(req)
         }
       })
+
+      if (task.taskType === 'inbound_inquiry') {
+        const nextState = nextInquiryState({ currentState: task.state, hasOrder: Boolean(task.orderId) })
+        const updatedTask = await prisma.chatTask.update({
+          where: { id: task.id },
+          data: {
+            state: nextState,
+            unreadCount: { increment: 1 },
+            lastMessageAt: new Date(),
+            lastInboundAt: new Date(),
+            closedAt: null,
+            lastError: null,
+            ...(String(req.body?.customerName || req.body?.profileName || req.body?.name || '').trim()
+              ? { customerDisplayName: String(req.body?.customerName || req.body?.profileName || req.body?.name).trim() }
+              : {})
+          }
+        })
+        await createOpsTask({
+          tenantId,
+          userId: updatedTask.assignedToUserId || null,
+          title: `Новое сообщение от ${updatedTask.customerDisplayName || updatedTask.customerActorId || 'клиента'}`,
+          details: bodyText.slice(0, 240),
+          type: 'inbound_inquiry',
+          priority: 'normal',
+          source: 'whatsapp',
+          sourceRef: inboundMessage.id,
+          dedupKey: `inbound-inquiry:${inboundExternalId}`,
+          linkUrl: `/admin-chats?inquiry=${updatedTask.id}`,
+          payload: { taskId: updatedTask.id, messageId: inboundMessage.id }
+        })
+        await writeAuditLog({
+          tenantId,
+          actorId: 'openclaw',
+          actorRole: 'system',
+          action: 'chat_inquiry.inbound',
+          resource: 'chat_task',
+          resourceId: updatedTask.id,
+          traceId: req.actorContext.traceId,
+          decision: 'policy_allowed',
+          result: 'ok',
+          context: { inboundMessageId: inboundMessage.id, externalMessageId: inboundExternalId }
+        })
+        return { message: inboundMessage, taskId: updatedTask.id, taskState: updatedTask.state, inquiry: true }
+      }
 
       const runtimeConfig = getOpenClawRuntimeConfig()
       const classifyPayload = buildOpenClawEnvelope({
@@ -7910,11 +8272,13 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
         await createOpsTask({
           tenantId,
           userId: failedTask.assignedToUserId || null,
-          title: `Не отправлено сообщение по заказу ${publicOrderReference(failedTask.order) || failedTask.orderId}`,
+          title: failedTask.orderId
+            ? `Не отправлено сообщение по заказу ${publicOrderReference(failedTask.order) || failedTask.orderId}`
+            : `Не отправлено сообщение клиенту ${failedTask.customerDisplayName || failedTask.customerActorId || ''}`.trim(),
           details: errorText || 'Meta не доставила сообщение',
           type: 'message_delivery_failed', priority: 'high', source: 'whatsapp', sourceRef: message.id,
           dedupKey: `delivery-failed:${message.id}`,
-          linkUrl: `/admin-orders?view=chats&taskId=${failedTask.id}`,
+          linkUrl: failedTask.taskType === 'inbound_inquiry' ? `/admin-chats?inquiry=${failedTask.id}` : `/admin-orders?view=chats&taskId=${failedTask.id}`,
           payload: { taskId: failedTask.id, orderId: failedTask.orderId, messageId: message.id }
         })
       }

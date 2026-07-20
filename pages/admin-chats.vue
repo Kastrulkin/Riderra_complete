@@ -8,6 +8,14 @@
       <div class="container">
         <admin-tabs :sticky="false" />
 
+        <div class="chat-mode-switch" aria-label="Режим чатов">
+          <button class="btn" :class="inboxMode ? 'btn--primary' : 'btn--ghost'" type="button" @click="openInboxMode">Обращения клиентов</button>
+          <button class="btn" :class="!inboxMode ? 'btn--primary' : 'btn--ghost'" type="button" @click="openOperationsMode">Диалоги по заказам</button>
+        </div>
+
+        <inquiry-inbox v-if="inboxMode" />
+        <template v-else>
+
         <header class="page-head">
           <div>
             <h1>Очередь диалогов</h1>
@@ -506,6 +514,7 @@
             </template>
           </main>
         </div>
+        </template>
       </div>
     </section>
   </div>
@@ -513,12 +522,14 @@
 
 <script>
 import adminTabs from '~/components/partials/adminTabs.vue'
+import InquiryInbox from '~/components/admin/chats/InquiryInbox.vue'
 
 export default {
   layout: 'admin',
   middleware: 'staff',
-  components: { adminTabs },
+  components: { adminTabs, InquiryInbox },
   data: () => ({
+    inboxMode: true,
     tasks: [],
     selectedTask: null,
     taskType: '',
@@ -803,12 +814,25 @@ export default {
     }
   },
   mounted() {
-    this.initPage().catch(() => {})
+    this.inboxMode = this.$route.query.mode !== 'orders'
+    if (!this.inboxMode) this.initPage().catch(() => {})
   },
   beforeDestroy() {
     this.stopAutoRefresh()
   },
   methods: {
+    openInboxMode() {
+      this.inboxMode = true
+      this.stopAutoRefresh()
+      const query = { ...this.$route.query }
+      delete query.mode
+      this.$router.replace({ query }).catch(() => {})
+    },
+    openOperationsMode() {
+      this.inboxMode = false
+      this.$router.replace({ query: { ...this.$route.query, mode: 'orders' } }).catch(() => {})
+      if (!this.autoRefreshTimer) this.initPage().catch(() => {})
+    },
     async initPage() {
       this.currentUserId = this.extractCurrentUserId()
       await this.loadWhatsappTemplates()
@@ -2050,6 +2074,11 @@ export default {
 </script>
 
 <style scoped>
+.chat-mode-switch {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+}
 .admin-chat-page { min-height: 100vh; color: #17233d; }
 .chat-section { padding-top: 26px; padding-bottom: 40px; }
 .container { max-width: 1480px; }

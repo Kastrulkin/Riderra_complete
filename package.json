@@ -31,6 +31,7 @@
     "smoke:chat-inbound-e2e": "node scripts/chat_inbound_e2e_smoke.js",
     "smoke:chat-internal-inbound": "node scripts/chat_internal_inbound_smoke.js",
     "smoke:chat-whatsapp-template-policy": "node scripts/chat_whatsapp_template_policy_smoke.js",
+    "smoke:chat-inquiry": "node scripts/chat_inquiry_contract_smoke.js",
     "smoke:order-sheet-identity": "node scripts/order_sheet_identity_smoke.js",
     "ops:backfill-email-workspace": "node scripts/backfill_email_order_workspace.js"
   },
