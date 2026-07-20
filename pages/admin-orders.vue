@@ -133,7 +133,7 @@
               </div>
 
               <div class="date-block">
-                <div class="date-block__value">{{ o.date || '-' }}</div>
+                <div class="date-block__value">{{ formatDateTime(o.date) }}</div>
               </div>
 
               <div class="route-point route-point--from">
@@ -254,7 +254,7 @@
             <div class="order-focus-card__title">{{ routeLabel(selectedOrder) }}</div>
             <div class="order-focus-card__meta">
               <span class="status-pill" :class="statusPillClass(selectedOrder.status)">{{ statusLabel(selectedOrder.status) }}</span>
-              <span>{{ selectedOrder.date || '-' }}</span>
+              <span>{{ formatDateTime(selectedOrder.date) }}</span>
               <span>{{ orderIdentity(selectedOrder) }}</span>
             </div>
             <div class="order-focus-card__summary">
@@ -1535,7 +1535,13 @@ export default {
       if (!value) return '-'
       const date = new Date(value)
       if (Number.isNaN(date.getTime())) return '-'
-      return date.toLocaleString()
+      return date.toLocaleString(this.$store.state.language === 'ru' ? 'ru-RU' : 'en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
     },
     formatMoney (value) {
       if (value === null || value === undefined || value === '') return '-'

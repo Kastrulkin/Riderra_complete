@@ -238,7 +238,7 @@
           <div class="focus-card__head">
             <div>
               <h4>{{ orderDraft.counterpartyName || 'Черновик без контрагента' }}</h4>
-              <div class="hint">{{ [orderDraft.city, orderDraft.pickupAt].filter(Boolean).join(' · ') || 'Дата и город пока не определены' }}</div>
+              <div class="hint">{{ [orderDraft.city, orderDraft.pickupAt ? formatDate(orderDraft.pickupAt) : ''].filter(Boolean).join(' · ') || 'Дата и город пока не определены' }}</div>
             </div>
             <span class="status-pill" :class="`status-pill--${draft.status}`">{{ draft.status }}</span>
           </div>
@@ -300,7 +300,7 @@
             <div><strong>Пассажир:</strong> {{ orderDraft.customerName || '-' }}</div>
             <div><strong>Номер:</strong> {{ orderDraft.orderNumber || '-' }}</div>
             <div><strong>Город:</strong> {{ orderDraft.city || '-' }}</div>
-            <div><strong>Дата/время:</strong> {{ orderDraft.pickupAt || '-' }}</div>
+            <div><strong>Дата/время:</strong> {{ formatDate(orderDraft.pickupAt) }}</div>
             <div><strong>Откуда:</strong> {{ orderDraft.fromPoint || '-' }}</div>
             <div><strong>Куда:</strong> {{ orderDraft.toPoint || '-' }}</div>
             <div><strong>Класс:</strong> {{ orderDraft.vehicleType || '-' }}</div>
@@ -965,7 +965,13 @@ export default {
       if (!value) return '-'
       const d = new Date(value)
       if (Number.isNaN(d.getTime())) return value
-      return d.toLocaleString()
+      return d.toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
     },
     formatMoney (value, currency = 'EUR') {
       if (value == null || value === '') return '-'
