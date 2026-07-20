@@ -624,11 +624,13 @@ import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 import OrderWorkspaceQueues from '~/components/admin/orders/OrderWorkspaceQueues.vue'
 
+let ordersWorkspaceMemory = null
+
 export default {
   middleware: 'staff',
   components: { navigation, adminTabs, OrderWorkspaceQueues },
   data: () => ({
-    workspaceView: 'action',
+    workspaceView: 'orders',
     workspaceTabs: [
       { value: 'action', label: 'Требуют действия' },
       { value: 'orders', label: 'Все заказы' },
@@ -1134,7 +1136,7 @@ export default {
     }
   },
   mounted () {
-    this.workspaceView = ['action', 'orders', 'email', 'chats'].includes(String(this.$route.query.view || '')) ? String(this.$route.query.view) : 'action'
+    this.workspaceView = ['action', 'orders', 'email', 'chats'].includes(String(this.$route.query.view || '')) ? String(this.$route.query.view) : 'orders'
     this.restoreOrdersWorkspace()
     this.loadOpenMonths()
       .then(() => this.load())
@@ -1151,7 +1153,7 @@ export default {
       if (typeof window === 'undefined') return
       try {
         const rememberedMonth = String(window.localStorage.getItem('riderra.orders.activeMonth') || '')
-        const cached = JSON.parse(window.sessionStorage.getItem('riderra.orders.workspace') || 'null')
+        const cached = ordersWorkspaceMemory || JSON.parse(window.sessionStorage.getItem('riderra.orders.workspace') || 'null')
         if (rememberedMonth) this.selectedMonth = rememberedMonth
         if (!cached || cached.monthLabel !== this.selectedMonth || !Array.isArray(cached.rows)) return
         this.rows = cached.rows
@@ -1163,12 +1165,13 @@ export default {
       if (typeof window === 'undefined' || !this.selectedMonth) return
       try {
         window.localStorage.setItem('riderra.orders.activeMonth', this.selectedMonth)
-        window.sessionStorage.setItem('riderra.orders.workspace', JSON.stringify({
+        ordersWorkspaceMemory = {
           monthLabel: this.selectedMonth,
           source: this.currentSource,
           rows: this.rows,
           savedAt: new Date().toISOString()
-        }))
+        }
+        window.sessionStorage.setItem('riderra.orders.workspace', JSON.stringify(ordersWorkspaceMemory))
       } catch (_) {}
     },
     selectMonth () {
