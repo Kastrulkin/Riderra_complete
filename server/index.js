@@ -9971,10 +9971,13 @@ app.get('/api/admin/orders/open-months', authenticateToken, resolveActorContext,
     const lang = String(req.query.lang || 'ru')
     const sources = await prisma.sheetSource.findMany({
       where: { tenantId, isActive: true },
-      orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }]
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
     })
-    const latestOpenMonth = sources.find((source) => sheetSourceMonthStatus(source) === 'open')?.monthLabel || null
-    const openSources = sources.filter((source) => sheetSourceMonthStatus(source) === 'open' && source.monthLabel === latestOpenMonth)
+    // isActive is the administrator-controlled current source. Do not infer it
+    // from the month label: a business may intentionally keep using an older or
+    // custom-labelled sheet.
+    const currentSource = sources.find((source) => sheetSourceMonthStatus(source) === 'open') || null
+    const openSources = currentSource ? [currentSource] : []
     const grouped = new Map()
     for (const source of openSources) {
       if (!grouped.has(source.monthLabel)) grouped.set(source.monthLabel, [])
@@ -10063,7 +10066,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
     } else {
       const activeSources = await prisma.sheetSource.findMany({
         where: { isActive: true, tenantId },
-        orderBy: [{ monthLabel: 'desc' }, { updatedAt: 'desc' }]
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
       })
       source = activeSources.find((item) => sheetSourceMonthStatus(item) === 'open') || activeSources[0] || null
     }
@@ -11384,9 +11387,10 @@ app.get('/api/admin/sheet-sources', authenticateToken, resolveActorContext, requ
   try {
     const sources = await prisma.sheetSource.findMany({
       where: { tenantId: req.actorContext.tenantId },
-      orderBy: [{ isActive: 'desc' }, { monthLabel: 'desc' }, { createdAt: 'desc' }]
+      orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }, { createdAt: 'desc' }]
     })
-    res.json(sources)
+    const currentSourceId = sources.find((source) => source.isActive)?.id || null
+    res.json(sources.map((source) => ({ ...source, isCurrent: source.id === currentSourceId })))
   } catch (error) {
     console.error('Error fetching sheet sources:', error)
     res.status(500).json({ error: 'Failed to fetch sheet sources' })
@@ -11894,18 +11898,26 @@ app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, req
     const payload = { name, monthLabel, googleSheetId: normalizedSheetId, tabName, detailsTabName, columnMapping, isActive, syncEnabled }
     ensureIdempotencyKey(req, 'sheet_source.create', payload)
     const wrapped = await withIdempotency(req, 'sheet_source.create', payload, async () => {
-      const source = await prisma.sheetSource.create({
-        data: {
-          tenantId: req.actorContext.tenantId,
-          name,
-          monthLabel,
-          googleSheetId: normalizedSheetId,
-          tabName: tabName || 'таблица',
-          detailsTabName: detailsTabName || 'подробности',
-          columnMapping: columnMapping ? JSON.stringify(columnMapping) : null,
-          isActive: !!isActive,
-          syncEnabled: !!syncEnabled
+      const source = await prisma.$transaction(async (tx) => {
+        if (isActive) {
+          await tx.sheetSource.updateMany({
+            where: { tenantId: req.actorContext.tenantId, isActive: true },
+            data: { isActive: false, syncEnabled: false }
+          })
         }
+        return tx.sheetSource.create({
+          data: {
+            tenantId: req.actorContext.tenantId,
+            name,
+            monthLabel,
+            googleSheetId: normalizedSheetId,
+            tabName: tabName || 'таблица',
+            detailsTabName: detailsTabName || 'подробности',
+            columnMapping: columnMapping ? JSON.stringify(columnMapping) : null,
+            isActive: !!isActive,
+            syncEnabled: isActive ? true : !!syncEnabled
+          }
+        })
       })
       await writeAuditLog({
         tenantId: req.actorContext.tenantId,
@@ -11951,9 +11963,18 @@ app.put('/api/admin/sheet-sources/:sourceId', authenticateToken, resolveActorCon
     const payload = { sourceId: existing.id, data }
     ensureIdempotencyKey(req, 'sheet_source.update', payload)
     const wrapped = await withIdempotency(req, 'sheet_source.update', payload, async () => {
-      const updated = await prisma.sheetSource.update({
-        where: { id: existing.id },
-        data
+      const updated = await prisma.$transaction(async (tx) => {
+        if (data.isActive === true) {
+          await tx.sheetSource.updateMany({
+            where: { tenantId: req.actorContext.tenantId, isActive: true, id: { not: existing.id } },
+            data: { isActive: false, syncEnabled: false }
+          })
+          data.syncEnabled = true
+        }
+        return tx.sheetSource.update({
+          where: { id: existing.id },
+          data
+        })
       })
       await writeAuditLog({
         tenantId: req.actorContext.tenantId,

@@ -137,7 +137,7 @@
               <div>{{ s.tabName }}</div>
               <div>{{ s.detailsTabName || 'подробности' }}</div>
               <div class="entity-stack">
-                <strong>{{ s.isActive ? 'active' : 'off' }}</strong>
+                <strong>{{ s.isCurrent ? t.currentSheet : t.inactiveSheet }}</strong>
                 <span class="muted" v-if="s.lastSyncStatus">{{ s.lastSyncStatus }}</span>
                 <span class="muted muted--error" v-if="s.lastSyncError">{{ s.lastSyncError }}</span>
               </div>
@@ -146,7 +146,7 @@
                   {{ syncingSheetId === s.id ? t.syncing : t.sync }}
                 </button>
                 <button class="btn btn--small" @click="openMapping(s)">{{ t.mapping }}</button>
-                <button class="btn btn--small" @click="toggleSheet(s)">{{ s.isActive ? t.deactivate : t.activate }}</button>
+                <button v-if="!s.isCurrent" class="btn btn--small" @click="toggleSheet(s)">{{ t.makeCurrent }}</button>
               </div>
             </div>
           </div>
@@ -296,7 +296,7 @@ export default {
       return this.canViewStaffRoles ? list : list.filter((section) => section.key !== 'access')
     },
     overviewCards () {
-      const activeSheets = this.sheets.filter((sheet) => sheet.isActive).length
+      const activeSheets = this.sheets.filter((sheet) => sheet.isCurrent).length
       const mappedSheets = this.sheets.filter((sheet) => String(sheet.columnMapping || '').trim()).length
       const telegramLinked = this.staff.filter((user) => String((user.telegramLinks && user.telegramLinks[0] && user.telegramLinks[0].telegramUserId) || '').trim()).length
       const teamScoped = this.staff.filter((user) => {
@@ -306,7 +306,7 @@ export default {
       const cards = this.$store.state.language === 'ru'
         ? [
             { key: 'sheets', value: this.sheets.length, label: 'Источников', hint: 'Подключённые месячные таблицы', tone: 'neutral' },
-            { key: 'active', value: activeSheets, label: 'Активных', hint: 'Сейчас участвуют в синхронизации', tone: activeSheets ? 'ok' : 'warn' },
+            { key: 'active', value: activeSheets, label: 'Актуальная таблица', hint: 'Показывается в заказах и синхронизируется', tone: activeSheets ? 'ok' : 'warn' },
             { key: 'mapped', value: mappedSheets, label: 'С маппингом', hint: 'Колонки связаны с Riderra', tone: mappedSheets ? 'info' : 'warn' },
             { key: 'staff', value: this.staff.length, label: 'Сотрудников', hint: 'Стартовый roster кабинета', tone: 'neutral' },
             { key: 'telegram', value: telegramLinked, label: 'С Telegram ID', hint: 'Готовы к командам и уведомлениям', tone: telegramLinked ? 'ok' : 'warn' },
@@ -314,7 +314,7 @@ export default {
           ]
         : [
             { key: 'sheets', value: this.sheets.length, label: 'Sources', hint: 'Connected monthly sheets', tone: 'neutral' },
-            { key: 'active', value: activeSheets, label: 'Active', hint: 'Currently syncing', tone: activeSheets ? 'ok' : 'warn' },
+            { key: 'active', value: activeSheets, label: 'Current sheet', hint: 'Shown in orders and synchronized', tone: activeSheets ? 'ok' : 'warn' },
             { key: 'mapped', value: mappedSheets, label: 'Mapped', hint: 'Columns linked to Riderra', tone: mappedSheets ? 'info' : 'warn' },
             { key: 'staff', value: this.staff.length, label: 'Staff', hint: 'Current portal roster', tone: 'neutral' },
             { key: 'telegram', value: telegramLinked, label: 'With Telegram ID', hint: 'Ready for commands and alerts', tone: telegramLinked ? 'ok' : 'warn' },
@@ -395,6 +395,9 @@ export default {
             mappingHint: 'Если структура таблицы меняется, здесь можно без кода указать, какая колонка Google Sheet во что должна попадать.',
             activate: 'Активировать',
             deactivate: 'Выключить',
+            currentSheet: 'Актуальная',
+            inactiveSheet: 'Неактуальная',
+            makeCurrent: 'Сделать актуальной',
             close: 'Закрыть'
           }
         : {
@@ -447,6 +450,9 @@ export default {
             mappingHint: 'Use this when the Google Sheet structure changes and Riderra fields need a new column mapping.',
             activate: 'Activate',
             deactivate: 'Disable',
+            currentSheet: 'Current',
+            inactiveSheet: 'Inactive',
+            makeCurrent: 'Make current',
             close: 'Close'
           }
     },
@@ -598,7 +604,7 @@ export default {
         await this.jsonRequest(`/api/admin/sheet-sources/${sheet.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...this.headers() },
-          body: JSON.stringify({ isActive: !sheet.isActive })
+          body: JSON.stringify({ isActive: true })
         })
         await this.load()
       } catch (error) {
