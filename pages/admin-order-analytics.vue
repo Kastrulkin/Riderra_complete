@@ -1,6 +1,5 @@
 <template>
   <div>
-    <navigation />
     <div class="page-background"><div class="page-background__gradient"></div><div class="page-background__overlay"></div></div>
     <section class="site-section site-section--pf admin-section">
       <div class="container">
@@ -97,7 +96,6 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 
 const archiveUtils = require('~/utils/orderArchiveDashboard')
@@ -139,8 +137,9 @@ const RankingTable = {
 }
 
 export default {
+  layout: 'admin',
   middleware: 'staff',
-  components: { navigation, adminTabs, StatsTable, RankingTable },
+  components: { adminTabs, StatsTable, RankingTable },
   data: () => ({
     months: [],
     drivers: [],

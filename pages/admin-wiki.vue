@@ -1,6 +1,5 @@
 <template>
   <div>
-    <navigation />
     <section class="site-section site-section--pf wiki-page">
       <div class="container">
         <admin-tabs />
@@ -275,12 +274,12 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 
 export default {
+  layout: 'admin',
   middleware: 'staff',
-  components: { navigation, adminTabs },
+  components: { adminTabs },
   data: () => ({
     pages: [],
     selectedPage: null,

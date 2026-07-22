@@ -1,19 +1,22 @@
 <template>
-  <div>
-    <navigation></navigation>
-    <div class="page-background">
-      <div class="page-background__gradient"></div>
-      <div class="page-background__overlay"></div>
-    </div>
-
-    <section class="site-section site-section--pf auth-section">
-      <div class="container">
-        <div class="auth-container">
-          <div class="auth-card">
+  <section class="auth-section">
+    <div class="auth-shell">
+      <aside class="auth-story">
+        <nuxt-link to="/" class="auth-brand"><img src="/img/logo.svg" alt="Riderra" /></nuxt-link>
+        <div>
+          <span class="auth-kicker">Рабочее пространство команды</span>
+          <h2>Заказы, клиенты и AI-помощники — в одном месте.</h2>
+          <p>После входа вы сразу увидите, что требует внимания и какую работу система уже выполняет.</p>
+        </div>
+        <div class="auth-system"><i></i><span><strong>Система готова</strong><small>Данные сотрудников защищены</small></span></div>
+      </aside>
+      <div class="auth-main">
+        <div class="auth-card">
+            <nuxt-link to="/" class="auth-brand auth-brand--mobile"><img src="/img/logo.svg" alt="Riderra" /></nuxt-link>
             <h1 class="auth-title">{{ t.title }}</h1>
-            <p v-if="t.subtitle" class="auth-subtitle">{{ t.subtitle }}</p>
+            <p class="auth-subtitle">Войдите, чтобы продолжить работу с заказами.</p>
 
-            <form @submit.prevent="login" class="auth-form">
+            <form class="auth-form" @submit.prevent="login">
               <div class="form-group">
                 <label for="email">{{ t.email }}</label>
                 <input
@@ -22,46 +25,39 @@
                   type="email"
                   :placeholder="t.emailPlaceholder"
                   required
+                  autocomplete="username"
+                  autofocus
                   class="form-input"
                 />
               </div>
 
               <div class="form-group">
                 <label for="password">{{ t.password }}</label>
-                <input
-                  id="password"
-                  v-model="form.password"
-                  type="password"
-                  :placeholder="t.passwordPlaceholder"
-                  required
-                  class="form-input"
-                />
+                <div class="password-field">
+                  <input id="password" v-model="form.password" :type="showPassword ? 'text' : 'password'" :placeholder="t.passwordPlaceholder" required autocomplete="current-password" class="form-input" />
+                  <button type="button" :aria-label="showPassword ? 'Скрыть пароль' : 'Показать пароль'" @click="showPassword = !showPassword">{{ showPassword ? 'Скрыть' : 'Показать' }}</button>
+                </div>
               </div>
 
-              <div v-if="error" class="error-message">
+              <div v-if="error" class="error-message" role="alert">
                 {{ error }}
               </div>
 
               <button type="submit" class="btn btn--primary btn--full" :disabled="loading">
-                <span v-if="loading">{{ t.loading }}</span>
+                <span v-if="loading" class="button-progress"><i></i>{{ t.loading }}</span>
                 <span v-else>{{ t.login }}</span>
               </button>
             </form>
-          </div>
+            <p class="auth-help">Проблема со входом? Обратитесь к владельцу рабочего пространства.</p>
         </div>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
-
 export default {
-  layout: 'default',
-  components: {
-    navigation
-  },
+  layout: 'auth',
   computed: {
     lang () { return this.$store.state.language },
     t () {
@@ -100,6 +96,7 @@ export default {
         email: '',
         password: ''
       },
+      showPassword: false,
       loading: false,
       error: ''
     }
@@ -157,32 +154,61 @@ export default {
 
 <style scoped lang="scss">
 .auth-section {
-  padding-top: 160px;
-  padding-bottom: 40px;
-  position: relative;
-  z-index: 10;
-  color: #1f2937;
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  background: #f3f4f6;
+  padding: 20px;
+  color: #17233d;
+  background: #f5f7fa;
 }
-
-.auth-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 60vh;
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(320px, .9fr) minmax(420px, 1.1fr);
+  min-height: calc(100vh - 40px);
+  max-width: 1180px;
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid #e1e6ee;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(28, 41, 66, .09);
 }
+.auth-story {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 44px;
+  background: #17233d;
+  color: #fff;
+}
+.auth-brand { display: inline-flex; width: fit-content; }
+.auth-brand img { width: 118px; }
+.auth-story h2 { max-width: 460px; margin: 14px 0; color: #fff; font-size: clamp(30px, 4vw, 50px); line-height: 1.08; letter-spacing: -.035em; }
+.auth-story p { max-width: 470px; margin: 0; color: rgba(255,255,255,.68); font-size: 16px; line-height: 1.6; }
+.auth-kicker { color: #a9b9d4; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.auth-system { display: flex; align-items: center; gap: 11px; }
+.auth-system i { width: 10px; height: 10px; border-radius: 50%; background: #65c489; box-shadow: 0 0 0 6px rgba(101,196,137,.12); }
+.auth-system span { display: grid; }
+.auth-system strong { font-size: 13px; }
+.auth-system small { color: rgba(255,255,255,.55); font-size: 11px; }
+.auth-main { display: grid; place-items: center; padding: 44px; }
+.auth-brand--mobile { display: none; }
+.auth-card { width: 100%; max-width: 390px; }
+.auth-help { margin: 22px 0 0; color: #7a879b; text-align: center; font-size: 12px; line-height: 1.5; }
+.button-progress { display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+.button-progress i { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: authSpin .8s linear infinite; }
+@keyframes authSpin { to { transform: rotate(360deg); } }
+.password-field { position: relative; }
+.password-field .form-input { padding-right: 82px; }
+.password-field button { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; border-radius: 7px; background: transparent; padding: 7px; color: #52627b; font-size: 12px; cursor: pointer; }
+.password-field button:hover { background: #f1f4f8; }
+.password-field .form-input { width: 100%; }
 
-.auth-card {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 40px;
-  border: 1px solid #e5e7eb;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+@media(max-width: 820px) {
+  .auth-section { padding: 0; }
+  .auth-shell { grid-template-columns: 1fr; min-height: 100vh; border: 0; border-radius: 0; }
+  .auth-story { display: none; }
+  .auth-main { padding: 28px 20px; }
+  .auth-brand--mobile { display: inline-flex; margin-bottom: 42px; }
+  .auth-brand--mobile img { filter: brightness(0) saturate(100%) invert(13%) sepia(17%) saturate(1597%) hue-rotate(181deg) brightness(94%); }
 }
 
 .auth-title {
@@ -190,14 +216,14 @@ export default {
   font-weight: 700;
   color: #111827;
   margin-bottom: 8px;
-  text-align: center;
+  text-align: left;
 }
 
 .auth-subtitle {
   font-size: 16px;
   color: #4b5563;
   margin-bottom: 32px;
-  text-align: center;
+  text-align: left;
 }
 
 .auth-form {
@@ -230,9 +256,9 @@ export default {
 
 .form-input:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #28456f;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 3px rgba(40, 69, 111, 0.13);
 }
 
 .form-input::placeholder {
@@ -240,20 +266,20 @@ export default {
 }
 
 .error-message {
-  background: rgba(220,53,69,0.2);
-  color: #ff9aa8;
+  background: #fff1f0;
+  color: #9f241a;
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid rgba(220,53,69,0.3);
+  border: 1px solid #f3c3be;
   font-size: 14px;
   text-align: center;
 }
 
 .btn {
-  background: #007bff;
+  background: #17233d;
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 24px;
   font-size: 16px;
   font-weight: 600;
@@ -262,7 +288,7 @@ export default {
 }
 
 .btn:hover:not(:disabled) {
-  background: #0056b3;
+  background: #243757;
   transform: translateY(-1px);
 }
 
@@ -274,4 +300,5 @@ export default {
 .btn--full {
   width: 100%;
 }
+@media(prefers-reduced-motion:reduce){.button-progress i{animation:none}.btn:hover:not(:disabled){transform:none}}
 </style>

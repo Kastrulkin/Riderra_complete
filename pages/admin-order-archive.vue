@@ -1,6 +1,5 @@
 <template>
   <div>
-    <navigation />
     <div class="page-background"><div class="page-background__gradient"></div><div class="page-background__overlay"></div></div>
     <section class="site-section site-section--pf admin-section">
       <div class="container">
@@ -130,7 +129,6 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 import DashboardHeader from '~/components/admin/orderArchive/DashboardHeader.vue'
 import KpiGrid from '~/components/admin/orderArchive/KPIGrid.vue'
@@ -145,9 +143,9 @@ const ARCHIVE_OVERVIEW_LIMIT_MONTHS = 24
 const ARCHIVE_OVERVIEW_TIMEOUT_MS = 15000
 
 export default {
+  layout: 'admin',
   middleware: 'staff',
   components: {
-    navigation,
     adminTabs,
     DashboardHeader,
     KpiGrid,

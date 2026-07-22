@@ -1,6 +1,5 @@
 <template>
   <div>
-    <navigation></navigation>
     <div class="page-background">
       <div class="page-background__gradient"></div>
       <div class="page-background__overlay"></div>
@@ -112,11 +111,12 @@
 </template>
 
 <script>
-import Navigation from '@/components/partials/nav'
 import AdminTabs from '@/components/partials/adminTabs'
 
 export default {
-  components: { Navigation, AdminTabs },
+  layout: 'admin',
+  middleware: 'staff',
+  components: { AdminTabs },
   data: () => ({
     rows: [],
     summary: {},

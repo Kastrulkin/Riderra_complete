@@ -1,6 +1,5 @@
 <template>
   <div>
-    <navigation></navigation>
     <div class="page-background">
       <div class="page-background__gradient"></div>
       <div class="page-background__overlay"></div>
@@ -8,6 +7,7 @@
     
     <section class="site-section site-section--pf admin-section">
       <div class="container">
+        <admin-tabs />
         <div class="admin-header">
           <h1 class="h2 admin-title">{{ t.title }}</h1>
           <div class="header-actions">
@@ -218,15 +218,13 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import Papa from 'papaparse'
+import adminTabs from '~/components/partials/adminTabs.vue'
 
 export default {
-  layout: 'default',
+  layout: 'admin',
   middleware: 'admin',
-  components: {
-    navigation
-  },
+  components: { adminTabs },
   computed: {
     lang() { return this.$store.state.language },
     t() {
@@ -1010,4 +1008,3 @@ export default {
   }
 }
 </style>
-

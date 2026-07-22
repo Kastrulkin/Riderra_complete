@@ -1,6 +1,5 @@
 <template>
   <div>
-    <navigation></navigation>
     <div class="page-background"><div class="page-background__gradient"></div><div class="page-background__overlay"></div></div>
     <section class="site-section site-section--pf admin-section">
       <div class="container">
@@ -244,12 +243,12 @@
 </template>
 
 <script>
-import navigation from '~/components/partials/nav.vue'
 import adminTabs from '~/components/partials/adminTabs.vue'
 
 export default {
+  layout: 'admin',
   middleware: 'staff',
-  components: { navigation, adminTabs },
+  components: { adminTabs },
   data: () => ({
     activeSection: 'sources',
     sheets: [],

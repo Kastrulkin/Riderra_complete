@@ -8,9 +8,11 @@
   >
     <div class="admin-section-intro">
       <div>
-        <p class="admin-section-intro__eyebrow">{{ activeSectionContext.kicker }}</p>
-        <h2 class="admin-section-intro__title">{{ activeSectionContext.label }}</h2>
-        <p class="admin-section-intro__description">{{ activeSectionContext.description }}</p>
+        <p class="admin-section-intro__eyebrow">{{ activeSectionContext.label }}</p>
+        <div class="admin-section-intro__line">
+          <h2 class="admin-section-intro__title">{{ activeTabContext.label }}</h2>
+          <p class="admin-section-intro__description">{{ activeTabContext.hint || activeSectionContext.description }}</p>
+        </div>
       </div>
     </div>
 
@@ -30,24 +32,10 @@
 
     <div class="admin-subtabs-shell">
       <div class="admin-subtabs">
-        <template v-for="tab in paddedActiveTabs">
-          <nuxt-link
-            v-if="!tab.placeholder"
-            :key="tab.to"
-            :to="tab.to"
-            class="admin-subtab"
-            active-class="admin-subtab--active"
-          >
-            <span class="admin-subtab__label">{{ tab.label }} <b v-if="tab.badge" class="admin-subtab__badge">{{ tab.badge }}</b></span>
-            <small v-if="tab.hint">{{ tab.hint }}</small>
-          </nuxt-link>
-          <div
-            v-else
-            :key="tab.key"
-            class="admin-subtab admin-subtab--placeholder"
-            aria-hidden="true"
-          ></div>
-        </template>
+        <nuxt-link v-for="tab in activeTabs" :key="tab.to" :to="tab.to" :exact="tab.to === '/admin'" class="admin-subtab" active-class="admin-subtab--active">
+          <span class="admin-subtab__label">{{ tab.label }} <b v-if="tab.badge" class="admin-subtab__badge">{{ tab.badge }}</b></span>
+          <small v-if="tab.hint">{{ tab.hint }}</small>
+        </nuxt-link>
       </div>
     </div>
   </div>
@@ -68,6 +56,11 @@ export default {
   }),
   computed: {
     lang () { return this.$store.state.language },
+    canAdmin () {
+      const user = this.$store.state.user || {}
+      const permissions = user.permissions || []
+      return user.role === 'admin' || permissions.includes('*') || permissions.includes('admin.panel')
+    },
     routePath () { return String(this.$route?.path || '/admin') },
     sections () {
       const ru = [
@@ -82,7 +75,7 @@ export default {
             { to: '/admin', label: 'Обзор', hint: 'Сегодня и риски' },
             { to: '/admin-orders', label: 'Заказы', hint: 'Основная очередь' },
             { to: '/admin-chats', label: 'Чаты', hint: 'Диалоги и SLA', badge: this.inquiryUnread },
-            { to: '/admin-ai-requests', label: 'AI заявки', hint: 'Публичные драфты' }
+            { to: '/admin-ai-requests', label: 'Заявки с сайта', hint: 'Новые запросы' }
           ]
         },
         {
@@ -95,7 +88,11 @@ export default {
           tabs: [
             { to: '/admin-drivers', label: 'Водители', hint: 'Люди и машины' },
             { to: '/admin-crm', label: 'CRM', hint: 'Клиенты и компании' },
-            { to: '/admin-directions-matrix', label: 'Направления', hint: 'Спрос и покрытие' }
+            { to: '/admin-directions-matrix', label: 'Направления', hint: 'Спрос и покрытие' },
+            ...(this.canAdmin ? [
+              { to: '/admin-city-routes', label: 'Маршруты', hint: 'Города и направления' },
+              { to: '/admin-driver-switch', label: 'Войти как водитель', hint: 'Проверка кабинета' }
+            ] : [])
           ]
         },
         {
@@ -125,13 +122,13 @@ export default {
         {
           key: 'admin',
           label: 'Администрирование',
-          hint: 'Доступы и конфигурация',
+          hint: 'Настройки и доступы',
           kicker: 'Системный контур',
           description: 'Здесь живут доступы, агенты, VPN и внутренняя конфигурация. Это редкие, но важные административные действия.',
           defaultTo: '/admin-settings',
           tabs: [
             { to: '/admin-settings', label: 'Настройки', hint: 'Источники и люди' },
-            { to: '/admin-agents', label: 'Агенты', hint: 'Prompt и workflow' },
+            { to: '/admin-agents', label: 'AI-помощники', hint: 'Поведение и тесты' },
             { to: '/admin-vpn', label: 'VPN', hint: 'Доступ сотрудников' }
           ]
         }
@@ -161,7 +158,11 @@ export default {
           tabs: [
             { to: '/admin-drivers', label: 'Drivers', hint: 'People and vehicles' },
             { to: '/admin-crm', label: 'CRM', hint: 'Clients and companies' },
-            { to: '/admin-directions-matrix', label: 'Coverage', hint: 'Demand and supply' }
+            { to: '/admin-directions-matrix', label: 'Coverage', hint: 'Demand and supply' },
+            ...(this.canAdmin ? [
+              { to: '/admin-city-routes', label: 'Routes', hint: 'Cities and directions' },
+              { to: '/admin-driver-switch', label: 'View as driver', hint: 'Check driver workspace' }
+            ] : [])
           ]
         },
         {
@@ -218,13 +219,9 @@ export default {
     activeSectionContext () {
       return this.sections.find((section) => section.key === this.activeSectionKey) || this.sections[0]
     },
-    paddedActiveTabs () {
-      const tabs = [...this.activeTabs]
-      const padTo = Math.max(...this.sections.map((section) => section.tabs.length))
-      while (tabs.length < padTo) {
-        tabs.push({ placeholder: true, key: `placeholder-${tabs.length}` })
-      }
-      return tabs
+    activeTabContext () {
+      const path = this.routePath
+      return this.activeTabs.find(tab => path === tab.to || (tab.to !== '/admin' && path.startsWith(`${tab.to}/`))) || this.activeTabs[0] || this.activeSectionContext
     }
   },
   mounted () {
@@ -282,11 +279,10 @@ export default {
   display: grid;
   min-width: 0;
   max-width: 100%;
-  gap: 14px;
-  margin-bottom: 22px;
-  padding: 14px 0 10px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.94) 78%, rgba(255,255,255,0) 100%);
-  backdrop-filter: blur(12px);
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 0;
+  background: transparent;
   transition: padding 180ms ease, gap 180ms ease, top 180ms ease;
 }
 
@@ -299,23 +295,23 @@ export default {
 .admin-sections {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
   align-items: stretch;
 }
 
 .admin-section-pill {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   text-align: left;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid #d6deee;
-  background: #f8fbff;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #e1e6ee;
+  background: #fff;
   color: #223356;
   cursor: pointer;
   min-width: 0;
-  min-height: 92px;
+  min-height: 54px;
   align-content: center;
   transition: min-height 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
 }
@@ -331,10 +327,10 @@ export default {
 }
 
 .admin-section-pill--active {
-  background: linear-gradient(135deg, #ff017a 0%, #702283 100%);
-  border-color: transparent;
+  background: #17233d;
+  border-color: #17233d;
   color: #fff;
-  box-shadow: 0 18px 34px rgba(112, 34, 131, 0.24);
+  box-shadow: none;
 }
 
 .admin-section-pill--active .admin-section-pill__hint {
@@ -344,63 +340,60 @@ export default {
 .admin-subtabs {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px;
 }
 
 .admin-section-intro {
   min-width: 0;
-  border: 1px solid #ead7f0;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(255, 240, 247, 0.92) 0%, rgba(248, 244, 255, 0.96) 100%);
-  padding: 22px 24px;
-  box-shadow: 0 16px 30px rgba(112, 34, 131, 0.08);
+  padding: 2px 2px 4px;
 }
+.admin-section-intro__line{display:flex;align-items:baseline;gap:12px}
 
 .admin-section-intro__eyebrow {
-  margin: 0 0 6px;
-  font-size: 12px;
+  margin: 0 0 3px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #702283;
+  color: #718096;
 }
 
 .admin-section-intro__title {
   margin: 0;
-  font-size: 34px;
+  font-size: 23px;
   line-height: 1.1;
   color: #17233d;
 }
 
 .admin-section-intro__description {
-  margin: 10px 0 0;
+  margin: 0;
   max-width: 920px;
   color: #5d6c88;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .admin-subtabs-shell {
   min-width: 0;
   max-width: 100%;
-  min-height: 68px;
+  min-height: 50px;
   transition: min-height 180ms ease;
 }
 
 .admin-subtab {
   display: grid;
   gap: 2px;
-  min-width: 120px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid #d6deee;
+  min-width: 0;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid #e1e6ee;
   background: #fff;
   color: #334155;
   text-decoration: none;
   font-size: 14px;
   font-weight: 700;
-  min-height: 68px;
+  min-height: 50px;
   align-content: center;
   box-sizing: border-box;
   transition: min-height 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
@@ -431,15 +424,13 @@ export default {
 }
 
 .admin-subtab--active {
-  background: linear-gradient(135deg, #1a237e 0%, #0d1421 100%);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 12px 28px rgba(13, 20, 33, 0.2);
+  background: #eef2f8;
+  border-color: #ccd6e5;
+  color: #17233d;
+  box-shadow: none;
 }
 
-.admin-subtab--active small {
-  color: rgba(255, 255, 255, 0.82);
-}
+.admin-subtab--active small { color: #52627b; }
 
 .admin-subtab--placeholder {
   visibility: hidden;
@@ -483,16 +474,15 @@ export default {
   .admin-nav-shell--sticky { top: 88px; }
 
   .admin-sections {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    overflow-x: auto;
   }
 
   .admin-subtabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .admin-subtabs-shell {
-    min-height: 146px;
-  }
+  .admin-subtabs-shell { min-height: 50px; }
 
   .admin-section-intro__title {
     font-size: 24px;
@@ -517,8 +507,11 @@ export default {
   }
 
   .admin-sections {
-    grid-template-columns: 1fr;
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 3px;
   }
+  .admin-section-pill{flex:0 0 150px}
 
   .admin-subtabs-shell {
     min-height: unset;
@@ -534,7 +527,7 @@ export default {
   }
 
   .admin-section-intro__description {
-    font-size: 14px;
+    display:none;
   }
 
   .admin-subtabs {
