@@ -9401,7 +9401,8 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
           where: { id: failedTask.id },
           data: {
             state: failedTaskState,
-            lastError: errorText || 'Meta не доставила сообщение'
+            lastError: errorText || 'Meta не доставила сообщение',
+            agentPaused: true
           }
         })
         await createOpsTask({

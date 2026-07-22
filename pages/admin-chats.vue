@@ -1789,6 +1789,9 @@ export default {
       if (String(task?.state || '') === 'closed') {
         return { title: 'Диалог завершён', detail: 'Агент закончил работу по этой задаче', live: false }
       }
+      if (String(task?.state || '') === 'handoff_human') {
+        return { title: 'Нужна помощь сотрудника', detail: task?.lastError || 'Агент остановлен до решения сотрудника', live: false }
+      }
       const runs = task?.agentRuns || []
       const run = runs.find((item) => ['queued', 'running'].includes(item.status)) || runs[0]
       if (!run) return { title: 'Агент готов к следующему шагу', detail: this.stateLabel(task?.state), live: false }
