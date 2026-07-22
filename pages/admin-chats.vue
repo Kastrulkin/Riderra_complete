@@ -11,7 +11,10 @@
         <div class="chat-mode-switch" aria-label="Режим чатов">
           <button class="btn" :class="inboxMode ? 'btn--primary' : 'btn--ghost'" type="button" @click="openInboxMode">Обращения клиентов</button>
           <button class="btn" :class="!inboxMode ? 'btn--primary' : 'btn--ghost'" type="button" @click="openOperationsMode">Диалоги по заказам</button>
+          <button class="btn btn--ghost chat-mode-switch__sandbox" type="button" @click="sandboxOpen = !sandboxOpen">{{ sandboxOpen ? 'Закрыть песочницу' : 'Проверить AI-агента' }}</button>
         </div>
+
+        <agent-sandbox-panel v-if="sandboxOpen" class="chat-sandbox" />
 
         <inquiry-inbox v-if="inboxMode" />
         <template v-else>
@@ -546,13 +549,15 @@
 <script>
 import adminTabs from '~/components/partials/adminTabs.vue'
 import InquiryInbox from '~/components/admin/chats/InquiryInbox.vue'
+import AgentSandboxPanel from '~/components/admin/chats/AgentSandboxPanel.vue'
 
 export default {
   layout: 'admin',
   middleware: 'staff',
-  components: { adminTabs, InquiryInbox },
+  components: { adminTabs, InquiryInbox, AgentSandboxPanel },
   data: () => ({
     inboxMode: true,
+    sandboxOpen: false,
     tasks: [],
     selectedTask: null,
     taskType: '',

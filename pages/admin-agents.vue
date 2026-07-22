@@ -202,6 +202,31 @@
                   </div>
                 </div>
 
+                <div v-if="activeTab === 'knowledge'" class="knowledge-panel">
+                  <div class="workflow-header">
+                    <div>
+                      <h3>Публичная информация Riderra</h3>
+                      <p>Единственные общие сведения о компании и услугах, которые агент вправе сообщать клиентам. Если ответа здесь нет, диалог передаётся сотруднику.</p>
+                    </div>
+                    <span class="status-pill" :class="publicKnowledgeStatus === 'published' ? 'status-pill--active' : ''">{{ versionStatusLabel(publicKnowledgeStatus) }}</span>
+                  </div>
+                  <div class="safety-callout">
+                    <strong>Защита {{ safetyPolicyVersion }}</strong>
+                    <span>Правила безопасности нельзя изменить промптом агента: посторонние темы, провокации, внутренние данные и неизвестные факты всегда передаются сотруднику.</span>
+                  </div>
+                  <field-control label="Утверждённые сведения" helper="Пишите короткими проверяемыми пунктами: услуги, общие условия, контакты и разрешённые формулировки. Не добавляйте внутренние процессы, секреты и обещания цены.">
+                    <textarea v-model="publicKnowledgeText" class="input textarea" placeholder="• Riderra provides pre-booked passenger transfer services.&#10;• Customer contact: info@riderra.com"></textarea>
+                  </field-control>
+                  <div v-if="publicKnowledgeChecks.length" class="knowledge-checks">
+                    <span v-for="check in publicKnowledgeChecks" :key="check.key" :class="check.passed ? 'check--ok' : 'check--error'">{{ check.passed ? '✓' : '!' }} {{ check.label }}</span>
+                  </div>
+                  <div class="local-actions">
+                    <button class="btn btn--ghost" type="button" :disabled="knowledgeSaving || !publicKnowledgeText.trim()" @click="saveKnowledgeDraft">Сохранить черновик</button>
+                    <button class="btn btn--ghost" type="button" :disabled="knowledgeSaving || !publicKnowledgeVersionId" @click="testKnowledge">Проверить</button>
+                    <button class="btn btn--primary" type="button" :disabled="knowledgeSaving || publicKnowledgeStatus !== 'tested'" @click="publishKnowledge">Опубликовать</button>
+                  </div>
+                </div>
+
                 <div v-if="activeTab === 'workflow'" class="workflow-editor">
                   <div class="scenario-map" aria-label="Этапы работы агента">
                     <div v-for="(step, index) in scenarioSteps" :key="step.key" class="scenario-step">
@@ -326,6 +351,8 @@
                           <span>{{ stateHuman(message.stateAfter) }}</span>
                           <span v-if="message.extraction && message.extraction.valid">Найдено: {{ extractionHuman(message.extraction) }}</span>
                           <span>{{ message.trace.reason }}</span>
+                          <span v-if="message.trace.safety">Риск: {{ message.trace.safety.category }}</span>
+                          <span v-if="message.trace.policyAction">Решение: {{ message.trace.policyAction }}</span>
                         </div>
                       </div>
                       <div v-if="!sandboxMessages.length" class="empty empty--inline">Введите реплику клиента и посмотрите решение агента.</div>
@@ -514,6 +541,12 @@ export default {
     promptText: '',
     promptDescription: '',
     promptSaving: false,
+    publicKnowledgeText: '',
+    publicKnowledgeVersionId: '',
+    publicKnowledgeStatus: 'draft',
+    publicKnowledgeChecks: [],
+    safetyPolicyVersion: 'riderra-safety-v1',
+    knowledgeSaving: false,
     whatsappTemplates: [],
     templateSaving: false,
     templateNotice: '',
@@ -527,6 +560,7 @@ export default {
       return [
         { key: 'overview', label: this.t.tabOverview },
         { key: 'behavior', label: this.t.tabBehavior },
+        { key: 'knowledge', label: 'Публичная информация' },
         { key: 'workflow', label: this.t.tabWorkflow },
         { key: 'test', label: 'Песочница' },
         { key: 'versions', label: 'Версии и активность' },
@@ -555,6 +589,13 @@ export default {
         { key: 'refusal', label: 'Отказ отвечать' },
         { key: 'language', label: 'Русский язык' },
         { key: 'inbound_inquiry', label: 'Первичное обращение' }
+        ,{ key: 'approved_commercial', label: 'Разрешённый вопрос об услугах' }
+        ,{ key: 'abuse', label: 'Безопасность: оскорбление' }
+        ,{ key: 'prompt_injection', label: 'Безопасность: отмена правил' }
+        ,{ key: 'internal_info', label: 'Безопасность: внутренние данные' }
+        ,{ key: 'politics', label: 'Безопасность: посторонняя тема' }
+        ,{ key: 'complaint', label: 'Передача: жалоба' }
+        ,{ key: 'human_request', label: 'Передача: просьба о сотруднике' }
       ]
     },
     isCreating () {
@@ -852,7 +893,65 @@ export default {
     },
     async reloadAll () {
       this.notice = ''
-      await Promise.all([this.loadAgents(), this.loadPrompts(), this.loadWhatsappTemplates(), this.loadRuntimeOverview()])
+      await Promise.all([this.loadAgents(), this.loadPrompts(), this.loadWhatsappTemplates(), this.loadRuntimeOverview(), this.loadPublicKnowledge()])
+    },
+    async loadPublicKnowledge () {
+      try {
+        const response = await fetch('/api/admin/ai/public-knowledge', { headers: this.headers() })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось загрузить публичную информацию')
+        this.safetyPolicyVersion = data.policyVersion || 'riderra-safety-v1'
+        const versions = data.template?.versions || []
+        const selected = versions.find(item => item.status === 'draft' || item.status === 'tested') || versions.find(item => item.status === 'published') || null
+        this.publicKnowledgeText = selected?.content || ''
+        this.publicKnowledgeVersionId = selected?.id || ''
+        this.publicKnowledgeStatus = selected?.status || 'draft'
+        this.publicKnowledgeChecks = selected?.checks || []
+      } catch (error) {
+        this.showNotice(error?.message || 'Не удалось загрузить публичную информацию', 'error')
+      }
+    },
+    async saveKnowledgeDraft () {
+      if (this.knowledgeSaving || !this.publicKnowledgeText.trim()) return
+      this.knowledgeSaving = true
+      try {
+        const response = await fetch('/api/admin/ai/public-knowledge/drafts', { method: 'POST', headers: this.headers(), body: JSON.stringify({ content: this.publicKnowledgeText }) })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось сохранить черновик')
+        this.publicKnowledgeVersionId = data.version.id
+        this.publicKnowledgeStatus = 'draft'
+        this.publicKnowledgeChecks = []
+        this.showNotice(`Черновик версии ${data.version.version} сохранён. Теперь проверьте его.`)
+      } catch (error) {
+        this.showNotice(error?.message || 'Не удалось сохранить черновик', 'error')
+      } finally { this.knowledgeSaving = false }
+    },
+    async testKnowledge () {
+      if (!this.publicKnowledgeVersionId || this.knowledgeSaving) return
+      this.knowledgeSaving = true
+      try {
+        const response = await fetch(`/api/admin/ai/public-knowledge/${this.publicKnowledgeVersionId}/test`, { method: 'POST', headers: this.headers(), body: '{}' })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Проверка не выполнена')
+        this.publicKnowledgeStatus = data.version.status
+        this.publicKnowledgeChecks = data.version.checks || []
+        this.showNotice(data.passed ? 'Проверка пройдена. Версию можно публиковать.' : 'Исправьте отмеченные проблемы.', data.passed ? 'ok' : 'error')
+      } catch (error) {
+        this.showNotice(error?.message || 'Проверка не выполнена', 'error')
+      } finally { this.knowledgeSaving = false }
+    },
+    async publishKnowledge () {
+      if (!this.publicKnowledgeVersionId || this.publicKnowledgeStatus !== 'tested' || this.knowledgeSaving) return
+      this.knowledgeSaving = true
+      try {
+        const response = await fetch(`/api/admin/ai/public-knowledge/${this.publicKnowledgeVersionId}/publish`, { method: 'POST', headers: this.headers(), body: '{}' })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось опубликовать')
+        this.publicKnowledgeStatus = 'published'
+        this.showNotice(`Публичная информация версии ${data.version.version} опубликована`)
+      } catch (error) {
+        this.showNotice(error?.message || 'Не удалось опубликовать', 'error')
+      } finally { this.knowledgeSaving = false }
     },
     async loadAgents () {
       const res = await fetch('/api/admin/chats/agents', { headers: this.headers() })
@@ -1488,7 +1587,13 @@ export default {
 .test-result .test-output { margin-top:12px; max-height:280px; overflow:auto; }
 .toggle-grid { display:flex; flex-wrap:wrap; gap:12px; }
 .switch { display:inline-flex; align-items:center; gap:8px; border:1px solid #d8e0ee; border-radius:14px; background:#f8fafc; color:#17233f; font-weight:900; padding:12px 14px; }
-.workflow-editor, .templates-panel, .test-panel, .advanced-panel { display:grid; gap:18px; }
+.workflow-editor, .templates-panel, .test-panel, .advanced-panel, .knowledge-panel { display:grid; gap:18px; }
+.safety-callout { display:grid; gap:5px; border:1px solid #bfdbfe; border-radius:16px; background:#eff6ff; color:#1e3a8a; padding:14px 16px; }
+.safety-callout span { color:#475569; line-height:1.45; }
+.knowledge-checks { display:flex; flex-wrap:wrap; gap:8px; }
+.knowledge-checks span { border-radius:999px; padding:7px 10px; font-size:12px; font-weight:800; }
+.check--ok { background:#ecfdf5; color:#166534; }
+.check--error { background:#fef2f2; color:#991b1b; }
 .runtime-overview { display:grid; gap:16px; border:1px solid #d8e0ee; border-radius:16px; padding:16px; background:#f8fafc; }
 .runtime-status { display:flex; align-items:center; gap:12px; }
 .runtime-status p, .versions-head p, .sandbox-head p { margin:4px 0 0; color:#64748b; }
