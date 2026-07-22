@@ -4268,6 +4268,42 @@ async function pickDefaultAgentIdForTaskType(tenantId, taskType) {
   return agent?.id || null
 }
 
+async function ensureInboundSupportAgent(tenantId) {
+  let agent = await prisma.chatAgentConfig.findFirst({
+    where: { tenantId, taskType: 'inbound_inquiry', isActive: true },
+    orderBy: { updatedAt: 'desc' }
+  })
+  if (agent) return agent
+  agent = await prisma.chatAgentConfig.create({
+    data: {
+      tenantId,
+      code: 'customer-support-v1',
+      name: 'Первичные обращения клиентов',
+      type: 'customer_support',
+      taskType: 'inbound_inquiry',
+      description: 'Готовит ответы клиентам, которые написали первыми и ещё не связаны с заказом.',
+      identity: 'Riderra customer support assistant.',
+      task: 'Understand the first customer request and prepare a helpful reply draft for an employee.',
+      personality: 'Calm, concise, helpful and professional.',
+      speechStyle: 'Short, clear, friendly and businesslike.',
+      promptText: [
+        'Default customer-facing language is English unless the customer clearly writes in Russian.',
+        'Understand the request and prepare one helpful reply draft.',
+        'Do not invent booking details, prices or availability.',
+        'Do not link or create an order automatically.',
+        'Every outbound message must remain Draft -> Approval -> Execute.'
+      ].join('\n'),
+      workflowJson: JSON.stringify({ startState: 'new', finalStates: ['closed'], states: ['new', 'in_progress', 'waiting_customer', 'linked_order', 'closed', 'handoff_human', 'failed'] }),
+      restrictionsJson: JSON.stringify({ externalSendRequiresApproval: true, cannotCreateOrder: true, cannotLinkOrder: true }),
+      variablesJson: JSON.stringify({ defaultLanguage: 'en', model: 'deepseek-v4-flash' }),
+      isActive: true,
+      requiresApproval: true
+    }
+  })
+  await ensurePublishedAgentVersion(agent, null)
+  return agent
+}
+
 function buildOrderChatPrefill(order = null, taskType = 'clarification') {
   const route = [order?.fromPoint, order?.toPoint].filter(Boolean).join(' -> ')
   const orderKey = publicOrderReference(order)
@@ -4668,68 +4704,287 @@ async function getActivePromptVersionByKey(tenantId, key) {
 }
 
 async function runAgentDryTest({ agent, message, conversationHistory = [], userData = null }) {
-  const endpoint = String(process.env.OPENCLAW_SANDBOX_BRIDGE_URL || '').trim()
-  const token = String(process.env.OPENCLAW_SANDBOX_BRIDGE_TOKEN || process.env.OPENCLAW_LOCALOS_TOKEN || '').trim()
-  if (endpoint && token) {
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          business_id: agent.tenantId,
-          agent_id: agent.id,
-          message: String(message || ''),
-          conversation_history: Array.isArray(conversationHistory) ? conversationHistory : [],
-          dry_run: true,
-          actor: {
-            user_id: String(userData?.id || ''),
-            role: 'sandbox_operator'
-          }
-        })
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        return {
-          success: false,
-          runtime: 'openclaw_bridge',
-          error: data?.error || `OpenClaw bridge HTTP ${response.status}`
-        }
-      }
-      return {
-        success: true,
-        runtime: 'openclaw_bridge',
-        response: String(data.response || data.message || '').trim(),
-        usage: data.usage || {},
-        decisionTrace: data.decision_trace || data.trace || {},
-        toolCalls: data.tool_calls || []
-      }
-    } catch (error) {
-      return {
-        success: false,
-        runtime: 'openclaw_bridge',
-        error: error.message || 'OpenClaw bridge failed'
-      }
+  const traceId = crypto.randomUUID()
+  const payload = buildOpenClawEnvelope({
+    tenantId: agent.tenantId,
+    traceId,
+    actor: { id: userData?.id || null, role: 'sandbox_operator' },
+    capability: 'riderra.customer.message.compose',
+    approval: { mode: 'human_required' },
+    billing: { mode: 'track_only', unit: 'message' },
+    extra: {
+      sandbox: { enabled: true, external_send_available: false },
+      task: { id: `dry-run:${agent.id}`, type: agent.taskType || 'clarification', state: 'waiting_customer', channel: 'sandbox' },
+      order: { id: 'sandbox-order', lang: 'en' },
+      agent: { code: agent.code, name: agent.name, prompt: agent.promptText || 'Do not invent facts.', identity: agent.identity, task: agent.task, personality: agent.personality, speech_style: agent.speechStyle },
+      conversation_history: Array.isArray(conversationHistory) ? conversationHistory : [],
+      input: String(message || '')
     }
-  }
-
-  const fallbackPrompt = String(agent.promptText || '').slice(0, 1200)
-  const simulated = [
-    'Я помощник Riderra, работаю в тестовом режиме.',
-    `Агент: ${agent.name}`,
-    `Тип: ${agent.type || 'order_completion'}`,
-    `Сообщение: ${String(message || '').trim() || '-'}`,
-    fallbackPrompt ? `Prompt: ${fallbackPrompt}` : ''
-  ].filter(Boolean).join('\n')
+  })
+  const runtimeConfig = getOpenClawRuntimeConfig()
+  const result = await callOpenClawRuntime({ path: runtimeConfig.buildPath, payload, kind: 'build', traceId })
+  const responseText = extractTextFromOpenClawResponse(result.data || {}) || 'Thank you for your message. A Riderra team member will review the details and reply shortly.'
   return {
     success: true,
-    runtime: 'local_fallback',
-    response: simulated,
-    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-    decisionTrace: { mode: 'fallback' },
+    runtime: result.ok ? 'openclaw' : 'local_fallback',
+    response: responseText,
+    usage: result.data?.usage || {},
+    decisionTrace: { ...(result.data?.trace || {}), externalSendAvailable: false, approvalRequired: true, runtimeError: result.error || null },
     toolCalls: []
+  }
+}
+
+const REQUIRED_AGENT_SANDBOX_SCENARIOS = [
+  'baggage',
+  'flight',
+  'pickup',
+  'ambiguous',
+  'customer_question',
+  'refusal',
+  'language',
+  'inbound_inquiry'
+]
+
+const AGENT_SANDBOX_PRESETS = {
+  baggage: { label: 'Багаж', taskType: 'clarification', infoReason: 'Уточнить багаж', customerMessage: 'There would be 3 bags' },
+  flight: { label: 'Рейс', taskType: 'clarification', infoReason: 'Уточнить рейс', customerMessage: 'My flight is AY 1337' },
+  pickup: { label: 'Место подачи', taskType: 'clarification', infoReason: 'Уточнить место подачи', customerMessage: 'Please pick us up at Terminal 2, door 5' },
+  ambiguous: { label: 'Неоднозначный ответ', taskType: 'clarification', infoReason: 'Уточнить багаж', customerMessage: 'Maybe two or three, not sure yet' },
+  customer_question: { label: 'Вопрос клиента', taskType: 'clarification', infoReason: 'Уточнить багаж', customerMessage: 'Is a baby stroller counted as luggage?' },
+  refusal: { label: 'Отказ', taskType: 'clarification', infoReason: 'Уточнить багаж', customerMessage: 'I do not want to provide this information' },
+  language: { label: 'Смена языка', taskType: 'clarification', infoReason: 'Уточнить багаж', lang: 'ru', customerMessage: 'Будет три чемодана' },
+  inbound_inquiry: { label: 'Первичное обращение', taskType: 'inbound_inquiry', infoReason: '', customerMessage: 'Hello, can I book an airport transfer for tomorrow?' }
+}
+
+function agentSnapshot(agent) {
+  return serializeAgent(agent)
+}
+
+async function ensurePublishedAgentVersion(agent, actorId = null) {
+  const published = await prisma.chatAgentVersion.findFirst({
+    where: { tenantId: agent.tenantId, agentConfigId: agent.id, status: 'published' },
+    orderBy: { version: 'desc' }
+  })
+  if (published) return published
+  return prisma.chatAgentVersion.create({
+    data: {
+      tenantId: agent.tenantId,
+      agentConfigId: agent.id,
+      version: 1,
+      status: 'published',
+      snapshotJson: JSON.stringify(agentSnapshot(agent)),
+      testSummaryJson: JSON.stringify({ migrated: true, passed: true }),
+      testedAt: new Date(),
+      publishedAt: new Date(),
+      createdByUserId: actorId || agent.createdByUserId || null
+    }
+  })
+}
+
+async function createAgentDraftVersion({ agent, actorId = null, snapshot = null }) {
+  const latest = await prisma.chatAgentVersion.findFirst({
+    where: { tenantId: agent.tenantId, agentConfigId: agent.id },
+    orderBy: { version: 'desc' },
+    select: { version: true }
+  })
+  return prisma.chatAgentVersion.create({
+    data: {
+      tenantId: agent.tenantId,
+      agentConfigId: agent.id,
+      version: (latest?.version || 0) + 1,
+      status: 'draft',
+      snapshotJson: JSON.stringify(snapshot || agentSnapshot(agent)),
+      createdByUserId: actorId
+    }
+  })
+}
+
+function serializeAgentVersion(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    version: row.version,
+    status: row.status,
+    testSummary: parseJsonObjectSafe(row.testSummaryJson, null),
+    testedAt: row.testedAt,
+    publishedAt: row.publishedAt,
+    archivedAt: row.archivedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  }
+}
+
+function sandboxContextForScenario(raw = {}) {
+  const key = String(raw.scenarioKey || raw.scenario_key || 'baggage')
+  const preset = AGENT_SANDBOX_PRESETS[key] || AGENT_SANDBOX_PRESETS.baggage
+  return {
+    scenarioKey: key,
+    taskType: raw.taskType || preset.taskType,
+    infoReason: raw.infoReason || preset.infoReason,
+    lang: raw.lang || preset.lang || 'en',
+    order: {
+      id: 'sandbox-order',
+      public_reference: raw.order?.public_reference || 'TEST-1001',
+      route_from: raw.order?.route_from || 'Helsinki Airport (HEL)',
+      route_to: raw.order?.route_to || 'Helsinki city centre',
+      pickup_at: raw.order?.pickup_at || '2026-07-24T10:00:00.000Z',
+      lang: raw.lang || preset.lang || 'en',
+      info_reason: raw.infoReason || preset.infoReason
+    },
+    suggestedCustomerMessage: preset.customerMessage,
+    label: preset.label
+  }
+}
+
+function fallbackSandboxDecision({ text, context }) {
+  const classification = classifyCustomerReplyFallback(text)
+  const extraction = classification.class === 'answer'
+    ? extractOrderFieldFallback({ text, infoReason: context.infoReason })
+    : null
+  if (classification.class === 'question') {
+    return { classification, extraction, stateAfter: 'waiting_approval', nextAction: 'Проверить и одобрить ответ на вопрос клиента', reason: 'Клиент задал вопрос' }
+  }
+  if (classification.class === 'negative') {
+    return { classification, extraction, stateAfter: 'needs_human', nextAction: 'Подключиться сотруднику', reason: 'Клиент отказался отвечать' }
+  }
+  if (classification.class !== 'answer' || !extraction?.valid) {
+    return { classification, extraction, stateAfter: 'needs_human', nextAction: 'Проверить ответ вручную', reason: 'Ответ неоднозначен или данных недостаточно' }
+  }
+  return { classification, extraction, stateAfter: 'waiting_approval', nextAction: 'Проверить благодарность и одобрить', reason: 'Ответ понятен, данные извлечены' }
+}
+
+function sandboxFallbackDraft({ decision, context }) {
+  const russian = context.lang === 'ru'
+  if (decision.classification?.class === 'question') {
+    return russian
+      ? 'Спасибо за вопрос. Сотрудник Riderra уточнит это и скоро ответит.'
+      : 'Thank you for your question. A Riderra team member will check this and reply shortly.'
+  }
+  if (decision.extraction?.valid) {
+    return russian
+      ? 'Спасибо, мы получили и сохранили детали вашей поездки.'
+      : 'Thank you, we have received and recorded the details for your trip.'
+  }
+  return russian
+    ? 'Спасибо за ответ. Сотрудник Riderra проверит детали и при необходимости уточнит информацию.'
+    : 'Thank you for your reply. A Riderra team member will review the details and follow up if needed.'
+}
+
+async function executeSandboxTurn({ tenantId, agent, version, session, text, actorId, traceId }) {
+  const context = parseJsonObjectSafe(session.initialContextJson, sandboxContextForScenario({}))
+  const messages = await prisma.agentSandboxMessage.findMany({
+    where: { sessionId: session.id },
+    orderBy: { createdAt: 'asc' },
+    take: 40
+  })
+  const run = await prisma.agentRun.create({
+    data: {
+      tenantId,
+      agentConfigId: agent.id,
+      agentConfigVersionId: version?.id || null,
+      sandboxSessionId: session.id,
+      capability: 'riderra.customer.reply.classify',
+      status: 'running',
+      stateBefore: session.currentState,
+      inputJson: JSON.stringify({ text, context })
+    }
+  })
+  const started = Date.now()
+  const runtimeConfig = getOpenClawRuntimeConfig()
+  const classifyPayload = buildOpenClawEnvelope({
+    tenantId,
+    traceId,
+    actor: { id: actorId, role: 'sandbox_operator' },
+    capability: 'riderra.customer.reply.classify',
+    approval: { mode: 'not_required' },
+    billing: { mode: 'track_only', unit: 'classification' },
+    extra: {
+      sandbox: { enabled: true, external_send_available: false },
+      task: { id: session.id, type: context.taskType, state: session.currentState },
+      message: { id: `sandbox:${session.id}:${messages.length + 1}`, text, channel: 'sandbox' },
+      conversation_history: messages.map((item) => ({ role: item.role, text: item.bodyText }))
+    }
+  })
+  const classifyResult = await callOpenClawRuntime({ path: runtimeConfig.classifyPath, payload: classifyPayload, kind: 'classify', traceId })
+  let decision = fallbackSandboxDecision({ text, context })
+  if (classifyResult.ok) {
+    decision.classification = extractClassificationFromOpenClawResponse(classifyResult.data || {})
+    if (decision.classification.class === 'answer') {
+      const extractPayload = buildOpenClawEnvelope({
+        tenantId,
+        traceId,
+        actor: { id: actorId, role: 'sandbox_operator' },
+        capability: 'riderra.order.field.extract_validate',
+        approval: { mode: 'not_required' },
+        billing: { mode: 'track_only', unit: 'extraction' },
+        extra: {
+          sandbox: { enabled: true, external_send_available: false },
+          task: { id: session.id, type: context.taskType, state: session.currentState },
+          order: context.order,
+          message: { id: `sandbox:${session.id}:${messages.length + 1}`, text, channel: 'sandbox' }
+        }
+      })
+      const extractResult = await callOpenClawRuntime({ path: runtimeConfig.extractPath, payload: extractPayload, kind: 'extract', traceId })
+      decision.extraction = extractResult.ok
+        ? extractValidationFromOpenClawResponse(extractResult.data || {})
+        : extractOrderFieldFallback({ text, infoReason: context.infoReason })
+      decision = {
+        ...decision,
+        stateAfter: decision.extraction?.valid ? 'waiting_approval' : 'needs_human',
+        nextAction: decision.extraction?.valid ? 'Проверить благодарность и одобрить' : 'Проверить ответ вручную',
+        reason: decision.extraction?.valid ? 'Ответ понятен, данные извлечены' : 'Не удалось надёжно извлечь данные'
+      }
+    } else {
+      decision = fallbackSandboxDecision({ text, context: { ...context, infoReason: context.infoReason } })
+      decision.classification = extractClassificationFromOpenClawResponse(classifyResult.data || {})
+    }
+  }
+  const draftText = sandboxFallbackDraft({ decision, context })
+  const provider = classifyResult.ok ? String(classifyResult.data?.provider || 'openclaw') : 'local_fallback'
+  const model = classifyResult.ok ? String(classifyResult.data?.model || '') : null
+  const trace = {
+    provider,
+    model,
+    runtimeOk: classifyResult.ok,
+    fallbackReason: classifyResult.ok ? null : classifyResult.error,
+    externalSendAvailable: false,
+    nextAction: decision.nextAction,
+    reason: decision.reason
+  }
+  const [customerMessage, agentMessage] = await prisma.$transaction([
+    prisma.agentSandboxMessage.create({ data: { sessionId: session.id, role: 'customer', bodyText: text, stateBefore: session.currentState, stateAfter: decision.stateAfter, extractionJson: decision.extraction ? JSON.stringify(decision.extraction) : null, traceJson: JSON.stringify(trace) } }),
+    prisma.agentSandboxMessage.create({ data: { sessionId: session.id, role: 'agent', bodyText: draftText, stateBefore: decision.stateAfter, stateAfter: decision.stateAfter, extractionJson: decision.extraction ? JSON.stringify(decision.extraction) : null, traceJson: JSON.stringify({ ...trace, draftOnly: true, approvalRequired: true }) } }),
+    prisma.agentSandboxSession.update({ where: { id: session.id }, data: { currentState: decision.stateAfter } }),
+    prisma.agentRun.update({ where: { id: run.id }, data: { status: classifyResult.ok ? 'waiting_approval' : 'fallback', stateAfter: decision.stateAfter, provider, model, summary: decision.reason, outputJson: JSON.stringify({ classification: decision.classification, extraction: decision.extraction, draftText, nextAction: decision.nextAction }), errorText: classifyResult.ok ? null : classifyResult.error, latencyMs: Date.now() - started, finishedAt: new Date() } })
+  ])
+  return { customerMessage, agentMessage, decision, trace }
+}
+
+async function recordAgentRuntimeResult({ tenantId, task, capability, runtime, input, output, summary, latencyMs = null }) {
+  try {
+    return await prisma.agentRun.create({
+      data: {
+        tenantId,
+        agentConfigId: task?.agentConfigId || null,
+        agentConfigVersionId: task?.agentConfigVersionId || null,
+        chatTaskId: task?.id || null,
+        capability,
+        status: runtime?.ok ? 'completed' : 'fallback',
+        stateBefore: task?.state || null,
+        stateAfter: task?.state || null,
+        provider: runtime?.ok ? 'openclaw' : 'local_fallback',
+        model: runtime?.data?.model || null,
+        summary,
+        inputJson: input ? JSON.stringify(input) : null,
+        outputJson: output ? JSON.stringify(output) : null,
+        errorText: runtime?.ok ? null : (runtime?.error || 'Runtime unavailable'),
+        latencyMs,
+        finishedAt: new Date()
+      }
+    })
+  } catch (error) {
+    console.error('Failed to record agent runtime result:', error)
+    return null
   }
 }
 
@@ -5403,6 +5658,279 @@ app.post('/api/admin/ai-agents/:agentId/test', authenticateToken, resolveActorCo
   }
 })
 
+app.get('/api/admin/ai-agents/:agentId/versions', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const agent = await prisma.chatAgentConfig.findFirst({ where: { id: req.params.agentId, tenantId } })
+    if (!agent) return res.status(404).json({ error: 'Agent not found' })
+    await ensurePublishedAgentVersion(agent, req.user?.id || null)
+    const rows = await prisma.chatAgentVersion.findMany({
+      where: { tenantId, agentConfigId: agent.id },
+      orderBy: { version: 'desc' }
+    })
+    res.json({ rows: rows.map(serializeAgentVersion) })
+  } catch (error) {
+    console.error('Error loading agent versions:', error)
+    res.status(500).json({ error: 'Не удалось загрузить версии агента' })
+  }
+})
+
+app.post('/api/admin/ai-agents/:agentId/versions/draft', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const agent = await prisma.chatAgentConfig.findFirst({ where: { id: req.params.agentId, tenantId } })
+    if (!agent) return res.status(404).json({ error: 'Agent not found' })
+    await ensurePublishedAgentVersion(agent, req.user?.id || null)
+    const requested = req.body?.snapshot && typeof req.body.snapshot === 'object' ? req.body.snapshot : {}
+    const snapshot = {
+      ...agentSnapshot(agent),
+      ...requested,
+      restrictions: parseJsonObjectSafe(requested.restrictionsJson, parseJsonObjectSafe(agent.restrictionsJson, {})),
+      constraints: parseJsonObjectSafe(requested.constraintsJson, parseJsonObjectSafe(agent.constraintsJson, {})),
+      variables: parseJsonObjectSafe(requested.variablesJson, parseJsonObjectSafe(agent.variablesJson, {})),
+      workflow: requested.workflow || requested.workflowJson || agent.workflowJson || ''
+    }
+    const row = await createAgentDraftVersion({ agent, actorId: req.user?.id || null, snapshot })
+    res.status(201).json({ version: serializeAgentVersion(row) })
+  } catch (error) {
+    console.error('Error creating agent draft version:', error)
+    res.status(500).json({ error: 'Не удалось создать версию' })
+  }
+})
+
+app.post('/api/admin/ai-agents/:agentId/versions/:versionId/test-suite', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const version = await prisma.chatAgentVersion.findFirst({
+      where: { id: req.params.versionId, agentConfigId: req.params.agentId, tenantId },
+      include: { agentConfig: true }
+    })
+    if (!version) return res.status(404).json({ error: 'Version not found' })
+    const expectedClass = { baggage: 'answer', flight: 'answer', pickup: 'answer', ambiguous: 'unclassified', customer_question: 'question', refusal: 'negative', language: 'answer', inbound_inquiry: 'question' }
+    const runtimeConfig = getOpenClawRuntimeConfig()
+    const checks = await Promise.all(REQUIRED_AGENT_SANDBOX_SCENARIOS.map(async (key) => {
+      const preset = AGENT_SANDBOX_PRESETS[key]
+      const context = sandboxContextForScenario({ scenarioKey: key })
+      const traceId = crypto.randomUUID()
+      const classifyPayload = buildOpenClawEnvelope({
+        tenantId,
+        traceId,
+        actor: { id: req.user?.id || null, role: 'sandbox_operator' },
+        capability: 'riderra.customer.reply.classify',
+        approval: { mode: 'not_required' },
+        billing: { mode: 'track_only', unit: 'classification' },
+        extra: {
+          sandbox: { enabled: true, external_send_available: false },
+          task: { id: `suite:${version.id}:${key}`, type: context.taskType, state: 'waiting_customer' },
+          order: context.order,
+          message: { id: `suite-message:${key}`, text: preset.customerMessage, channel: 'sandbox' },
+          conversation_history: []
+        }
+      })
+      const classifyResult = await callOpenClawRuntime({ path: runtimeConfig.classifyPath, payload: classifyPayload, kind: 'classify', traceId })
+      const classification = classifyResult.ok ? extractClassificationFromOpenClawResponse(classifyResult.data || {}) : { class: 'unclassified' }
+      let extraction = null
+      let extractionPassed = true
+      if (['baggage', 'flight', 'pickup', 'language'].includes(key) && classification.class === 'answer') {
+        const extractPayload = buildOpenClawEnvelope({
+          tenantId,
+          traceId,
+          actor: { id: req.user?.id || null, role: 'sandbox_operator' },
+          capability: 'riderra.order.field.extract_validate',
+          approval: { mode: 'not_required' },
+          billing: { mode: 'track_only', unit: 'extraction' },
+          extra: {
+            sandbox: { enabled: true, external_send_available: false },
+            task: { id: `suite:${version.id}:${key}`, type: context.taskType, state: 'customer_replied' },
+            order: context.order,
+            message: { id: `suite-message:${key}`, text: preset.customerMessage, channel: 'sandbox' }
+          }
+        })
+        const extractResult = await callOpenClawRuntime({ path: runtimeConfig.extractPath, payload: extractPayload, kind: 'extract', traceId })
+        extraction = extractResult.ok ? extractValidationFromOpenClawResponse(extractResult.data || {}) : null
+        extractionPassed = Boolean(extraction?.valid)
+      }
+      const provider = String(classifyResult.data?.provider || '')
+      const modelPassed = provider === 'deepseek'
+      const classificationPassed = classification.class === expectedClass[key]
+      return {
+        key,
+        label: preset.label,
+        passed: Boolean(classifyResult.ok && modelPassed && classificationPassed && extractionPassed),
+        provider: provider || 'unavailable',
+        model: classifyResult.data?.model || null,
+        classification: classification.class,
+        expectedClassification: expectedClass[key],
+        extraction,
+        reason: !modelPassed ? 'Тест выполнен в резервном режиме; для публикации нужен DeepSeek' : (classificationPassed && extractionPassed ? 'Сценарий пройден' : 'Результат не соответствует ожидаемому')
+      }
+    }))
+    const passed = checks.every((item) => item.passed)
+    const summary = { passed, checks, required: REQUIRED_AGENT_SANDBOX_SCENARIOS, testedAt: new Date().toISOString() }
+    const updated = await prisma.chatAgentVersion.update({
+      where: { id: version.id },
+      data: { status: passed ? 'tested' : 'draft', testSummaryJson: JSON.stringify(summary), testedAt: new Date() }
+    })
+    res.json({ version: serializeAgentVersion(updated), summary })
+  } catch (error) {
+    console.error('Error testing agent version:', error)
+    res.status(500).json({ error: 'Не удалось выполнить обязательные тесты' })
+  }
+})
+
+app.post('/api/admin/ai-agents/:agentId/versions/:versionId/publish', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const version = await prisma.chatAgentVersion.findFirst({ where: { id: req.params.versionId, agentConfigId: req.params.agentId, tenantId }, include: { agentConfig: true } })
+    if (!version) return res.status(404).json({ error: 'Version not found' })
+    if (version.status !== 'tested' || !parseJsonObjectSafe(version.testSummaryJson, {}).passed) {
+      return res.status(409).json({ error: 'Сначала выполните обязательные тесты без ошибок' })
+    }
+    const snapshot = parseJsonObjectSafe(version.snapshotJson, {})
+    const publishedConfigData = {
+      name: String(snapshot.name || '').trim() || undefined,
+      type: String(snapshot.type || '').trim() || undefined,
+      taskType: String(snapshot.taskType || '').trim() || undefined,
+      description: snapshot.description ?? null,
+      personality: snapshot.personality ?? null,
+      identity: snapshot.identity ?? null,
+      task: snapshot.task ?? null,
+      speechStyle: snapshot.speechStyle ?? null,
+      promptText: String(snapshot.promptText || '').trim() || version.agentConfig?.promptText || 'Do not invent facts.',
+      workflowJson: snapshot.workflow || snapshot.workflowJson || null,
+      restrictionsJson: JSON.stringify(snapshot.restrictions || {}),
+      constraintsJson: JSON.stringify(snapshot.constraints || {}),
+      variablesJson: JSON.stringify(snapshot.variables || {}),
+      requiresApproval: true,
+      isActive: true
+    }
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.chatAgentVersion.updateMany({ where: { tenantId, agentConfigId: req.params.agentId, status: 'published' }, data: { status: 'archived', archivedAt: new Date() } })
+      await tx.chatAgentConfig.update({ where: { id: req.params.agentId }, data: publishedConfigData })
+      return tx.chatAgentVersion.update({ where: { id: version.id }, data: { status: 'published', publishedAt: new Date(), archivedAt: null } })
+    })
+    res.json({ version: serializeAgentVersion(updated) })
+  } catch (error) {
+    console.error('Error publishing agent version:', error)
+    res.status(500).json({ error: 'Не удалось опубликовать версию' })
+  }
+})
+
+app.post('/api/admin/ai-agents/:agentId/sandbox/sessions', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const agent = await prisma.chatAgentConfig.findFirst({ where: { id: req.params.agentId, tenantId } })
+    if (!agent) return res.status(404).json({ error: 'Agent not found' })
+    const version = req.body?.versionId
+      ? await prisma.chatAgentVersion.findFirst({ where: { id: req.body.versionId, tenantId, agentConfigId: agent.id } })
+      : await ensurePublishedAgentVersion(agent, req.user?.id || null)
+    if (!version) return res.status(404).json({ error: 'Agent version not found' })
+    const context = sandboxContextForScenario(req.body || {})
+    const session = await prisma.agentSandboxSession.create({
+      data: {
+        tenantId,
+        agentConfigId: agent.id,
+        agentConfigVersionId: version.id,
+        scenarioKey: context.scenarioKey,
+        currentState: 'waiting_customer',
+        initialContextJson: JSON.stringify(context),
+        createdByUserId: req.user?.id || null
+      }
+    })
+    res.status(201).json({ session, context, version: serializeAgentVersion(version), externalSendAvailable: false })
+  } catch (error) {
+    console.error('Error creating sandbox session:', error)
+    res.status(500).json({ error: 'Не удалось создать песочницу' })
+  }
+})
+
+app.get('/api/admin/ai-agents/:agentId/sandbox/sessions/:sessionId', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const session = await prisma.agentSandboxSession.findFirst({
+      where: { id: req.params.sessionId, agentConfigId: req.params.agentId, tenantId: req.actorContext.tenantId },
+      include: { messages: { orderBy: { createdAt: 'asc' } }, agentConfigVersion: true, runs: { orderBy: { startedAt: 'desc' }, take: 20 } }
+    })
+    if (!session) return res.status(404).json({ error: 'Sandbox session not found' })
+    res.json({ session: { ...session, initialContext: parseJsonObjectSafe(session.initialContextJson, {}), messages: session.messages.map((item) => ({ ...item, extraction: parseJsonObjectSafe(item.extractionJson, null), trace: parseJsonObjectSafe(item.traceJson, null) })) }, externalSendAvailable: false })
+  } catch (error) {
+    res.status(500).json({ error: 'Не удалось загрузить песочницу' })
+  }
+})
+
+app.post('/api/admin/ai-agents/:agentId/sandbox/sessions/:sessionId/messages', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const text = String(req.body?.message || req.body?.text || '').trim()
+    if (!text) return res.status(400).json({ error: 'Введите сообщение клиента' })
+    const tenantId = req.actorContext.tenantId
+    const session = await prisma.agentSandboxSession.findFirst({ where: { id: req.params.sessionId, agentConfigId: req.params.agentId, tenantId } })
+    if (!session) return res.status(404).json({ error: 'Sandbox session not found' })
+    const agent = await prisma.chatAgentConfig.findFirst({ where: { id: req.params.agentId, tenantId } })
+    const version = session.agentConfigVersionId ? await prisma.chatAgentVersion.findFirst({ where: { id: session.agentConfigVersionId, tenantId } }) : null
+    const result = await executeSandboxTurn({ tenantId, agent, version, session, text, actorId: req.user?.id || null, traceId: req.actorContext.traceId || crypto.randomUUID() })
+    res.json({ ...result, stateBefore: session.currentState, stateAfter: result.decision.stateAfter, externalSendAvailable: false, approvalRequired: true })
+  } catch (error) {
+    console.error('Error running sandbox turn:', error)
+    res.status(500).json({ error: 'Не удалось обработать тестовую реплику' })
+  }
+})
+
+app.get('/api/admin/ai/activity', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const [active, recent, total, failed, fallback, completed] = await Promise.all([
+      prisma.agentRun.count({ where: { tenantId, status: { in: ['queued', 'running'] } } }),
+      prisma.agentRun.findMany({ where: { tenantId }, orderBy: { startedAt: 'desc' }, take: 25, include: { agentConfig: { select: { name: true, code: true } } } }),
+      prisma.agentRun.count({ where: { tenantId, startedAt: { gte: since } } }),
+      prisma.agentRun.count({ where: { tenantId, startedAt: { gte: since }, status: 'failed' } }),
+      prisma.agentRun.count({ where: { tenantId, startedAt: { gte: since }, status: 'fallback' } }),
+      prisma.agentRun.aggregate({ where: { tenantId, startedAt: { gte: since }, status: { in: ['completed', 'waiting_approval'] } }, _avg: { latencyMs: true }, _count: true })
+    ])
+    res.json({
+      now: { active, queued: recent.filter((item) => item.status === 'queued').length },
+      day: { total, failed, fallback, successful: completed._count, averageLatencyMs: Math.round(completed._avg.latencyMs || 0) },
+      recent
+    })
+  } catch (error) {
+    console.error('Error loading agent activity:', error)
+    res.status(500).json({ error: 'Не удалось загрузить активность агентов' })
+  }
+})
+
+app.get('/api/admin/ai/runtime-health', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
+  const runtime = getOpenClawRuntimeConfig()
+  let runtimeReachable = false
+  let deepseekConfigured = false
+  let runtimeModel = process.env.RIDERRA_LLM_MODEL || 'deepseek-v4-flash'
+  if (runtime.baseUrl && runtime.token) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 2500)
+    try {
+      const response = await fetch(`${runtime.baseUrl}/healthz`, { signal: controller.signal })
+      const data = await response.json().catch(() => ({}))
+      runtimeReachable = response.ok && data?.ok === true
+      deepseekConfigured = runtimeReachable && data?.deepseek_configured === true
+      runtimeModel = data?.model || runtimeModel
+    } catch (_) {
+      runtimeReachable = false
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  const modelReady = runtimeReachable && deepseekConfigured
+  res.json({
+    configured: Boolean(runtime.baseUrl && runtime.token),
+    reachable: runtimeReachable,
+    modelReady,
+    provider: 'DeepSeek',
+    model: runtimeModel,
+    mode: modelReady ? 'runtime' : 'fallback',
+    message: modelReady
+      ? 'DeepSeek подключён'
+      : (runtimeReachable ? 'Резервный режим: ключ DeepSeek не настроен' : 'Резервный режим: OpenClaw недоступен')
+  })
+})
+
 app.post('/api/business/:businessId/ai-agents/:agentId/test', authenticateToken, resolveActorContext, requireActorContext, requireCan('ops.read', 'ops'), async (req, res) => {
   try {
     const tenantId = await resolveBusinessTenantIdOrThrow(req, req.params.businessId)
@@ -5750,7 +6278,7 @@ app.post('/api/conversations/:conversationId/send-message', authenticateToken, r
         source: 'operator',
         channel: String(req.body?.channel || task.channel || 'telegram'),
         bodyText,
-        approvalStatus: task.agentConfig?.requiresApproval ? 'pending_human' : 'approved',
+        approvalStatus: 'pending_human',
         createdByUserId: req.user?.id || null,
         traceId: req.actorContext.traceId
       }
@@ -6034,6 +6562,11 @@ app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActor
       take,
       include: {
         agentConfig: true,
+        agentConfigVersion: true,
+        agentRuns: {
+          orderBy: { startedAt: 'desc' },
+          take: 12
+        },
         order: {
           select: {
             id: true,
@@ -6635,6 +7168,11 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
       where: { id: req.params.id, tenantId: req.actorContext.tenantId },
       include: {
         agentConfig: true,
+        agentConfigVersion: true,
+        agentRuns: {
+          orderBy: { startedAt: 'desc' },
+          take: 12
+        },
         order: {
           select: {
             id: true,
@@ -6755,18 +7293,19 @@ app.post('/api/admin/chats/tasks/:id/assign-agent', authenticateToken, resolveAc
       : String(rawAgentConfigId).trim()
 
     let targetAgent = null
+    let targetVersion = null
     if (nextAgentConfigId) {
       targetAgent = await prisma.chatAgentConfig.findFirst({
-        where: { id: nextAgentConfigId, tenantId },
-        select: { id: true, code: true, name: true, isActive: true }
+        where: { id: nextAgentConfigId, tenantId }
       })
       if (!targetAgent) return res.status(404).json({ error: 'Agent not found for this tenant' })
+      targetVersion = await ensurePublishedAgentVersion(targetAgent, req.user?.id || null)
     }
 
     const updatedTask = await prisma.chatTask.update({
       where: { id: task.id },
-      data: { agentConfigId: targetAgent?.id || null },
-      include: { agentConfig: true }
+      data: { agentConfigId: targetAgent?.id || null, agentConfigVersionId: targetVersion?.id || null },
+      include: { agentConfig: true, agentConfigVersion: true }
     })
 
     await writeAuditLog({
@@ -6799,6 +7338,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
       where: { id: req.params.id, tenantId },
       include: {
         agentConfig: true,
+        agentConfigVersion: true,
         order: {
           select: {
             id: true,
@@ -6839,6 +7379,13 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
       return res.status(409).json({ error: 'No active agent configured for this task' })
     }
 
+    let pinnedVersion = task.agentConfigVersion
+    if (!pinnedVersion) {
+      pinnedVersion = await ensurePublishedAgentVersion(task.agentConfig, req.user?.id || null)
+      await prisma.chatTask.update({ where: { id: task.id }, data: { agentConfigVersionId: pinnedVersion.id } })
+    }
+    const pinnedSnapshot = parseJsonObjectSafe(pinnedVersion.snapshotJson, serializeAgent(task.agentConfig))
+
     const buildBody = String(req.body?.message || req.body?.bodyText || '').trim()
     const capabilityPayload = buildOpenClawEnvelope({
       tenantId,
@@ -6876,10 +7423,15 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
           name: task.agentConfig.name,
           type: task.agentConfig.type || null,
           task_type: task.agentConfig.taskType || null,
-          prompt: task.agentConfig.promptText || '',
-          workflow: task.agentConfig.workflowJson || null,
-          restrictions: parseJsonSafe(task.agentConfig.restrictionsJson || '{}', {}),
-          variables: parseJsonSafe(task.agentConfig.variablesJson || '{}', {})
+          version: pinnedVersion.version,
+          identity: pinnedSnapshot.identity || task.agentConfig.identity || '',
+          task: pinnedSnapshot.task || task.agentConfig.task || '',
+          personality: pinnedSnapshot.personality || task.agentConfig.personality || '',
+          speech_style: pinnedSnapshot.speechStyle || task.agentConfig.speechStyle || '',
+          prompt: pinnedSnapshot.promptText || task.agentConfig.promptText || '',
+          workflow: pinnedSnapshot.workflow || task.agentConfig.workflowJson || null,
+          restrictions: pinnedSnapshot.restrictions || parseJsonSafe(task.agentConfig.restrictionsJson || '{}', {}),
+          variables: pinnedSnapshot.variables || parseJsonSafe(task.agentConfig.variablesJson || '{}', {})
         },
         conversation_history: (task.messages || []).map((m) => ({
           id: m.id,
@@ -6893,12 +7445,40 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
       }
     })
     const runtimeConfig = getOpenClawRuntimeConfig()
+    const agentRun = await prisma.agentRun.create({
+      data: {
+        tenantId,
+        agentConfigId: task.agentConfig.id,
+        agentConfigVersionId: pinnedVersion.id,
+        chatTaskId: task.id,
+        capability: 'riderra.customer.message.compose',
+        status: 'running',
+        stateBefore: task.state,
+        inputJson: JSON.stringify(capabilityPayload)
+      }
+    })
+    const runStartedAt = Date.now()
     const runtimeResult = await callOpenClawRuntime({
       path: runtimeConfig.buildPath,
       payload: capabilityPayload,
       kind: 'build',
       traceId: req.actorContext.traceId,
       idempotencyKey: getIdempotencyKey(req) || null
+    })
+
+    await prisma.agentRun.update({
+      where: { id: agentRun.id },
+      data: {
+        status: runtimeResult.ok ? 'waiting_approval' : 'fallback',
+        stateAfter: task.state,
+        provider: runtimeResult.data?.provider || (runtimeResult.ok ? 'openclaw' : 'local_fallback'),
+        model: runtimeResult.data?.model || null,
+        summary: runtimeResult.ok ? 'Агент подготовил черновик для проверки' : 'Черновик подготовлен в резервном режиме',
+        outputJson: runtimeResult.data ? JSON.stringify(runtimeResult.data) : null,
+        errorText: runtimeResult.ok ? null : runtimeResult.error,
+        latencyMs: Date.now() - runStartedAt,
+        finishedAt: new Date()
+      }
     })
 
     let draftText = extractTextFromOpenClawResponse(runtimeResult.data || {})
@@ -6965,7 +7545,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
         channel: task.channel || 'telegram',
         bodyText: draftText,
         bodyJson: messageBodyJson ? JSON.stringify(messageBodyJson) : null,
-        approvalStatus: task.agentConfig.requiresApproval ? 'pending_human' : 'approved',
+        approvalStatus: 'pending_human',
         traceId: req.actorContext.traceId,
         idempotencyKey: getIdempotencyKey(req) || null,
         createdByUserId: req.user?.id || null
@@ -7645,6 +8225,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
             fallbackReason: classifyResult.configured ? (classifyResult.error || 'OpenClaw classify failed') : 'OpenClaw runtime is not configured'
           }
         }
+        await recordAgentRuntimeResult({ tenantId, task, capability: 'riderra.customer.reply.classify', runtime: classifyResult, input: { text: bodyText }, output: classification, summary: classification.class === 'answer' ? 'Агент распознал ответ клиента' : 'Агент определил тип сообщения клиента' })
       } else if (task.agentPaused) {
         classification = { class: 'unclassified', confidence: null, requiresHuman: false, source: 'agent_paused' }
       }
@@ -7697,6 +8278,7 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
             fallbackReason: extractResult.configured ? (extractResult.error || 'OpenClaw extract failed') : 'OpenClaw runtime is not configured'
           }
         }
+        await recordAgentRuntimeResult({ tenantId, task, capability: 'riderra.order.field.extract_validate', runtime: extractResult, input: { text: bodyText, infoReason: task.order?.infoReason || '' }, output: extraction, summary: extraction?.valid ? `Агент нашёл: ${extraction.field || 'данные'} = ${extraction.value ?? extraction.normalizedValue ?? ''}` : 'Агент не смог надёжно извлечь данные' })
       }
 
       let currentState = String(task.state || '')
@@ -8029,7 +8611,53 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
           result: 'ok',
           context: { inboundMessageId: inboundMessage.id, externalMessageId: inboundExternalId }
         })
-        return { message: inboundMessage, taskId: updatedTask.id, taskState: updatedTask.state, inquiry: true }
+        const supportAgent = task.agentConfigId
+          ? await prisma.chatAgentConfig.findFirst({ where: { id: task.agentConfigId, tenantId, isActive: true } })
+          : await ensureInboundSupportAgent(tenantId)
+        let supportDraft = null
+        if (supportAgent) {
+          const supportVersion = task.agentConfigVersionId
+            ? await prisma.chatAgentVersion.findFirst({ where: { id: task.agentConfigVersionId, tenantId } })
+            : await ensurePublishedAgentVersion(supportAgent, null)
+          if (!task.agentConfigId || !task.agentConfigVersionId) {
+            await prisma.chatTask.update({ where: { id: task.id }, data: { agentConfigId: supportAgent.id, agentConfigVersionId: supportVersion.id } })
+          }
+          const runtimeConfig = getOpenClawRuntimeConfig()
+          const composePayload = buildOpenClawEnvelope({
+            tenantId,
+            traceId: req.actorContext.traceId,
+            idempotencyKey: `support-draft:${inboundExternalId}`,
+            actor: { id: 'openclaw', role: 'system' },
+            capability: 'riderra.customer.message.compose',
+            approval: { mode: 'human_required' },
+            billing: { mode: 'track_only', unit: 'message' },
+            extra: {
+              task: { id: task.id, type: 'inbound_inquiry', state: nextState, channel },
+              order: {},
+              agent: { code: supportAgent.code, name: supportAgent.name, prompt: supportAgent.promptText, identity: supportAgent.identity, task: supportAgent.task, personality: supportAgent.personality, speech_style: supportAgent.speechStyle, version: supportVersion.version },
+              conversation_history: [{ id: inboundMessage.id, role: 'customer', text: bodyText, created_at: inboundMessage.createdAt }],
+              input: bodyText
+            }
+          })
+          const composeResult = await callOpenClawRuntime({ path: runtimeConfig.buildPath, payload: composePayload, kind: 'build', traceId: req.actorContext.traceId, idempotencyKey: `support-draft:${inboundExternalId}` })
+          const draftText = extractTextFromOpenClawResponse(composeResult.data || {}) || 'Thank you for your message. A Riderra team member will review your request and reply shortly.'
+          supportDraft = await prisma.chatMessage.create({
+            data: {
+              tenantId,
+              chatTaskId: task.id,
+              direction: 'outbound',
+              source: composeResult.ok ? 'openclaw' : 'system',
+              channel,
+              bodyText: draftText,
+              bodyJson: JSON.stringify({ kind: 'support_draft', replyToExternalMessageId: inboundExternalId, runtime: composeResult.ok ? 'openclaw' : 'fallback' }),
+              approvalStatus: 'pending_human',
+              traceId: req.actorContext.traceId,
+              idempotencyKey: `support-draft:${inboundExternalId}`
+            }
+          })
+          await recordAgentRuntimeResult({ tenantId, task: { ...task, agentConfigId: supportAgent.id, agentConfigVersionId: supportVersion.id }, capability: 'riderra.customer.message.compose', runtime: composeResult, input: { text: bodyText }, output: { draftText }, summary: composeResult.ok ? 'Агент подготовил ответ на новое обращение' : 'Ответ подготовлен в резервном режиме' })
+        }
+        return { message: inboundMessage, draft: supportDraft, taskId: updatedTask.id, taskState: updatedTask.state, inquiry: true }
       }
 
       const runtimeConfig = getOpenClawRuntimeConfig()
@@ -8081,6 +8709,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
               ...classifyCustomerReplyFallback(bodyText),
               fallbackReason: classifyResult.configured ? (classifyResult.error || 'OpenClaw classify failed') : 'OpenClaw runtime is not configured'
             }
+        await recordAgentRuntimeResult({ tenantId, task, capability: 'riderra.customer.reply.classify', runtime: classifyResult, input: { text: bodyText }, output: classification, summary: classification.class === 'answer' ? 'Агент распознал ответ клиента' : 'Агент определил тип сообщения клиента' })
       }
 
       let extraction = null
@@ -8126,6 +8755,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
               ...extractOrderFieldFallback({ text: bodyText, infoReason: task.order?.infoReason || '' }),
               fallbackReason: extractResult.configured ? (extractResult.error || 'OpenClaw extract failed') : 'OpenClaw runtime is not configured'
             }
+        await recordAgentRuntimeResult({ tenantId, task, capability: 'riderra.order.field.extract_validate', runtime: extractResult, input: { text: bodyText, infoReason: task.order?.infoReason || '' }, output: extraction, summary: extraction?.valid ? `Агент нашёл: ${extraction.field || 'данные'} = ${extraction.value ?? extraction.normalizedValue ?? ''}` : 'Агент не смог надёжно извлечь данные' })
       }
 
       let currentState = String(task.state || '')

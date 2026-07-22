@@ -98,7 +98,7 @@
                     <span>{{ t.activeToggle }}</span>
                   </label>
                   <label class="switch">
-                    <input type="checkbox" v-model="agentForm.requiresApproval" :disabled="isSystemAgent" />
+                    <input type="checkbox" v-model="agentForm.requiresApproval" disabled />
                     <span>{{ t.approvalToggle }}</span>
                   </label>
                   <div class="summary-audit">
@@ -124,6 +124,21 @@
 
               <section class="settings-card">
                 <div v-if="activeTab === 'overview'" class="form-grid">
+                  <div class="runtime-overview form-grid__wide">
+                    <div class="runtime-status">
+                      <span class="runtime-dot" :class="{ 'runtime-dot--live': runtimeHealth.mode === 'runtime' }"></span>
+                      <div>
+                        <strong>{{ runtimeHealth.message || 'Проверяем подключение модели…' }}</strong>
+                        <p>{{ runtimeHealth.provider || 'DeepSeek' }} · {{ runtimeHealth.model || 'deepseek-v4-flash' }}</p>
+                      </div>
+                    </div>
+                    <div class="activity-metrics">
+                      <div><strong>{{ activity.now && activity.now.active || 0 }}</strong><span>работают сейчас</span></div>
+                      <div><strong>{{ activity.day && activity.day.successful || 0 }}</strong><span>успешно за сутки</span></div>
+                      <div><strong>{{ activity.day && activity.day.fallback || 0 }}</strong><span>резервный режим</span></div>
+                      <div><strong>{{ formatLatency(activity.day && activity.day.averageLatencyMs) }}</strong><span>средний ответ</span></div>
+                    </div>
+                  </div>
                   <field-control :label="t.name" :helper="t.nameHelp">
                     <input v-model="agentForm.name" class="input" :disabled="isSystemAgent" />
                   </field-control>
@@ -137,6 +152,7 @@
                     <select v-model="agentForm.type" class="input" :disabled="isSystemAgent">
                       <option value="order_completion">{{ typeLabel('order_completion') }}</option>
                       <option value="dispatch_notify">{{ typeLabel('dispatch_notify') }}</option>
+                      <option value="customer_support">{{ typeLabel('customer_support') }}</option>
                       <option value="driver_ops">{{ typeLabel('driver_ops') }}</option>
                     </select>
                   </field-control>
@@ -152,7 +168,7 @@
                       <span>{{ t.isActive }}</span>
                     </label>
                     <label class="switch">
-                      <input type="checkbox" v-model="agentForm.requiresApproval" :disabled="isSystemAgent" />
+                      <input type="checkbox" v-model="agentForm.requiresApproval" disabled />
                       <span>{{ t.requiresApproval }}</span>
                     </label>
                   </div>
@@ -187,6 +203,18 @@
                 </div>
 
                 <div v-if="activeTab === 'workflow'" class="workflow-editor">
+                  <div class="scenario-map" aria-label="Этапы работы агента">
+                    <div v-for="(step, index) in scenarioSteps" :key="step.key" class="scenario-step">
+                      <span class="scenario-step__number">{{ index + 1 }}</span>
+                      <span>{{ step.label }}</span>
+                    </div>
+                  </div>
+                  <div class="scenario-branches">
+                    <span>Нужна помощь сотрудника</span>
+                    <span>Не понял ответ</span>
+                    <span>Ошибка</span>
+                  </div>
+                  <p class="scenario-note">Проверка человеком, передача сотруднику и обработка ошибки обязательны и не удаляются.</p>
                   <div class="workflow-header">
                     <div>
                       <h3>{{ t.workflow }}</h3>
@@ -234,7 +262,7 @@
                   </div>
                 </div>
 
-                <div v-if="activeTab === 'templates'" class="templates-panel">
+                <div v-if="activeTab === 'advanced'" class="templates-panel">
                   <div class="workflow-header">
                     <div>
                       <h3>{{ t.whatsappTemplates }}</h3>
@@ -272,26 +300,69 @@
                 </div>
 
                 <div v-if="activeTab === 'test'" class="test-panel">
-                  <field-control :label="t.sandbox" :helper="t.sandboxHint">
-                    <textarea v-model="agentTestInput" class="input textarea" :placeholder="t.sandboxPlaceholder"></textarea>
-                  </field-control>
-                  <div class="local-actions">
-                    <button class="btn btn--primary" type="button" :disabled="agentTesting || !selectedAgentId" @click="runAgentTest">
-                      {{ agentTesting ? t.testing : t.runDryRun }}
-                    </button>
-                  </div>
-                  <div v-if="agentTestOutput" class="test-result">
-                    <div class="test-result__head">
-                      <strong>{{ t.testResult }}</strong>
-                      <span class="status-pill status-pill--active">{{ t.ready }}</span>
+                  <div class="sandbox-head">
+                    <div>
+                      <h3>Песочница диалога</h3>
+                      <p>Тот же агент и те же правила, но отправка клиенту здесь физически отключена.</p>
                     </div>
-                    <p v-if="testResultSummary" class="test-result__message">{{ testResultSummary }}</p>
-                    <details>
-                      <summary>{{ t.showTechnicalDetails }}</summary>
-                      <pre class="test-output">{{ agentTestOutput }}</pre>
-                    </details>
+                    <div class="sandbox-start">
+                      <select v-model="sandboxScenario" class="input">
+                        <option v-for="scenario in sandboxScenarios" :key="scenario.key" :value="scenario.key">{{ scenario.label }}</option>
+                      </select>
+                      <button class="btn btn--primary" type="button" :disabled="agentTesting || !selectedAgentId" @click="startSandbox">Новый тест</button>
+                    </div>
                   </div>
-                  <div v-else class="empty empty--inline">{{ t.noTestResult }}</div>
+                  <div v-if="sandboxSession" class="sandbox-shell">
+                    <div class="sandbox-context">
+                      <span>Заказ {{ sandboxContext.order && sandboxContext.order.public_reference }}</span>
+                      <span>{{ sandboxContext.label }}</span>
+                      <span class="status-pill">Отправка отключена</span>
+                    </div>
+                    <div class="sandbox-transcript">
+                      <div v-for="message in sandboxMessages" :key="message.id" class="sandbox-message" :class="`sandbox-message--${message.role}`">
+                        <span>{{ message.role === 'customer' ? 'Клиент' : 'Черновик агента' }}</span>
+                        <p>{{ message.bodyText }}</p>
+                        <div v-if="message.trace" class="sandbox-decision">
+                          <span>{{ stateHuman(message.stateAfter) }}</span>
+                          <span v-if="message.extraction && message.extraction.valid">Найдено: {{ extractionHuman(message.extraction) }}</span>
+                          <span>{{ message.trace.reason }}</span>
+                        </div>
+                      </div>
+                      <div v-if="!sandboxMessages.length" class="empty empty--inline">Введите реплику клиента и посмотрите решение агента.</div>
+                    </div>
+                    <div class="sandbox-composer">
+                      <textarea v-model="agentTestInput" class="input textarea textarea--small" :placeholder="sandboxSuggestedMessage || t.sandboxPlaceholder"></textarea>
+                      <button class="btn btn--primary" type="button" :disabled="agentTesting || !agentTestInput.trim()" @click="sendSandboxMessage">
+                        {{ agentTesting ? 'Агент разбирает ответ…' : 'Отправить реплику в тест' }}
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="empty empty--inline">Выберите готовый сценарий и начните тест.</div>
+                </div>
+
+                <div v-if="activeTab === 'versions'" class="versions-panel">
+                  <div class="versions-head">
+                    <div><h3>Версии и активность</h3><p>Новая версия не меняет уже начатые диалоги.</p></div>
+                    <button class="btn btn--primary" type="button" :disabled="versionActionLoading || !selectedAgentId" @click="createDraftVersion">Создать версию из настроек</button>
+                  </div>
+                  <div class="version-list">
+                    <div v-for="version in agentVersions" :key="version.id" class="version-row">
+                      <div><strong>Версия {{ version.version }}</strong><span>{{ versionStatusLabel(version.status) }}</span></div>
+                      <span>{{ formatDate(version.updatedAt) }}</span>
+                      <button v-if="version.status === 'draft'" class="btn btn--tiny" type="button" :disabled="versionActionLoading" @click="testVersion(version)">Запустить обязательные тесты</button>
+                      <button v-if="version.status === 'tested'" class="btn btn--tiny btn--primary" type="button" :disabled="versionActionLoading" @click="publishVersion(version)">Опубликовать</button>
+                      <span v-if="version.testSummary" class="version-result">{{ passedChecksLabel(version.testSummary) }}</span>
+                    </div>
+                    <div v-if="!agentVersions.length" class="empty empty--inline">Версии появятся после сохранения агента.</div>
+                  </div>
+                  <h4>Последние действия</h4>
+                  <div class="run-list">
+                    <div v-for="run in activity.recent || []" :key="run.id" class="run-row">
+                      <span class="runtime-dot" :class="{ 'runtime-dot--live': ['running', 'queued'].includes(run.status) }"></span>
+                      <div><strong>{{ run.summary || capabilityHuman(run.capability) }}</strong><span>{{ run.agentConfig && run.agentConfig.name }} · {{ runStatusLabel(run.status) }}</span></div>
+                      <time>{{ formatDate(run.startedAt) }}</time>
+                    </div>
+                  </div>
                 </div>
 
                 <div v-if="activeTab === 'advanced'" class="advanced-panel">
@@ -427,6 +498,15 @@ export default {
     agentTesting: false,
     agentTestInput: '',
     agentTestOutput: '',
+    sandboxScenario: 'baggage',
+    sandboxSession: null,
+    sandboxContext: {},
+    sandboxMessages: [],
+    sandboxSuggestedMessage: '',
+    runtimeHealth: {},
+    activity: { now: {}, day: {}, recent: [] },
+    agentVersions: [],
+    versionActionLoading: false,
     promptTemplates: [],
     promptKeys: ['order_missing_data_prompt', 'reply_interpretation_prompt', 'esim_offer_prompt', 'followup_prompt', 'whatsapp_template_registry'],
     selectedPromptKey: 'order_missing_data_prompt',
@@ -448,9 +528,33 @@ export default {
         { key: 'overview', label: this.t.tabOverview },
         { key: 'behavior', label: this.t.tabBehavior },
         { key: 'workflow', label: this.t.tabWorkflow },
-        { key: 'templates', label: this.t.tabTemplates },
-        { key: 'test', label: this.t.tabTest },
+        { key: 'test', label: 'Песочница' },
+        { key: 'versions', label: 'Версии и активность' },
         { key: 'advanced', label: this.t.tabAdvanced }
+      ]
+    },
+    scenarioSteps () {
+      return [
+        { key: 'received', label: 'Получил задачу' },
+        { key: 'compose', label: 'Готовит сообщение' },
+        { key: 'approval', label: 'Ждёт одобрения' },
+        { key: 'sent', label: 'Отправлено' },
+        { key: 'waiting', label: 'Ждёт клиента' },
+        { key: 'classify', label: 'Разбирает ответ' },
+        { key: 'thanks', label: 'Готовит благодарность' },
+        { key: 'complete', label: 'Завершено' }
+      ]
+    },
+    sandboxScenarios () {
+      return [
+        { key: 'baggage', label: 'Багаж: понятный ответ' },
+        { key: 'flight', label: 'Номер рейса' },
+        { key: 'pickup', label: 'Место подачи' },
+        { key: 'ambiguous', label: 'Неоднозначный ответ' },
+        { key: 'customer_question', label: 'Вопрос клиента' },
+        { key: 'refusal', label: 'Отказ отвечать' },
+        { key: 'language', label: 'Русский язык' },
+        { key: 'inbound_inquiry', label: 'Первичное обращение' }
       ]
     },
     isCreating () {
@@ -748,7 +852,7 @@ export default {
     },
     async reloadAll () {
       this.notice = ''
-      await Promise.all([this.loadAgents(), this.loadPrompts(), this.loadWhatsappTemplates()])
+      await Promise.all([this.loadAgents(), this.loadPrompts(), this.loadWhatsappTemplates(), this.loadRuntimeOverview()])
     },
     async loadAgents () {
       const res = await fetch('/api/admin/chats/agents', { headers: this.headers() })
@@ -787,12 +891,15 @@ export default {
         constraintsJson: JSON.stringify(selected.constraints || {}, null, 2),
         variablesJson: JSON.stringify(selected.variables || {}, null, 2),
         isActive: selected.isActive !== false,
-        requiresApproval: selected.requiresApproval !== false
+        requiresApproval: true
       }
       this.hydrateWorkflowDraft()
       this.agentTestInput = ''
       this.agentTestOutput = ''
+      this.sandboxSession = null
+      this.sandboxMessages = []
       this.savedSnapshot = this.snapshotForm()
+      this.loadAgentVersions()
     },
     startNewAgent () {
       if (this.hasUnsavedChanges && !window.confirm('Есть несохранённые изменения. Создать нового агента без сохранения?')) return
@@ -804,6 +911,8 @@ export default {
       this.syncWorkflowDraft()
       this.agentTestInput = ''
       this.agentTestOutput = ''
+      this.sandboxSession = null
+      this.sandboxMessages = []
       this.savedSnapshot = this.snapshotForm()
     },
     snapshotForm () {
@@ -840,6 +949,7 @@ export default {
         order_completion: 'Уточнение данных заказа',
         'order-completion-v1': 'Уточнение данных заказа',
         driver_ops: 'Помощник по водителям',
+        customer_support: 'Первичные обращения клиентов',
         policy_guard: 'Проверка правил безопасности'
       }
       return map[code] || agent?.name || this.t.untitledAgent
@@ -853,6 +963,7 @@ export default {
         order_completion: 'Уточняет недостающие данные заказа: багаж, рейс, место подачи и важные детали.',
         'order-completion-v1': 'Уточняет недостающие данные заказа: багаж, рейс, место подачи и важные детали.',
         driver_ops: 'Помогает с операционными вопросами по водителям.',
+        customer_support: 'Готовит ответы клиентам, которые написали первыми и ещё не связаны с заказом.',
         policy_guard: 'Проверяет, что AI-действия не нарушают правила безопасности.'
       }
       return map[code] || map[type] || agent?.description || this.t.noDescription
@@ -862,6 +973,7 @@ export default {
         order_completion: 'Уточнение заказа',
         dispatch_notify: 'Уведомление клиента',
         driver_ops: 'Операции с водителями',
+        customer_support: 'Первичные обращения',
         policy_guard: 'Контроль правил'
       }
       return map[type] || type || '—'
@@ -871,6 +983,7 @@ export default {
         clarification: 'Уточнить данные',
         dispatch_info: 'Сообщить детали поездки',
         driver_ops: 'Помочь с водителем'
+        , inbound_inquiry: 'Ответить на новое обращение'
       }
       return map[taskType] || taskType || '—'
     },
@@ -879,6 +992,7 @@ export default {
         order_completion: 'Клиентские операции',
         dispatch_notify: 'Диспетчеризация',
         driver_ops: 'Водители',
+        customer_support: 'Клиентская поддержка',
         policy_guard: 'Безопасность'
       }
       return map[type] || type || '—'
@@ -966,7 +1080,7 @@ export default {
         constraintsJson: this.agentForm.constraintsJson.trim() || null,
         variables: this.agentForm.variablesJson.trim() || null,
         isActive: this.agentForm.isActive,
-        requiresApproval: this.agentForm.requiresApproval
+        requiresApproval: true
       }
     },
     async saveAgent (mode = 'draft') {
@@ -985,7 +1099,8 @@ export default {
         this.creatingNew = false
         await this.loadAgents()
         this.applyAgentSelection()
-        this.showNotice(mode === 'publish' ? 'Агент опубликован' : (creating ? 'Черновик агента создан' : 'Черновик сохранён'))
+        if (this.selectedAgentId) await this.createDraftVersion(true)
+        this.showNotice(creating ? 'Агент создан. Теперь проверьте его в песочнице.' : 'Черновик сохранён новой версией')
       } catch (error) {
         this.showNotice(error?.message || 'Ошибка сохранения агента', 'error')
       } finally {
@@ -993,8 +1108,13 @@ export default {
       }
     },
     async publishAgent () {
-      this.agentForm.isActive = true
-      await this.saveAgent('publish')
+      const tested = this.agentVersions.find((item) => item.status === 'tested')
+      if (!tested) {
+        this.activeTab = 'versions'
+        this.showNotice('Перед публикацией запустите обязательные тесты', 'error')
+        return
+      }
+      await this.publishVersion(tested)
     },
     async deleteAgent () {
       if (!this.selectedAgentId || this.isSystemAgent) return
@@ -1015,25 +1135,151 @@ export default {
       await this.loadAgents()
     },
     async runAgentTest () {
-      if (!this.selectedAgentId || this.agentTesting) return
-      this.agentTesting = true
       this.activeTab = 'test'
+      if (!this.sandboxSession) await this.startSandbox()
+    },
+    async loadRuntimeOverview () {
       try {
-        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/test`, {
+        const [healthResponse, activityResponse] = await Promise.all([
+          fetch('/api/admin/ai/runtime-health', { headers: this.headers() }),
+          fetch('/api/admin/ai/activity', { headers: this.headers() })
+        ])
+        if (healthResponse.ok) this.runtimeHealth = await healthResponse.json()
+        if (activityResponse.ok) this.activity = await activityResponse.json()
+      } catch (_) {}
+    },
+    async loadAgentVersions () {
+      if (!this.selectedAgentId) {
+        this.agentVersions = []
+        return
+      }
+      try {
+        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/versions`, { headers: this.headers() })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось загрузить версии')
+        this.agentVersions = data.rows || []
+      } catch (error) {
+        this.showNotice(error?.message || 'Не удалось загрузить версии', 'error')
+      }
+    },
+    async createDraftVersion (silent = false) {
+      if (!this.selectedAgentId || this.versionActionLoading) return
+      this.versionActionLoading = true
+      try {
+        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/versions/draft`, {
           method: 'POST',
           headers: this.headers(),
-          body: JSON.stringify({ dry_run: true, message: this.agentTestInput || 'Проверка тестового запуска агента', conversation_history: [] })
+          body: JSON.stringify({ snapshot: { ...this.agentForm, workflow: this.agentForm.workflowJson } })
         })
         const data = await response.json()
-        if (!response.ok) throw new Error(data?.error || 'Ошибка dry_run теста')
-        this.agentTestOutput = JSON.stringify(data, null, 2)
-        this.showNotice('Dry run выполнен')
+        if (!response.ok) throw new Error(data?.error || 'Не удалось создать версию')
+        await this.loadAgentVersions()
+        if (!silent) this.showNotice(`Создана версия ${data.version.version}. Запустите обязательные тесты.`)
       } catch (error) {
-        this.agentTestOutput = JSON.stringify({ error: error?.message || 'Ошибка теста' }, null, 2)
-        this.showNotice(error?.message || 'Ошибка теста', 'error')
+        this.showNotice(error?.message || 'Не удалось создать версию', 'error')
+      } finally {
+        this.versionActionLoading = false
+      }
+    },
+    async testVersion (version) {
+      this.versionActionLoading = true
+      try {
+        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/versions/${version.id}/test-suite`, { method: 'POST', headers: this.headers(), body: '{}' })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Тесты не выполнены')
+        await this.loadAgentVersions()
+        this.showNotice(data.summary?.passed ? 'Все обязательные сценарии пройдены' : 'Есть ошибки в обязательных сценариях', data.summary?.passed ? 'ok' : 'error')
+      } catch (error) {
+        this.showNotice(error?.message || 'Тесты не выполнены', 'error')
+      } finally {
+        this.versionActionLoading = false
+      }
+    },
+    async publishVersion (version) {
+      this.versionActionLoading = true
+      try {
+        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/versions/${version.id}/publish`, { method: 'POST', headers: this.headers(), body: '{}' })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось опубликовать')
+        await Promise.all([this.loadAgentVersions(), this.loadRuntimeOverview()])
+        this.showNotice(`Версия ${data.version.version} опубликована`)
+      } catch (error) {
+        this.showNotice(error?.message || 'Не удалось опубликовать', 'error')
+      } finally {
+        this.versionActionLoading = false
+      }
+    },
+    async startSandbox () {
+      if (!this.selectedAgentId || this.agentTesting) return
+      this.agentTesting = true
+      try {
+        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/sandbox/sessions`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ scenarioKey: this.sandboxScenario })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Не удалось начать тест')
+        this.sandboxSession = data.session
+        this.sandboxContext = data.context || {}
+        this.sandboxMessages = []
+        this.sandboxSuggestedMessage = data.context?.suggestedCustomerMessage || ''
+        this.agentTestInput = this.sandboxSuggestedMessage
+      } catch (error) {
+        this.showNotice(error?.message || 'Не удалось начать тест', 'error')
       } finally {
         this.agentTesting = false
       }
+    },
+    async sendSandboxMessage () {
+      if (!this.sandboxSession || !this.agentTestInput.trim() || this.agentTesting) return
+      this.agentTesting = true
+      const text = this.agentTestInput.trim()
+      try {
+        const response = await fetch(`/api/admin/ai-agents/${this.selectedAgentId}/sandbox/sessions/${this.sandboxSession.id}/messages`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ message: text })
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || 'Агент не обработал реплику')
+        const decorate = (message) => ({ ...message, extraction: data.decision?.extraction || null, trace: data.trace || null })
+        this.sandboxMessages.push(decorate(data.customerMessage), decorate(data.agentMessage))
+        this.agentTestInput = ''
+        this.sandboxSession = { ...this.sandboxSession, currentState: data.stateAfter }
+        await this.loadRuntimeOverview()
+      } catch (error) {
+        this.showNotice(error?.message || 'Агент не обработал реплику', 'error')
+      } finally {
+        this.agentTesting = false
+      }
+    },
+    stateHuman (state) {
+      const map = { waiting_customer: 'Ждёт клиента', waiting_approval: 'Ждёт одобрения', needs_human: 'Нужна помощь сотрудника', completed: 'Завершено' }
+      return map[state] || state || '—'
+    },
+    extractionHuman (extraction) {
+      const field = extraction.field || extraction.field_name || 'данные'
+      const value = extraction.value ?? extraction.normalized_value ?? extraction.normalizedValue
+      return `${field} = ${value}`
+    },
+    versionStatusLabel (status) {
+      return ({ draft: 'Черновик', tested: 'Проверена', published: 'Опубликована', archived: 'Архив' })[status] || status
+    },
+    passedChecksLabel (summary) {
+      const checks = summary?.checks || []
+      return checks.length ? `${checks.filter((item) => item.passed).length} из ${checks.length} тестов` : (summary?.passed ? 'Проверена' : '')
+    },
+    capabilityHuman (capability) {
+      return ({ 'riderra.customer.message.compose': 'Готовит сообщение', 'riderra.customer.reply.classify': 'Разбирает ответ', 'riderra.order.field.extract_validate': 'Извлекает данные' })[capability] || capability
+    },
+    runStatusLabel (status) {
+      return ({ queued: 'В очереди', running: 'Работает', waiting_approval: 'Ждёт одобрения', completed: 'Завершено', failed: 'Ошибка', fallback: 'Резервный режим' })[status] || status
+    },
+    formatLatency (value) {
+      const ms = Number(value || 0)
+      if (!ms) return '—'
+      return ms < 1000 ? `${ms} мс` : `${(ms / 1000).toFixed(1)} с`
     },
     parseJsonMaybe (value) {
       try {
@@ -1243,6 +1489,44 @@ export default {
 .toggle-grid { display:flex; flex-wrap:wrap; gap:12px; }
 .switch { display:inline-flex; align-items:center; gap:8px; border:1px solid #d8e0ee; border-radius:14px; background:#f8fafc; color:#17233f; font-weight:900; padding:12px 14px; }
 .workflow-editor, .templates-panel, .test-panel, .advanced-panel { display:grid; gap:18px; }
+.runtime-overview { display:grid; gap:16px; border:1px solid #d8e0ee; border-radius:16px; padding:16px; background:#f8fafc; }
+.runtime-status { display:flex; align-items:center; gap:12px; }
+.runtime-status p, .versions-head p, .sandbox-head p { margin:4px 0 0; color:#64748b; }
+.runtime-dot { flex:0 0 auto; width:10px; height:10px; border-radius:50%; background:#f59e0b; box-shadow:0 0 0 4px rgba(245,158,11,.12); }
+.runtime-dot--live { background:#22c55e; box-shadow:0 0 0 4px rgba(34,197,94,.13); animation:runtime-pulse 1.4s ease-in-out infinite; }
+@keyframes runtime-pulse { 50% { transform:scale(1.2); opacity:.7; } }
+.activity-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.activity-metrics div { display:grid; gap:4px; border:1px solid #e2e8f0; border-radius:12px; padding:12px; background:#fff; }
+.activity-metrics strong { color:#17233f; font-size:20px; }
+.activity-metrics span { color:#64748b; font-size:12px; }
+.scenario-map { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.scenario-step { position:relative; display:flex; align-items:center; gap:8px; min-height:48px; border:1px solid #d8e0ee; border-radius:14px; padding:10px; color:#17233f; font-size:13px; font-weight:800; }
+.scenario-step__number { display:grid; place-items:center; width:24px; height:24px; flex:0 0 24px; border-radius:50%; background:#18244a; color:#fff; font-size:11px; }
+.scenario-branches { display:flex; flex-wrap:wrap; gap:8px; }
+.scenario-branches span { border:1px solid #fecaca; border-radius:999px; background:#fff7f7; color:#991b1b; padding:8px 11px; font-size:12px; font-weight:800; }
+.scenario-note { margin:0; color:#64748b; font-size:13px; }
+.sandbox-head, .versions-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.sandbox-head h3, .versions-head h3 { margin:0; }
+.sandbox-start { display:flex; gap:8px; min-width:390px; }
+.sandbox-shell { display:grid; gap:12px; border:1px solid #d8e0ee; border-radius:18px; padding:14px; background:#f8fafc; }
+.sandbox-context { display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:#475569; font-size:12px; font-weight:800; }
+.sandbox-transcript { display:grid; gap:10px; max-height:480px; overflow:auto; padding:4px; }
+.sandbox-message { width:min(78%,680px); border:1px solid #d8e0ee; border-radius:16px; padding:12px 14px; background:#fff; }
+.sandbox-message--customer { justify-self:end; background:#eef4ff; border-color:#bfdbfe; }
+.sandbox-message--agent { justify-self:start; }
+.sandbox-message > span { color:#64748b; font-size:11px; font-weight:900; text-transform:uppercase; }
+.sandbox-message p { margin:5px 0 0; color:#17233f; line-height:1.45; white-space:pre-wrap; }
+.sandbox-decision { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; padding-top:9px; border-top:1px solid #e2e8f0; }
+.sandbox-decision span { border-radius:999px; background:#f1f5f9; color:#475569; padding:5px 8px; font-size:11px; font-weight:800; }
+.sandbox-composer { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; }
+.sandbox-composer .textarea { min-height:76px; }
+.versions-panel { display:grid; gap:16px; }
+.version-list, .run-list { display:grid; gap:8px; }
+.version-row { display:grid; grid-template-columns:minmax(150px,1fr) 150px auto minmax(110px,auto); gap:12px; align-items:center; border:1px solid #e2e8f0; border-radius:14px; padding:12px; }
+.version-row > div, .run-row > div { display:grid; gap:3px; }
+.version-row span, .run-row span, .run-row time { color:#64748b; font-size:12px; }
+.version-result { justify-self:end; }
+.run-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:center; border-bottom:1px solid #e2e8f0; padding:10px 2px; }
 .workflow-section { display:grid; gap:10px; border:1px solid #e6ebf5; border-radius:16px; padding:14px; background:#f8fafc; }
 .state-list, .transition-list { display:grid; gap:8px; }
 .state-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
@@ -1284,5 +1568,11 @@ export default {
   .page-head, .action-bar, .registry-callout { flex-direction:column; align-items:stretch; }
   .form-grid, .workflow-grid, .transition-row, .template-row, .agent-grid--registry { grid-template-columns:1fr; }
   .inline-grid { grid-template-columns:1fr; }
+  .activity-metrics, .scenario-map { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .sandbox-head, .versions-head { flex-direction:column; }
+  .sandbox-start, .sandbox-composer { width:100%; min-width:0; grid-template-columns:1fr; display:grid; }
+  .sandbox-message { width:92%; }
+  .version-row { grid-template-columns:1fr; align-items:start; }
+  .version-result { justify-self:start; }
 }
 </style>

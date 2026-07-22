@@ -156,6 +156,27 @@
                   </div>
                 </div>
 
+                <section class="agent-progress" aria-label="Прогресс агента">
+                  <div class="agent-progress__head">
+                    <div>
+                      <strong>{{ latestAgentActivity(selectedTask).title }}</strong>
+                      <span>{{ latestAgentActivity(selectedTask).detail }}</span>
+                    </div>
+                    <span v-if="latestAgentActivity(selectedTask).live" class="agent-live">Работает сейчас</span>
+                  </div>
+                  <div class="agent-progress__steps">
+                    <div
+                      v-for="(step, index) in agentProgressSteps(selectedTask)"
+                      :key="step.key"
+                      class="agent-progress__step"
+                      :class="{ 'agent-progress__step--done': step.done, 'agent-progress__step--current': step.current }"
+                    >
+                      <span>{{ index + 1 }}</span>
+                      <small>{{ step.label }}</small>
+                    </div>
+                  </div>
+                </section>
+
                 <section class="recipient-card">
                   <div class="recipient-card__head">
                     <div>
@@ -193,7 +214,7 @@
                 </section>
 
                 <div class="messages">
-                  <div v-for="message in selectedTask.messages || []" :key="message.id" class="message" :class="`message--${message.direction}`">
+                  <div v-for="message in conversationMessages" :key="message.id" class="message" :class="`message--${message.direction}`">
                   <div class="message-head">
                     <span>{{ directionLabel(message.direction) }}</span>
                     <span>{{ sourceLabel(message.source) }}</span>
@@ -209,151 +230,15 @@
                     <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
                     <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
                   </div>
-                  <div v-if="canSend(message)" class="delivery-panel" :class="{ 'delivery-panel--warning': isWhatsappMessage(message) && !whatsappFreeTextAllowed }">
-                    <div class="delivery-panel__head">
-                      <div>
-                        <strong>Режим отправки</strong>
-                        <div class="hint">{{ deliveryHint(message) }}</div>
-                      </div>
-                      <span v-if="isWhatsappMessage(message)" class="badge" :class="whatsappFreeTextAllowed ? 'badge--sla-ok' : 'badge--sla-warning'">
-                        {{ whatsappFreeTextAllowed ? 'WhatsApp: free text открыт' : 'WhatsApp: нужен template' }}
-                      </span>
-                      <span v-if="deliveryRecommended(message)" class="badge badge--sla-ok">Template выбран policy</span>
-                    </div>
-                    <div class="delivery-mode">
-                      <label class="delivery-radio">
-                        <input
-                          type="radio"
-                          value="free_text"
-                          :checked="deliveryForm(message).mode === 'free_text'"
-                          @change="setDeliveryMode(message, 'free_text')"
-                        >
-                        Free text
-                      </label>
-                      <label class="delivery-radio">
-                        <input
-                          type="radio"
-                          value="template"
-                          :checked="deliveryForm(message).mode === 'template'"
-                          @change="setDeliveryMode(message, 'template')"
-                        >
-                        Template
-                      </label>
-                    </div>
-                    <div v-if="deliveryForm(message).mode === 'template'" class="delivery-template-grid">
-                      <label>
-                        <span>Шаблон</span>
-                        <select
-                          class="input"
-                          :value="knownTemplateName(deliveryForm(message).templateName)"
-                          @change="applyTemplatePreset(message, $event.target.value)"
-                        >
-                          <option v-for="tpl in whatsappTemplatePresets" :key="tpl.name" :value="tpl.name">
-                            {{ tpl.label }}
-                          </option>
-                          <option value="__custom">Другой approved template</option>
-                        </select>
-                      </label>
-                      <label>
-                        <span>language</span>
-                        <select
-                          class="input"
-                          :value="deliveryForm(message).language"
-                          @change="updateDeliveryForm(message.id, 'language', $event.target.value)"
-                        >
-                          <option value="en">en</option>
-                          <option value="ru">ru</option>
-                        </select>
-                      </label>
-                      <label class="delivery-template-grid__wide">
-                        <span>templateName</span>
-                        <input
-                          class="input"
-                          :value="deliveryForm(message).templateName"
-                          placeholder="riderra_baggage_request"
-                          @input="updateDeliveryForm(message.id, 'templateName', $event.target.value)"
-                        >
-                      </label>
-                      <label class="delivery-template-grid__wide">
-                        <span>variables JSON</span>
-                        <textarea
-                          class="input textarea textarea--code delivery-vars"
-                          :value="deliveryForm(message).variablesText"
-                          placeholder='{"booking_number":"123","question":"How many bags?"}'
-                          @input="updateDeliveryForm(message.id, 'variablesText', $event.target.value)"
-                        ></textarea>
-                      </label>
-                      <div class="delivery-template-grid__wide template-help">
-                        {{ templateHelp(deliveryForm(message).templateName) }}
-                      </div>
-                      <div class="delivery-template-grid__wide template-preview">
-                        <strong>Точный текст approved-шаблона</strong>
-                        <p>{{ approvedTemplatePreview(message) }}</p>
-                      </div>
-                    </div>
-                    <details v-if="deliveryTrace(message)" class="policy-trace">
-                      <summary>Почему выбран этот режим</summary>
-                      <div class="policy-trace__grid">
-                        <div>
-                          <span>Правило</span>
-                          <strong>{{ deliveryTrace(message).rule || 'policy_guard' }}</strong>
-                        </div>
-                        <div>
-                          <span>Причина</span>
-                          <strong>{{ deliveryTrace(message).reason || deliveryPayload(message).reason || '-' }}</strong>
-                        </div>
-                        <div>
-                          <span>Template</span>
-                          <strong>{{ deliveryPayload(message).templateName || '-' }}</strong>
-                        </div>
-                        <div>
-                          <span>Язык</span>
-                          <strong>{{ deliveryPayload(message).language || '-' }}</strong>
-                        </div>
-                      </div>
-                      <pre class="policy-trace__json">{{ stringifyTrace(deliveryPayload(message)) }}</pre>
-                    </details>
-                  </div>
                   <div class="message-actions">
-                    <button class="btn btn--small" @click="approveMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Одобрить</button>
-                    <button class="btn btn--small btn--warn" @click="rejectMessage(message.id)" v-if="message.approvalStatus === 'pending_human'">Отклонить</button>
                     <button class="btn btn--small" @click="copyMessage(message)" v-if="message.direction === 'outbound'">Скопировать</button>
-                    <button class="btn btn--small btn--primary" @click="markManualSent(message.id)" v-if="canMarkManualSent(message)">Отметить отправленным вручную</button>
-                    <button class="btn btn--small btn--ghost" :disabled="!recipientReady" @click="sendMessage(message.id)" v-if="canSend(message)">Отправить в {{ recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram' }}</button>
                   </div>
                   </div>
-                  <div v-if="!(selectedTask.messages || []).length" class="empty">Сообщений пока нет</div>
+                  <div v-if="!conversationMessages.length" class="empty">История сообщений пока пуста</div>
                 </div>
               </div>
 
               <div class="actions">
-                <div class="focus-panel">
-              <div class="focus-panel__head">
-                <div>
-                  <h4>{{ taskFocusTitle }}</h4>
-                  <div class="hint">{{ taskFocusHint }}</div>
-                </div>
-                <span class="badge" :class="slaBadgeClass(selectedTask)">{{ slaLabel(selectedTask) }}</span>
-              </div>
-              <div class="focus-panel__meta">
-                <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
-                <span class="badge">{{ taskTypeLabel(selectedTask.taskType) }}</span>
-                <span class="badge">Ответственный: {{ ownerDisplayLabel(selectedTask) }}</span>
-              </div>
-              <div class="focus-panel__actions">
-                <button
-                  class="btn btn--primary"
-                  :disabled="primaryTaskActionDisabled"
-                  @click="runPrimaryTaskAction"
-                >
-                  {{ primaryTaskActionLabel }}
-                </button>
-                <button class="btn btn--ghost" @click="toggleConversationAgent(selectedTask)">
-                  {{ agentToggleLabel(selectedTask) }}
-                </button>
-              </div>
-                </div>
-
                 <div v-if="inboundOutcome" class="outcome-panel" :class="inboundOutcome.panelClass">
               <div class="outcome-panel__head">
                 <div>
@@ -400,35 +285,173 @@
               </div>
                 </div>
 
-                <div class="actions-block">
-              <h4>Черновик сообщения клиенту</h4>
-              <div class="hint">{{ draftEditorHint }}</div>
-              <div v-if="selectedTask.taskType === 'clarification'" class="quick-templates">
-                <button class="btn btn--tiny" @click="applyClarificationTemplate('generic')">Общее уточнение</button>
-                <button class="btn btn--tiny" @click="applyClarificationTemplate('luggage')">Уточнить багаж</button>
-                <button class="btn btn--tiny" @click="applyClarificationTemplate('flight')">Уточнить рейс</button>
-                <button class="btn btn--tiny" @click="applyClarificationTemplate('pickup')">Уточнить место подачи</button>
-              </div>
-              <textarea v-model="draftText" class="input textarea" placeholder="Черновик сообщения клиенту"></textarea>
-              <div class="message-draft-actions">
-                <button
-                  v-if="selectedTask.taskType === 'clarification'"
-                  class="btn btn--ghost"
-                  :disabled="draftBuildLoading || hasDraftAwaitingApproval(selectedTask)"
-                  @click="sendClarificationQuick"
-                >
-                  {{ draftBuildLoading ? 'Создаю...' : 'Создать вопрос клиенту' }}
-                </button>
-                <button
-                  v-if="selectedTask.taskType === 'dispatch_info'"
-                  class="btn btn--ghost"
-                  :disabled="draftBuildLoading || hasDraftAwaitingApproval(selectedTask)"
-                  @click="sendDispatchQuick"
-                >
-                  {{ draftBuildLoading ? 'Создаю...' : 'Создать подтверждение поездки' }}
-                </button>
-                <button class="btn btn--primary" :disabled="!draftText.trim()" @click="createDraft">Сохранить введённый текст</button>
-              </div>
+                <div class="actions-block message-workspace">
+              <template v-if="activeDraftMessage">
+                <p class="eyebrow">Текущий шаг</p>
+                <h4>{{ activeDraftMessage.approvalStatus === 'pending_human' ? 'Проверьте сообщение' : 'Отправьте сообщение' }}</h4>
+                <div class="hint">
+                  {{ activeDraftMessage.approvalStatus === 'pending_human'
+                    ? 'Текст ещё не отправлен. Проверьте его и нажмите «Одобрить».'
+                    : 'Сообщение одобрено. Проверьте получателя и отправьте его клиенту.' }}
+                </div>
+                <div class="draft-review">
+                  <div class="message-body">{{ activeDraftMessage.bodyText }}</div>
+                  <div class="send-preview">
+                    <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
+                    <span><strong>Канал:</strong> {{ activeDraftMessage.channel || selectedTask.channel || '—' }}</span>
+                    <span><strong>Проблема:</strong> {{ selectedTask.order && selectedTask.order.infoReason || '—' }}</span>
+                    <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
+                    <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
+                  </div>
+                </div>
+
+                <div v-if="canSend(activeDraftMessage)" class="delivery-panel" :class="{ 'delivery-panel--warning': isWhatsappMessage(activeDraftMessage) && !whatsappFreeTextAllowed }">
+                  <div class="delivery-panel__head">
+                    <div>
+                      <strong>Как будет отправлено</strong>
+                      <div class="hint">{{ deliveryHint(activeDraftMessage) }}</div>
+                    </div>
+                    <span v-if="isWhatsappMessage(activeDraftMessage)" class="badge" :class="whatsappFreeTextAllowed ? 'badge--sla-ok' : 'badge--sla-warning'">
+                      {{ whatsappFreeTextAllowed ? 'Обычное сообщение' : 'Шаблон WhatsApp' }}
+                    </span>
+                  </div>
+                  <div v-if="deliveryForm(activeDraftMessage).mode === 'template'" class="template-preview">
+                    <strong>Текст, который получит клиент</strong>
+                    <p>{{ approvedTemplatePreview(activeDraftMessage) }}</p>
+                  </div>
+                  <details class="delivery-settings">
+                    <summary>Настройки отправки</summary>
+                    <div class="delivery-mode">
+                      <label class="delivery-radio">
+                        <input
+                          type="radio"
+                          value="free_text"
+                          :checked="deliveryForm(activeDraftMessage).mode === 'free_text'"
+                          @change="setDeliveryMode(activeDraftMessage, 'free_text')"
+                        >
+                        Обычное сообщение
+                      </label>
+                      <label class="delivery-radio">
+                        <input
+                          type="radio"
+                          value="template"
+                          :checked="deliveryForm(activeDraftMessage).mode === 'template'"
+                          @change="setDeliveryMode(activeDraftMessage, 'template')"
+                        >
+                        Шаблон WhatsApp
+                      </label>
+                    </div>
+                    <div v-if="deliveryForm(activeDraftMessage).mode === 'template'" class="delivery-template-grid">
+                      <label>
+                        <span>Шаблон</span>
+                        <select
+                          class="input"
+                          :value="knownTemplateName(deliveryForm(activeDraftMessage).templateName)"
+                          @change="applyTemplatePreset(activeDraftMessage, $event.target.value)"
+                        >
+                          <option v-for="tpl in whatsappTemplatePresets" :key="tpl.name" :value="tpl.name">
+                            {{ tpl.label }}
+                          </option>
+                          <option value="__custom">Другой шаблон</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>Язык</span>
+                        <select
+                          class="input"
+                          :value="deliveryForm(activeDraftMessage).language"
+                          @change="updateDeliveryForm(activeDraftMessage.id, 'language', $event.target.value)"
+                        >
+                          <option value="en">Английский</option>
+                          <option value="ru">Русский</option>
+                        </select>
+                      </label>
+                    </div>
+                    <details v-if="deliveryForm(activeDraftMessage).mode === 'template'" class="policy-trace">
+                      <summary>Дополнительные параметры шаблона</summary>
+                      <div class="delivery-template-grid">
+                        <label class="delivery-template-grid__wide">
+                          <span>Название шаблона</span>
+                          <input
+                            class="input"
+                            :value="deliveryForm(activeDraftMessage).templateName"
+                            placeholder="riderra_baggage_request"
+                            @input="updateDeliveryForm(activeDraftMessage.id, 'templateName', $event.target.value)"
+                          >
+                        </label>
+                        <label class="delivery-template-grid__wide">
+                          <span>Переменные шаблона</span>
+                          <textarea
+                            class="input textarea textarea--code delivery-vars"
+                            :value="deliveryForm(activeDraftMessage).variablesText"
+                            placeholder='{"booking_number":"123","question":"How many bags?"}'
+                            @input="updateDeliveryForm(activeDraftMessage.id, 'variablesText', $event.target.value)"
+                          ></textarea>
+                        </label>
+                      </div>
+                    </details>
+                  </details>
+                </div>
+
+                <div class="message-draft-actions">
+                  <template v-if="activeDraftMessage.approvalStatus === 'pending_human'">
+                    <button class="btn btn--primary" @click="approveMessage(activeDraftMessage.id)">Одобрить</button>
+                    <button class="btn btn--warn" @click="rejectMessage(activeDraftMessage.id)">Отклонить</button>
+                  </template>
+                  <template v-else-if="canSend(activeDraftMessage)">
+                    <button class="btn btn--primary" :disabled="!recipientReady" @click="sendMessage(activeDraftMessage.id)">
+                      Отправить в {{ recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram' }}
+                    </button>
+                    <button class="btn btn--ghost" @click="copyMessage(activeDraftMessage)">Скопировать</button>
+                    <button class="btn btn--ghost" @click="markManualSent(activeDraftMessage.id)">Отметить отправленным вручную</button>
+                  </template>
+                </div>
+              </template>
+
+              <template v-else-if="isDraftPreparationStage">
+                <p class="eyebrow">Следующий шаг</p>
+                <h4>Подготовьте сообщение клиенту</h4>
+                <div class="hint">Выберите готовый вариант или напишите свой текст. После сохранения проверка появится здесь же.</div>
+                <div class="draft-recommended">
+                  <div>
+                    <strong>Рекомендуемый вариант</strong>
+                    <span>{{ selectedTask.taskType === 'dispatch_info' ? 'Собрать подтверждённые детали из заказа' : 'Сформулировать вопрос по отмеченной проблеме' }}</span>
+                  </div>
+                  <button
+                    v-if="selectedTask.taskType === 'clarification'"
+                    class="btn btn--primary"
+                    :disabled="draftBuildLoading"
+                    @click="sendClarificationQuick"
+                  >
+                    {{ draftBuildLoading ? 'Создаю...' : 'Создать вопрос клиенту' }}
+                  </button>
+                  <button
+                    v-if="selectedTask.taskType === 'dispatch_info'"
+                    class="btn btn--primary"
+                    :disabled="draftBuildLoading"
+                    @click="sendDispatchQuick"
+                  >
+                    {{ draftBuildLoading ? 'Создаю...' : 'Создать подтверждение поездки' }}
+                  </button>
+                </div>
+                <div class="draft-divider"><span>или напишите свой текст</span></div>
+                <div v-if="selectedTask.taskType === 'clarification'" class="quick-templates">
+                  <button class="btn btn--tiny" @click="applyClarificationTemplate('generic')">Общее уточнение</button>
+                  <button class="btn btn--tiny" @click="applyClarificationTemplate('luggage')">Уточнить багаж</button>
+                  <button class="btn btn--tiny" @click="applyClarificationTemplate('flight')">Уточнить рейс</button>
+                  <button class="btn btn--tiny" @click="applyClarificationTemplate('pickup')">Уточнить место подачи</button>
+                </div>
+                <textarea v-model="draftText" class="input textarea" placeholder="Напишите сообщение клиенту"></textarea>
+                <div class="message-draft-actions">
+                  <button class="btn btn--primary" :disabled="!draftText.trim()" @click="createDraft">Перейти к проверке</button>
+                </div>
+              </template>
+
+              <template v-else>
+                <p class="eyebrow">Текущий этап</p>
+                <h4>{{ taskFocusTitle }}</h4>
+                <div class="hint">{{ taskFocusHint }}</div>
+              </template>
                 </div>
 
                 <details class="actions-block" :open="selectedTask && selectedTask.state === 'customer_replied'">
@@ -745,6 +768,27 @@ export default {
         String(this.selectedTask?.customerActorId || '') === String(this.recipientPhone || '').trim() &&
         String(this.selectedTask?.channel || '') === String(this.recipientChannel || '')
     },
+    activeDraftMessage() {
+      const messages = Array.isArray(this.selectedTask?.messages) ? this.selectedTask.messages : []
+      return messages.find((message) => message?.direction === 'outbound' && message?.approvalStatus === 'pending_human') ||
+        messages.find((message) => this.canSend(message)) ||
+        null
+    },
+    conversationMessages() {
+      const messages = Array.isArray(this.selectedTask?.messages) ? this.selectedTask.messages : []
+      return messages.filter((message) => {
+        if (message?.direction !== 'outbound') return true
+        if (message?.approvalStatus === 'pending_human') return false
+        return !this.canSend(message)
+      })
+    },
+    isDraftPreparationStage() {
+      if (!this.selectedTask) return false
+      if (!['clarification', 'dispatch_info'].includes(this.selectedTask.taskType)) return false
+      if (this.isWaitingForCustomer(this.selectedTask)) return false
+      if (['customer_replied', 'pending_update_approval'].includes(this.selectedTask.state)) return false
+      return !this.hasDraftAwaitingApproval(this.selectedTask) && !this.hasReadyDraft(this.selectedTask)
+    },
     displayedTasks() {
       let rows = Array.isArray(this.tasks) ? this.tasks.slice() : []
       if (this.ownerFilter === '__mine') {
@@ -784,33 +828,6 @@ export default {
       if (this.selectedTask.taskType === 'dispatch_info') return 'Создайте сообщение с подтверждёнными деталями поездки. Перед отправкой вы увидите и одобрите черновик.'
       if (reason) return `Фокус задачи: ${reason}`
       return 'Соберите короткое сообщение, получите ответ и доведите задачу до следующего статуса.'
-    },
-    primaryTaskActionLabel() {
-      if (!this.selectedTask) return 'Действие'
-      if (this.isWaitingForCustomer(this.selectedTask)) return 'Ждём клиента'
-      if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving ? 'Сохраняю...' : 'Сохранить ответ в комментарии'
-      if (this.selectedTask.state === 'customer_replied') return 'Разобрать ответ'
-      if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Черновик готов — проверьте выше'
-      if (this.hasReadyDraft(this.selectedTask)) return 'Отправить'
-      if (this.selectedTask.taskType === 'dispatch_info') {
-        return this.draftBuildLoading ? 'Создаю...' : 'Создать подтверждение поездки'
-      }
-      return this.draftBuildLoading ? 'Создаю...' : 'Создать вопрос клиенту'
-    },
-    primaryTaskActionDisabled() {
-      if (!this.selectedTask) return true
-      if (this.isWaitingForCustomer(this.selectedTask)) return true
-      if (this.selectedTask.state === 'pending_update_approval') return this.inboundUpdateSaving || !this.inboundOutcome?.hasPendingPatch
-      if (this.selectedTask.state === 'customer_replied') return !this.inboundText.trim() || this.inboundProcessing
-      if (this.hasDraftAwaitingApproval(this.selectedTask)) return true
-      if (this.hasReadyDraft(this.selectedTask)) return !this.recipientReady
-      return this.draftBuildLoading
-    },
-    draftEditorHint() {
-      if (!this.selectedTask) return ''
-      if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Сначала одобрите или отклоните уже созданный черновик выше.'
-      if (this.selectedTask.taskType === 'dispatch_info') return '«Создать подтверждение поездки» соберёт сообщение из данных заказа. Если нужен свой текст, введите его здесь и сохраните.'
-      return '«Создать вопрос клиенту» сформулирует вопрос по отмеченной проблеме. Если нужен свой текст, введите его здесь и сохраните.'
     }
   },
   mounted() {
@@ -1271,7 +1288,7 @@ export default {
         const messageId = buildData?.message?.id
         if (!messageId) throw new Error('Не найден ID сообщения после сборки')
 
-        this.notice = 'Черновик уточнения готов. Одобрите, скопируйте текст и отметьте ручную отправку.'
+        this.notice = 'Черновик готов. Проверьте текст и одобрите его.'
         this.draftText = ''
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
@@ -1302,7 +1319,7 @@ export default {
         const messageId = buildData?.message?.id
         if (!messageId) throw new Error('Не найден ID сообщения после сборки')
 
-        this.notice = 'Черновик деталей готов. Одобрите, скопируйте текст и отметьте ручную отправку.'
+        this.notice = 'Черновик готов. Проверьте текст и одобрите его.'
         this.draftText = ''
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
@@ -1514,31 +1531,7 @@ export default {
         this.notice = error?.message || 'Ошибка отправки сообщения'
       }
     },
-    async runPrimaryTaskAction() {
-      if (!this.selectedTask) return
-      if (this.hasReadyDraft(this.selectedTask)) {
-        const message = this.readyDraftMessage(this.selectedTask)
-        if (message?.id) await this.sendMessage(message.id)
-        return
-      }
-      if (this.selectedTask.state === 'pending_update_approval') {
-        await this.applyInboundUpdate()
-        return
-      }
-      if (this.selectedTask.state === 'customer_replied') {
-        await this.processInboundMessage()
-        return
-      }
-      if (this.selectedTask.taskType === 'dispatch_info') {
-        await this.sendDispatchQuick()
-        return
-      }
-      await this.sendClarificationQuick()
-    },
     canSend(message) {
-      return message.direction === 'outbound' && (message.approvalStatus === 'approved' || message.approvalStatus === null)
-    },
-    canMarkManualSent(message) {
       return message.direction === 'outbound' && (message.approvalStatus === 'approved' || message.approvalStatus === null)
     },
     initializeDeliveryForms() {
@@ -1743,6 +1736,40 @@ export default {
         const ms = new Date(message.createdAt || 0).getTime()
         return Number.isFinite(ms) && ms > max ? ms : max
       }, 0)
+    },
+    agentProgressSteps(task) {
+      const states = ['missing_data_detected', 'notify_draft', 'request_sent', 'customer_replied', 'pending_update_approval', 'closed']
+      const labels = ['Готовит сообщение', 'Ждёт одобрения', 'Ждёт клиента', 'Разбирает ответ', 'Готовит благодарность', 'Завершено']
+      const state = String(task?.state || '')
+      const stateMap = {
+        missing_data_detected: 0,
+        ready_to_notify: 0,
+        notify_draft: 1,
+        request_sent: 2,
+        notify_sent: 2,
+        customer_replied: 3,
+        field_validated: 3,
+        field_rejected: 3,
+        pending_update_approval: 4,
+        order_complete: 4,
+        notify_ack: 5,
+        closed: 5,
+        handoff_human: 3
+      }
+      const running = (task?.agentRuns || []).find((run) => ['queued', 'running'].includes(run.status))
+      const activeIndex = running?.capability === 'riderra.customer.reply.classify' ? 3 : (running ? 0 : (stateMap[state] ?? 0))
+      return states.map((key, index) => ({ key, label: labels[index], done: index < activeIndex || state === 'closed', current: index === activeIndex && state !== 'closed' }))
+    },
+    latestAgentActivity(task) {
+      const run = (task?.agentRuns || [])[0]
+      if (!run) return { title: 'Агент готов к следующему шагу', detail: this.stateLabel(task?.state), live: false }
+      const capability = {
+        'riderra.customer.message.compose': 'Агент формулирует сообщение',
+        'riderra.customer.reply.classify': 'Агент разбирает ответ',
+        'riderra.order.field.extract_validate': 'Агент извлекает данные'
+      }[run.capability] || 'Агент обрабатывает задачу'
+      const status = { queued: 'В очереди', running: 'Выполняется', waiting_approval: 'Ждёт одобрения', completed: 'Завершено', failed: 'Нужна помощь сотрудника', fallback: 'Резервный режим' }[run.status] || run.status
+      return { title: run.summary || capability, detail: `${status}${run.model ? ` · ${run.model}` : ''}`, live: ['queued', 'running'].includes(run.status) }
     },
     taskTypeLabel(code) {
       return code === 'dispatch_info' ? 'Рассылка' : 'Уточнение'
@@ -2141,6 +2168,20 @@ export default {
 .dialog-head h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.25; color: #17233d; }
 .dialog-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .dialog-status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.agent-progress { display:grid; gap:10px; border:1px solid #dbe4f0; border-radius:12px; background:#f8fafc; padding:12px; margin-bottom:10px; }
+.agent-progress__head { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+.agent-progress__head > div { display:grid; gap:3px; }
+.agent-progress__head span { color:#64748b; font-size:12px; }
+.agent-live { border-radius:999px; background:#dcfce7; color:#166534 !important; padding:6px 9px; font-weight:800; animation:agent-live-pulse 1.4s ease-in-out infinite; }
+@keyframes agent-live-pulse { 50% { opacity:.62; } }
+.agent-progress__steps { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; }
+.agent-progress__step { display:flex; align-items:center; gap:6px; min-width:0; color:#94a3b8; }
+.agent-progress__step > span { display:grid; place-items:center; width:22px; height:22px; flex:0 0 22px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; font-size:10px; font-weight:900; }
+.agent-progress__step small { overflow:hidden; text-overflow:ellipsis; font-size:10px; font-weight:800; line-height:1.2; }
+.agent-progress__step--done { color:#166534; }
+.agent-progress__step--done > span { border-color:#86efac; background:#dcfce7; }
+.agent-progress__step--current { color:#17233d; }
+.agent-progress__step--current > span { border-color:#17233d; background:#17233d; color:#fff; }
 .recipient-card { border: 1px solid #dbe4f0; border-radius: 12px; background: #f8fafc; padding: 12px; margin-bottom: 10px; }
 .recipient-card__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
 .recipient-card__head h4, .recipient-card__head p { margin: 0; }
@@ -2171,6 +2212,9 @@ export default {
 .template-help { border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.35; padding: 8px; }
 .template-preview { border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; color: #14532d; padding: 10px; font-size: 13px; line-height: 1.45; }
 .template-preview p { margin: 5px 0 0; }
+.delivery-settings { margin-top: 10px; }
+.delivery-settings summary { cursor: pointer; color: #475569; font-size: 13px; font-weight: 700; }
+.delivery-settings .delivery-mode { margin-top: 10px; }
 .policy-trace { margin-top: 8px; border: 1px solid #dbe4f0; border-radius: 8px; background: #f8fafc; padding: 8px; }
 .policy-trace summary { cursor: pointer; font-weight: 800; color: #17233d; }
 .policy-trace__grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
@@ -2179,12 +2223,6 @@ export default {
 .policy-trace__grid strong { color: #17233d; font-size: 12px; word-break: break-word; }
 .policy-trace__json { white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #dbeafe; border-radius: 8px; padding: 8px; font-size: 11px; max-height: 180px; overflow: auto; margin: 8px 0 0; }
 .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.focus-panel { border: 1px solid #ead7f0; border-radius: 12px; background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%); padding: 12px; margin-bottom: 10px; }
-.focus-panel__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
-.focus-panel__head h4 { margin: 0 0 4px; }
-.focus-panel__meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.focus-panel__actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.focus-panel__actions .btn--primary { box-shadow: 0 10px 24px rgba(112, 34, 131, .18); }
 .outcome-panel {
   border: 1px solid #d8e0ee;
   border-radius: 14px;
@@ -2241,6 +2279,14 @@ export default {
 .trace-cap-meta { font-size: 12px; color: #475569; margin: 4px 0; }
 .trace-json { white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #dbeafe; border-radius: 6px; padding: 6px; font-size: 11px; max-height: 160px; overflow: auto; margin: 0; }
 .trace-time { color: #64748b; font-size: 12px; margin-top: 4px; }
+.draft-recommended { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0; padding: 12px; border: 1px solid #d8e0ee; border-radius: 10px; background: #f8fafc; }
+.draft-recommended > div { display: flex; flex-direction: column; gap: 3px; color: #64748b; }
+.draft-recommended strong { color: #17233d; }
+.draft-recommended .btn { flex: 0 0 auto; }
+.draft-review { margin: 12px 0; padding: 14px; border: 1px solid #bae6fd; border-radius: 10px; background: #f0f9ff; }
+.draft-review .message-body { font-size: 16px; line-height: 1.5; }
+.draft-divider { display: flex; align-items: center; gap: 10px; margin: 12px 0 8px; color: #64748b; font-size: 12px; font-weight: 700; }
+.draft-divider::before, .draft-divider::after { content: ''; height: 1px; flex: 1; background: #e5eaf1; }
 .message-draft-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .input { border: 1px solid #d8d8e6; border-radius: 8px; padding: 8px 10px; width: 100%; background: #fff; color: #1e2a44; }
 .textarea { min-height: 110px; resize: vertical; margin-bottom: 8px; }
@@ -2272,8 +2318,7 @@ export default {
   .queue-head,
   .dialog-head,
   .dialog-head-actions,
-  .focus-panel__head,
-  .focus-panel__actions,
+  .draft-recommended,
   .message-actions,
   .message-draft-actions {
     flex-direction: column;
@@ -2288,6 +2333,8 @@ export default {
   .policy-trace__grid { grid-template-columns: 1fr; }
   .recipient-card__head { flex-direction: column; }
   .recipient-card__grid { grid-template-columns: 1fr; }
+  .agent-progress__head { flex-direction:column; align-items:flex-start; }
+  .agent-progress__steps { grid-template-columns:repeat(2,minmax(0,1fr)); }
 
   .page-actions .btn,
   .queue-bulk .btn,

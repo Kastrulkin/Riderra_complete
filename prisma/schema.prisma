@@ -8,47 +8,50 @@ datasource db {
 }
 
 model Tenant {
-  id                  String                  @id @default(cuid())
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-  code                String                  @unique
-  name                String
-  isActive            Boolean                 @default(true)
-  memberships         TenantMembership[]
-  idempotencyKeys     IdempotencyKey[]
-  auditLogs           AuditLog[]
-  approvals           HumanApproval[]
-  orders              Order[]
-  orderQualitySignals OrderQualitySignal[]
-  orderStatusEvents   OrderStatusHistory[]
-  orderChangeLogs     OrderChangeLog[]
-  pricingRows         CityPricing[]
-  counterpartyRules   CounterpartyPriceRule[]
-  drivers             Driver[]
-  driverRoutes        DriverRoute[]
-  cityRoutes          CityRoute[]
-  driverCityRoutes    DriverCityRoute[]
-  requests            Request[]
-  reviews             Review[]
-  customerCompanies   CustomerCompany[]
-  customerContacts    CustomerContact[]
-  crmCompanies        CrmCompany[]
-  crmContacts         CrmContact[]
-  opsEventDrafts      OpsEventDraft[]
-  opsEvents           OpsEvent[]
-  driverBlocks        DriverUnavailability[]
-  opsTasks            OpsTask[]
-  orderAdjustments    OrderAdjustment[]
-  telegramLinks       TelegramLink[]
-  fleetVehicles       FleetVehicle[]
-  chatTasks           ChatTask[]
-  chatMessages        ChatMessage[]
-  chatAgentConfigs    ChatAgentConfig[]
-  promptTemplates     PromptTemplate[]
-  aiLearningEvents    AiLearningEvent[]
-  vpnProfiles         VpnProfile[]
-  vpnAccessGrants     VpnAccessGrant[]
-  wikiPages           WikiPage[]
+  id                   String                  @id @default(cuid())
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  code                 String                  @unique
+  name                 String
+  isActive             Boolean                 @default(true)
+  memberships          TenantMembership[]
+  idempotencyKeys      IdempotencyKey[]
+  auditLogs            AuditLog[]
+  approvals            HumanApproval[]
+  orders               Order[]
+  orderQualitySignals  OrderQualitySignal[]
+  orderStatusEvents    OrderStatusHistory[]
+  orderChangeLogs      OrderChangeLog[]
+  pricingRows          CityPricing[]
+  counterpartyRules    CounterpartyPriceRule[]
+  drivers              Driver[]
+  driverRoutes         DriverRoute[]
+  cityRoutes           CityRoute[]
+  driverCityRoutes     DriverCityRoute[]
+  requests             Request[]
+  reviews              Review[]
+  customerCompanies    CustomerCompany[]
+  customerContacts     CustomerContact[]
+  crmCompanies         CrmCompany[]
+  crmContacts          CrmContact[]
+  opsEventDrafts       OpsEventDraft[]
+  opsEvents            OpsEvent[]
+  driverBlocks         DriverUnavailability[]
+  opsTasks             OpsTask[]
+  orderAdjustments     OrderAdjustment[]
+  telegramLinks        TelegramLink[]
+  fleetVehicles        FleetVehicle[]
+  chatTasks            ChatTask[]
+  chatMessages         ChatMessage[]
+  chatAgentConfigs     ChatAgentConfig[]
+  chatAgentVersions    ChatAgentVersion[]
+  agentRuns            AgentRun[]
+  agentSandboxSessions AgentSandboxSession[]
+  promptTemplates      PromptTemplate[]
+  aiLearningEvents     AiLearningEvent[]
+  vpnProfiles          VpnProfile[]
+  vpnAccessGrants      VpnAccessGrant[]
+  wikiPages            WikiPage[]
 }
 
 model TenantMembership {
@@ -920,8 +923,8 @@ model OpsEventDraft {
   matchedOrderId           String?
   tenant                   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
-  @@index([tenantId, status, createdAt])
   @@unique([tenantId, externalMessageId], map: "uq_ops_draft_external_message")
+  @@index([tenantId, status, createdAt])
   @@index([tenantId, queueState, createdAt])
 }
 
@@ -978,41 +981,44 @@ model OpsTask {
   linkUrl        String?
   tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@unique([tenantId, dedupKey], map: "uq_ops_task_dedup")
   @@index([tenantId, status, dueAt])
   @@index([status, dueAt])
   @@index([assignedUserId, status])
-  @@unique([tenantId, dedupKey], map: "uq_ops_task_dedup")
 }
 
 model ChatTask {
-  id               String            @id @default(cuid())
-  tenantId         String
-  orderId          String?
-  taskType         String // clarification, dispatch_info, inbound_inquiry
-  state            String // missing_data_detected, request_sent, customer_replied, order_complete, ready_to_notify, notify_draft, notify_sent, notify_ack, notify_no_reply, handoff_human, closed
-  priority         Int               @default(100)
-  agentConfigId    String?
-  agentPaused      Boolean           @default(false)
-  assignedToUserId String?
-  channel          String? // telegram, whatsapp, email, sms
-  customerActorId  String?
-  customerDisplayName String?
-  recipientSource  String? // order, manual, test_override
-  conversationKey  String? // channel:external_sender_id for an inbound inquiry
-  unreadCount      Int               @default(0)
-  lastMessageAt    DateTime?
-  lastInboundAt    DateTime?
-  lastReadAt       DateTime?
-  closedAt         DateTime?
-  openclawThreadId String?
-  lastError        String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  order            Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  agentConfig      ChatAgentConfig?  @relation(fields: [agentConfigId], references: [id], onDelete: SetNull)
-  messages         ChatMessage[]
-  learningEvents   AiLearningEvent[]
+  id                   String            @id @default(cuid())
+  tenantId             String
+  orderId              String?
+  taskType             String // clarification, dispatch_info, inbound_inquiry
+  state                String // missing_data_detected, request_sent, customer_replied, order_complete, ready_to_notify, notify_draft, notify_sent, notify_ack, notify_no_reply, handoff_human, closed
+  priority             Int               @default(100)
+  agentConfigId        String?
+  agentConfigVersionId String?
+  agentPaused          Boolean           @default(false)
+  assignedToUserId     String?
+  channel              String? // telegram, whatsapp, email, sms
+  customerActorId      String?
+  customerDisplayName  String?
+  recipientSource      String? // order, manual, test_override
+  conversationKey      String? // channel:external_sender_id for an inbound inquiry
+  unreadCount          Int               @default(0)
+  lastMessageAt        DateTime?
+  lastInboundAt        DateTime?
+  lastReadAt           DateTime?
+  closedAt             DateTime?
+  openclawThreadId     String?
+  lastError            String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order                Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  agentConfig          ChatAgentConfig?  @relation(fields: [agentConfigId], references: [id], onDelete: SetNull)
+  agentConfigVersion   ChatAgentVersion? @relation(fields: [agentConfigVersionId], references: [id], onDelete: SetNull)
+  messages             ChatMessage[]
+  learningEvents       AiLearningEvent[]
+  agentRuns            AgentRun[]
 
   @@unique([tenantId, orderId, taskType])
   @@unique([tenantId, conversationKey], map: "uq_chat_task_conversation")
@@ -1052,34 +1058,134 @@ model ChatMessage {
 }
 
 model ChatAgentConfig {
-  id               String            @id @default(cuid())
+  id               String                @id @default(cuid())
   tenantId         String
   code             String
   name             String
-  type             String            @default("order_completion")
+  type             String                @default("order_completion")
   description      String?
   personality      String?
   identity         String?
   task             String?
   speechStyle      String?
-  taskType         String            @default("clarification")
+  taskType         String                @default("clarification")
   promptText       String
   workflowJson     String?
-  workflowFormat   String            @default("json")
+  workflowFormat   String                @default("json")
   restrictionsJson String?
   constraintsJson  String?
   variablesJson    String?
-  isActive         Boolean           @default(true)
-  requiresApproval Boolean           @default(true)
+  isActive         Boolean               @default(true)
+  requiresApproval Boolean               @default(true)
   createdByUserId  String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   chatTasks        ChatTask[]
   learningEvents   AiLearningEvent[]
+  versions         ChatAgentVersion[]
+  runs             AgentRun[]
+  sandboxSessions  AgentSandboxSession[]
 
   @@unique([tenantId, code])
   @@index([tenantId, isActive, updatedAt])
+}
+
+model ChatAgentVersion {
+  id              String                @id @default(cuid())
+  tenantId        String
+  agentConfigId   String
+  version         Int
+  status          String                @default("draft") // draft, tested, published, archived
+  snapshotJson    String
+  testSummaryJson String?
+  testedAt        DateTime?
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  createdByUserId String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentConfig     ChatAgentConfig       @relation(fields: [agentConfigId], references: [id], onDelete: Cascade)
+  chatTasks       ChatTask[]
+  runs            AgentRun[]
+  sandboxSessions AgentSandboxSession[]
+
+  @@unique([agentConfigId, version])
+  @@index([tenantId, status, updatedAt])
+}
+
+model AgentRun {
+  id                   String               @id @default(cuid())
+  tenantId             String
+  agentConfigId        String?
+  agentConfigVersionId String?
+  chatTaskId           String?
+  sandboxSessionId     String?
+  capability           String
+  status               String               @default("queued") // queued, running, waiting_approval, completed, failed, fallback
+  stateBefore          String?
+  stateAfter           String?
+  provider             String?
+  model                String?
+  summary              String?
+  inputJson            String?
+  outputJson           String?
+  errorText            String?
+  latencyMs            Int?
+  startedAt            DateTime             @default(now())
+  finishedAt           DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentConfig          ChatAgentConfig?     @relation(fields: [agentConfigId], references: [id], onDelete: SetNull)
+  agentConfigVersion   ChatAgentVersion?    @relation(fields: [agentConfigVersionId], references: [id], onDelete: SetNull)
+  chatTask             ChatTask?            @relation(fields: [chatTaskId], references: [id], onDelete: SetNull)
+  sandboxSession       AgentSandboxSession? @relation(fields: [sandboxSessionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, startedAt])
+  @@index([agentConfigId, startedAt])
+  @@index([chatTaskId, startedAt])
+}
+
+model AgentSandboxSession {
+  id                   String                @id @default(cuid())
+  tenantId             String
+  agentConfigId        String
+  agentConfigVersionId String?
+  status               String                @default("active") // active, passed, failed, closed
+  scenarioKey          String?
+  currentState         String
+  initialContextJson   String?
+  resultSummaryJson    String?
+  passed               Boolean?
+  createdByUserId      String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  completedAt          DateTime?
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentConfig          ChatAgentConfig       @relation(fields: [agentConfigId], references: [id], onDelete: Cascade)
+  agentConfigVersion   ChatAgentVersion?     @relation(fields: [agentConfigVersionId], references: [id], onDelete: SetNull)
+  messages             AgentSandboxMessage[]
+  runs                 AgentRun[]
+
+  @@index([tenantId, status, updatedAt])
+  @@index([agentConfigId, updatedAt])
+}
+
+model AgentSandboxMessage {
+  id             String              @id @default(cuid())
+  sessionId      String
+  role           String // customer, agent, operator, system
+  bodyText       String
+  stateBefore    String?
+  stateAfter     String?
+  extractionJson String?
+  traceJson      String?
+  createdAt      DateTime            @default(now())
+  session        AgentSandboxSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }
 
 model PromptTemplate {

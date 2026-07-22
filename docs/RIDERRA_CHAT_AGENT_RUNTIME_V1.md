@@ -9,6 +9,9 @@ Single-tenant implementation of chat orchestration with OpenClaw-compatible agen
 - `ChatMessage`: messages inside a conversation.
 - `PromptTemplate` + `PromptTemplateVersion`: versioned prompt registry.
 - `AiLearningEvent`: model feedback and runtime telemetry.
+- `ChatAgentVersion`: immutable draft/tested/published/archived agent snapshot.
+- `AgentRun`: truthful queued/running/approval/completed/failed/fallback execution log.
+- `AgentSandboxSession` + `AgentSandboxMessage`: multi-turn tests with no external-send capability.
 
 ## Agent Management APIs
 
@@ -42,6 +45,17 @@ Business-scoped aliases:
 
 - `POST /api/admin/ai-agents/:agentId/test` (`dry_run=true` only)
 - `POST /api/business/:businessId/ai-agents/:agentId/test` (`dry_run=true` only)
+- `GET /api/admin/ai-agents/:agentId/versions`
+- `POST /api/admin/ai-agents/:agentId/versions/draft`
+- `POST /api/admin/ai-agents/:agentId/versions/:versionId/test-suite`
+- `POST /api/admin/ai-agents/:agentId/versions/:versionId/publish`
+- `POST /api/admin/ai-agents/:agentId/sandbox/sessions`
+- `GET /api/admin/ai-agents/:agentId/sandbox/sessions/:sessionId`
+- `POST /api/admin/ai-agents/:agentId/sandbox/sessions/:sessionId/messages`
+- `GET /api/admin/ai/activity`
+- `GET /api/admin/ai/runtime-health`
+
+Publishing is allowed only for a version with a successful required test suite. A `ChatTask` pins its published version when an agent is assigned or first runs, so an active conversation does not change after a later publication.
 
 ## Learning Metrics APIs
 
@@ -50,8 +64,19 @@ Business-scoped aliases:
 ## Runtime Notes
 
 - All risky outbound actions keep human approval flow (`pending_human`).
+- Sandbox routes never call the send capability and always report `externalSendAvailable=false`.
 - Conversation state stays in Riderra (`ChatTask.state`), OpenClaw is runtime executor.
 - Learning events are written on dry-run tests, draft creation and message send.
+- New unlinked WhatsApp inquiries receive a tenant-scoped support agent and a `pending_human` reply draft. The agent cannot link or create an order.
+
+## DeepSeek runtime
+
+- Provider: DeepSeek; default model: `deepseek-v4-flash` without thinking.
+- Composition temperature: `0.3`; classification/extraction: `0` with JSON response.
+- Request timeout: 12 seconds; one retry for `429` and `5xx`.
+- English is the default customer language. Russian is used only when `order.lang=ru`.
+- `DEEPSEEK_API_KEY` is stored only in the OpenClaw service environment.
+- When the key, model, or network is unavailable, OpenClaw returns a contract-valid safe fallback and Riderra shows `Резервный режим`.
 
 ## OpenClaw Runtime ENV
 
