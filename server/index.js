@@ -6644,7 +6644,21 @@ app.get('/api/admin/chats/inquiries/:id', authenticateToken, resolveActorContext
     if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
     const ownerMap = await buildTaskOwnerMap([task])
     const row = attachTaskOwner(task, ownerMap)
-    res.json({ inquiry: { ...row, messages: row.messages.map((message) => ({ ...message, deliveryProblem: chatDeliveryProblem(message), bodyJson: undefined })) } })
+    const lastInbound = [...row.messages].reverse().find((message) => message.direction === 'inbound') || null
+    const lastInboundMs = lastInbound?.createdAt ? new Date(lastInbound.createdAt).getTime() : 0
+    const freeTextAllowed = Number.isFinite(lastInboundMs) && lastInboundMs > 0 && (Date.now() - lastInboundMs) <= 24 * 60 * 60 * 1000
+    res.json({
+      inquiry: {
+        ...row,
+        replyPolicy: {
+          channel: normalizeChannelName(row.channel || 'whatsapp'),
+          freeTextAllowed,
+          templateRequired: !freeTextAllowed,
+          lastInboundAt: lastInbound?.createdAt || null
+        },
+        messages: row.messages.map((message) => ({ ...message, deliveryProblem: chatDeliveryProblem(message), bodyJson: undefined }))
+      }
+    })
   } catch (error) {
     console.error('Error loading chat inquiry:', error)
     res.status(500).json({ error: 'Не удалось открыть обращение' })
@@ -6664,18 +6678,33 @@ app.post('/api/admin/chats/inquiries/:id/read', authenticateToken, resolveActorC
 
 app.post('/api/admin/chats/inquiries/:id/reply', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
-    const bodyText = String(req.body?.bodyText || '').trim()
-    if (!bodyText) return res.status(400).json({ error: 'Введите текст ответа' })
     const tenantId = req.actorContext.tenantId
     const task = await prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId, taskType: 'inbound_inquiry' } })
     if (!task) return res.status(404).json({ error: 'Обращение не найдено' })
     if (task.state === 'spam') return res.status(409).json({ error: 'Сначала уберите отметку «Спам»' })
-    const payload = { taskId: task.id, bodyText }
+    const requestedDelivery = req.body?.delivery && typeof req.body.delivery === 'object' ? { ...req.body.delivery } : {}
+    delete requestedDelivery.to
+    delete requestedDelivery.phone
+    delete requestedDelivery.recipient
+    delete requestedDelivery.recipientPhone
+    const isTemplateReply = isWhatsappTemplatePayload(requestedDelivery)
+    let templateValidation = null
+    if (isTemplateReply) {
+      templateValidation = await validateWhatsAppTemplateDelivery({ tenantId, delivery: requestedDelivery })
+    }
+    const bodyText = String(req.body?.bodyText || '').trim() || (templateValidation
+      ? `WhatsApp template: ${templateValidation.template.label || templateValidation.template.name}`
+      : '')
+    if (!bodyText) return res.status(400).json({ error: 'Введите текст ответа или выберите шаблон WhatsApp' })
+    const sendNow = req.body?.sendNow === true
+    const bodyJson = isTemplateReply ? JSON.stringify({ delivery: requestedDelivery }) : null
+    const payload = { taskId: task.id, bodyText, delivery: requestedDelivery, sendNow }
     ensureIdempotencyKey(req, 'chat_inquiry.reply_draft', payload)
     const wrapped = await withIdempotency(req, 'chat_inquiry.reply_draft', payload, async () => {
       const message = await prisma.chatMessage.create({ data: {
         tenantId, chatTaskId: task.id, direction: 'outbound', source: 'operator', channel: task.channel || 'whatsapp', bodyText,
-        approvalStatus: 'pending_human', traceId: req.actorContext.traceId, idempotencyKey: getIdempotencyKey(req), createdByUserId: req.user?.id || null
+        bodyJson,
+        approvalStatus: sendNow ? 'approved' : 'pending_human', traceId: req.actorContext.traceId, idempotencyKey: getIdempotencyKey(req), createdByUserId: req.user?.id || null
       } })
       await prisma.chatTask.update({ where: { id: task.id }, data: { assignedToUserId: task.assignedToUserId || req.user?.id || null, state: task.state === 'new' ? 'in_progress' : task.state, lastMessageAt: new Date() } })
       return message

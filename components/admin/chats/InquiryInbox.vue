@@ -101,9 +101,43 @@
             <button type="button" :disabled="busy" @click="take">Взять в работу</button>
           </div>
 
-          <form class="composer" @submit.prevent="prepareReply">
-            <textarea v-model="replyText" :disabled="selected.state === 'spam'" rows="3" placeholder="Напишите ответ клиенту" aria-label="Ответ клиенту"></textarea>
-            <div><small>Перед отправкой вы увидите точный текст и подтвердите его.</small><button type="submit" :disabled="busy || !replyText.trim()">Подготовить ответ</button></div>
+          <form class="composer" @submit.prevent="sendReplyNow">
+            <div class="composer-mode" role="group" aria-label="Способ отправки">
+              <button type="button" :class="{ active: replyMode === 'text' }" :disabled="!freeTextAllowed" @click="replyMode = 'text'">Обычное сообщение</button>
+              <button type="button" :class="{ active: replyMode === 'template' }" @click="selectTemplateMode">Шаблон WhatsApp</button>
+            </div>
+
+            <div v-if="!freeTextAllowed" class="window-notice" role="status">
+              <strong>24-часовое окно закрыто</strong>
+              <span>WhatsApp разрешает отправить только утверждённый шаблон.</span>
+            </div>
+
+            <template v-if="replyMode === 'template'">
+              <label class="composer-field">
+                <span>Шаблон сообщения</span>
+                <select v-model="templateName" :disabled="selected.state === 'spam'" @change="resetTemplateVariables">
+                  <option value="">Выберите утверждённый шаблон</option>
+                  <option v-for="template in whatsappTemplates" :key="template.name" :value="template.name">{{ template.label }}</option>
+                </select>
+              </label>
+              <div v-if="selectedTemplate" class="template-preview">
+                <strong>{{ selectedTemplate.label }}</strong>
+                <span>{{ selectedTemplate.description || 'Утверждённый шаблон WhatsApp' }}</span>
+                <code>{{ selectedTemplate.name }} · {{ templateLanguage }}</code>
+              </div>
+              <div v-if="selectedTemplate && selectedTemplate.variables.length" class="template-variables">
+                <label v-for="variable in selectedTemplate.variables" :key="variable">
+                  <span>{{ templateVariableLabel(variable) }}</span>
+                  <input v-model.trim="templateVariables[variable]" :placeholder="templateVariablePlaceholder(variable)" :disabled="selected.state === 'spam'">
+                </label>
+              </div>
+            </template>
+            <textarea v-else v-model="replyText" :disabled="selected.state === 'spam' || !freeTextAllowed" rows="3" placeholder="Напишите ответ клиенту" aria-label="Ответ клиенту"></textarea>
+
+            <div class="composer-submit">
+              <small>{{ replyMode === 'template' ? 'Будет отправлен выбранный approved template.' : 'Сообщение отправится сразу после нажатия.' }}</small>
+              <button type="submit" :disabled="busy || !canSendReply">{{ busy ? 'Отправляем…' : (replyMode === 'template' ? 'Отправить шаблон' : 'Отправить сообщение') }}</button>
+            </div>
           </form>
 
           <section class="actions">
@@ -147,14 +181,26 @@ export default {
       { key: 'closed', label: 'Закрытые' }
     ],
     view: 'new', unread: 0, rows: [], staff: [], selected: null,
-    loading: true, detailLoading: false, busy: false, search: '', assignee: '', replyText: '',
+    loading: true, detailLoading: false, busy: false, search: '', assignee: '', replyText: '', replyMode: 'text',
+    whatsappTemplates: [], templateName: '', templateVariables: {}, composerInquiryId: '',
     banner: null, timer: null, searchTimer: null, orderTimer: null, pollTimer: null,
     showLink: false, showCreate: false, orderSearch: '', orderResults: [],
     newOrder: { fromPoint: '', toPoint: '', pickupAt: '', vehicleType: 'standard' }
   }),
   computed: {
     emptyTitle () { return this.view === 'new' ? 'Новых обращений нет' : 'В этом разделе пока пусто' },
-    emptyText () { return this.view === 'new' ? 'Когда новый клиент напишет в WhatsApp, обращение появится здесь.' : 'Попробуйте другой раздел или фильтр.' }
+    emptyText () { return this.view === 'new' ? 'Когда новый клиент напишет в WhatsApp, обращение появится здесь.' : 'Попробуйте другой раздел или фильтр.' },
+    freeTextAllowed () { return this.selected?.replyPolicy?.freeTextAllowed === true },
+    selectedTemplate () { return this.whatsappTemplates.find(template => template.name === this.templateName) || null },
+    templateLanguage () { return this.selectedTemplate?.language || this.selectedTemplate?.languages?.[0] || 'en' },
+    templateVariablesComplete () {
+      if (!this.selectedTemplate) return false
+      return (this.selectedTemplate.variables || []).every(variable => String(this.templateVariables[variable] || '').trim())
+    },
+    canSendReply () {
+      if (!this.selected || this.selected.state === 'spam') return false
+      return this.replyMode === 'template' ? this.templateVariablesComplete : (this.freeTextAllowed && Boolean(this.replyText.trim()))
+    }
   },
   mounted () {
     this.initialize()
@@ -176,8 +222,12 @@ export default {
     },
     async initialize () {
       try {
-        const [count, staff] = await Promise.all([this.request('/api/admin/chats/inquiries/unread-count'), this.request('/api/admin/chats/inquiries/staff')])
-        this.unread = count.unread || 0; this.staff = staff.rows || []
+        const [count, staff, templateRegistry] = await Promise.all([
+          this.request('/api/admin/chats/inquiries/unread-count'),
+          this.request('/api/admin/chats/inquiries/staff'),
+          this.request('/api/admin/chats/whatsapp-templates')
+        ])
+        this.unread = count.unread || 0; this.staff = staff.rows || []; this.whatsappTemplates = templateRegistry.templates || []
         const requested = String(this.$route.query.inquiry || '')
         this.view = this.$route.query.chatView || (this.unread ? 'new' : 'work')
         await this.loadList()
@@ -200,6 +250,7 @@ export default {
       if (showLoading) this.detailLoading = true
       try {
         const data = await this.request(`/api/admin/chats/inquiries/${id}`); this.selected = data.inquiry
+        this.syncReplyMode()
         await this.request(`/api/admin/chats/inquiries/${id}/read`, { method: 'POST', body: '{}' })
         this.unread = Math.max(0, this.unread - Number(this.selected.unreadCount || 0)); this.selected.unreadCount = 0; window.dispatchEvent(new CustomEvent('riderra:inquiry-unread', { detail: { unread: this.unread } }))
         await this.$router.replace({ query: { ...this.$route.query, chatView: this.view, inquiry: id } }).catch(() => {})
@@ -210,7 +261,69 @@ export default {
     async assign (assignedToUserId) { await this.update({ assignedToUserId }, 'Ответственный обновлён') },
     async setStatus (status) { await this.update({ status }, status === 'spam' ? 'Обращение отмечено как спам' : 'Обращение закрыто'); this.selected = null; await this.loadList() },
     async update (body, success) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}`, { method: 'PATCH', body: JSON.stringify(body) }); this.banner = { kind: 'success', text: success }; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error) } finally { this.busy = false } },
-    async prepareReply () { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}/reply`, { method: 'POST', fixedKey: `inquiry-reply-${this.selected.id}-${Date.now()}`, body: JSON.stringify({ bodyText: this.replyText.trim() }) }); this.replyText = ''; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error) } finally { this.busy = false } },
+    syncReplyMode () {
+      const inquiryChanged = this.composerInquiryId !== this.selected?.id
+      if (inquiryChanged) {
+        this.composerInquiryId = this.selected?.id || ''
+        this.replyText = ''
+        this.templateVariables = {}
+        this.replyMode = this.freeTextAllowed ? 'text' : 'template'
+      }
+      if (!this.freeTextAllowed) this.selectTemplateMode()
+    },
+    selectTemplateMode () {
+      this.replyMode = 'template'
+      if (!this.templateName && this.whatsappTemplates.length) this.templateName = this.whatsappTemplates[0].name
+      this.prefillTemplateVariables()
+    },
+    resetTemplateVariables () {
+      this.templateVariables = {}
+      this.prefillTemplateVariables()
+    },
+    prefillTemplateVariables () {
+      if (!this.selectedTemplate) return
+      const values = { ...this.templateVariables }
+      const pickupAt = this.selected?.order?.pickupAt
+      for (const variable of this.selectedTemplate.variables || []) {
+        if (values[variable]) continue
+        if (variable === 'pickup_date' && pickupAt) values[variable] = this.formatTemplateDate(pickupAt)
+      }
+      this.templateVariables = values
+    },
+    async sendReplyNow () {
+      if (!this.canSendReply || this.busy) return
+      this.busy = true; this.banner = null
+      const inquiryId = this.selected.id
+      const templateMode = this.replyMode === 'template'
+      const delivery = templateMode ? {
+        mode: 'template',
+        templateName: this.selectedTemplate.name,
+        language: this.templateLanguage,
+        variables: { ...this.templateVariables }
+      } : null
+      const bodyText = templateMode ? `WhatsApp template: ${this.selectedTemplate.label}` : this.replyText.trim()
+      try {
+        const draft = await this.request(`/api/admin/chats/inquiries/${inquiryId}/reply`, {
+          method: 'POST',
+          fixedKey: `inquiry-reply-send-${inquiryId}-${Date.now()}`,
+          body: JSON.stringify({ bodyText, delivery, sendNow: true })
+        })
+        const result = await this.request(`/api/admin/chats/messages/${draft.message.id}/send`, {
+          method: 'POST',
+          fixedKey: `inquiry-send-${draft.message.id}`,
+          body: JSON.stringify(delivery ? { delivery } : {})
+        })
+        this.banner = { kind: 'success', text: result.alreadySent ? 'Сообщение уже было отправлено. Дубль не создан.' : 'WhatsApp принял сообщение. Ждём доставку.' }
+        this.replyText = ''
+        await this.open(inquiryId, false)
+        await this.loadList(false)
+      } catch (error) {
+        this.showError(error)
+        await this.open(inquiryId, false)
+      } finally {
+        this.busy = false
+      }
+    },
     async approveAndSend (message) { this.busy = true; try { await this.request(`/api/admin/chats/messages/${message.id}/approve`, { method: 'POST', body: '{}' }); await this.sendApproved(message) } catch (error) { this.showError(error) } finally { this.busy = false } },
     async sendApproved (message) { this.busy = true; try { const data = await this.request(`/api/admin/chats/messages/${message.id}/send`, { method: 'POST', fixedKey: `inquiry-send-${message.id}`, body: '{}' }); this.banner = { kind: 'success', text: data.alreadySent ? 'Сообщение уже было отправлено. Дубль не создан.' : 'WhatsApp принял сообщение. Ждём доставку.' }; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error); await this.open(this.selected.id, false) } finally { this.busy = false } },
     async retryMessage (message) {
@@ -226,6 +339,9 @@ export default {
     async linkOrder (orderId) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}/link-order`, { method: 'POST', body: JSON.stringify({ orderId }) }); this.banner = { kind: 'success', text: 'Диалог связан с заказом и доступен в его истории.' }; this.selected = null; await this.changeView('linked') } catch (error) { this.showError(error) } finally { this.busy = false } },
     async createOrder () { this.busy = true; try { const data = await this.request(`/api/admin/chats/inquiries/${this.selected.id}/create-order`, { method: 'POST', body: JSON.stringify(this.newOrder) }); this.banner = { kind: 'success', text: data.sourceOfTruthNotice }; this.selected = null; await this.changeView('linked') } catch (error) { this.showError(error) } finally { this.busy = false } },
     showError (error) { this.banner = { kind: 'error', text: error.message || 'Произошла ошибка', retry: true } },
+    templateVariableLabel (name) { return ({ city: 'Город поездки', pickup_date: 'Дата подачи', customer_name: 'Имя клиента', booking_number: 'Номер заказа' })[name] || name },
+    templateVariablePlaceholder (name) { return ({ city: 'Например, Helsinki', pickup_date: 'Например, 24 July', customer_name: 'Например, John', booking_number: 'Например, 9GP7HC-1' })[name] || 'Введите значение' },
+    formatTemplateDate (value) { return value ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(value)) : '' },
     customerLabel (row) { return row.customerDisplayName || row.customerActorId || 'Клиент' },
     ownerLabel (row) { return row.assignedOwner?.email || 'Не назначен' },
     statusLabel (row) { if (row.order && !['closed', 'spam'].includes(row.state)) return 'Связано с заказом'; return ({ new: 'Новое', in_progress: 'В работе', waiting_customer: 'Ждём клиента', linked_order: 'Связано с заказом', closed: 'Закрыто', spam: 'Спам' })[row.state] || row.state },
@@ -239,6 +355,6 @@ export default {
 </script>
 
 <style scoped>
-.inbox{--ink:#17233d;--muted:#667085;--line:#dfe4ec;--surface:#fff;--soft:#f6f8fb;--accent:#243b73;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}.inbox__head{display:flex;align-items:center;justify-content:space-between;padding:24px 26px 18px}.inbox__head h1{margin:0;font-size:30px}.inbox__head p{margin:5px 0 0;color:var(--muted)}button,input,select,textarea{font:inherit}.secondary,.actions button,.back{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 14px;cursor:pointer}.views{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);overflow:auto}.views button{white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;padding:13px 14px;color:var(--muted);font-weight:700;cursor:pointer}.views button.active{color:var(--ink);border-color:var(--accent)}.views span{display:inline-grid;place-items:center;min-width:21px;height:21px;margin-left:5px;padding:0 5px;border-radius:11px;background:#d92d20;color:#fff;font-size:12px}.banner{display:flex;justify-content:space-between;gap:12px;margin:14px 20px 0;padding:11px 14px;border-radius:10px;background:#eef4ff}.banner--error{background:#fff1f0;color:#912018}.banner--warning{background:#fffaeb;color:#7a2e0e}.banner--success{background:#ecfdf3;color:#05603a}.banner button{border:0;background:transparent;text-decoration:underline;color:inherit;cursor:pointer}.toolbar{display:grid;grid-template-columns:minmax(240px,1fr) 260px;gap:10px;padding:16px 20px}.toolbar input,.toolbar select,.customer-panel select,.action-panel input,.composer textarea,.create-order input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;color:var(--ink)}.workspace{display:grid;grid-template-columns:minmax(300px,38%) 1fr;min-height:620px;border-top:1px solid var(--line)}.list{border-right:1px solid var(--line);background:var(--soft);max-height:720px;overflow:auto}.conversation{display:block;width:100%;padding:15px 18px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;color:var(--ink);cursor:pointer}.conversation.active{background:#fff;box-shadow:inset 3px 0 var(--accent)}.conversation.unread{background:#eef4ff}.conversation__top,.conversation__meta{display:flex;align-items:center;gap:8px}.conversation__top{justify-content:space-between}.conversation__top time,.conversation p,.conversation__meta,.conversation small{color:var(--muted)}.conversation p{margin:7px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation__meta{font-size:12px;flex-wrap:wrap}.conversation__meta b{margin-left:auto;display:grid;place-items:center;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:#fff}.conversation small{display:block;margin-top:7px}.dialog{display:flex;flex-direction:column;min-width:0;min-height:620px;background:#fff}.dialog__head{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}.dialog__head h2{margin:0;font-size:20px}.dialog__head p{margin:3px 0 0;color:var(--muted)}.status{margin-left:auto;border-radius:16px;background:#eef4ff;padding:6px 10px;font-size:12px;font-weight:700}.back{display:none}.customer-panel{display:flex;align-items:center;gap:14px;padding:12px 22px;background:var(--soft);border-bottom:1px solid var(--line)}.customer-panel div{display:grid;gap:2px}.customer-panel span{font-size:12px;color:var(--muted)}.customer-panel select{width:auto;margin-left:auto}.linked-order{font-size:13px;color:#05603a}.messages{flex:1;min-height:260px;max-height:460px;overflow:auto;padding:22px;background:#f8fafc}.message{max-width:76%;margin:0 0 12px;padding:11px 13px;border:1px solid var(--line);border-radius:14px 14px 14px 4px;background:#fff}.message--outbound{margin-left:auto;border-radius:14px 14px 4px 14px;background:#eef4ff}.message p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.message footer{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;color:var(--muted);font-size:11px}.approval,.send-error{display:grid;gap:7px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:12px}.approval button,.send-error button,.primary-action button,.composer button,.action-panel>button,.create-order button{border:0;border-radius:9px;background:var(--accent);color:#fff;padding:9px 13px;font-weight:700;cursor:pointer}.send-error{color:#912018}.send-error button{background:#b42318}.primary-action{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:14px 20px;padding:13px 15px;border-radius:12px;background:#eef4ff}.primary-action div{display:grid;gap:3px}.primary-action span{font-size:13px;color:var(--muted)}.composer{padding:14px 20px;border-top:1px solid var(--line)}.composer textarea{resize:vertical;min-height:78px}.composer>div{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:9px}.composer small{color:var(--muted)}.actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 20px 18px}.actions .danger{color:#b42318}.action-panel{display:grid;gap:10px;margin:0 20px 18px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}.action-panel h3,.action-panel p{margin:0}.action-panel p{color:var(--muted);font-size:13px}.order-result{display:grid!important;gap:3px;text-align:left!important;background:#fff!important;color:var(--ink)!important;border:1px solid var(--line)!important}.order-result span{color:var(--muted);font-size:12px}.create-order{grid-template-columns:1fr 1fr}.create-order h3,.create-order p,.create-order button{grid-column:1/-1}.create-order label{display:grid;gap:5px;font-size:13px;font-weight:700}.state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:180px;padding:30px;color:var(--muted);text-align:center}.state--empty{flex-direction:column}.spinner{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(36,59,115,.28);outline-offset:2px}button:disabled{opacity:.55;cursor:not-allowed}
-@media(max-width:760px){.inbox{border-radius:0;border-left:0;border-right:0}.inbox__head{padding:18px}.inbox__head h1{font-size:26px}.toolbar{grid-template-columns:1fr;padding:12px}.workspace{display:block;min-height:560px}.list{border-right:0;max-height:none}.workspace--dialog .list{display:none}.dialog{display:none;min-height:560px}.workspace--dialog .dialog{display:flex}.back{display:block;padding:7px 10px}.dialog__head{padding:13px}.dialog__head .status{font-size:11px}.customer-panel{align-items:flex-start;flex-wrap:wrap;padding:11px 14px}.customer-panel select{width:100%;margin:0}.messages{padding:14px;max-height:none}.message{max-width:88%}.primary-action{align-items:flex-start;flex-direction:column;margin:10px 12px}.composer{padding:12px}.composer>div{align-items:flex-end}.composer small{max-width:55%}.actions{padding:0 12px 14px}.action-panel{margin:0 12px 14px}.create-order{grid-template-columns:1fr}.views{padding:0 8px}}
+.inbox{--ink:#17233d;--muted:#667085;--line:#dfe4ec;--surface:#fff;--soft:#f6f8fb;--accent:#243b73;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}.inbox__head{display:flex;align-items:center;justify-content:space-between;padding:24px 26px 18px}.inbox__head h1{margin:0;font-size:30px}.inbox__head p{margin:5px 0 0;color:var(--muted)}button,input,select,textarea{font:inherit}.secondary,.actions button,.back{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 14px;cursor:pointer}.views{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);overflow:auto}.views button{white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;padding:13px 14px;color:var(--muted);font-weight:700;cursor:pointer}.views button.active{color:var(--ink);border-color:var(--accent)}.views span{display:inline-grid;place-items:center;min-width:21px;height:21px;margin-left:5px;padding:0 5px;border-radius:11px;background:#d92d20;color:#fff;font-size:12px}.banner{display:flex;justify-content:space-between;gap:12px;margin:14px 20px 0;padding:11px 14px;border-radius:10px;background:#eef4ff}.banner--error{background:#fff1f0;color:#912018}.banner--warning{background:#fffaeb;color:#7a2e0e}.banner--success{background:#ecfdf3;color:#05603a}.banner button{border:0;background:transparent;text-decoration:underline;color:inherit;cursor:pointer}.toolbar{display:grid;grid-template-columns:minmax(240px,1fr) 260px;gap:10px;padding:16px 20px}.toolbar input,.toolbar select,.customer-panel select,.action-panel input,.composer textarea,.composer select,.composer input,.create-order input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;color:var(--ink)}.workspace{display:grid;grid-template-columns:minmax(300px,38%) 1fr;min-height:620px;border-top:1px solid var(--line)}.list{border-right:1px solid var(--line);background:var(--soft);max-height:720px;overflow:auto}.conversation{display:block;width:100%;padding:15px 18px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;color:var(--ink);cursor:pointer}.conversation.active{background:#fff;box-shadow:inset 3px 0 var(--accent)}.conversation.unread{background:#eef4ff}.conversation__top,.conversation__meta{display:flex;align-items:center;gap:8px}.conversation__top{justify-content:space-between}.conversation__top time,.conversation p,.conversation__meta,.conversation small{color:var(--muted)}.conversation p{margin:7px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation__meta{font-size:12px;flex-wrap:wrap}.conversation__meta b{margin-left:auto;display:grid;place-items:center;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:#fff}.conversation small{display:block;margin-top:7px}.dialog{display:flex;flex-direction:column;min-width:0;min-height:620px;background:#fff}.dialog__head{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}.dialog__head h2{margin:0;font-size:20px}.dialog__head p{margin:3px 0 0;color:var(--muted)}.status{margin-left:auto;border-radius:16px;background:#eef4ff;padding:6px 10px;font-size:12px;font-weight:700}.back{display:none}.customer-panel{display:flex;align-items:center;gap:14px;padding:12px 22px;background:var(--soft);border-bottom:1px solid var(--line)}.customer-panel div{display:grid;gap:2px}.customer-panel span{font-size:12px;color:var(--muted)}.customer-panel select{width:auto;margin-left:auto}.linked-order{font-size:13px;color:#05603a}.messages{flex:1;min-height:260px;max-height:460px;overflow:auto;padding:22px;background:#f8fafc}.message{max-width:76%;margin:0 0 12px;padding:11px 13px;border:1px solid var(--line);border-radius:14px 14px 14px 4px;background:#fff}.message--outbound{margin-left:auto;border-radius:14px 14px 4px 14px;background:#eef4ff}.message p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.message footer{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;color:var(--muted);font-size:11px}.approval,.send-error{display:grid;gap:7px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:12px}.approval button,.send-error button,.primary-action button,.composer button,.action-panel>button,.create-order button{border:0;border-radius:9px;background:var(--accent);color:#fff;padding:9px 13px;font-weight:700;cursor:pointer}.send-error{color:#912018}.send-error button{background:#b42318}.primary-action{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:14px 20px;padding:13px 15px;border-radius:12px;background:#eef4ff}.primary-action div{display:grid;gap:3px}.primary-action span{font-size:13px;color:var(--muted)}.composer{display:grid;gap:10px;padding:14px 20px;border-top:1px solid var(--line)}.composer textarea{resize:vertical;min-height:78px}.composer small{color:var(--muted)}.composer-mode{display:inline-flex;justify-self:start;gap:4px;padding:3px;border-radius:10px;background:#eef2f7}.composer-mode button{border:0;background:transparent;color:#5d6c82;padding:7px 10px}.composer-mode button.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(23,35,61,.12)}.window-notice{display:grid;gap:3px;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px}.composer-field,.template-variables label{display:grid;gap:5px;color:#34425e;font-size:13px;font-weight:700}.template-preview{display:grid;gap:3px;padding:11px 12px;border:1px solid #d9e2ef;border-radius:10px;background:#f8fafc}.template-preview span{color:var(--muted);font-size:13px}.template-preview code{color:#64748b;font-size:11px}.template-variables{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.composer-submit{display:flex;align-items:center;justify-content:space-between;gap:14px}.actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 20px 18px}.actions .danger{color:#b42318}.action-panel{display:grid;gap:10px;margin:0 20px 18px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}.action-panel h3,.action-panel p{margin:0}.action-panel p{color:var(--muted);font-size:13px}.order-result{display:grid!important;gap:3px;text-align:left!important;background:#fff!important;color:var(--ink)!important;border:1px solid var(--line)!important}.order-result span{color:var(--muted);font-size:12px}.create-order{grid-template-columns:1fr 1fr}.create-order h3,.create-order p,.create-order button{grid-column:1/-1}.create-order label{display:grid;gap:5px;font-size:13px;font-weight:700}.state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:180px;padding:30px;color:var(--muted);text-align:center}.state--empty{flex-direction:column}.spinner{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(36,59,115,.28);outline-offset:2px}button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:760px){.inbox{border-radius:0;border-left:0;border-right:0}.inbox__head{padding:18px}.inbox__head h1{font-size:26px}.toolbar{grid-template-columns:1fr;padding:12px}.workspace{display:block;min-height:560px}.list{border-right:0;max-height:none}.workspace--dialog .list{display:none}.dialog{display:none;min-height:560px}.workspace--dialog .dialog{display:flex}.back{display:block;padding:7px 10px}.dialog__head{padding:13px}.dialog__head .status{font-size:11px}.customer-panel{align-items:flex-start;flex-wrap:wrap;padding:11px 14px}.customer-panel select{width:100%;margin:0}.messages{padding:14px;max-height:none}.message{max-width:88%}.primary-action{align-items:flex-start;flex-direction:column;margin:10px 12px}.composer{padding:12px}.composer-mode{display:grid;grid-template-columns:1fr 1fr;width:100%}.composer-mode button{min-width:0}.template-variables{grid-template-columns:1fr}.composer-submit{align-items:stretch;flex-direction:column}.composer-submit small{max-width:none}.composer-submit button{width:100%}.actions{padding:0 12px 14px}.action-panel{margin:0 12px 14px}.create-order{grid-template-columns:1fr}.views{padding:0 8px}}
 </style>
