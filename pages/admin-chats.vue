@@ -150,13 +150,13 @@
                     <h3>{{ routeLabel(selectedTask.order) }}</h3>
                     <div class="hint">{{ taskTypeLabel(selectedTask.taskType) }} · {{ formatMoney(selectedTask.order && selectedTask.order.clientPrice) }}</div>
                     <div class="dialog-status-row">
-                      <span class="badge badge--state">{{ stateLabel(selectedTask.state) }}</span>
-                      <span class="badge" :class="slaBadgeClass(selectedTask)">{{ slaLabel(selectedTask) }}</span>
+                      <span class="badge badge--state">{{ selectedTask.state === 'closed' ? 'Завершено' : stateLabel(selectedTask.state) }}</span>
+                      <span v-if="selectedTask.state !== 'closed'" class="badge" :class="slaBadgeClass(selectedTask)">{{ slaLabel(selectedTask) }}</span>
                       <span class="badge">Ответственный: {{ ownerDisplayLabel(selectedTask) }}</span>
                     </div>
                   </div>
                   <div class="dialog-head-actions">
-                    <span class="badge" :class="selectedTask.agentPaused ? 'badge--sla-warning' : 'badge--sla-ok'">
+                    <span v-if="selectedTask.state !== 'closed'" class="badge" :class="selectedTask.agentPaused ? 'badge--sla-warning' : 'badge--sla-ok'">
                       {{ agentStatusLabel(selectedTask) }}
                     </span>
                     <button v-if="selectedTask.state !== 'closed'" class="btn btn--small" @click="toggleConversationAgent(selectedTask)">
