@@ -9396,6 +9396,14 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
     if (status === 'failed') {
       const failedTask = await prisma.chatTask.findFirst({ where: { id: message.chatTaskId, tenantId }, include: { order: true } })
       if (failedTask) {
+        const failedTaskState = failedTask.taskType === 'inbound_inquiry' ? 'in_progress' : 'handoff_human'
+        await prisma.chatTask.update({
+          where: { id: failedTask.id },
+          data: {
+            state: failedTaskState,
+            lastError: errorText || 'Meta не доставила сообщение'
+          }
+        })
         await createOpsTask({
           tenantId,
           userId: failedTask.assignedToUserId || null,
