@@ -4,7 +4,7 @@
       <div>
         <span class="sandbox-eyebrow">Безопасная песочница</span>
         <h2>Поговорите с AI как клиент</h2>
-        <p>Напишите сообщение от лица клиента и сразу посмотрите ответ агента. В WhatsApp ничего не отправится.</p>
+        <p>Выберите первое сообщение Riderra, затем отвечайте на него от лица клиента. В WhatsApp ничего не отправится.</p>
       </div>
       <div class="sandbox-head__actions">
         <span class="safe-badge">Только тест</span>
@@ -25,7 +25,7 @@
         </select>
       </label>
       <label class="scenario-field">
-        <span>Первое сообщение Riderra</span>
+        <span>1. Первое сообщение Riderra</span>
         <select v-model="startingTemplateName" class="input" :disabled="loading" @change="start">
           <option v-for="template in whatsappTemplates" :key="template.name" :value="template.name">{{ template.label }}</option>
         </select>
@@ -65,12 +65,12 @@
 
       <div ref="messages" class="sandbox-messages" aria-live="polite">
         <div v-if="!messages.some(message => !message.isOpeningTemplate)" class="sandbox-guide">
-          <strong>Тест готов</strong>
-          <span>Сначала Riderra отправляет выбранный шаблон. Ниже уже вставлен пример ответа клиента.</span>
+          <strong>Шаблон отправлен</strong>
+          <span>Теперь ответьте на него ниже так, как мог бы ответить клиент.</span>
         </div>
 
         <article v-for="message in messages" :key="message.id" class="sandbox-message" :class="`sandbox-message--${message.role}`">
-          <small>{{ message.isOpeningTemplate ? 'Первое сообщение Riderra · approved template' : (message.role === 'customer' ? 'Клиент' : 'Ответ AI-агента') }}</small>
+          <small>{{ message.isOpeningTemplate ? 'Первое сообщение Riderra · шаблон WhatsApp' : (message.role === 'customer' ? 'Клиент' : 'Ответ AI-агента') }}</small>
           <p>{{ message.bodyText }}</p>
           <details v-if="message.trace && message.role !== 'customer'" class="sandbox-decision">
             <summary>Почему агент ответил так</summary>
@@ -90,12 +90,12 @@
       </div>
 
       <form class="sandbox-compose" @submit.prevent="send">
-        <label for="sandbox-customer-message">Сообщение клиента</label>
-        <textarea id="sandbox-customer-message" v-model="input" class="input" rows="3" :placeholder="suggestedMessage || 'Например: There would be 3 bags'" :disabled="loading"></textarea>
+        <label for="sandbox-customer-message">2. Ответ клиента</label>
+        <textarea id="sandbox-customer-message" v-model="input" class="input" rows="3" :placeholder="suggestedMessage ? `Например: ${suggestedMessage}` : 'Напишите ответ клиента'" :disabled="loading"></textarea>
         <div class="sandbox-compose__footer">
-          <small>Пишите так, как мог бы ответить пассажир.</small>
+          <small>Ответ появится справа, затем AI-агент продолжит диалог слева.</small>
           <button class="btn btn--primary" type="submit" :disabled="loading || !input.trim()">
-            {{ loading && loadingAction === 'send' ? 'Агент отвечает…' : 'Отправить агенту' }}
+            {{ loading && loadingAction === 'send' ? 'Агент отвечает…' : 'Ответить от лица клиента' }}
           </button>
         </div>
       </form>
@@ -162,9 +162,9 @@ export default {
         this.session = data.session
         this.context = data.context || {}
         const openingTemplate = this.whatsappTemplates.find(template => template.name === this.startingTemplateName)
-        this.messages = openingTemplate ? [{ id: `template-${Date.now()}`, role: 'agent', isOpeningTemplate: true, bodyText: `${openingTemplate.label}\n${openingTemplate.description || openingTemplate.name}` }] : []
+        this.messages = openingTemplate ? [{ id: `template-${Date.now()}`, role: 'agent', isOpeningTemplate: true, bodyText: this.openingTemplateText(openingTemplate) }] : []
         this.suggestedMessage = data.context?.suggestedCustomerMessage || ''
-        this.input = this.suggestedMessage
+        this.input = ''
         this.$nextTick(() => document.getElementById('sandbox-customer-message')?.focus())
       } catch (error) {
         this.error = error?.message || 'Не удалось подготовить тестовый диалог'
@@ -185,17 +185,22 @@ export default {
       if (!this.session || !this.input.trim() || this.loading) return
       this.loading = true; this.loadingAction = 'send'; this.error = ''
       const text = this.input.trim()
+      const pendingId = `customer-${Date.now()}`
+      this.messages.push({ id: pendingId, role: 'customer', bodyText: text })
+      this.input = ''
       this.$nextTick(this.scrollToLatest)
       try {
         const response = await fetch(`/api/admin/ai-agents/${this.agentId}/sandbox/sessions/${this.session.id}/messages`, { method: 'POST', headers: this.headers(), body: JSON.stringify({ message: text }) })
         const data = await response.json()
         if (!response.ok) throw new Error(data?.error || 'Агент не обработал сообщение')
-        const decorate = message => ({ ...message, extraction: data.decision?.extraction || null, trace: data.trace || null })
-        this.messages.push(decorate(data.customerMessage), decorate(data.agentMessage))
-        this.input = ''
+        const customerIndex = this.messages.findIndex(message => message.id === pendingId)
+        if (customerIndex >= 0 && data.customerMessage) this.messages.splice(customerIndex, 1, data.customerMessage)
+        this.messages.push({ ...data.agentMessage, extraction: data.decision?.extraction || null, trace: data.trace || null })
         this.session = { ...this.session, currentState: data.stateAfter }
         this.$nextTick(this.scrollToLatest)
       } catch (error) {
+        this.messages = this.messages.filter(message => message.id !== pendingId)
+        this.input = text
         this.error = error?.message || 'Агент не обработал сообщение'
       } finally {
         this.loading = false; this.loadingAction = ''
@@ -204,6 +209,21 @@ export default {
     scrollToLatest () {
       const element = this.$refs.messages
       if (element) element.scrollTop = element.scrollHeight
+    },
+    openingTemplateText (template) {
+      const order = this.context?.order || {}
+      const city = String(order.route_to || order.route_from || 'your city').trim()
+      const date = order.pickup_at
+        ? new Date(order.pickup_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })
+        : 'your trip date'
+      const templates = {
+        riderra_baggage_request: `Hello! We are writing to you regarding your transfer in ${city} on ${date}. Could you please clarify how many bags or suitcases you will have? Thank you!`,
+        riderra_flight_request: `Hello! We are writing to you regarding your transfer in ${city} on ${date}. Could you please share your flight number? Thank you!`,
+        riderra_passengers_request: `Hello! We are writing to you regarding your transfer in ${city} on ${date}. Could you please clarify how many passengers will be travelling? Thank you!`,
+        riderra_destination_request: `Hello! We are writing to you regarding your transfer in ${city} on ${date}. Could you please share the exact destination address? Thank you!`,
+        riderra_trip_message: `Hello! We are writing to you regarding your transfer in ${city} on ${date}. Please confirm that the trip details are correct. Thank you!`
+      }
+      return templates[template.name] || template.description || template.label || template.name
     },
     stateLabel (state) { return ({ waiting_customer: 'ждёт клиента', waiting_approval: 'нужно одобрение сотрудника', needs_human: 'нужна помощь сотрудника', completed: 'диалог завершён' })[state] || state || '—' },
     extractionLabel (item) { return `${item.field || 'данные'} = ${item.value ?? item.normalized_value ?? item.normalizedValue}` },
