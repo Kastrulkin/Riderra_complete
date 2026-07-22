@@ -90,8 +90,14 @@
                 <button type="button" :disabled="busy" @click="retryMessage(message)">Повторить отправку</button>
               </div>
               <div v-if="message.direction === 'outbound' && message.approvalStatus === 'pending_human'" class="approval">
-                <span>Проверьте точный текст перед отправкой</span>
-                <button type="button" :disabled="busy" @click="approveAndSend(message)">{{ busy ? 'Отправляем…' : 'Одобрить и отправить' }}</button>
+                <template v-if="freeTextAllowed">
+                  <span>Проверьте точный текст перед отправкой</span>
+                  <button type="button" :disabled="busy" @click="approveAndSend(message)">{{ busy ? 'Отправляем…' : 'Одобрить и отправить' }}</button>
+                </template>
+                <template v-else>
+                  <span>Обычный текст уже нельзя отправить: 24-часовое окно закрыто.</span>
+                  <button type="button" :disabled="busy || selected.state === 'spam'" @click="openTemplateComposer">Выбрать шаблон ниже</button>
+                </template>
               </div>
             </article>
           </div>
@@ -101,7 +107,7 @@
             <button type="button" :disabled="busy" @click="take">Взять в работу</button>
           </div>
 
-          <form class="composer" @submit.prevent="sendReplyNow">
+          <form ref="composer" class="composer" @submit.prevent="sendReplyNow">
             <div class="composer-mode" role="group" aria-label="Способ отправки">
               <button type="button" :class="{ active: replyMode === 'text' }" :disabled="!freeTextAllowed" @click="replyMode = 'text'">Обычное сообщение</button>
               <button type="button" :class="{ active: replyMode === 'template' }" @click="selectTemplateMode">Шаблон WhatsApp</button>
@@ -275,6 +281,10 @@ export default {
       this.replyMode = 'template'
       if (!this.templateName && this.whatsappTemplates.length) this.templateName = this.whatsappTemplates[0].name
       this.prefillTemplateVariables()
+    },
+    openTemplateComposer () {
+      this.selectTemplateMode()
+      this.$nextTick(() => this.$refs.composer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
     },
     resetTemplateVariables () {
       this.templateVariables = {}
