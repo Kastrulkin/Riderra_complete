@@ -80,7 +80,10 @@ Publishing is allowed only for a version with a successful required test suite. 
 
 ## OpenClaw Runtime ENV
 
-- `OPENCLAW_RUNTIME_BASE_URL` (production WhatsApp runtime: `http://83.166.247.254:8094`)
+- `OPENCLAW_AI_RUNTIME_BASE_URL` (DeepSeek compose/classify/extract runtime: `http://83.166.247.254:8092`)
+- `OPENCLAW_META_BASE_URL` (production WhatsApp webhook gateway: `http://83.166.247.254:8094`)
+- `OPENCLAW_RUNTIME_SEND_BASE_URL` (outbound WhatsApp gateway; defaults to `OPENCLAW_META_BASE_URL`)
+- `OPENCLAW_RUNTIME_BASE_URL` (legacy shared fallback for backward compatibility)
 - `OPENCLAW_RUNTIME_TOKEN` (sent as `X-OpenClaw-Internal-Token`)
 - `OPENCLAW_RUNTIME_TIMEOUT_MS` (default `20000`)
 - `OPENCLAW_RUNTIME_BUILD_PATH` (default `/riderra/order-draft/build`)

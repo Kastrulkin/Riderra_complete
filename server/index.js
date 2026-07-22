@@ -57,7 +57,11 @@ app.use(languageCookieMiddleware)
 app.use(jsonBodyParser())
 
 async function proxyMetaWebhookToOpenClaw(req, res) {
-  const baseUrl = String(process.env.OPENCLAW_RUNTIME_BASE_URL || '').trim().replace(/\/+$/, '')
+  const baseUrl = String(
+    process.env.OPENCLAW_META_BASE_URL ||
+    process.env.OPENCLAW_RUNTIME_BASE_URL ||
+    ''
+  ).trim().replace(/\/+$/, '')
   if (!baseUrl) return res.status(503).json({ error: 'OpenClaw runtime is not configured' })
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10000)
@@ -4990,9 +4994,16 @@ async function recordAgentRuntimeResult({ tenantId, task, capability, runtime, i
 
 function getOpenClawRuntimeConfig() {
   const baseUrl = String(
+    process.env.OPENCLAW_AI_RUNTIME_BASE_URL ||
     process.env.OPENCLAW_RUNTIME_BASE_URL ||
     process.env.OPENCLAW_INTERNAL_BASE_URL ||
     ''
+  ).trim().replace(/\/+$/, '')
+  const sendBaseUrl = String(
+    process.env.OPENCLAW_RUNTIME_SEND_BASE_URL ||
+    process.env.OPENCLAW_META_BASE_URL ||
+    process.env.OPENCLAW_RUNTIME_BASE_URL ||
+    baseUrl
   ).trim().replace(/\/+$/, '')
   const token = String(
     process.env.OPENCLAW_RUNTIME_TOKEN ||
@@ -5004,7 +5015,7 @@ function getOpenClawRuntimeConfig() {
   const sendPath = String(process.env.OPENCLAW_RUNTIME_SEND_PATH || '/riderra/order-draft/send').trim() || '/riderra/order-draft/send'
   const classifyPath = String(process.env.OPENCLAW_RUNTIME_CLASSIFY_PATH || '/riderra/order-draft/classify').trim() || '/riderra/order-draft/classify'
   const extractPath = String(process.env.OPENCLAW_RUNTIME_EXTRACT_PATH || '/riderra/order-draft/extract-validate').trim() || '/riderra/order-draft/extract-validate'
-  return { baseUrl, token, timeoutMs, buildPath, sendPath, classifyPath, extractPath }
+  return { baseUrl, sendBaseUrl, token, timeoutMs, buildPath, sendPath, classifyPath, extractPath }
 }
 
 function normalizeOpenClawPath(pathValue, fallbackPath) {
@@ -5034,8 +5045,9 @@ async function callOpenClawRuntime({
       }
     }
   }
-  const { baseUrl, token, timeoutMs } = getOpenClawRuntimeConfig()
-  if (!baseUrl || !token) {
+  const { baseUrl, sendBaseUrl, token, timeoutMs } = getOpenClawRuntimeConfig()
+  const requestBaseUrl = kind === 'send' ? sendBaseUrl : baseUrl
+  if (!requestBaseUrl || !token) {
     return {
       configured: false,
       ok: false,
@@ -5051,7 +5063,7 @@ async function callOpenClawRuntime({
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetch(`${baseUrl}${normalizeOpenClawPath(path, '/riderra/order-draft/build')}`, {
+    const response = await fetch(`${requestBaseUrl}${normalizeOpenClawPath(path, '/riderra/order-draft/build')}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
