@@ -35,6 +35,7 @@ const {
   normalizeManualOrderPatch
 } = require('./utils/orderManualDetails')
 const { inquiryInboundIdempotencyKey, nextInquiryState } = require('./utils/chatInquiry')
+const { extractOrderDetailsContacts, normalizeReference: normalizeDetailsReference } = require('./utils/orderDetailsContacts')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
@@ -2267,7 +2268,8 @@ async function fetchGoogleSheetRows(sheetSource) {
     }
     if (!tabName) tabName = titles[0] || requestedTabName
   }
-  const range = `${tabName}!A:AZ`
+  const rangeColumns = String(sheetSource.rangeColumns || 'A:AZ').trim() || 'A:AZ'
+  const range = `${tabName}!${rangeColumns}`
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`
 
   const response = await fetch(url, {
@@ -2281,6 +2283,58 @@ async function fetchGoogleSheetRows(sheetSource) {
   }
   const data = await response.json()
   return data.values || []
+}
+
+async function syncOrderContactsFromDetailsTab ({ source, tenantId }) {
+  const detailsTabName = String(source.detailsTabName || '').trim() || 'подробности'
+  const detailRows = await fetchGoogleSheetRows({
+    googleSheetId: source.googleSheetId,
+    tabName: detailsTabName,
+    rangeColumns: 'A:C'
+  })
+  const snapshots = await prisma.orderSourceSnapshot.findMany({
+    where: { sheetSourceId: source.id, tenantId, orderId: { not: null } },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      orderId: true,
+      order: {
+        select: {
+          id: true,
+          sourceOrderNumber: true,
+          sourceBookingId: true,
+          sourceInternalOrderNumber: true,
+          customerName: true,
+          customerPhone: true,
+          manualOverridesJson: true
+        }
+      }
+    }
+  })
+  const orders = new Map()
+  for (const snapshot of snapshots) {
+    if (snapshot.order && !orders.has(snapshot.order.id)) orders.set(snapshot.order.id, snapshot.order)
+  }
+  const referenceToOrder = new Map()
+  for (const order of orders.values()) {
+    for (const value of [order.sourceBookingId, order.sourceInternalOrderNumber, parseOrderMetaFromSourceOrderNumber(order.sourceOrderNumber).bookingId]) {
+      const reference = normalizeDetailsReference(value)
+      if (reference && !referenceToOrder.has(reference)) referenceToOrder.set(reference, order)
+    }
+  }
+  const contacts = extractOrderDetailsContacts(detailRows, [...referenceToOrder.keys()])
+  let updated = 0
+  for (const [reference, contact] of contacts.entries()) {
+    const order = referenceToOrder.get(reference)
+    if (!order) continue
+    const manualFields = new Set(Object.keys(parseJsonSafe(order.manualOverridesJson, {}) || {}))
+    const data = {}
+    if (!manualFields.has('customerName') && contact.customerName && contact.customerName !== order.customerName) data.customerName = contact.customerName
+    if (!manualFields.has('customerPhone') && contact.customerPhone && contact.customerPhone !== order.customerPhone) data.customerPhone = contact.customerPhone
+    if (!Object.keys(data).length) continue
+    await prisma.order.update({ where: { id: order.id }, data })
+    updated++
+  }
+  return { found: contacts.size, updated }
 }
 
 async function syncSheetSource(sheetSourceId, tenantId) {
@@ -2637,12 +2691,23 @@ async function syncSheetSource(sheetSourceId, tenantId) {
     }
   }
 
+  try {
+    stats.contacts = await syncOrderContactsFromDetailsTab({ source, tenantId: effectiveTenantId })
+  } catch (error) {
+    stats.contactErrors = 1
+    stats.contactError = error.message || 'Failed to read details tab'
+    console.error(`Contact sync failed for sheet source ${source.id}:`, error)
+  }
+
+  const syncErrors = stats.errors + (stats.contactErrors || 0)
   await prisma.sheetSource.update({
     where: { id: source.id },
     data: {
       lastSyncAt: new Date(),
-      lastSyncStatus: stats.errors > 0 ? 'partial_success' : 'success',
-      lastSyncError: stats.errors > 0 ? `${stats.errors} rows failed` : null
+      lastSyncStatus: syncErrors > 0 ? 'partial_success' : 'success',
+      lastSyncError: syncErrors > 0
+        ? [stats.errors > 0 ? `${stats.errors} rows failed` : '', stats.contactError || ''].filter(Boolean).join('; ')
+        : null
     }
   })
 

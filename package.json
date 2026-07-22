@@ -33,6 +33,7 @@
     "smoke:chat-whatsapp-template-policy": "node scripts/chat_whatsapp_template_policy_smoke.js",
     "smoke:chat-inquiry": "node scripts/chat_inquiry_contract_smoke.js",
     "smoke:order-sheet-identity": "node scripts/order_sheet_identity_smoke.js",
+    "smoke:order-details-contacts": "node scripts/order_details_contacts_smoke.js",
     "ops:backfill-email-workspace": "node scripts/backfill_email_order_workspace.js"
   },
   "dependencies": {
