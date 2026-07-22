@@ -2318,6 +2318,21 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .chat-mode-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chat-mode-switch .btn {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .chat-mode-switch__sandbox {
+    grid-column: 1 / -1;
+  }
+
   .page-head,
   .page-actions,
   .queue-head,
