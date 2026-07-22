@@ -227,6 +227,7 @@ async function main() {
         state: 'notify_draft',
         priority: 1,
         channel: 'whatsapp',
+        customerActorId: '+12025550123',
         agentConfigId: agent.id,
         agentPaused: false
       }
