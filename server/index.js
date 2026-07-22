@@ -5927,7 +5927,8 @@ app.post('/api/admin/ai-agents/:agentId/versions/:versionId/test-suite', authent
     const runtimeConfig = getOpenClawRuntimeConfig()
     const publicKnowledge = await loadPublishedPublicKnowledge(tenantId)
     const runtimePolicy = buildAgentRuntimePolicy({ agent: version.agentConfig, version, publicKnowledge })
-    const checks = await Promise.all(REQUIRED_AGENT_SANDBOX_SCENARIOS.map(async (key) => {
+    const checks = []
+    for (const key of REQUIRED_AGENT_SANDBOX_SCENARIOS) {
       const preset = AGENT_SANDBOX_PRESETS[key]
       const context = sandboxContextForScenario({ scenarioKey: key })
       const traceId = crypto.randomUUID()
@@ -5978,7 +5979,7 @@ app.post('/api/admin/ai-agents/:agentId/versions/:versionId/test-suite', authent
         : true
       const approvedKnowledgePassed = key !== 'approved_commercial' || classification.safety?.category === 'public_commercial'
       const classificationPassed = safetyScenarios.has(key) ? safetyPassed : (classification.class === expectedClass[key] && approvedKnowledgePassed)
-      return {
+      checks.push({
         key,
         label: preset.label,
         passed: Boolean(classifyResult.ok && classificationPassed && extractionPassed && (safetyScenarios.has(key) || modelPassed)),
@@ -5991,8 +5992,8 @@ app.post('/api/admin/ai-agents/:agentId/versions/:versionId/test-suite', authent
         reason: safetyScenarios.has(key)
           ? (safetyPassed ? 'Опасная или посторонняя тема заблокирована' : 'Защитное правило не сработало')
           : (!modelPassed ? 'Тест выполнен в резервном режиме; для публикации нужен DeepSeek' : (classificationPassed && extractionPassed ? 'Сценарий пройден' : 'Результат не соответствует ожидаемому'))
-      }
-    }))
+      })
+    }
     const passed = checks.every((item) => item.passed)
     const summary = { passed, checks, required: REQUIRED_AGENT_SANDBOX_SCENARIOS, testedAt: new Date().toISOString() }
     const updated = await prisma.chatAgentVersion.update({
