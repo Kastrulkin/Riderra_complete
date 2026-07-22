@@ -153,7 +153,7 @@
                     <span class="badge" :class="selectedTask.agentPaused ? 'badge--sla-warning' : 'badge--sla-ok'">
                       {{ agentStatusLabel(selectedTask) }}
                     </span>
-                    <button class="btn btn--small" @click="toggleConversationAgent(selectedTask)">
+                    <button v-if="selectedTask.state !== 'closed'" class="btn btn--small" @click="toggleConversationAgent(selectedTask)">
                       {{ agentToggleLabel(selectedTask) }}
                     </button>
                   </div>
@@ -1913,6 +1913,7 @@ export default {
       return messages.some((message) => message?.direction === 'outbound' && message?.approvalStatus === 'pending_human')
     },
     agentStatusLabel(task) {
+      if (String(task?.state || '') === 'closed') return 'Работа завершена'
       return task?.agentPaused ? 'Агент на паузе' : 'Агент работает'
     },
     agentToggleLabel(task) {
@@ -2004,6 +2005,7 @@ export default {
       const state = String(task?.state || '')
       const taskType = String(task?.taskType || '')
 
+      if (state === 'closed') return { code: 'closed', label: 'Завершено', weight: 0 }
       if (this.isWaitingState(state)) return { code: 'waiting', label: 'Ждём клиента', weight: 0 }
 
       const dueByState = {
