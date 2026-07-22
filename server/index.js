@@ -14502,7 +14502,7 @@ function defaultWhatsAppTemplateRegistry() {
     {
       name: 'riderra_flight_request',
       label: 'Flight request',
-      description: 'Запросить номер рейса и дату прилёта/вылета.',
+      description: 'Запросить номер рейса.',
       language: 'en',
       languages: ['en'],
       variables: ['city', 'pickup_date']

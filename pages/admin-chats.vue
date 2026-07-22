@@ -225,7 +225,7 @@
                     <span v-if="message.deliveryStatus" class="badge" :class="deliveryStatusClass(message.deliveryStatus)">{{ deliveryStatusLabel(message.deliveryStatus) }}</span>
                     <span>{{ formatDate(message.createdAt) }}</span>
                   </div>
-                  <div class="message-body">{{ message.bodyText }}</div>
+                  <div class="message-body">{{ messageDisplayText(message) }}</div>
                   <div v-if="message.direction === 'outbound'" class="send-preview">
                     <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
                     <span><strong>Канал:</strong> {{ (message.channel || selectedTask.channel || '—') }}</span>
@@ -617,7 +617,7 @@ export default {
       {
         name: 'riderra_flight_request',
         label: 'Flight request',
-        description: 'Запросить номер рейса и дату прилёта/вылета.',
+        description: 'Запросить номер рейса.',
         language: 'en',
         languages: ['en'],
         variables: ['city', 'pickup_date']
@@ -1387,7 +1387,7 @@ export default {
       await this.loadTasks()
     },
     async copyMessage(message) {
-      const text = String(message?.bodyText || '').trim()
+      const text = String(this.messageDisplayText(message) || '').trim()
       if (!text) return
       try {
         if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -1734,11 +1734,17 @@ export default {
       const pickupDate = String(variables.pickup_date || '{{2}}')
       const templates = {
         riderra_baggage_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please clarify how many bags or suitcases you will have? Thank you!`,
-        riderra_flight_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Please clarify your flight details. Thank you!`,
-        riderra_passengers_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Please clarify the number of passengers. Thank you!`,
-        riderra_destination_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please share the exact destination address? Thank you!`
+        riderra_flight_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please share your flight number? Thank you!`,
+        riderra_passengers_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please clarify how many passengers will be traveling? Thank you!`,
+        riderra_destination_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please share the exact destination address? Thank you!`,
+        riderra_trip_message: `Hello! We are writing to you regarding your upcoming transfer in ${city} on ${pickupDate}. We will contact you here with important trip details. Thank you!`
       }
       return templates[form.templateName] || `Approved template: ${form.templateName || 'не выбран'}`
+    },
+    messageDisplayText(message) {
+      const delivery = this.deliveryPayload(message)
+      const isSentTemplate = message?.direction === 'outbound' && message?.approvalStatus === 'sent' && String(delivery?.mode || '').toLowerCase() === 'template'
+      return isSentTemplate ? this.approvedTemplatePreview(message) : String(message?.bodyText || '')
     },
     deliveryHint(message) {
       if (!this.isWhatsappMessage(message)) return 'Для Telegram/OpenClaw можно отправлять обычный текст.'
@@ -1777,7 +1783,14 @@ export default {
       return states.map((key, index) => ({ key, label: labels[index], done: index < activeIndex || state === 'closed', current: index === activeIndex && state !== 'closed' }))
     },
     latestAgentActivity(task) {
-      const run = (task?.agentRuns || [])[0]
+      if (this.isWaitingForCustomer(task)) {
+        return { title: 'Сообщение отправлено — ждём клиента', detail: 'Ответ появится в этом диалоге', live: false }
+      }
+      if (String(task?.state || '') === 'closed') {
+        return { title: 'Диалог завершён', detail: 'Агент закончил работу по этой задаче', live: false }
+      }
+      const runs = task?.agentRuns || []
+      const run = runs.find((item) => ['queued', 'running'].includes(item.status)) || runs[0]
       if (!run) return { title: 'Агент готов к следующему шагу', detail: this.stateLabel(task?.state), live: false }
       const capability = {
         'riderra.customer.message.compose': 'Агент формулирует сообщение',
