@@ -105,7 +105,7 @@ async function main() {
   process.env.OPENCLAW_RUNTIME_TOKEN = runtimeToken
   process.env.OPENCLAW_RUNTIME_SEND_PATH = '/riderra/order-draft/send'
 
-  const app = require('../server/index')
+  let app = null
   let appServer = null
   let mock = null
   const created = {
@@ -122,6 +122,7 @@ async function main() {
   try {
     mock = await startOpenClawMock(runtimeToken)
     process.env.OPENCLAW_RUNTIME_BASE_URL = mock.baseUrl
+    app = require('../server/index')
 
     const tenant = await prisma.tenant.create({
       data: { code: tenantCode, name: 'CI WhatsApp Policy', isActive: true }
