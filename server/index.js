@@ -9384,13 +9384,18 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
     }
     const now = new Date()
     const errorText = String(req.body?.error || req.body?.errorMessage || '').trim() || null
+    const errorCode = String(req.body?.errorCode || req.body?.code || '').trim() || null
+    const errorDetails = String(req.body?.errorDetails || req.body?.details || '').trim() || null
+    const deliveryError = status === 'failed' && errorCode === '131026'
+      ? 'WhatsApp не смог доставить сообщение (131026). Проверьте, что номер активен в WhatsApp, или свяжитесь с клиентом другим способом.'
+      : (errorDetails || errorText || 'Meta не доставила сообщение')
     const updated = await prisma.chatMessage.update({
       where: { id: message.id },
       data: {
         deliveryStatus: status,
         ...(status === 'delivered' ? { deliveredAt: message.deliveredAt || now } : {}),
         ...(status === 'read' ? { readAt: message.readAt || now, deliveredAt: message.deliveredAt || now } : {}),
-        ...(status === 'failed' ? { failedAt: message.failedAt || now, deliveryError: errorText || 'Meta delivery failed' } : {})
+        ...(status === 'failed' ? { failedAt: message.failedAt || now, deliveryError } : {})
       }
     })
     if (status === 'failed') {
@@ -9401,7 +9406,7 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
           where: { id: failedTask.id },
           data: {
             state: failedTaskState,
-            lastError: errorText || 'Meta не доставила сообщение',
+            lastError: deliveryError,
             agentPaused: true
           }
         })
@@ -9411,11 +9416,11 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
           title: failedTask.orderId
             ? `Не отправлено сообщение по заказу ${publicOrderReference(failedTask.order) || failedTask.orderId}`
             : `Не отправлено сообщение клиенту ${failedTask.customerDisplayName || failedTask.customerActorId || ''}`.trim(),
-          details: errorText || 'Meta не доставила сообщение',
+          details: deliveryError,
           type: 'message_delivery_failed', priority: 'high', source: 'whatsapp', sourceRef: message.id,
           dedupKey: `delivery-failed:${message.id}`,
           linkUrl: failedTask.taskType === 'inbound_inquiry' ? `/admin-chats?inquiry=${failedTask.id}` : `/admin-chats?taskId=${failedTask.id}`,
-          payload: { taskId: failedTask.id, orderId: failedTask.orderId, messageId: message.id }
+          payload: { taskId: failedTask.id, orderId: failedTask.orderId, messageId: message.id, errorCode, errorDetails, providerError: errorText }
         })
       }
     }
