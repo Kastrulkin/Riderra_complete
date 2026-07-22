@@ -3290,6 +3290,22 @@ export default {
   }
 }
 @media (max-width: 640px) {
+  .month-workbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .month-workbar__main,
+  .month-workbar__meta {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .month-select {
+    width: 100%;
+    max-width: none;
+  }
+
   .page-head-actions,
   .subtabs,
   .view-strip {
