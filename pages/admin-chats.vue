@@ -229,7 +229,7 @@
                   <div v-if="message.direction === 'outbound'" class="send-preview">
                     <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
                     <span><strong>Канал:</strong> {{ (message.channel || selectedTask.channel || '—') }}</span>
-                    <span><strong>Проблема:</strong> {{ selectedTask.order && selectedTask.order.infoReason || '—' }}</span>
+                    <span><strong>Проблема:</strong> {{ clarificationProblemLabel }}</span>
                     <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
                     <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
                   </div>
@@ -302,7 +302,7 @@
                   <div class="send-preview">
                     <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
                     <span><strong>Канал:</strong> {{ activeDraftMessage.channel || selectedTask.channel || '—' }}</span>
-                    <span><strong>Проблема:</strong> {{ selectedTask.order && selectedTask.order.infoReason || '—' }}</span>
+                    <span><strong>Проблема:</strong> {{ clarificationProblemLabel }}</span>
                     <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
                     <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
                   </div>
@@ -819,6 +819,7 @@ export default {
     taskFocusTitle() {
       if (!this.selectedTask) return ''
       if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Проверьте черновик сообщения'
+      if (this.selectedTask.state === 'closed') return 'Диалог завершён'
       if (this.selectedTask.taskType === 'dispatch_info') return 'Нужно подготовить сообщение клиенту'
       if (this.selectedTask.state === 'handoff_human') return 'Задача передана человеку'
       if (this.selectedTask.state === 'customer_replied') return 'Нужно разобрать ответ клиента'
@@ -829,6 +830,7 @@ export default {
       if (!this.selectedTask) return ''
       const reason = String(this.selectedTask?.order?.infoReason || '').trim()
       if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Сообщение ещё не отправлено. Проверьте текст выше, затем одобрите или отклоните его.'
+      if (this.selectedTask.state === 'closed') return 'Ответ клиента сохранён, благодарность отправлена, дополнительных действий не требуется.'
       if (this.selectedTask.state === 'handoff_human') {
         return this.selectedTask.lastError || 'Проверьте данные получателя или выберите другой способ связи. После решения проблемы можно возобновить работу агента.'
       }
@@ -838,6 +840,19 @@ export default {
       if (this.selectedTask.taskType === 'dispatch_info') return 'Создайте сообщение с подтверждёнными деталями поездки. Перед отправкой вы увидите и одобрите черновик.'
       if (reason) return `Фокус задачи: ${reason}`
       return 'Соберите короткое сообщение, получите ответ и доведите задачу до следующего статуса.'
+    },
+    clarificationProblemLabel() {
+      const reason = String(this.selectedTask?.order?.infoReason || '').trim()
+      if (reason) return reason
+      const extraction = this.getCapabilityOutput('riderra.order.field.extract_validate') || {}
+      const labels = {
+        destinationPoint: 'Уточнить адрес назначения',
+        pickupPoint: 'Уточнить место подачи',
+        flightNumber: 'Уточнить рейс',
+        luggage: 'Уточнить багаж',
+        passengers: 'Уточнить количество пассажиров'
+      }
+      return labels[String(extraction.field || '')] || '—'
     }
   },
   mounted() {
