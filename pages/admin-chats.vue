@@ -791,6 +791,7 @@ export default {
     isDraftPreparationStage() {
       if (!this.selectedTask) return false
       if (!['clarification', 'dispatch_info'].includes(this.selectedTask.taskType)) return false
+      if (['handoff_human', 'closed', 'order_complete'].includes(this.selectedTask.state)) return false
       if (this.isWaitingForCustomer(this.selectedTask)) return false
       if (['customer_replied', 'pending_update_approval'].includes(this.selectedTask.state)) return false
       return !this.hasDraftAwaitingApproval(this.selectedTask) && !this.hasReadyDraft(this.selectedTask)
@@ -828,6 +829,9 @@ export default {
       if (!this.selectedTask) return ''
       const reason = String(this.selectedTask?.order?.infoReason || '').trim()
       if (this.hasDraftAwaitingApproval(this.selectedTask)) return 'Сообщение ещё не отправлено. Проверьте текст выше, затем одобрите или отклоните его.'
+      if (this.selectedTask.state === 'handoff_human') {
+        return this.selectedTask.lastError || 'Проверьте данные получателя или выберите другой способ связи. После решения проблемы можно возобновить работу агента.'
+      }
       if (this.selectedTask.state === 'pending_update_approval') return 'Проверьте предложенное обновление заказа и примените его только после подтверждения.'
       if (this.selectedTask.state === 'customer_replied') return 'Сначала разберите входящий ответ и подтвердите поле.'
       if (this.selectedTask.state === 'request_sent') return 'Проверьте, нужен ли follow-up или передача человеку.'
@@ -1876,7 +1880,8 @@ export default {
       return owner.email || owner.id
     },
     messageCountLabel(task) {
-      const count = Number(task?._count?.messages || task?.messages?.length || 0)
+      const count = Math.max(0, Number(task?.unreadCount || 0))
+      if (count === 0) return 'Нет новых сообщений'
       if (count === 1) return '1 новое сообщение'
       if (count > 1 && count < 5) return `${count} новых сообщения`
       return `${count} новых сообщений`
