@@ -4188,6 +4188,18 @@ async function queueChatTaskWithoutRewind({
   customerActorId = undefined,
   recipientSource = undefined
 }) {
+  if (customerActorId === undefined || channel === undefined || recipientSource === undefined) {
+    const orderRecipient = await prisma.order.findFirst({
+      where: { id: orderId, tenantId },
+      select: { customerPhone: true }
+    })
+    const orderPhone = normalizeE164Phone(orderRecipient?.customerPhone)
+    if (orderPhone) {
+      if (customerActorId === undefined) customerActorId = orderPhone
+      if (channel === undefined) channel = 'whatsapp'
+      if (recipientSource === undefined) recipientSource = 'order'
+    }
+  }
   const existing = await prisma.chatTask.findUnique({
     where: { tenantId_orderId_taskType: { tenantId, orderId, taskType } }
   })
