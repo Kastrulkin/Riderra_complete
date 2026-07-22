@@ -5076,8 +5076,9 @@ async function executeSandboxTurn({ tenantId, agent, version, session, text, act
   const classifyResult = await callOpenClawRuntime({ path: runtimeConfig.classifyPath, payload: classifyPayload, kind: 'classify', traceId })
   let decision = fallbackSandboxDecision({ text, context })
   if (classifyResult.ok) {
-    decision.classification = extractClassificationFromOpenClawResponse(classifyResult.data || {})
-    if (decision.classification.class === 'answer') {
+    const runtimeClassification = extractClassificationFromOpenClawResponse(classifyResult.data || {})
+    decision.classification = runtimeClassification
+    if (runtimeClassification.class === 'answer') {
       const extractPayload = buildOpenClawEnvelope({
         tenantId,
         traceId,
@@ -5104,8 +5105,12 @@ async function executeSandboxTurn({ tenantId, agent, version, session, text, act
         reason: decision.extraction?.valid ? 'Ответ понятен, данные извлечены' : 'Не удалось надёжно извлечь данные'
       }
     } else {
-      decision = fallbackSandboxDecision({ text, context: { ...context, infoReason: context.infoReason } })
-      decision.classification = extractClassificationFromOpenClawResponse(classifyResult.data || {})
+      const localDecision = fallbackSandboxDecision({ text, context: { ...context, infoReason: context.infoReason } })
+      const explicitAnswer = localDecision.classification?.class === 'answer' && localDecision.extraction?.valid
+      const runtimeAllowsAnswer = !runtimeClassification.requiresHuman && (!runtimeClassification.safety?.category || runtimeClassification.safety.category === 'in_scope')
+      decision = explicitAnswer && runtimeAllowsAnswer
+        ? localDecision
+        : { ...localDecision, classification: runtimeClassification }
     }
   }
   if (decision.classification?.requiresHuman) {
