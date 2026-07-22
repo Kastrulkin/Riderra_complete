@@ -836,7 +836,8 @@ export default {
     }
   },
   mounted() {
-    this.inboxMode = this.$route.query.mode !== 'orders'
+    const routedTaskId = String(this.$route.query.taskId || '').trim()
+    this.inboxMode = !routedTaskId && this.$route.query.mode !== 'orders'
     if (!this.inboxMode) this.initPage().catch(() => {})
   },
   beforeDestroy() {
@@ -848,6 +849,7 @@ export default {
       this.stopAutoRefresh()
       const query = { ...this.$route.query }
       delete query.mode
+      delete query.taskId
       this.$router.replace({ query }).catch(() => {})
     },
     openWhatsAppConversation() {
