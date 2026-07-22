@@ -99,6 +99,7 @@ async function main() {
   const tenantCode = `ci-whatsapp-policy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
   const runtimeToken = `mock-${crypto.randomUUID()}`
   const previousRuntimeBase = process.env.OPENCLAW_RUNTIME_BASE_URL
+  const previousRuntimeSendBase = process.env.OPENCLAW_RUNTIME_SEND_BASE_URL
   const previousRuntimeToken = process.env.OPENCLAW_RUNTIME_TOKEN
   const previousSendPath = process.env.OPENCLAW_RUNTIME_SEND_PATH
 
@@ -122,6 +123,7 @@ async function main() {
   try {
     mock = await startOpenClawMock(runtimeToken)
     process.env.OPENCLAW_RUNTIME_BASE_URL = mock.baseUrl
+    process.env.OPENCLAW_RUNTIME_SEND_BASE_URL = mock.baseUrl
     app = require('../server/index')
 
     const tenant = await prisma.tenant.create({
@@ -440,6 +442,7 @@ async function main() {
     if (appServer) await new Promise((resolve) => appServer.close(resolve))
     if (mock?.server) await new Promise((resolve) => mock.server.close(resolve))
     restoreEnv('OPENCLAW_RUNTIME_BASE_URL', previousRuntimeBase)
+    restoreEnv('OPENCLAW_RUNTIME_SEND_BASE_URL', previousRuntimeSendBase)
     restoreEnv('OPENCLAW_RUNTIME_TOKEN', previousRuntimeToken)
     restoreEnv('OPENCLAW_RUNTIME_SEND_PATH', previousSendPath)
 
