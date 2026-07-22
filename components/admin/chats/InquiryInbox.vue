@@ -214,7 +214,6 @@ export default {
     views: [
       { key: 'new', label: 'Новые обращения' },
       { key: 'work', label: 'В работе' },
-      { key: 'linked', label: 'Связаны с заказами' },
       { key: 'closed', label: 'Закрытые' }
     ],
     view: 'new', unread: 0, rows: [], staff: [], selected: null,
@@ -278,6 +277,10 @@ export default {
         ])
         this.unread = count.unread || 0; this.staff = staff.rows || []; this.whatsappTemplates = templateRegistry.templates || []
         const requested = String(this.$route.query.inquiry || '')
+        if (this.$route.query.chatView === 'linked') {
+          this.$emit('open-order-chats')
+          return
+        }
         this.view = this.$route.query.chatView || (this.unread ? 'new' : 'work')
         await this.loadList()
         if (requested) await this.open(requested)
@@ -433,8 +436,8 @@ export default {
     },
     scheduleOrderSearch () { clearTimeout(this.orderTimer); this.orderTimer = setTimeout(() => this.searchOrders(), 300) },
     async searchOrders () { if (this.orderSearch.length < 2) { this.orderResults = []; return } try { const data = await this.request(`/api/admin/chats/inquiries/orders?q=${encodeURIComponent(this.orderSearch)}`); this.orderResults = data.rows || [] } catch (error) { this.showError(error) } },
-    async linkOrder (orderId) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}/link-order`, { method: 'POST', body: JSON.stringify({ orderId }) }); this.banner = { kind: 'success', text: 'Диалог связан с заказом и доступен в его истории.' }; this.selected = null; await this.changeView('linked') } catch (error) { this.showError(error) } finally { this.busy = false } },
-    async createOrder () { this.busy = true; try { const data = await this.request(`/api/admin/chats/inquiries/${this.selected.id}/create-order`, { method: 'POST', body: JSON.stringify(this.newOrder) }); this.banner = { kind: 'success', text: data.sourceOfTruthNotice }; this.selected = null; await this.changeView('linked') } catch (error) { this.showError(error) } finally { this.busy = false } },
+    async linkOrder (orderId) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}/link-order`, { method: 'POST', body: JSON.stringify({ orderId }) }); this.selected = null; this.$emit('open-order-chats') } catch (error) { this.showError(error) } finally { this.busy = false } },
+    async createOrder () { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}/create-order`, { method: 'POST', body: JSON.stringify(this.newOrder) }); this.selected = null; this.$emit('open-order-chats') } catch (error) { this.showError(error) } finally { this.busy = false } },
     showError (error) { this.banner = { kind: 'error', text: error.message || 'Произошла ошибка', retry: true } },
     templateVariableLabel (name) { return ({ city: 'Город поездки', pickup_date: 'Дата подачи', customer_name: 'Имя клиента', booking_number: 'Номер заказа' })[name] || name },
     templateVariablePlaceholder (name) { return ({ city: 'Например, Helsinki', pickup_date: 'Например, 24 July', customer_name: 'Например, John', booking_number: 'Например, 9GP7HC-1' })[name] || 'Введите значение' },

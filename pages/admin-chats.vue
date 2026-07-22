@@ -21,7 +21,8 @@
 
         <agent-sandbox-panel v-if="activeSection === 'sandbox'" class="chat-sandbox" @start-whatsapp="openWhatsAppConversation" />
 
-        <inquiry-inbox v-if="activeSection === 'inbox'" ref="inquiryInbox" />
+        <div v-if="!activeSection" class="chats-loading" role="status"><span class="spinner"></span>Загружаем чаты…</div>
+        <inquiry-inbox v-if="activeSection === 'inbox'" ref="inquiryInbox" @open-order-chats="openOperationsMode" />
         <template v-else-if="activeSection === 'orders'">
 
         <header class="page-head">
@@ -561,7 +562,7 @@ export default {
   middleware: 'staff',
   components: { adminTabs, InquiryInbox, AgentSandboxPanel },
   data: () => ({
-    activeSection: 'inbox',
+    activeSection: '',
     tasks: [],
     selectedTask: null,
     taskType: '',
@@ -860,16 +861,38 @@ export default {
     }
   },
   mounted() {
-    const routedTaskId = String(this.$route.query.taskId || '').trim()
-    if (routedTaskId || this.$route.query.mode === 'orders') this.activeSection = 'orders'
-    else if (this.$route.query.mode === 'sandbox') this.activeSection = 'sandbox'
-    else this.activeSection = 'inbox'
-    if (this.activeSection === 'orders') this.initPage().catch(() => {})
+    this.initializeSection().catch(() => { this.activeSection = 'inbox' })
   },
   beforeDestroy() {
     this.stopAutoRefresh()
   },
   methods: {
+    async initializeSection() {
+    const routedTaskId = String(this.$route.query.taskId || '').trim()
+      if (routedTaskId || this.$route.query.mode === 'orders' || this.$route.query.chatView === 'linked') {
+        this.activeSection = 'orders'
+        await this.initPage()
+        return
+      }
+      if (this.$route.query.mode === 'sandbox') {
+        this.activeSection = 'sandbox'
+        return
+      }
+      if (this.$route.query.inquiry || this.$route.query.chatView) {
+        this.activeSection = 'inbox'
+        return
+      }
+      try {
+        const response = await fetch('/api/admin/chats/inquiries/unread-count', { headers: this.headers() })
+        const data = await response.json().catch(() => ({}))
+        if (response.ok && Number(data.unread || 0) > 0) {
+          this.activeSection = 'inbox'
+          return
+        }
+      } catch (_) {}
+      this.activeSection = 'orders'
+      await this.initPage()
+    },
     openInboxMode() {
       this.activeSection = 'inbox'
       this.stopAutoRefresh()
@@ -2185,6 +2208,7 @@ export default {
 .chat-sections__tab { min-height: 42px; padding: 9px 16px; border: 0; border-radius: 9px; background: transparent; color: #60708f; font-weight: 800; cursor: pointer; }
 .chat-sections__tab--active { background: #fff; color: #17233d; box-shadow: 0 1px 4px rgba(23, 35, 61, .12); }
 .chat-sections__tab:focus-visible { outline: 3px solid rgba(36, 59, 115, .28); outline-offset: 2px; }
+.chats-loading { display: flex; min-height: 280px; align-items: center; justify-content: center; gap: 10px; color: #60708f; }
 .admin-chat-page { min-height: 100vh; color: #17233d; }
 .chat-section { padding-top: 26px; padding-bottom: 40px; }
 .container { max-width: 1480px; }
