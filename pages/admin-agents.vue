@@ -1392,11 +1392,11 @@ export default {
         this.agentForm.type = 'order_completion'
         this.agentForm.taskType = 'clarification'
         this.agentForm.requiresApproval = true
-        this.agentForm.identity = 'Riderra assistant working in test mode.'
+        this.agentForm.identity = 'Riderra customer communication assistant. Human-approved drafts only.'
         this.agentForm.task = 'Politely ask only for missing booking details.'
         this.agentForm.speechStyle = 'Short, clear, calm, businesslike.'
         this.agentForm.promptText = [
-          'You are Riderra assistant working in test mode.',
+          'You are Riderra customer communication assistant.',
           'Default customer-facing language is English unless order.lang is explicitly ru.',
           'Task: politely and briefly ask only for the missing booking details.',
           'Ask for 1-2 critical fields per message.',
@@ -1411,7 +1411,7 @@ export default {
         this.agentForm.task = 'Send confirmed trip details to the customer.'
         this.agentForm.speechStyle = 'Short, clear, businesslike, no pressure.'
         this.agentForm.promptText = [
-          'You are Riderra assistant working in test mode.',
+          'You are Riderra customer communication assistant.',
           'Default customer-facing language is English unless order.lang is explicitly ru.',
           'Task: send confirmed trip details to the customer.',
           'Include route, date/time, driver contact if available, and useful instructions.',

@@ -1437,7 +1437,7 @@ export default {
     buildDispatchPrefill (order) {
       const route = [order?.fromPoint, order?.toPoint].filter(Boolean).join(' -> ')
       const parts = [
-        'Я помощник Riderra, работаю в тестовом режиме.',
+        'Здравствуйте! Это Riderra.',
         'Подтверждаем детали поездки.'
       ]
       if (order?.orderNumber) parts.push(`Номер заказа: ${order.orderNumber}.`)

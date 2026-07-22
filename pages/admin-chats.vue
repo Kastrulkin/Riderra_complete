@@ -727,6 +727,7 @@ export default {
       if (valid === false) validationLabel = 'Не подтверждено'
       const extractedValue = extractOutput?.value ?? extractOutput?.normalizedValue ?? extractOutput?.extractedValue ?? null
       const field = String(extractOutput?.field || '—')
+      const fieldLabels = { flightNumber: 'Номер рейса', luggage: 'Количество багажа', pickupPoint: 'Место подачи', destinationPoint: 'Адрес назначения', clarification: 'Уточнение' }
       const source = String(extractOutput?.source || classifyOutput?.source || 'OpenClaw')
       const patch = Array.isArray(this.lastStepTrace.orderPatchPreview) ? this.lastStepTrace.orderPatchPreview : []
       const hasPendingPatch = Boolean(this.lastStepTrace.pendingOrderPatch && this.selectedTask?.state === 'pending_update_approval')
@@ -751,7 +752,7 @@ export default {
         classLabel: clsMap[cls] || cls,
         confidenceLabel,
         validationLabel,
-        fieldLabel: field,
+        fieldLabel: fieldLabels[field] || field,
         valueLabel: extractedValue == null || String(extractedValue).trim() === '' ? '—' : String(extractedValue),
         sourceLabel: source === 'local_fallback' ? 'Локальные правила Riderra' : source,
         orderPatchLabel: patch.length ? patch.join(', ') : '',
@@ -1074,7 +1075,7 @@ export default {
         this.agentForm.taskType = 'clarification'
         this.agentForm.requiresApproval = true
         this.agentForm.promptText = [
-          'You are Riderra assistant working in test mode.',
+          'You are Riderra customer communication assistant.',
           'Default customer-facing language is English unless order.lang is explicitly ru.',
           'Task: politely and briefly ask only for the missing booking details.',
           'Ask for 1-2 critical fields per message.',
@@ -1103,7 +1104,7 @@ export default {
         this.agentForm.taskType = 'dispatch_info'
         this.agentForm.requiresApproval = true
         this.agentForm.promptText = [
-          'You are Riderra assistant working in test mode.',
+          'You are Riderra customer communication assistant.',
           'Default customer-facing language is English unless order.lang is explicitly ru.',
           'Task: send confirmed trip details to the customer.',
           'Include route, date/time, driver contact if available, and useful instructions.',
@@ -1685,6 +1686,7 @@ export default {
       if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('baggage') || reason.includes('bag') || reason.includes('suitcase') || reason.includes('чемодан')) return 'baggage'
       if (reason.includes('рейс') || reason.includes('flight') || reason.includes('arrival') || reason.includes('прилет') || reason.includes('прилёт')) return 'flight'
       if (reason.includes('пассажир') || reason.includes('passenger') || reason.includes('pax') || reason.includes('количество людей')) return 'passengers'
+      if (reason.includes('адрес назначения') || reason.includes('место назначения') || reason.includes('destination') || reason.includes('drop-off') || reason.includes('dropoff')) return 'destination'
       return 'trip'
     },
     suggestTemplateName(message) {
@@ -1693,6 +1695,7 @@ export default {
         baggage: 'riderra_baggage_request',
         flight: 'riderra_flight_request',
         passengers: 'riderra_passengers_request',
+        destination: 'riderra_destination_request',
         trip: 'riderra_trip_message'
       }
       return byReason[code] || 'riderra_trip_message'
@@ -1732,7 +1735,8 @@ export default {
       const templates = {
         riderra_baggage_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please clarify how many bags or suitcases you will have? Thank you!`,
         riderra_flight_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Please clarify your flight details. Thank you!`,
-        riderra_passengers_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Please clarify the number of passengers. Thank you!`
+        riderra_passengers_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Please clarify the number of passengers. Thank you!`,
+        riderra_destination_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please share the exact destination address? Thank you!`
       }
       return templates[form.templateName] || `Approved template: ${form.templateName || 'не выбран'}`
     },
@@ -2074,9 +2078,7 @@ export default {
         : ''
       const route = this.routeLabel(order)
       const infoReason = String(order.infoReason || '').trim()
-      const base = isRu
-        ? 'Я помощник Riderra, работаю в тестовом режиме. '
-        : 'I am Riderra assistant and I am working in test mode. '
+      const base = isRu ? 'Здравствуйте! Это Riderra. ' : 'Hello! This is Riderra. '
       const closing = isRu
         ? 'Спасибо! После ответа сразу подтвердим детали поездки.'
         : 'Thank you. Once we receive your reply, we will confirm the trip details.'

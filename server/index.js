@@ -4396,8 +4396,8 @@ function buildOrderChatPrefill(order = null, taskType = 'clarification') {
   const lang = normalizeCustomerMessageLang(order?.lang)
   if (taskType === 'dispatch_info') {
     const lines = lang === 'ru'
-      ? ['Я помощник Riderra, работаю в тестовом режиме.', 'Подтверждаем детали поездки:']
-      : ['I am Riderra assistant and I am working in test mode.', 'We are confirming your trip details:']
+      ? ['Здравствуйте! Это Riderra.', 'Подтверждаем детали поездки:']
+      : ['Hello! This is Riderra.', 'We are confirming your trip details:']
     if (orderKey) lines.push(lang === 'ru' ? `Номер заказа: ${orderKey}.` : `Booking number: ${orderKey}.`)
     if (route) lines.push(lang === 'ru' ? `Маршрут: ${route}.` : `Route: ${route}.`)
     lines.push(lang === 'ru'
@@ -4405,9 +4405,7 @@ function buildOrderChatPrefill(order = null, taskType = 'clarification') {
       : 'If anything needs to be corrected, please reply to this message.')
     return lines.join(' ')
   }
-  const lines = [lang === 'ru'
-    ? 'Я помощник Riderra, работаю в тестовом режиме.'
-    : 'I am Riderra assistant and I am working in test mode.']
+  const lines = [lang === 'ru' ? 'Здравствуйте! Это Riderra.' : 'Hello! This is Riderra.']
   if (orderKey) lines.push(lang === 'ru' ? `Номер заказа: ${orderKey}.` : `Booking number: ${orderKey}.`)
   if (route) lines.push(lang === 'ru' ? `Маршрут: ${route}.` : `Route: ${route}.`)
   lines.push(buildClarificationQuestion(infoReason, lang))
@@ -4470,6 +4468,12 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
   if (target === 'pickupPoint') {
     return 'Could you please confirm the exact pickup point: address, terminal, entrance, or a clear landmark?'
   }
+  if (target === 'destinationPoint' && isRu) {
+    return 'Подскажите, пожалуйста, точный адрес назначения.'
+  }
+  if (target === 'destinationPoint') {
+    return 'Could you please share the exact destination address?'
+  }
   if (target === 'passengers' && isRu) {
     return 'Подскажите, пожалуйста, сколько пассажиров будет в поездке?'
   }
@@ -4491,6 +4495,7 @@ function pickWhatsAppTemplateNameForTask(task = {}, registry = []) {
   if (target === 'flightNumber') return 'riderra_flight_request'
   if (target === 'passengers') return 'riderra_passengers_request'
   if (target === 'pickupPoint') return 'riderra_trip_message'
+  if (target === 'destinationPoint') return 'riderra_destination_request'
   const knownNames = new Set((registry || []).map((tpl) => String(tpl?.name || '').trim()).filter(Boolean))
   return knownNames.has('riderra_trip_message') ? 'riderra_trip_message' : 'riderra_baggage_request'
 }
@@ -5374,6 +5379,7 @@ function detectClarificationTarget(infoReason = '', text = '') {
   if (/(рейс|flight|авиа|arrival|прилет|прил[её]т)/i.test(combined)) return 'flightNumber'
   if (/(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(combined)) return 'luggage'
   if (/(пассажир|passenger|passengers|pax|количеств[оа]\s+людей)/i.test(combined)) return 'passengers'
+  if (/(адрес\s+назначения|мест[оа]\s+назначения|destination|drop[ -]?off)/i.test(combined)) return 'destinationPoint'
   if (/(подач|pickup|адрес|address|terminal|терминал|entrance|вход|hotel|отель)/i.test(combined)) return 'pickupPoint'
   return 'generic'
 }
@@ -5433,6 +5439,18 @@ function extractOrderFieldFallback({ text = '', infoReason = '' } = {}) {
     }
   }
 
+  if (target === 'destinationPoint') {
+    const value = raw.replace(/^(место назначения|destination|drop[ -]?off|адрес назначения|address)\s*[:\-]\s*/i, '').trim()
+    return {
+      valid: value.length >= 4,
+      confidence: value.length >= 8 ? 0.78 : 0.58,
+      field: 'destinationPoint',
+      value,
+      reason: value.length >= 4 ? 'Адрес назначения принят как текстовое уточнение.' : 'Слишком короткий адрес назначения.',
+      source: 'local_fallback'
+    }
+  }
+
   return {
     valid: raw.length >= 4,
     confidence: raw.length >= 4 ? 0.65 : 0.25,
@@ -5477,6 +5495,10 @@ function buildOrderPatchFromInboundExtraction(order = {}, extraction = null, bod
       patch.comment = appendOrderComment(order?.comment || null, `Уточнение места подачи: ${text}`)
       preview.push('comment: pickup clarification appended')
     }
+  } else if (field === 'destinationPoint' && value) {
+    const text = String(value || '').trim()
+    patch.comment = appendOrderComment(order?.comment || null, `Уточнение адреса назначения: ${text}`)
+    preview.push('comment: destination clarification appended')
   } else if (value) {
     const text = String(value || bodyText || '').trim()
     if (text) {
@@ -7910,9 +7932,7 @@ app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorCont
     let draftText = extractTextFromOpenClawResponse(runtimeResult.data || {})
     if (!draftText) {
       const lang = normalizeCustomerMessageLang(task.order?.lang)
-      const lines = [lang === 'ru'
-        ? 'Я помощник Riderra, работаю в тестовом режиме.'
-        : 'I am Riderra assistant and I am working in test mode.']
+      const lines = [lang === 'ru' ? 'Здравствуйте! Это Riderra.' : 'Hello! This is Riderra.']
       if (task.taskType === 'clarification') {
         lines.push(buildClarificationQuestion(task.order?.infoReason || '', lang))
       } else {
@@ -14431,7 +14451,7 @@ function formatUtcDateTime(value) {
 
 function buildCopilotMessage(lines) {
   return [
-    'Я помощник Riderra, работаю в тестовом режиме.',
+    'Помощник Riderra подготовил информацию для проверки сотрудником.',
     ...lines.filter(Boolean)
   ].join('\n')
 }
@@ -14490,6 +14510,14 @@ function defaultWhatsAppTemplateRegistry() {
       name: 'riderra_passengers_request',
       label: 'Passengers request',
       description: 'Запросить количество пассажиров.',
+      language: 'en',
+      languages: ['en'],
+      variables: ['city', 'pickup_date']
+    },
+    {
+      name: 'riderra_destination_request',
+      label: 'Destination address request',
+      description: 'Запросить точный адрес назначения.',
       language: 'en',
       languages: ['en'],
       variables: ['city', 'pickup_date']
