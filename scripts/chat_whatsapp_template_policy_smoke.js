@@ -390,6 +390,33 @@ async function main() {
     const taskAfterBulkQueue = await prisma.chatTask.findUnique({ where: { id: task.id } })
     assert(taskAfterBulkQueue?.state === 'request_sent', `bulk queue must preserve request_sent, got ${taskAfterBulkQueue?.state}`)
 
+    const startDelivery = {
+      mode: 'template',
+      templateName: 'riderra_baggage_request',
+      language: 'en',
+      variables: { city: 'Helsinki', pickup_date: '24 July' }
+    }
+    const startedConversation = await requestJson(baseUrl, '/api/admin/chats/inquiries/start', {
+      method: 'POST',
+      token,
+      tenantCode,
+      idempotencyKey: `ci-wa-start-${Date.now()}`,
+      body: { phone: '+35799120002', customerDisplayName: 'Template Start Test', delivery: startDelivery }
+    })
+    assert(startedConversation.status === 200, `template conversation start should return 200, got ${startedConversation.status}: ${JSON.stringify(startedConversation.data)}`)
+    assert(startedConversation.data?.task?.state === 'in_progress', `new template conversation should start in progress, got ${startedConversation.data?.task?.state}`)
+    assert(startedConversation.data?.message?.approvalStatus === 'approved', `operator click should approve the opening template, got ${startedConversation.data?.message?.approvalStatus}`)
+    const sentOpeningTemplate = await requestJson(baseUrl, `/api/admin/chats/messages/${startedConversation.data.message.id}/send`, {
+      method: 'POST',
+      token,
+      tenantCode,
+      idempotencyKey: `ci-wa-start-send-${Date.now()}`,
+      body: { delivery: startDelivery }
+    })
+    assert(sentOpeningTemplate.status === 200, `opening template send should return 200, got ${sentOpeningTemplate.status}: ${JSON.stringify(sentOpeningTemplate.data)}`)
+    assert(sentOpeningTemplate.data?.taskState === 'waiting_customer', `opening template should wait for customer, got ${sentOpeningTemplate.data?.taskState}`)
+    assert(mock.requests.length === 2, `opening template should add one OpenClaw call, got ${mock.requests.length}`)
+
     const dispatchText = 'Your confirmed trip details are ready.'
     const firstDispatch = await requestJson(baseUrl, '/api/admin/chats/dispatch-one-click', {
       method: 'POST',
@@ -400,7 +427,7 @@ async function main() {
     })
     assert(firstDispatch.status === 200, `first one-click dispatch should return 200, got ${firstDispatch.status}: ${JSON.stringify(firstDispatch.data)}`)
     assert(firstDispatch.data?.alreadySent !== true, 'first one-click dispatch must be a real send')
-    assert(mock.requests.length === 2, `first one-click dispatch should add one OpenClaw call, got ${mock.requests.length}`)
+    assert(mock.requests.length === 3, `first one-click dispatch should add one OpenClaw call, got ${mock.requests.length}`)
 
     const repeatedDispatch = await requestJson(baseUrl, '/api/admin/chats/dispatch-one-click', {
       method: 'POST',
@@ -411,7 +438,7 @@ async function main() {
     })
     assert(repeatedDispatch.status === 200, `repeated one-click dispatch should return 200, got ${repeatedDispatch.status}`)
     assert(repeatedDispatch.data?.alreadySent === true, 'repeated one-click dispatch should report alreadySent=true')
-    assert(mock.requests.length === 2, `repeated one-click dispatch must not call OpenClaw again, got ${mock.requests.length}`)
+    assert(mock.requests.length === 3, `repeated one-click dispatch must not call OpenClaw again, got ${mock.requests.length}`)
 
     const blockedAuditCount = await prisma.auditLog.count({
       where: {
@@ -433,7 +460,7 @@ async function main() {
 
     console.log(JSON.stringify({
       ok: true,
-      checks: 28,
+      checks: 34,
       blockedAuditCount,
       policyGuardMessages,
       openclawSends: mock.requests.length

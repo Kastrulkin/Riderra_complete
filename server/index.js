@@ -6599,6 +6599,94 @@ app.get('/api/admin/chats/inquiries/orders', authenticateToken, resolveActorCont
   }
 })
 
+app.post('/api/admin/chats/inquiries/start', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const customerActorId = normalizeE164Phone(req.body?.phone || req.body?.customerActorId)
+    if (!customerActorId) return res.status(400).json({ error: 'Введите номер WhatsApp в международном формате' })
+    const delivery = req.body?.delivery && typeof req.body.delivery === 'object' ? { ...req.body.delivery } : {}
+    delete delivery.to
+    delete delivery.phone
+    delete delivery.recipient
+    delete delivery.recipientPhone
+    const validation = await validateWhatsAppTemplateDelivery({ tenantId, delivery })
+    const customerDisplayName = String(req.body?.customerDisplayName || '').trim() || null
+    const conversationKey = inquiryConversationKey('whatsapp', customerActorId)
+    const bodyText = `WhatsApp template: ${validation.template.label || validation.template.name}`
+    const payload = { customerActorId, customerDisplayName, conversationKey, delivery }
+    ensureIdempotencyKey(req, 'chat_inquiry.start_template', payload)
+    const wrapped = await withIdempotency(req, 'chat_inquiry.start_template', payload, async () => {
+      let task = await prisma.chatTask.findUnique({ where: { tenantId_conversationKey: { tenantId, conversationKey } } })
+      if (task?.state === 'spam') {
+        const error = new Error('Этот номер отмечен как спам. Сначала измените статус существующего диалога.')
+        error.statusCode = 409
+        throw error
+      }
+      if (task) {
+        task = await prisma.chatTask.update({
+          where: { id: task.id },
+          data: {
+            state: task.orderId ? 'linked_order' : 'in_progress',
+            assignedToUserId: task.assignedToUserId || req.user?.id || null,
+            customerDisplayName: customerDisplayName || task.customerDisplayName,
+            recipientSource: 'manual',
+            closedAt: null,
+            lastError: null
+          }
+        })
+      } else {
+        task = await prisma.chatTask.create({
+          data: {
+            tenantId,
+            taskType: 'inbound_inquiry',
+            state: 'in_progress',
+            priority: 50,
+            channel: 'whatsapp',
+            customerActorId,
+            customerDisplayName,
+            recipientSource: 'manual',
+            conversationKey,
+            assignedToUserId: req.user?.id || null,
+            lastMessageAt: new Date()
+          }
+        })
+      }
+      const message = await prisma.chatMessage.create({
+        data: {
+          tenantId,
+          chatTaskId: task.id,
+          direction: 'outbound',
+          source: 'operator',
+          channel: 'whatsapp',
+          bodyText,
+          bodyJson: JSON.stringify({ delivery, kind: 'conversation_start_template' }),
+          approvalStatus: 'approved',
+          traceId: req.actorContext.traceId,
+          idempotencyKey: getIdempotencyKey(req),
+          createdByUserId: req.user?.id || null
+        }
+      })
+      return { task, message }
+    })
+    await writeAuditLog({
+      tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'chat_inquiry.start_template',
+      resource: 'chat_task',
+      resourceId: wrapped.data.task.id,
+      traceId: req.actorContext.traceId,
+      decision: 'human_approved',
+      result: wrapped.replayed ? 'idempotent_replay' : 'ok',
+      context: { customerActorId, templateName: validation.template.name }
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error starting WhatsApp inquiry:', error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Не удалось начать разговор', code: error.code || null, details: error.details || null })
+  }
+})
+
 app.get('/api/admin/chats/inquiries', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId

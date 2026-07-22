@@ -17,8 +17,14 @@
     <div class="sandbox-setup">
       <label class="scenario-field">
         <span>Что хотим проверить</span>
-        <select v-model="scenario" class="input" :disabled="loading" @change="start">
+        <select v-model="scenario" class="input" :disabled="loading" @change="restartScenario">
           <option v-for="item in scenarios" :key="item.key" :value="item.key">{{ item.label }}</option>
+        </select>
+      </label>
+      <label class="scenario-field">
+        <span>Первое сообщение Riderra</span>
+        <select v-model="startingTemplateName" class="input" :disabled="loading" @change="start">
+          <option v-for="template in whatsappTemplates" :key="template.name" :value="template.name">{{ template.label }}</option>
         </select>
       </label>
       <button v-if="session" class="btn btn--ghost" type="button" :disabled="loading" @click="start">Начать заново</button>
@@ -55,13 +61,13 @@
       </div>
 
       <div ref="messages" class="sandbox-messages" aria-live="polite">
-        <div v-if="!messages.length" class="sandbox-guide">
+        <div v-if="!messages.some(message => !message.isOpeningTemplate)" class="sandbox-guide">
           <strong>Тест готов</strong>
-          <span>Ниже уже вставлен пример сообщения клиента. Его можно изменить или сразу отправить агенту.</span>
+          <span>Сначала Riderra отправляет выбранный шаблон. Ниже уже вставлен пример ответа клиента.</span>
         </div>
 
         <article v-for="message in messages" :key="message.id" class="sandbox-message" :class="`sandbox-message--${message.role}`">
-          <small>{{ message.role === 'customer' ? 'Клиент' : 'Ответ AI-агента' }}</small>
+          <small>{{ message.isOpeningTemplate ? 'Первое сообщение Riderra · approved template' : (message.role === 'customer' ? 'Клиент' : 'Ответ AI-агента') }}</small>
           <p>{{ message.bodyText }}</p>
           <details v-if="message.trace && message.role !== 'customer'" class="sandbox-decision">
             <summary>Почему агент ответил так</summary>
@@ -103,7 +109,7 @@
 <script>
 export default {
   data: () => ({
-    agents: [], agentId: '', scenario: 'baggage', session: null, context: {}, messages: [], input: '', suggestedMessage: '', loading: false, loadingAction: '', error: '', policyVersion: 'riderra-safety-v1',
+    agents: [], agentId: '', scenario: 'baggage', session: null, context: {}, messages: [], input: '', suggestedMessage: '', loading: false, loadingAction: '', error: '', policyVersion: 'riderra-safety-v1', whatsappTemplates: [], startingTemplateName: '',
     scenarios: [
       { key: 'baggage', label: 'Ответ о багаже' }, { key: 'flight', label: 'Номер рейса' }, { key: 'pickup', label: 'Место подачи' },
       { key: 'ambiguous', label: 'Неоднозначный ответ' }, { key: 'inbound_inquiry', label: 'Первичное обращение' },
@@ -120,10 +126,16 @@ export default {
       this.error = ''; this.loading = true; this.loadingAction = 'load'
       let canStart = false
       try {
-        const response = await fetch('/api/admin/chats/sandbox/agents', { headers: this.headers() })
-        const data = await response.json()
+        const [response, templateResponse] = await Promise.all([
+          fetch('/api/admin/chats/sandbox/agents', { headers: this.headers() }),
+          fetch('/api/admin/chats/whatsapp-templates', { headers: this.headers() })
+        ])
+        const [data, templateData] = await Promise.all([response.json(), templateResponse.json()])
         if (!response.ok) throw new Error(data?.error || 'Не удалось загрузить AI-помощников')
+        if (!templateResponse.ok) throw new Error(templateData?.error || 'Не удалось загрузить шаблоны WhatsApp')
         this.agents = data.agents || []
+        this.whatsappTemplates = templateData.templates || []
+        this.selectScenarioTemplate()
         this.policyVersion = data.policyVersion || this.policyVersion
         if (!this.agentId && this.agents.length) {
           const readyAgent = this.agents.find(agent => agent.publishedVersion)
@@ -146,7 +158,8 @@ export default {
         if (!response.ok) throw new Error(data?.error || 'Не удалось подготовить тестовый диалог')
         this.session = data.session
         this.context = data.context || {}
-        this.messages = []
+        const openingTemplate = this.whatsappTemplates.find(template => template.name === this.startingTemplateName)
+        this.messages = openingTemplate ? [{ id: `template-${Date.now()}`, role: 'agent', isOpeningTemplate: true, bodyText: `${openingTemplate.label}\n${openingTemplate.description || openingTemplate.name}` }] : []
         this.suggestedMessage = data.context?.suggestedCustomerMessage || ''
         this.input = this.suggestedMessage
         this.$nextTick(() => document.getElementById('sandbox-customer-message')?.focus())
@@ -155,6 +168,15 @@ export default {
       } finally {
         this.loading = false; this.loadingAction = ''
       }
+    },
+    restartScenario () {
+      this.selectScenarioTemplate()
+      this.start()
+    },
+    selectScenarioTemplate () {
+      const preferred = ({ baggage: 'riderra_baggage_request', flight: 'riderra_flight_request' })[this.scenario] || 'riderra_trip_message'
+      const selected = this.whatsappTemplates.find(template => template.name === preferred) || this.whatsappTemplates[0]
+      this.startingTemplateName = selected?.name || ''
     },
     async send () {
       if (!this.session || !this.input.trim() || this.loading) return

@@ -5,8 +5,35 @@
         <h1>Чаты</h1>
         <p>Сообщения клиентов, которые написали первыми</p>
       </div>
-      <button class="secondary" type="button" :disabled="loading" @click="loadAll">Обновить</button>
+      <div class="inbox__head-actions">
+        <button class="primary" type="button" @click="toggleStartConversation">Начать разговор</button>
+        <button class="secondary" type="button" :disabled="loading" @click="loadAll">Обновить</button>
+      </div>
     </header>
+
+    <form v-if="showStartConversation" class="start-conversation" @submit.prevent="startConversation">
+      <div class="start-conversation__head">
+        <div><h2>Начать разговор в WhatsApp</h2><p>Первое сообщение отправляется только утверждённым шаблоном Meta.</p></div>
+        <button class="start-conversation__close" type="button" aria-label="Закрыть форму" @click="showStartConversation = false">×</button>
+      </div>
+      <div class="start-conversation__grid">
+        <label><span>Номер WhatsApp</span><input v-model.trim="startPhone" inputmode="tel" placeholder="+35799128950" required></label>
+        <label><span>Имя клиента <small>необязательно</small></span><input v-model.trim="startName" placeholder="Например, John Smith"></label>
+        <label><span>Шаблон первого сообщения</span><select v-model="startTemplateName" @change="resetStartTemplateVariables"><option value="">Выберите шаблон</option><option v-for="template in whatsappTemplates" :key="template.name" :value="template.name">{{ template.label }}</option></select></label>
+      </div>
+      <div v-if="startSelectedTemplate" class="template-preview">
+        <strong>{{ startSelectedTemplate.label }}</strong>
+        <span>{{ startSelectedTemplate.description || 'Утверждённый шаблон WhatsApp' }}</span>
+        <code>{{ startSelectedTemplate.name }} · {{ startTemplateLanguage }}</code>
+      </div>
+      <div v-if="startSelectedTemplate && startSelectedTemplate.variables.length" class="template-variables">
+        <label v-for="variable in startSelectedTemplate.variables" :key="variable"><span>{{ templateVariableLabel(variable) }}</span><input v-model.trim="startTemplateVariables[variable]" :placeholder="templateVariablePlaceholder(variable)"></label>
+      </div>
+      <div class="start-conversation__submit">
+        <small>После отправки диалог появится во вкладке «В работе».</small>
+        <button type="submit" :disabled="busy || !canStartConversation">{{ busy ? 'Отправляем…' : 'Отправить шаблон' }}</button>
+      </div>
+    </form>
 
     <nav class="views" aria-label="Разделы чатов">
       <button v-for="item in views" :key="item.key" type="button" :class="{ active: view === item.key }" @click="changeView(item.key)">
@@ -189,6 +216,7 @@ export default {
     view: 'new', unread: 0, rows: [], staff: [], selected: null,
     loading: true, detailLoading: false, busy: false, search: '', assignee: '', replyText: '', replyMode: 'text',
     whatsappTemplates: [], templateName: '', templateVariables: {}, composerInquiryId: '',
+    showStartConversation: false, startPhone: '', startName: '', startTemplateName: '', startTemplateVariables: {},
     banner: null, timer: null, searchTimer: null, orderTimer: null, pollTimer: null,
     showLink: false, showCreate: false, orderSearch: '', orderResults: [],
     newOrder: { fromPoint: '', toPoint: '', pickupAt: '', vehicleType: 'standard' }
@@ -199,6 +227,8 @@ export default {
     freeTextAllowed () { return this.selected?.replyPolicy?.freeTextAllowed === true },
     selectedTemplate () { return this.whatsappTemplates.find(template => template.name === this.templateName) || null },
     templateLanguage () { return this.selectedTemplate?.language || this.selectedTemplate?.languages?.[0] || 'en' },
+    startSelectedTemplate () { return this.whatsappTemplates.find(template => template.name === this.startTemplateName) || null },
+    startTemplateLanguage () { return this.startSelectedTemplate?.language || this.startSelectedTemplate?.languages?.[0] || 'en' },
     templateVariablesComplete () {
       if (!this.selectedTemplate) return false
       return (this.selectedTemplate.variables || []).every(variable => String(this.templateVariables[variable] || '').trim())
@@ -206,6 +236,10 @@ export default {
     canSendReply () {
       if (!this.selected || this.selected.state === 'spam') return false
       return this.replyMode === 'template' ? this.templateVariablesComplete : (this.freeTextAllowed && Boolean(this.replyText.trim()))
+    },
+    canStartConversation () {
+      if (!/^\+[1-9]\d{9,14}$/.test(this.startPhone.replace(/[\s()-]/g, '')) || !this.startSelectedTemplate) return false
+      return (this.startSelectedTemplate.variables || []).every(variable => String(this.startTemplateVariables[variable] || '').trim())
     }
   },
   mounted () {
@@ -267,6 +301,40 @@ export default {
     async assign (assignedToUserId) { await this.update({ assignedToUserId }, 'Ответственный обновлён') },
     async setStatus (status) { await this.update({ status }, status === 'spam' ? 'Обращение отмечено как спам' : 'Обращение закрыто'); this.selected = null; await this.loadList() },
     async update (body, success) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}`, { method: 'PATCH', body: JSON.stringify(body) }); this.banner = { kind: 'success', text: success }; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error) } finally { this.busy = false } },
+    toggleStartConversation () {
+      this.showStartConversation = !this.showStartConversation
+      if (this.showStartConversation && !this.startTemplateName && this.whatsappTemplates.length) this.startTemplateName = this.whatsappTemplates[0].name
+    },
+    resetStartTemplateVariables () { this.startTemplateVariables = {} },
+    async startConversation () {
+      if (!this.canStartConversation || this.busy) return
+      this.busy = true; this.banner = null
+      const phone = this.startPhone.replace(/[\s()-]/g, '')
+      const delivery = { mode: 'template', templateName: this.startSelectedTemplate.name, language: this.startTemplateLanguage, variables: { ...this.startTemplateVariables } }
+      try {
+        const created = await this.request('/api/admin/chats/inquiries/start', {
+          method: 'POST',
+          fixedKey: `inquiry-start-${phone}-${this.startSelectedTemplate.name}-${Date.now()}`,
+          body: JSON.stringify({ phone, customerDisplayName: this.startName, delivery })
+        })
+        const sent = await this.request(`/api/admin/chats/messages/${created.message.id}/send`, {
+          method: 'POST',
+          fixedKey: `inquiry-send-${created.message.id}`,
+          body: JSON.stringify({ delivery })
+        })
+        this.banner = { kind: 'success', text: sent.alreadySent ? 'Шаблон уже был отправлен. Дубль не создан.' : 'WhatsApp принял шаблон. Теперь ждём ответа клиента.' }
+        this.showStartConversation = false
+        this.startPhone = ''; this.startName = ''; this.startTemplateVariables = {}
+        this.view = 'work'
+        await this.$router.replace({ query: { ...this.$route.query, chatView: 'work', inquiry: created.task.id } }).catch(() => {})
+        await this.loadList(false)
+        await this.open(created.task.id, false)
+      } catch (error) {
+        this.showError(error)
+      } finally {
+        this.busy = false
+      }
+    },
     syncReplyMode () {
       const inquiryChanged = this.composerInquiryId !== this.selected?.id
       if (inquiryChanged) {
@@ -366,5 +434,6 @@ export default {
 
 <style scoped>
 .inbox{--ink:#17233d;--muted:#667085;--line:#dfe4ec;--surface:#fff;--soft:#f6f8fb;--accent:#243b73;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}.inbox__head{display:flex;align-items:center;justify-content:space-between;padding:24px 26px 18px}.inbox__head h1{margin:0;font-size:30px}.inbox__head p{margin:5px 0 0;color:var(--muted)}button,input,select,textarea{font:inherit}.secondary,.actions button,.back{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 14px;cursor:pointer}.views{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);overflow:auto}.views button{white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;padding:13px 14px;color:var(--muted);font-weight:700;cursor:pointer}.views button.active{color:var(--ink);border-color:var(--accent)}.views span{display:inline-grid;place-items:center;min-width:21px;height:21px;margin-left:5px;padding:0 5px;border-radius:11px;background:#d92d20;color:#fff;font-size:12px}.banner{display:flex;justify-content:space-between;gap:12px;margin:14px 20px 0;padding:11px 14px;border-radius:10px;background:#eef4ff}.banner--error{background:#fff1f0;color:#912018}.banner--warning{background:#fffaeb;color:#7a2e0e}.banner--success{background:#ecfdf3;color:#05603a}.banner button{border:0;background:transparent;text-decoration:underline;color:inherit;cursor:pointer}.toolbar{display:grid;grid-template-columns:minmax(240px,1fr) 260px;gap:10px;padding:16px 20px}.toolbar input,.toolbar select,.customer-panel select,.action-panel input,.composer textarea,.composer select,.composer input,.create-order input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;color:var(--ink)}.workspace{display:grid;grid-template-columns:minmax(300px,38%) 1fr;min-height:620px;border-top:1px solid var(--line)}.list{border-right:1px solid var(--line);background:var(--soft);max-height:720px;overflow:auto}.conversation{display:block;width:100%;padding:15px 18px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;color:var(--ink);cursor:pointer}.conversation.active{background:#fff;box-shadow:inset 3px 0 var(--accent)}.conversation.unread{background:#eef4ff}.conversation__top,.conversation__meta{display:flex;align-items:center;gap:8px}.conversation__top{justify-content:space-between}.conversation__top time,.conversation p,.conversation__meta,.conversation small{color:var(--muted)}.conversation p{margin:7px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation__meta{font-size:12px;flex-wrap:wrap}.conversation__meta b{margin-left:auto;display:grid;place-items:center;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:#fff}.conversation small{display:block;margin-top:7px}.dialog{display:flex;flex-direction:column;min-width:0;min-height:620px;background:#fff}.dialog__head{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}.dialog__head h2{margin:0;font-size:20px}.dialog__head p{margin:3px 0 0;color:var(--muted)}.status{margin-left:auto;border-radius:16px;background:#eef4ff;padding:6px 10px;font-size:12px;font-weight:700}.back{display:none}.customer-panel{display:flex;align-items:center;gap:14px;padding:12px 22px;background:var(--soft);border-bottom:1px solid var(--line)}.customer-panel div{display:grid;gap:2px}.customer-panel span{font-size:12px;color:var(--muted)}.customer-panel select{width:auto;margin-left:auto}.linked-order{font-size:13px;color:#05603a}.messages{flex:1;min-height:260px;max-height:460px;overflow:auto;padding:22px;background:#f8fafc}.message{max-width:76%;margin:0 0 12px;padding:11px 13px;border:1px solid var(--line);border-radius:14px 14px 14px 4px;background:#fff}.message--outbound{margin-left:auto;border-radius:14px 14px 4px 14px;background:#eef4ff}.message p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.message footer{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;color:var(--muted);font-size:11px}.approval,.send-error{display:grid;gap:7px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:12px}.approval button,.send-error button,.primary-action button,.composer button,.action-panel>button,.create-order button{border:0;border-radius:9px;background:var(--accent);color:#fff;padding:9px 13px;font-weight:700;cursor:pointer}.send-error{color:#912018}.send-error button{background:#b42318}.primary-action{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:14px 20px;padding:13px 15px;border-radius:12px;background:#eef4ff}.primary-action div{display:grid;gap:3px}.primary-action span{font-size:13px;color:var(--muted)}.composer{display:grid;gap:10px;padding:14px 20px;border-top:1px solid var(--line)}.composer textarea{resize:vertical;min-height:78px}.composer small{color:var(--muted)}.composer-mode{display:inline-flex;justify-self:start;gap:4px;padding:3px;border-radius:10px;background:#eef2f7}.composer-mode button{border:0;background:transparent;color:#5d6c82;padding:7px 10px}.composer-mode button.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(23,35,61,.12)}.window-notice{display:grid;gap:3px;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px}.composer-field,.template-variables label{display:grid;gap:5px;color:#34425e;font-size:13px;font-weight:700}.template-preview{display:grid;gap:3px;padding:11px 12px;border:1px solid #d9e2ef;border-radius:10px;background:#f8fafc}.template-preview span{color:var(--muted);font-size:13px}.template-preview code{color:#64748b;font-size:11px}.template-variables{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.composer-submit{display:flex;align-items:center;justify-content:space-between;gap:14px}.actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 20px 18px}.actions .danger{color:#b42318}.action-panel{display:grid;gap:10px;margin:0 20px 18px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}.action-panel h3,.action-panel p{margin:0}.action-panel p{color:var(--muted);font-size:13px}.order-result{display:grid!important;gap:3px;text-align:left!important;background:#fff!important;color:var(--ink)!important;border:1px solid var(--line)!important}.order-result span{color:var(--muted);font-size:12px}.create-order{grid-template-columns:1fr 1fr}.create-order h3,.create-order p,.create-order button{grid-column:1/-1}.create-order label{display:grid;gap:5px;font-size:13px;font-weight:700}.state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:180px;padding:30px;color:var(--muted);text-align:center}.state--empty{flex-direction:column}.spinner{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(36,59,115,.28);outline-offset:2px}button:disabled{opacity:.55;cursor:not-allowed}
-@media(max-width:760px){.inbox{border-radius:0;border-left:0;border-right:0}.inbox__head{padding:18px}.inbox__head h1{font-size:26px}.toolbar{grid-template-columns:1fr;padding:12px}.workspace{display:block;min-height:560px}.list{border-right:0;max-height:none}.workspace--dialog .list{display:none}.dialog{display:none;min-height:560px}.workspace--dialog .dialog{display:flex}.back{display:block;padding:7px 10px}.dialog__head{padding:13px}.dialog__head .status{font-size:11px}.customer-panel{align-items:flex-start;flex-wrap:wrap;padding:11px 14px}.customer-panel select{width:100%;margin:0}.messages{padding:14px;max-height:none}.message{max-width:88%}.primary-action{align-items:flex-start;flex-direction:column;margin:10px 12px}.composer{padding:12px}.composer-mode{display:grid;grid-template-columns:1fr 1fr;width:100%}.composer-mode button{min-width:0}.template-variables{grid-template-columns:1fr}.composer-submit{align-items:stretch;flex-direction:column}.composer-submit small{max-width:none}.composer-submit button{width:100%}.actions{padding:0 12px 14px}.action-panel{margin:0 12px 14px}.create-order{grid-template-columns:1fr}.views{padding:0 8px}}
+.inbox__head-actions{display:flex;gap:8px}.primary,.start-conversation__submit button{border:0;border-radius:10px;background:var(--accent);color:#fff;padding:10px 14px;font-weight:800;cursor:pointer}.start-conversation{display:grid;gap:12px;margin:0 20px 16px;padding:16px;border:1px solid #cbd8eb;border-radius:14px;background:#f7faff}.start-conversation__head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.start-conversation__head h2{margin:0;color:var(--ink);font-size:18px}.start-conversation__head p{margin:4px 0 0;color:var(--muted);font-size:13px}.start-conversation__close{border:0;background:transparent;color:#64748b;font-size:24px;line-height:1;cursor:pointer}.start-conversation__grid{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px}.start-conversation label{display:grid;gap:5px;color:#34425e;font-size:13px;font-weight:700}.start-conversation label small{color:var(--muted);font-weight:500}.start-conversation input,.start-conversation select{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;color:var(--ink)}.start-conversation__submit{display:flex;align-items:center;justify-content:space-between;gap:14px}.start-conversation__submit small{color:var(--muted)}
+@media(max-width:760px){.inbox{border-radius:0;border-left:0;border-right:0}.inbox__head{align-items:flex-start;flex-direction:column;padding:18px}.inbox__head h1{font-size:26px}.inbox__head-actions{width:100%}.inbox__head-actions button{flex:1}.start-conversation{margin:0 12px 14px;padding:14px}.start-conversation__grid{grid-template-columns:1fr}.start-conversation__submit{align-items:stretch;flex-direction:column}.start-conversation__submit button{width:100%}.toolbar{grid-template-columns:1fr;padding:12px}.workspace{display:block;min-height:560px}.list{border-right:0;max-height:none}.workspace--dialog .list{display:none}.dialog{display:none;min-height:560px}.workspace--dialog .dialog{display:flex}.back{display:block;padding:7px 10px}.dialog__head{padding:13px}.dialog__head .status{font-size:11px}.customer-panel{align-items:flex-start;flex-wrap:wrap;padding:11px 14px}.customer-panel select{width:100%;margin:0}.messages{padding:14px;max-height:none}.message{max-width:88%}.primary-action{align-items:flex-start;flex-direction:column;margin:10px 12px}.composer{padding:12px}.composer-mode{display:grid;grid-template-columns:1fr 1fr;width:100%}.composer-mode button{min-width:0}.template-variables{grid-template-columns:1fr}.composer-submit{align-items:stretch;flex-direction:column}.composer-submit small{max-width:none}.composer-submit button{width:100%}.actions{padding:0 12px 14px}.action-panel{margin:0 12px 14px}.create-order{grid-template-columns:1fr}.views{padding:0 8px}}
 </style>
