@@ -16,7 +16,7 @@
 
         <agent-sandbox-panel v-if="sandboxOpen" class="chat-sandbox" @start-whatsapp="openWhatsAppConversation" />
 
-        <inquiry-inbox v-if="inboxMode" ref="inquiryInbox" />
+        <inquiry-inbox v-if="inboxMode" ref="inquiryInbox" @open-order-chats="openOperationsMode" />
         <template v-else>
 
         <header class="page-head">
