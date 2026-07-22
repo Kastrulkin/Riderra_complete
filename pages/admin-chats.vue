@@ -165,89 +165,75 @@
                   </div>
                 </div>
 
-                <section class="agent-progress" aria-label="Прогресс агента">
-                  <div class="agent-progress__head">
-                    <div>
-                      <strong>{{ latestAgentActivity(selectedTask).title }}</strong>
-                      <span>{{ latestAgentActivity(selectedTask).detail }}</span>
-                    </div>
-                    <span v-if="latestAgentActivity(selectedTask).live" class="agent-live">Работает сейчас</span>
+                <section class="agent-summary" :class="{ 'agent-summary--done': selectedTask.state === 'closed' }" aria-label="Текущий этап">
+                  <span class="agent-summary__mark" aria-hidden="true">{{ selectedTask.state === 'closed' ? '✓' : '→' }}</span>
+                  <div>
+                    <strong>{{ latestAgentActivity(selectedTask).title }}</strong>
+                    <span>{{ latestAgentActivity(selectedTask).detail }}</span>
                   </div>
-                  <div class="agent-progress__steps">
-                    <div
-                      v-for="(step, index) in agentProgressSteps(selectedTask)"
-                      :key="step.key"
-                      class="agent-progress__step"
-                      :class="{ 'agent-progress__step--done': step.done, 'agent-progress__step--current': step.current }"
-                    >
-                      <span>{{ index + 1 }}</span>
-                      <small>{{ step.label }}</small>
-                    </div>
-                  </div>
-                </section>
-
-                <section class="recipient-card">
-                  <div class="recipient-card__head">
-                    <div>
-                      <h4>Получатель</h4>
-                      <p class="hint">Кому уйдёт сообщение из этой задачи</p>
-                    </div>
-                    <div class="recipient-card__badges">
-                      <span class="badge">{{ recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram' }}</span>
-                      <span v-if="recipientTest" class="badge badge--sla-warning">Тест</span>
-                    </div>
-                  </div>
-                  <div class="recipient-card__grid">
-                    <label>
-                      <span>Канал</span>
-                      <select v-model="recipientChannel" class="input">
-                        <option value="whatsapp">WhatsApp</option>
-                        <option value="telegram">Telegram</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>Номер в формате E.164</span>
-                      <input v-model.trim="recipientPhone" class="input" inputmode="tel" placeholder="+79214224843">
-                    </label>
-                    <label class="recipient-test-toggle">
-                      <input v-model="recipientTest" type="checkbox">
-                      <span>Тестовый получатель</span>
-                    </label>
-                    <button class="btn btn--primary" :disabled="recipientSaving || !recipientValid" @click="saveRecipient">
-                      {{ recipientSaving ? 'Сохраняю...' : 'Сохранить получателя' }}
-                    </button>
-                  </div>
-                  <div v-if="recipientTest" class="recipient-warning">
-                    Подменный номер действует только в этой задаче. Номер заказа и Google Sheet не изменяются.
-                  </div>
+                  <span v-if="latestAgentActivity(selectedTask).live" class="agent-live">Работает сейчас</span>
                 </section>
 
                 <div class="messages">
-                  <div v-for="message in conversationMessages" :key="message.id" class="message" :class="`message--${message.direction}`">
+                  <div v-for="message in visibleConversationMessages" :key="message.id" class="message" :class="`message--${message.direction}`">
                   <div class="message-head">
-                    <span>{{ directionLabel(message.direction) }}</span>
-                    <span>{{ sourceLabel(message.source) }}</span>
-                    <span v-if="message.approvalStatus" class="badge">{{ approvalLabel(message.approvalStatus) }}</span>
+                    <strong>{{ message.direction === 'inbound' ? 'Клиент' : 'Riderra' }}</strong>
                     <span v-if="message.deliveryStatus" class="badge" :class="deliveryStatusClass(message.deliveryStatus)">{{ deliveryStatusLabel(message.deliveryStatus) }}</span>
                     <span>{{ formatDate(message.createdAt) }}</span>
                   </div>
                   <div class="message-body">{{ messageDisplayText(message) }}</div>
-                  <div v-if="message.direction === 'outbound'" class="send-preview">
-                    <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
-                    <span><strong>Канал:</strong> {{ (message.channel || selectedTask.channel || '—') }}</span>
-                    <span><strong>Проблема:</strong> {{ clarificationProblemLabel }}</span>
-                    <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
-                    <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
                   </div>
-                  <div class="message-actions">
-                    <button class="btn btn--small" @click="copyMessage(message)" v-if="message.direction === 'outbound'">Скопировать</button>
-                  </div>
-                  </div>
-                  <div v-if="!conversationMessages.length" class="empty">История сообщений пока пуста</div>
+                  <div v-if="!visibleConversationMessages.length" class="empty">История сообщений пока пуста</div>
                 </div>
+
+                <details class="dialog-details">
+                  <summary>
+                    Данные диалога
+                    <span>{{ recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram' }} · {{ recipientPhone || 'номер не указан' }}</span>
+                  </summary>
+                  <section class="recipient-card">
+                    <div class="recipient-card__head">
+                      <div>
+                        <h4>Получатель</h4>
+                        <p class="hint">Изменяйте только перед следующей отправкой</p>
+                      </div>
+                      <span v-if="recipientTest" class="badge badge--sla-warning">Тестовый номер</span>
+                    </div>
+                    <div class="recipient-card__grid">
+                      <label>
+                        <span>Канал</span>
+                        <select v-model="recipientChannel" class="input">
+                          <option value="whatsapp">WhatsApp</option>
+                          <option value="telegram">Telegram</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>Телефон</span>
+                        <input v-model.trim="recipientPhone" class="input" inputmode="tel" placeholder="+79214224843">
+                      </label>
+                      <label class="recipient-test-toggle">
+                        <input v-model="recipientTest" type="checkbox">
+                        <span>Тестовый получатель</span>
+                      </label>
+                      <button class="btn btn--primary" :disabled="recipientSaving || !recipientValid" @click="saveRecipient">
+                        {{ recipientSaving ? 'Сохраняю...' : 'Сохранить' }}
+                      </button>
+                    </div>
+                    <div v-if="recipientTest" class="recipient-warning">
+                      Подменный номер действует только в этой задаче. Заказ и Google Sheet не изменяются.
+                    </div>
+                  </section>
+                  <div v-if="technicalConversationMessages.length" class="technical-events">
+                    <strong>Служебные события</strong>
+                    <div v-for="message in technicalConversationMessages" :key="message.id" class="technical-event">
+                      <span>{{ formatDate(message.createdAt) }}</span>
+                      <p>{{ messageDisplayText(message) }}</p>
+                    </div>
+                  </div>
+                </details>
               </div>
 
-              <div class="actions">
+              <div v-if="selectedTask.state !== 'closed' || (inboundOutcome && inboundOutcome.hasPendingPatch)" class="actions">
                 <div v-if="inboundOutcome" class="outcome-panel" :class="inboundOutcome.panelClass">
               <div class="outcome-panel__head">
                 <div>
@@ -463,84 +449,59 @@
               </template>
                 </div>
 
-                <details class="actions-block" :open="selectedTask && selectedTask.state === 'customer_replied'">
-              <summary class="section-summary">Ответ клиента</summary>
-              <textarea v-model="inboundText" class="input textarea" placeholder="Вставьте входящее сообщение клиента"></textarea>
-              <button class="btn btn--ghost" :disabled="inboundProcessing || !inboundText.trim()" @click="processInboundMessage">
-                {{ inboundProcessing ? 'Обрабатываю...' : 'Разобрать ответ' }}
-              </button>
-                </details>
+                <details class="actions-block operator-tools" :open="selectedTask && selectedTask.state === 'customer_replied'">
+                  <summary class="section-summary">Дополнительные действия</summary>
+                  <div class="operator-tools__body">
+                    <section v-if="selectedTask.state === 'customer_replied'" class="operator-tool">
+                      <h4>Разобрать ответ вручную</h4>
+                      <textarea v-model="inboundText" class="input textarea" placeholder="Вставьте сообщение клиента"></textarea>
+                      <button class="btn btn--ghost" :disabled="inboundProcessing || !inboundText.trim()" @click="processInboundMessage">
+                        {{ inboundProcessing ? 'Обрабатываю...' : 'Разобрать ответ' }}
+                      </button>
+                    </section>
 
-                <details class="actions-block" :open="false">
-              <summary class="section-summary">Технические детали AI разбора</summary>
-              <div v-if="inboundOutcome" class="trace-wrap">
-                <div class="trace-row"><strong>Класс ответа:</strong> {{ inboundOutcome.classLabel }}</div>
-                <div class="trace-row"><strong>Уверенность:</strong> {{ inboundOutcome.confidenceLabel }}</div>
-                <div class="trace-row"><strong>Валидация поля:</strong> {{ inboundOutcome.validationLabel }}</div>
-                <div class="trace-row"><strong>Поле:</strong> {{ inboundOutcome.fieldLabel }}</div>
-                <div class="trace-row"><strong>Извлеченное значение:</strong> {{ inboundOutcome.valueLabel }}</div>
-                <div class="trace-row"><strong>Источник разбора:</strong> {{ inboundOutcome.sourceLabel }}</div>
-                <div v-if="inboundOutcome.orderPatchLabel" class="trace-row"><strong>Распознанные данные:</strong> {{ inboundOutcome.orderPatchLabel }}</div>
-                <div class="trace-row"><strong>Следующий статус:</strong> {{ stateLabel(inboundOutcome.nextState) }}</div>
-                <div class="trace-row"><strong>Причина:</strong> {{ inboundOutcome.reasonLabel }}</div>
-              </div>
-              <div v-else class="hint">Результат появится после “Обработать ответ”.</div>
-                </details>
+                    <section class="operator-tool">
+                      <h4>Изменить статус</h4>
+                      <div class="operator-tool__row">
+                        <select v-model="nextState" class="input">
+                          <option value="">Выберите статус</option>
+                          <option v-for="s in transitionTargets" :key="s" :value="s">{{ stateLabel(s) }}</option>
+                        </select>
+                        <button class="btn btn--ghost" :disabled="!nextState" @click="applyTransition">Применить</button>
+                      </div>
+                    </section>
 
-                <details class="actions-block">
-              <summary class="section-summary">Смена статуса</summary>
-              <select v-model="nextState" class="input">
-                <option value="">Выберите статус</option>
-                <option v-for="s in transitionTargets" :key="s" :value="s">{{ stateLabel(s) }}</option>
-              </select>
-              <button class="btn btn--ghost" :disabled="!nextState" @click="applyTransition">Применить</button>
-                </details>
+                    <section class="operator-tool">
+                      <h4>Назначить AI-агента</h4>
+                      <div class="operator-tool__row">
+                        <select v-model="selectedTaskAgentId" class="input">
+                          <option value="">Без агента</option>
+                          <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+                            {{ agent.name }} ({{ agent.code }}){{ agent.isActive ? '' : ' [inactive]' }}
+                          </option>
+                        </select>
+                        <button class="btn btn--ghost" :disabled="assigningAgent || !selectedTask" @click="assignAgentToTask">
+                          {{ assigningAgent ? 'Сохраняю...' : 'Сохранить' }}
+                        </button>
+                      </div>
+                    </section>
 
-                <details class="actions-block">
-              <summary class="section-summary">Технические детали</summary>
-              <div class="trace-wrap">
-                <div class="trace-row"><strong>Задача:</strong> {{ selectedTask.id }}</div>
-                <div class="trace-row"><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</div>
-                <div class="trace-row"><strong>Backend статус:</strong> {{ selectedTask.state }}</div>
-                <div class="trace-row"><strong>Тип:</strong> {{ selectedTask.taskType }}</div>
-                <div class="trace-row"><strong>Агент:</strong> {{ agentLabel(selectedTask) }}</div>
-                <div class="trace-row"><strong>Ответственный:</strong> {{ ownerLabel(selectedTask) }}</div>
-              </div>
-                </details>
-
-                <details class="actions-block">
-              <summary class="section-summary">Агент задачи</summary>
-              <select v-model="selectedTaskAgentId" class="input">
-                <option value="">Без агента</option>
-                <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-                  {{ agent.name }} ({{ agent.code }}){{ agent.isActive ? '' : ' [inactive]' }}
-                </option>
-              </select>
-              <button class="btn btn--ghost" :disabled="assigningAgent || !selectedTask" @click="assignAgentToTask">
-                {{ assigningAgent ? 'Сохраняю...' : 'Применить агента' }}
-              </button>
-                </details>
-
-                <details class="actions-block">
-              <summary class="section-summary">Трейс шага</summary>
-              <div v-if="lastStepTrace" class="trace-wrap">
-                <div class="trace-row"><strong>Откуда:</strong> {{ stateLabel(lastStepTrace.fromState) }}</div>
-                <div class="trace-row"><strong>Кандидат:</strong> {{ stateLabel(lastStepTrace.candidateState) }}</div>
-                <div class="trace-row"><strong>Итог:</strong> {{ stateLabel(lastStepTrace.finalState) }}</div>
-                <div class="trace-row"><strong>Почему:</strong> {{ lastStepTrace.decisionReason || '-' }}</div>
-                <div class="trace-row trace-row--caps"><strong>Capabilities:</strong></div>
-                <div v-for="cap in lastStepTrace.capabilities || []" :key="cap.name" class="trace-cap">
-                  <div class="trace-cap-name">{{ cap.name }}</div>
-                  <div class="trace-cap-meta">
-                    runtime: {{ cap.runtime?.configured ? 'configured' : 'fallback' }},
-                    ok: {{ cap.runtime?.ok ? 'yes' : 'no' }},
-                    status: {{ cap.runtime?.status || 0 }}
+                    <details class="technical-details">
+                      <summary>Техническая диагностика</summary>
+                      <div class="trace-wrap">
+                        <div class="trace-row"><strong>Задача:</strong> {{ selectedTask.id }}</div>
+                        <div class="trace-row"><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</div>
+                        <div class="trace-row"><strong>Backend статус:</strong> {{ selectedTask.state }}</div>
+                        <div class="trace-row"><strong>Тип:</strong> {{ selectedTask.taskType }}</div>
+                        <div class="trace-row"><strong>Агент:</strong> {{ agentLabel(selectedTask) }}</div>
+                        <div v-if="inboundOutcome" class="trace-row"><strong>AI-разбор:</strong> {{ inboundOutcome.classLabel }}, {{ inboundOutcome.confidenceLabel }}, {{ inboundOutcome.fieldLabel }} = {{ inboundOutcome.valueLabel }}</div>
+                        <template v-if="lastStepTrace">
+                          <div class="trace-row"><strong>Переход:</strong> {{ lastStepTrace.fromState }} → {{ lastStepTrace.finalState }}</div>
+                          <div class="trace-row"><strong>Причина:</strong> {{ lastStepTrace.decisionReason || '-' }}</div>
+                        </template>
+                      </div>
+                    </details>
                   </div>
-                  <pre class="trace-json">{{ stringifyTrace(cap.output) }}</pre>
-                </div>
-                <div class="trace-row trace-time">{{ formatDate(lastStepTrace.createdAt) }}</div>
-              </div>
-              <div v-else class="hint">Трейс появится после обработки входящего ответа.</div>
                 </details>
               </div>
             </template>
@@ -792,6 +753,12 @@ export default {
         if (message?.approvalStatus === 'pending_human') return false
         return !this.canSend(message)
       })
+    },
+    visibleConversationMessages() {
+      return this.conversationMessages.filter((message) => ['inbound', 'outbound'].includes(String(message?.direction || '')))
+    },
+    technicalConversationMessages() {
+      return this.conversationMessages.filter((message) => !['inbound', 'outbound'].includes(String(message?.direction || '')))
     },
     isDraftPreparationStage() {
       if (!this.selectedTask) return false
@@ -2271,6 +2238,13 @@ export default {
 .dialog-head h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.25; color: #17233d; }
 .dialog-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .dialog-status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.agent-summary { display: flex; align-items: center; gap: 10px; border: 1px solid #dbe4f0; border-radius: 10px; background: #f8fafc; padding: 10px 12px; margin-bottom: 14px; }
+.agent-summary--done { border-color: #bbf7d0; background: #f0fdf4; }
+.agent-summary__mark { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; background: #17233d; color: #fff; font-weight: 900; }
+.agent-summary--done .agent-summary__mark { background: #16a34a; }
+.agent-summary > div { display: grid; gap: 2px; min-width: 0; }
+.agent-summary > div > span { color: #64748b; font-size: 13px; }
+.agent-summary .agent-live { margin-left: auto; }
 .agent-progress { display:grid; gap:10px; border:1px solid #dbe4f0; border-radius:12px; background:#f8fafc; padding:12px; margin-bottom:10px; }
 .agent-progress__head { display:flex; justify-content:space-between; gap:10px; align-items:center; }
 .agent-progress__head > div { display:grid; gap:3px; }
@@ -2285,7 +2259,10 @@ export default {
 .agent-progress__step--done > span { border-color:#86efac; background:#dcfce7; }
 .agent-progress__step--current { color:#17233d; }
 .agent-progress__step--current > span { border-color:#17233d; background:#17233d; color:#fff; }
-.recipient-card { border: 1px solid #dbe4f0; border-radius: 12px; background: #f8fafc; padding: 12px; margin-bottom: 10px; }
+.dialog-details { margin-top: 14px; border-top: 1px solid #e5eaf1; padding-top: 10px; }
+.dialog-details > summary { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; color: #475569; font-size: 13px; font-weight: 800; }
+.dialog-details > summary span { color: #64748b; font-weight: 500; }
+.recipient-card { border: 0; border-radius: 10px; background: #f8fafc; padding: 12px; margin-top: 10px; }
 .recipient-card__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
 .recipient-card__head h4, .recipient-card__head p { margin: 0; }
 .recipient-card__badges { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -2293,12 +2270,16 @@ export default {
 .recipient-card__grid label:not(.recipient-test-toggle) { display: flex; flex-direction: column; gap: 4px; color: #475569; font-size: 12px; font-weight: 700; }
 .recipient-test-toggle { display: inline-flex; gap: 7px; align-items: center; min-height: 38px; color: #334155; font-weight: 700; }
 .recipient-warning { margin-top: 10px; border: 1px solid #fde68a; border-radius: 9px; background: #fffbeb; color: #92400e; padding: 9px 10px; font-size: 13px; }
-.messages { overflow: auto; display: flex; flex-direction: column; gap: 8px; }
-.message { border: 1px solid #e5eaf1; border-radius: 10px; padding: 8px 10px; background: #fff; }
-.message--outbound { background: #f0f9ff; border-color: #bae6fd; }
-.message--inbound { background: #f8fafc; }
+.messages { overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 2px 0; }
+.message { width: fit-content; max-width: 86%; border: 1px solid #e5eaf1; border-radius: 12px; padding: 10px 12px; background: #fff; }
+.message--outbound { align-self: flex-start; background: #f0f9ff; border-color: #bae6fd; border-bottom-left-radius: 4px; }
+.message--inbound { align-self: flex-end; background: #f7f1fa; border-color: #ead7f0; border-bottom-right-radius: 4px; }
 .message-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: #64748b; font-size: 12px; margin-bottom: 6px; }
-.message-body { white-space: pre-wrap; color: #1f2937; }
+.message-head strong { color: #17233d; }
+.message-body { white-space: pre-wrap; color: #1f2937; line-height: 1.45; }
+.technical-events { display: grid; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 10px; background: #f8fafc; }
+.technical-event { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 10px; color: #64748b; font-size: 12px; }
+.technical-event p { margin: 0; color: #475569; }
 .send-preview { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #475569; font-size: 12px; }
 .quick-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .btn--tiny { padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; }
@@ -2371,6 +2352,14 @@ export default {
 .section-summary::-webkit-details-marker { display: none; }
 .actions-block[open] .section-summary { border-bottom: 1px solid #e5eaf1; }
 .actions-block > :not(summary) { padding-top: 10px; }
+.operator-tools__body { display: grid; gap: 14px; }
+.operator-tool { display: grid; gap: 8px; }
+.operator-tool + .operator-tool { border-top: 1px solid #e5eaf1; padding-top: 14px; }
+.operator-tool h4 { margin: 0; }
+.operator-tool__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.technical-details { border-top: 1px solid #e5eaf1; padding-top: 12px; }
+.technical-details > summary { cursor: pointer; color: #64748b; font-size: 13px; font-weight: 700; }
+.technical-details .trace-wrap { margin-top: 10px; }
 .trace-wrap { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #1e293b; }
 .trace-row { line-height: 1.35; }
 .trace-row--caps { margin-top: 4px; }
@@ -2439,6 +2428,10 @@ export default {
   .policy-trace__grid { grid-template-columns: 1fr; }
   .recipient-card__head { flex-direction: column; }
   .recipient-card__grid { grid-template-columns: 1fr; }
+  .dialog-details > summary { flex-direction: column; gap: 3px; }
+  .message { max-width: 94%; }
+  .technical-event { grid-template-columns: 1fr; gap: 3px; }
+  .operator-tool__row { grid-template-columns: 1fr; }
   .agent-progress__head { flex-direction:column; align-items:flex-start; }
   .agent-progress__steps { grid-template-columns:repeat(2,minmax(0,1fr)); }
 
