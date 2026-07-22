@@ -8,16 +8,21 @@
       <div class="container">
         <admin-tabs :sticky="false" />
 
-        <div class="chat-mode-switch" aria-label="Режим чатов">
-          <button class="btn" :class="inboxMode ? 'btn--primary' : 'btn--ghost'" type="button" @click="openInboxMode">Обращения клиентов</button>
-          <button class="btn" :class="!inboxMode ? 'btn--primary' : 'btn--ghost'" type="button" @click="openOperationsMode">Диалоги по заказам</button>
-          <button class="btn btn--ghost chat-mode-switch__sandbox" type="button" @click="sandboxOpen = !sandboxOpen">{{ sandboxOpen ? 'Закрыть песочницу' : 'Проверить AI-агента' }}</button>
-        </div>
+        <header class="chats-head">
+          <h1>Чаты</h1>
+          <p>Новые сообщения клиентов, диалоги по заказам и безопасное тестирование AI-агента.</p>
+        </header>
 
-        <agent-sandbox-panel v-if="sandboxOpen" class="chat-sandbox" @start-whatsapp="openWhatsAppConversation" />
+        <nav class="chat-sections" aria-label="Разделы чатов" role="tablist">
+          <button class="chat-sections__tab" :class="{ 'chat-sections__tab--active': activeSection === 'inbox' }" type="button" role="tab" :aria-selected="activeSection === 'inbox'" @click="openInboxMode">Новые входящие</button>
+          <button class="chat-sections__tab" :class="{ 'chat-sections__tab--active': activeSection === 'orders' }" type="button" role="tab" :aria-selected="activeSection === 'orders'" @click="openOperationsMode">Диалоги по заказам</button>
+          <button class="chat-sections__tab" :class="{ 'chat-sections__tab--active': activeSection === 'sandbox' }" type="button" role="tab" :aria-selected="activeSection === 'sandbox'" @click="openSandboxMode">Песочница</button>
+        </nav>
 
-        <inquiry-inbox v-if="inboxMode" ref="inquiryInbox" @open-order-chats="openOperationsMode" />
-        <template v-else>
+        <agent-sandbox-panel v-if="activeSection === 'sandbox'" class="chat-sandbox" @start-whatsapp="openWhatsAppConversation" />
+
+        <inquiry-inbox v-if="activeSection === 'inbox'" ref="inquiryInbox" />
+        <template v-else-if="activeSection === 'orders'">
 
         <header class="page-head">
           <div>
@@ -556,8 +561,7 @@ export default {
   middleware: 'staff',
   components: { adminTabs, InquiryInbox, AgentSandboxPanel },
   data: () => ({
-    inboxMode: true,
-    sandboxOpen: false,
+    activeSection: 'inbox',
     tasks: [],
     selectedTask: null,
     taskType: '',
@@ -857,15 +861,17 @@ export default {
   },
   mounted() {
     const routedTaskId = String(this.$route.query.taskId || '').trim()
-    this.inboxMode = !routedTaskId && this.$route.query.mode !== 'orders'
-    if (!this.inboxMode) this.initPage().catch(() => {})
+    if (routedTaskId || this.$route.query.mode === 'orders') this.activeSection = 'orders'
+    else if (this.$route.query.mode === 'sandbox') this.activeSection = 'sandbox'
+    else this.activeSection = 'inbox'
+    if (this.activeSection === 'orders') this.initPage().catch(() => {})
   },
   beforeDestroy() {
     this.stopAutoRefresh()
   },
   methods: {
     openInboxMode() {
-      this.inboxMode = true
+      this.activeSection = 'inbox'
       this.stopAutoRefresh()
       const query = { ...this.$route.query }
       delete query.mode
@@ -873,14 +879,25 @@ export default {
       this.$router.replace({ query }).catch(() => {})
     },
     openWhatsAppConversation() {
-      this.sandboxOpen = false
       this.openInboxMode()
       this.$nextTick(() => this.$refs.inquiryInbox?.openStartConversation())
     },
     openOperationsMode() {
-      this.inboxMode = false
-      this.$router.replace({ query: { ...this.$route.query, mode: 'orders' } }).catch(() => {})
+      this.activeSection = 'orders'
+      const query = { ...this.$route.query, mode: 'orders' }
+      delete query.inquiry
+      delete query.chatView
+      this.$router.replace({ query }).catch(() => {})
       if (!this.autoRefreshTimer) this.initPage().catch(() => {})
+    },
+    openSandboxMode() {
+      this.activeSection = 'sandbox'
+      this.stopAutoRefresh()
+      const query = { ...this.$route.query, mode: 'sandbox' }
+      delete query.taskId
+      delete query.inquiry
+      delete query.chatView
+      this.$router.replace({ query }).catch(() => {})
     },
     async initPage() {
       this.currentUserId = this.extractCurrentUserId()
@@ -2161,11 +2178,13 @@ export default {
 </script>
 
 <style scoped>
-.chat-mode-switch {
-  display: flex;
-  gap: 8px;
-  margin: 0 0 16px;
-}
+.chats-head { margin: 4px 0 16px; }
+.chats-head h1 { margin: 0; color: #17233d; font-size: 34px; line-height: 1.1; }
+.chats-head p { margin: 7px 0 0; color: #60708f; font-size: 15px; }
+.chat-sections { display: flex; gap: 4px; margin: 0 0 18px; padding: 4px; border: 1px solid #d8dfe9; border-radius: 12px; background: #f4f6f9; }
+.chat-sections__tab { min-height: 42px; padding: 9px 16px; border: 0; border-radius: 9px; background: transparent; color: #60708f; font-weight: 800; cursor: pointer; }
+.chat-sections__tab--active { background: #fff; color: #17233d; box-shadow: 0 1px 4px rgba(23, 35, 61, .12); }
+.chat-sections__tab:focus-visible { outline: 3px solid rgba(36, 59, 115, .28); outline-offset: 2px; }
 .admin-chat-page { min-height: 100vh; color: #17233d; }
 .chat-section { padding-top: 26px; padding-bottom: 40px; }
 .container { max-width: 1480px; }
@@ -2373,20 +2392,8 @@ export default {
 }
 
 @media (max-width: 640px) {
-  .chat-mode-switch {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .chat-mode-switch .btn {
-    width: 100%;
-    min-width: 0;
-    white-space: normal;
-  }
-
-  .chat-mode-switch__sandbox {
-    grid-column: 1 / -1;
-  }
+  .chat-sections { display: grid; grid-template-columns: 1fr; }
+  .chat-sections__tab { width: 100%; }
 
   .page-head,
   .page-actions,
