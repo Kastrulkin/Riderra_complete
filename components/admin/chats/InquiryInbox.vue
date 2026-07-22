@@ -3,35 +3,39 @@
     <header class="inbox__head">
       <div>
         <h1>Чаты</h1>
-        <p>Сообщения клиентов, которые написали первыми</p>
+        <p>Отвечайте на входящие сообщения или начните новый WhatsApp-диалог</p>
       </div>
       <div class="inbox__head-actions">
-        <button class="primary" type="button" @click="toggleStartConversation">Начать разговор</button>
+        <button class="primary" type="button" @click="toggleStartConversation">Начать WhatsApp-диалог</button>
         <button class="secondary" type="button" :disabled="loading" @click="loadAll">Обновить</button>
       </div>
     </header>
 
     <form v-if="showStartConversation" class="start-conversation" @submit.prevent="startConversation">
       <div class="start-conversation__head">
-        <div><h2>Начать разговор в WhatsApp</h2><p>Первое сообщение отправляется только утверждённым шаблоном Meta.</p></div>
-        <button class="start-conversation__close" type="button" aria-label="Закрыть форму" @click="showStartConversation = false">×</button>
+        <div><h2>Новое сообщение клиенту</h2><p>Укажите получателя, выберите утверждённый шаблон и отправьте его одним действием.</p></div>
+        <button class="start-conversation__close" type="button" aria-label="Закрыть форму" @click="closeStartConversation">×</button>
       </div>
       <div class="start-conversation__grid">
-        <label><span>Номер WhatsApp</span><input v-model.trim="startPhone" inputmode="tel" placeholder="+35799128950" required></label>
+        <label><span><b>1</b> Номер WhatsApp</span><input v-model.trim="startPhone" inputmode="tel" placeholder="+35799128950" required></label>
         <label><span>Имя клиента <small>необязательно</small></span><input v-model.trim="startName" placeholder="Например, John Smith"></label>
-        <label><span>Шаблон первого сообщения</span><select v-model="startTemplateName" @change="resetStartTemplateVariables"><option value="">Выберите шаблон</option><option v-for="template in whatsappTemplates" :key="template.name" :value="template.name">{{ template.label }}</option></select></label>
+        <label><span><b>2</b> Первое сообщение</span><select v-model="startTemplateName" @change="resetStartTemplateVariables"><option value="">Выберите утверждённый шаблон</option><option v-for="template in whatsappTemplates" :key="template.name" :value="template.name">{{ template.label }}</option></select></label>
+      </div>
+      <div v-if="!whatsappTemplates.length" class="window-notice" role="status">
+        <strong>Нет доступных шаблонов</strong>
+        <span>Добавьте утверждённый Meta-шаблон в настройках WhatsApp — без него начать диалог нельзя.</span>
       </div>
       <div v-if="startSelectedTemplate" class="template-preview">
-        <strong>{{ startSelectedTemplate.label }}</strong>
+        <strong>Будет отправлен шаблон «{{ startSelectedTemplate.label }}»</strong>
         <span>{{ startSelectedTemplate.description || 'Утверждённый шаблон WhatsApp' }}</span>
-        <code>{{ startSelectedTemplate.name }} · {{ startTemplateLanguage }}</code>
+        <code>Язык: {{ startTemplateLanguage }} · Meta: {{ startSelectedTemplate.name }}</code>
       </div>
       <div v-if="startSelectedTemplate && startSelectedTemplate.variables.length" class="template-variables">
         <label v-for="variable in startSelectedTemplate.variables" :key="variable"><span>{{ templateVariableLabel(variable) }}</span><input v-model.trim="startTemplateVariables[variable]" :placeholder="templateVariablePlaceholder(variable)"></label>
       </div>
       <div class="start-conversation__submit">
-        <small>После отправки диалог появится во вкладке «В работе».</small>
-        <button type="submit" :disabled="busy || !canStartConversation">{{ busy ? 'Отправляем…' : 'Отправить шаблон' }}</button>
+        <small><b>3</b> Сообщение уйдёт на {{ normalizedStartPhone || 'указанный номер' }}. После отправки диалог откроется во вкладке «В работе».</small>
+        <button type="submit" :disabled="busy || !canStartConversation">{{ busy ? 'Отправляем в WhatsApp…' : 'Отправить и начать диалог' }}</button>
       </div>
     </form>
 
@@ -216,7 +220,7 @@ export default {
     view: 'new', unread: 0, rows: [], staff: [], selected: null,
     loading: true, detailLoading: false, busy: false, search: '', assignee: '', replyText: '', replyMode: 'text',
     whatsappTemplates: [], templateName: '', templateVariables: {}, composerInquiryId: '',
-    showStartConversation: false, startPhone: '', startName: '', startTemplateName: '', startTemplateVariables: {},
+    showStartConversation: false, startPhone: '', startName: '', startTemplateName: '', startTemplateVariables: {}, startAttemptKey: '',
     banner: null, timer: null, searchTimer: null, orderTimer: null, pollTimer: null,
     showLink: false, showCreate: false, orderSearch: '', orderResults: [],
     newOrder: { fromPoint: '', toPoint: '', pickupAt: '', vehicleType: 'standard' }
@@ -229,6 +233,7 @@ export default {
     templateLanguage () { return this.selectedTemplate?.language || this.selectedTemplate?.languages?.[0] || 'en' },
     startSelectedTemplate () { return this.whatsappTemplates.find(template => template.name === this.startTemplateName) || null },
     startTemplateLanguage () { return this.startSelectedTemplate?.language || this.startSelectedTemplate?.languages?.[0] || 'en' },
+    normalizedStartPhone () { return this.startPhone.replace(/[\s()-]/g, '') },
     templateVariablesComplete () {
       if (!this.selectedTemplate) return false
       return (this.selectedTemplate.variables || []).every(variable => String(this.templateVariables[variable] || '').trim())
@@ -302,19 +307,29 @@ export default {
     async setStatus (status) { await this.update({ status }, status === 'spam' ? 'Обращение отмечено как спам' : 'Обращение закрыто'); this.selected = null; await this.loadList() },
     async update (body, success) { this.busy = true; try { await this.request(`/api/admin/chats/inquiries/${this.selected.id}`, { method: 'PATCH', body: JSON.stringify(body) }); this.banner = { kind: 'success', text: success }; await this.open(this.selected.id); await this.loadList(false) } catch (error) { this.showError(error) } finally { this.busy = false } },
     toggleStartConversation () {
-      this.showStartConversation = !this.showStartConversation
-      if (this.showStartConversation && !this.startTemplateName && this.whatsappTemplates.length) this.startTemplateName = this.whatsappTemplates[0].name
+      if (this.showStartConversation) return this.closeStartConversation()
+      this.openStartConversation()
+    },
+    openStartConversation () {
+      this.showStartConversation = true
+      this.startAttemptKey = `inquiry-start-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      if (!this.startTemplateName && this.whatsappTemplates.length) this.startTemplateName = this.whatsappTemplates[0].name
+      this.$nextTick(() => this.$el.querySelector('.start-conversation input')?.focus())
+    },
+    closeStartConversation () {
+      this.showStartConversation = false
+      this.startAttemptKey = ''
     },
     resetStartTemplateVariables () { this.startTemplateVariables = {} },
     async startConversation () {
       if (!this.canStartConversation || this.busy) return
       this.busy = true; this.banner = null
-      const phone = this.startPhone.replace(/[\s()-]/g, '')
+      const phone = this.normalizedStartPhone
       const delivery = { mode: 'template', templateName: this.startSelectedTemplate.name, language: this.startTemplateLanguage, variables: { ...this.startTemplateVariables } }
       try {
         const created = await this.request('/api/admin/chats/inquiries/start', {
           method: 'POST',
-          fixedKey: `inquiry-start-${phone}-${this.startSelectedTemplate.name}-${Date.now()}`,
+          fixedKey: this.startAttemptKey || `inquiry-start-${phone}-${this.startSelectedTemplate.name}`,
           body: JSON.stringify({ phone, customerDisplayName: this.startName, delivery })
         })
         const sent = await this.request(`/api/admin/chats/messages/${created.message.id}/send`, {
@@ -324,7 +339,7 @@ export default {
         })
         this.banner = { kind: 'success', text: sent.alreadySent ? 'Шаблон уже был отправлен. Дубль не создан.' : 'WhatsApp принял шаблон. Теперь ждём ответа клиента.' }
         this.showStartConversation = false
-        this.startPhone = ''; this.startName = ''; this.startTemplateVariables = {}
+        this.startPhone = ''; this.startName = ''; this.startTemplateVariables = {}; this.startAttemptKey = ''
         this.view = 'work'
         await this.$router.replace({ query: { ...this.$route.query, chatView: 'work', inquiry: created.task.id } }).catch(() => {})
         await this.loadList(false)

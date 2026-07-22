@@ -14,9 +14,9 @@
           <button class="btn btn--ghost chat-mode-switch__sandbox" type="button" @click="sandboxOpen = !sandboxOpen">{{ sandboxOpen ? 'Закрыть песочницу' : 'Проверить AI-агента' }}</button>
         </div>
 
-        <agent-sandbox-panel v-if="sandboxOpen" class="chat-sandbox" />
+        <agent-sandbox-panel v-if="sandboxOpen" class="chat-sandbox" @start-whatsapp="openWhatsAppConversation" />
 
-        <inquiry-inbox v-if="inboxMode" />
+        <inquiry-inbox v-if="inboxMode" ref="inquiryInbox" />
         <template v-else>
 
         <header class="page-head">
@@ -849,6 +849,11 @@ export default {
       const query = { ...this.$route.query }
       delete query.mode
       this.$router.replace({ query }).catch(() => {})
+    },
+    openWhatsAppConversation() {
+      this.sandboxOpen = false
+      this.openInboxMode()
+      this.$nextTick(() => this.$refs.inquiryInbox?.openStartConversation())
     },
     openOperationsMode() {
       this.inboxMode = false
