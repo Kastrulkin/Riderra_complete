@@ -7672,6 +7672,21 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
   }
 })
 
+app.post('/api/admin/chats/tasks/:id/read', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const task = await prisma.chatTask.findFirst({ where: { id: req.params.id, tenantId: req.actorContext.tenantId } })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+    const updated = await prisma.chatTask.update({
+      where: { id: task.id },
+      data: { unreadCount: 0, lastReadAt: new Date() }
+    })
+    res.json({ task: updated })
+  } catch (error) {
+    console.error('Error marking chat task read:', error)
+    res.status(500).json({ error: 'Failed to mark chat task read' })
+  }
+})
+
 app.post('/api/admin/chats/tasks/:id/transition', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const { toState, reason = '' } = req.body || {}
@@ -8883,6 +8898,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
     let task = null
     const include = {
       agentConfig: true,
+      agentConfigVersion: true,
       order: true,
       messages: {
         orderBy: { createdAt: 'asc' },
@@ -9298,6 +9314,16 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
           bodyText: `TRACE: ${decisionReason} (${String(task.state || '')} -> ${currentState})`,
           bodyJson: JSON.stringify(trace),
           traceId: req.actorContext.traceId
+        }
+      })
+
+      await prisma.chatTask.update({
+        where: { id: task.id },
+        data: {
+          unreadCount: { increment: 1 },
+          lastMessageAt: new Date(),
+          lastInboundAt: new Date(),
+          lastError: null
         }
       })
 

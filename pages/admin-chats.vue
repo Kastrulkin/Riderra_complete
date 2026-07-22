@@ -1197,6 +1197,14 @@ export default {
     async openTask(id) {
       const res = await fetch(`/api/admin/chats/tasks/${id}`, { headers: this.headers() })
       const data = await res.json()
+      if (data.task?.unreadCount > 0) {
+        const readResponse = await fetch(`/api/admin/chats/tasks/${id}/read`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        if (readResponse.ok) data.task.unreadCount = 0
+      }
       this.selectedTask = data.task || null
       this.selectedTaskAgentId = this.selectedTask?.agentConfigId || ''
       this.recipientChannel = this.selectedTask?.channel || 'whatsapp'
