@@ -280,6 +280,8 @@ export default {
 <style scoped>
 .admin-nav-shell {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 14px;
   margin-bottom: 22px;
   padding: 14px 0 10px;
@@ -296,6 +298,7 @@ export default {
 
 .admin-sections {
   display: grid;
+  min-width: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   align-items: stretch;
@@ -311,6 +314,7 @@ export default {
   background: #f8fbff;
   color: #223356;
   cursor: pointer;
+  min-width: 0;
   min-height: 92px;
   align-content: center;
   transition: min-height 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
@@ -339,11 +343,13 @@ export default {
 
 .admin-subtabs {
   display: grid;
+  min-width: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .admin-section-intro {
+  min-width: 0;
   border: 1px solid #ead7f0;
   border-radius: 18px;
   background: linear-gradient(135deg, rgba(255, 240, 247, 0.92) 0%, rgba(248, 244, 255, 0.96) 100%);
@@ -376,6 +382,8 @@ export default {
 }
 
 .admin-subtabs-shell {
+  min-width: 0;
+  max-width: 100%;
   min-height: 68px;
   transition: min-height 180ms ease;
 }
@@ -514,6 +522,7 @@ export default {
 
   .admin-subtabs-shell {
     min-height: unset;
+    overflow: hidden;
   }
 
   .admin-section-intro {
@@ -530,8 +539,12 @@ export default {
 
   .admin-subtabs {
     display: flex;
+    width: 100%;
+    max-width: 100%;
     flex-wrap: nowrap;
     overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 4px;
     margin-right: -4px;
   }

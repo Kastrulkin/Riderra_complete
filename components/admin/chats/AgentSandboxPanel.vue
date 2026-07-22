@@ -63,7 +63,10 @@ export default {
         if (!response.ok) throw new Error(data?.error || 'Не удалось загрузить агентов')
         this.agents = data.agents || []
         this.policyVersion = data.policyVersion || this.policyVersion
-        if (!this.agentId && this.agents.length) this.agentId = this.agents[0].id
+        if (!this.agentId && this.agents.length) {
+          const readyAgent = this.agents.find(agent => agent.publishedVersion)
+          this.agentId = (readyAgent || this.agents[0]).id
+        }
       } catch (error) { this.error = error?.message || 'Не удалось загрузить агентов' }
     },
     async start () {
