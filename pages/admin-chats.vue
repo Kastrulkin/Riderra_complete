@@ -413,11 +413,13 @@
                 </div>
               </template>
 
-              <template v-else-if="canRetryClarification">
+              <template v-else-if="canWriteManualClarificationReply">
                 <p class="eyebrow">Следующий шаг</p>
-                <h4>Ответа на вопрос пока нет</h4>
+                <h4>{{ selectedTask.state === 'handoff_human' ? 'Ответьте клиенту вручную' : 'Ответа на вопрос пока нет' }}</h4>
                 <div class="hint">
-                  Напишите клиенту своё сообщение. Перед отправкой вы увидите точный текст.
+                  {{ selectedTask.state === 'handoff_human'
+                    ? 'Агент не смог надёжно разобрать ответ. Напишите клиенту своё сообщение.'
+                    : 'Напишите клиенту своё сообщение. Перед отправкой вы увидите точный текст.' }}
                 </div>
                 <textarea v-model="draftText" class="input textarea" placeholder="Напишите сообщение клиенту"></textarea>
                 <div class="message-draft-actions">
@@ -790,9 +792,9 @@ export default {
       if (['customer_replied', 'pending_update_approval'].includes(this.selectedTask.state)) return false
       return !this.hasDraftAwaitingApproval(this.selectedTask) && !this.hasReadyDraft(this.selectedTask)
     },
-    canRetryClarification() {
+    canWriteManualClarificationReply() {
       if (!this.selectedTask || this.selectedTask.taskType !== 'clarification') return false
-      if (!['customer_replied', 'field_rejected'].includes(this.selectedTask.state)) return false
+      if (!['customer_replied', 'field_rejected', 'handoff_human'].includes(this.selectedTask.state)) return false
       return !this.activeDraftMessage
     },
     displayedTasks() {
