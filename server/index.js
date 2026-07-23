@@ -36,6 +36,7 @@ const {
 } = require('./utils/orderManualDetails')
 const { inquiryInboundIdempotencyKey, nextInquiryState } = require('./utils/chatInquiry')
 const { extractOrderDetailsContacts, normalizeReference: normalizeDetailsReference } = require('./utils/orderDetailsContacts')
+const { buildDriverCanonicalRegistry, resolveCanonicalDriverName } = require('./utils/orderDriverCanonicalization')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
@@ -2310,6 +2311,7 @@ async function fetchGoogleSheetRows(sheetSource) {
         ''
       if (tabName) break
     }
+    if (!tabName && sheetSource.strictTabName) throw new Error(`Google Sheet tab not found: ${requestedTabName}`)
     if (!tabName) tabName = titles[0] || requestedTabName
   }
   const rangeColumns = String(sheetSource.rangeColumns || 'A:AZ').trim() || 'A:AZ'
@@ -2327,6 +2329,16 @@ async function fetchGoogleSheetRows(sheetSource) {
   }
   const data = await response.json()
   return data.values || []
+}
+
+async function fetchDriverCanonicalRegistry(source) {
+  try {
+    const rows = await fetchGoogleSheetRows({ googleSheetId: source.googleSheetId, tabName: 'тех лист', rangeColumns: 'A:A', strictTabName: true })
+    return buildDriverCanonicalRegistry(rows.map((row) => row?.[0]))
+  } catch (error) {
+    console.warn(`Driver canonical registry is unavailable for ${source.id}: ${error.message}`)
+    return []
+  }
 }
 
 async function syncOrderContactsFromDetailsTab ({ source, tenantId }) {
@@ -2411,6 +2423,8 @@ async function syncSheetSource(sheetSourceId, tenantId) {
 
   const headers = rows[0].map((h) => String(h || '').trim())
   const mapping = parseColumnMapping(source.columnMapping)
+  const driverCanonicalRegistry = await fetchDriverCanonicalRegistry(source)
+  const driverRegistryHash = crypto.createHash('sha256').update(JSON.stringify(driverCanonicalRegistry)).digest('hex')
   const stats = { created: 0, updated: 0, unchanged: 0, errors: 0, total: 0 }
   const incomingTripKeys = new Set()
 
@@ -2454,7 +2468,7 @@ async function syncSheetSource(sheetSourceId, tenantId) {
     })
     // Include the parser version so a date parsing fix reprocesses unchanged
     // sheet rows exactly once instead of leaving their old pickupAt values.
-    const rowHash = crypto.createHash('sha256').update(`sheet-date-day-first-v3:${JSON.stringify(raw)}`).digest('hex')
+    const rowHash = crypto.createHash('sha256').update(`sheet-driver-canonical-v5:${driverRegistryHash}:${JSON.stringify(raw)}`).digest('hex')
 
     const latestSnapshot = await prisma.orderSourceSnapshot.findFirst({
       where: { sheetSourceId: source.id, sourceRow },
@@ -2547,14 +2561,14 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         ...raw,
         comment,
         counterparty: pickField(raw, aliasesWithMapping(['counterparty', 'контрагент', 'contractor'], mapping, 'counterparty')) || null,
-        driver: pickField(raw, aliasesWithMapping(['driver', 'водитель'], mapping, 'driver')) || null,
+        driver: pickField(raw, aliasesWithMapping(['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'], mapping, 'driver')) || null,
         orderNumber: sourceOrderNumberRaw,
         internal_order_number: sourceInternalOrderNumberRaw,
         currency: parsePriceCurrency(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), null)
       })
-      sourceData.driverNameRaw = normalizeDriverNameForStats(sourceData.driverNameRaw)
+      sourceData.driverNameRaw = normalizeDriverNameForStats(resolveCanonicalDriverName(sourceData.driverNameRaw, driverCanonicalRegistry).value)
       const incomingStatus = normalizeIncomingOrderStatus(
-        isCancellationMarker(pickField(raw, aliasesWithMapping(['driver', 'водитель'], mapping, 'driver')))
+        isCancellationMarker(pickField(raw, aliasesWithMapping(['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'], mapping, 'driver')))
           ? 'cancelled'
           : (pickField(raw, aliasesWithMapping(['status', 'статус'], mapping, 'status')) || 'pending'),
         'pending'
@@ -10780,6 +10794,8 @@ function rawPayloadFromSnapshot(snapshot) {
 function rawFirst(raw, keys, fallback = '') {
   const entries = Object.entries(raw || {})
   const normalizedKeys = keys.map((key) => String(key || '').trim().toLowerCase()).filter(Boolean)
+  if (normalizedKeys.includes('водитель') && !normalizedKeys.includes('водители')) normalizedKeys.push('водители')
+  const strictFieldKeys = new Set(['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'])
   for (const key of keys) {
     const value = raw?.[key]
     if (value !== undefined && value !== null && String(value).trim() !== '') return value
@@ -10790,7 +10806,7 @@ function rawFirst(raw, keys, fallback = '') {
   }
   for (const [rawKey, value] of entries) {
     const normalizedRawKey = String(rawKey || '').trim().toLowerCase()
-    if (normalizedKeys.some((key) => key.length > 4 && normalizedRawKey.includes(key)) && value !== undefined && value !== null && String(value).trim() !== '') return value
+    if (normalizedKeys.some((key) => !strictFieldKeys.has(key) && key.length > 4 && normalizedRawKey.includes(key)) && value !== undefined && value !== null && String(value).trim() !== '') return value
   }
   return fallback
 }
@@ -10848,7 +10864,7 @@ function normalizedOrderSourceDataFromRaw(raw) {
   const hasComplaint = boolRaw(raw, ['has_complaint', 'complaint']) || /жалоб|претензи|complaint|no[\s-]?show|did not show|не приех|не встрет/i.test(sourceComment)
   return {
     counterpartyName: String(rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '') || null,
-    driverNameRaw: normalizeDriverNameForStats(rawFirst(raw, ['driver', 'водитель'], '')) || null,
+    driverNameRaw: normalizeDriverNameForStats(rawFirst(raw, ['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'], '')) || null,
     sourceComment: sourceComment || null,
     sourceCurrency: String(rawFirst(raw, ['currency', 'валюта'], '') || '') || null,
     sourceCityCode: String(rawFirst(raw, ['city_code', 'cityCode'], meta.cityCode) || '') || null,
@@ -10945,7 +10961,7 @@ function tripRowFromSnapshot(snapshot, source = null) {
   const amount = order?.clientPrice ?? numericRaw(raw, ['client_price', 'clientPrice', 'sum', 'сумма', 'price'], 0)
   const driverCost = order?.driverPrice ?? numericRaw(raw, ['driver_price', 'driverPrice', 'supplier_price'], null)
   const currency = String(order?.sourceCurrency || rawFirst(raw, ['currency', 'валюта'], parsePriceCurrency(rawFirst(raw, ['sum', 'сумма'], ''), 'EUR')) || 'EUR')
-  const rawDriver = String(order?.driverNameRaw || rawFirst(raw, ['driver', 'водитель'], '') || '')
+  const rawDriver = String(order?.driverNameRaw || rawFirst(raw, ['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'], '') || '')
   const status = effectiveOrderStatusFromFields(order?.status || rawFirst(raw, ['status', 'статус'], 'pending') || 'pending', {
     driverNameRaw: rawDriver
   })
@@ -11685,7 +11701,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
       const sum = snapshot.order?.clientPrice === null || snapshot.order?.clientPrice === undefined
         ? sourceSum
         : `${snapshot.order.clientPrice}${snapshot.order.sourceCurrency ? ` ${snapshot.order.sourceCurrency}` : ''}`
-      const driver = snapshot.order?.driverNameRaw || pickField(raw, aliasesWithMapping(['водитель', 'driver'], mapping, 'driver')) || ''
+      const driver = snapshot.order?.driverNameRaw || pickField(raw, aliasesWithMapping(['водитель', 'водители', 'driver', 'исполнитель', 'перевозчик'], mapping, 'driver')) || ''
       const comment = snapshot.order?.sourceComment || pickField(raw, aliasesWithMapping(['комментарий', 'comment', 'примечание'], mapping, 'comment')) || ''
       const internalOrderNumber = snapshot.order?.sourceInternalOrderNumber || pickField(raw, aliasesWithMapping(['внутренний номер заказа', 'internal order number'], mapping, 'internalOrderNumber')) || ''
       const effectiveFromPoint = fromPoint
@@ -11969,6 +11985,21 @@ app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requir
 
     const snapshots = await prisma.orderSourceSnapshot.findMany({
       where: { tenantId, sheetSourceId: source.id },
+      include: {
+        order: {
+          select: {
+            status: true,
+            needsInfo: true,
+            driverNameRaw: true,
+            counterpartyName: true,
+            clientPrice: true,
+            sourceCurrency: true,
+            sourceCityCode: true,
+            hasComplaint: true,
+            issueFlagsJson: true
+          }
+        }
+      },
       orderBy: [{ sourceRow: 'asc' }, { createdAt: 'desc' }],
       take: 10000
     })
@@ -12018,18 +12049,22 @@ app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requir
       if (seenRows.has(snapshot.sourceRow)) continue
       seenRows.add(snapshot.sourceRow)
       const row = parseJsonSafe(snapshot.rawPayload || '{}', {})
-      const status = effectiveOrderStatusFromFields(row.status || 'pending', { driver: row.driver })
-      const amount = Number(row.client_price || 0)
-      const currency = String(row.currency || 'EUR')
-      const driverName = normalizeDriverNameForStats(row.driver) || '(empty)'
-      const counterpartyName = normalizeCounterpartyName(row.counterparty || '(empty)') || '(empty)'
-      const issueFlags = Array.isArray(row.issue_flags) ? row.issue_flags : []
-      const needsInfo = Boolean(row.needs_info || issueFlags.includes('needs_info'))
-      const unassigned = !String(row.driver || '').trim()
+      const order = snapshot.order || {}
+      const normalized = normalizedOrderSourceDataFromRaw(row)
+      const driverValue = order.driverNameRaw ?? normalized.driverNameRaw
+      const status = effectiveOrderStatusFromFields(order.status || row.status || 'pending', { driverNameRaw: driverValue })
+      const amount = Number(order.clientPrice ?? row.client_price ?? 0)
+      const currency = String(order.sourceCurrency || row.currency || 'EUR')
+      const driverName = normalizeDriverNameForStats(driverValue) || '(empty)'
+      const counterpartyName = normalizeCounterpartyName(order.counterpartyName || normalized.counterpartyName || '(empty)') || '(empty)'
+      const issueFlags = normalizeIssueFlags(parseJsonSafe(order.issueFlagsJson || '[]', row.issue_flags || []))
+      const hasComplaint = Boolean(order.hasComplaint ?? row.has_complaint)
+      const needsInfo = Boolean(order.needsInfo || row.needs_info || issueFlags.includes('needs_info'))
+      const unassigned = !String(driverValue || '').trim()
 
       summary.total += 1
       summary[status] = (summary[status] || 0) + 1
-      summary.complaints += row.has_complaint ? 1 : 0
+      summary.complaints += hasComplaint ? 1 : 0
       summary.issueCount += issueFlags.length
       summary.needsInfo += needsInfo ? 1 : 0
       summary.unassigned += unassigned ? 1 : 0
@@ -12038,21 +12073,21 @@ app.get('/api/admin/order-stats', authenticateToken, resolveActorContext, requir
       const driver = ensure(byDriver, driverName, 'driver')
       driver.total += 1
       driver[status] = (driver[status] || 0) + 1
-      driver.complaints += row.has_complaint ? 1 : 0
+      driver.complaints += hasComplaint ? 1 : 0
       driver.issueCount += issueFlags.length
       driver.grossAmount += amount
       driver.currency = currency
-      incBucket(driver.topCities, row.city_code)
+      incBucket(driver.topCities, order.sourceCityCode || row.city_code)
       incBucket(driver.topCounterparties, counterpartyName)
 
       const counterparty = ensure(byCounterparty, counterpartyName, 'counterparty')
       counterparty.total += 1
       counterparty[status] = (counterparty[status] || 0) + 1
-      counterparty.complaints += row.has_complaint ? 1 : 0
+      counterparty.complaints += hasComplaint ? 1 : 0
       counterparty.issueCount += issueFlags.length
       counterparty.grossAmount += amount
       counterparty.currency = currency
-      incBucket(counterparty.topCities, row.city_code)
+      incBucket(counterparty.topCities, order.sourceCityCode || row.city_code)
       incBucket(counterparty.topDrivers, driverName)
     }
 

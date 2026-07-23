@@ -88,7 +88,7 @@ function normalizedSourceData(raw) {
   const hasComplaint = boolRaw(raw, ['has_complaint', 'complaint']) || /жалоб|претензи|complaint|no[\s-]?show|did not show|не приех|не встрет/i.test(sourceComment)
   const data = {
     counterpartyName: String(rawFirst(raw, ['counterparty', 'contractor', 'контрагент'], '') || '') || null,
-    driverNameRaw: String(rawFirst(raw, ['driver', 'водитель'], '') || '') || null,
+    driverNameRaw: String(rawFirst(raw, ['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'], '') || '') || null,
     sourceComment: sourceComment || null,
     sourceCurrency: String(rawFirst(raw, ['currency', 'валюта'], parsePriceCurrency(priceRaw, 'EUR')) || '') || null,
     sourceCityCode: String(rawFirst(raw, ['city_code', 'cityCode'], meta.cityCode) || '') || null,
