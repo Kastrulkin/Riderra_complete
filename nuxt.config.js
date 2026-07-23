@@ -43,18 +43,13 @@ module.exports = {
   ** Customize the progress bar color
   */
   modules: [
-    ['@nuxtjs/axios', { rejectUnauthorized: false }],
     'vue-scrollto/nuxt'
   ],
-  axios: {
-    // proxyHeaders: false
-    rejectUnauthorized: false,
-    baseURL: process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : ''
-  },
   loading: { color: '#3B8070' },
 
   plugins: [
     { src: '~/plugins/chunk-reload.js', mode: 'client' },
+    { src: '~/plugins/axios.js', mode: 'client' },
     { src: '~/plugins/supabase.js', mode: 'client' },
     { src: '~/plugins/client-head-assets.js', mode: 'client' },
     { src: '~/plugins/plugins.js', ssr: false }
