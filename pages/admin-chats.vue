@@ -192,6 +192,31 @@
                     <span>{{ formatDate(message.createdAt) }}</span>
                   </div>
                   <div class="message-body">{{ messageDisplayText(message) }}</div>
+                  <div v-if="messageMedia(message)" class="message-media">
+                    <img
+                      v-if="mediaUrls[message.id] && isImageMedia(message)"
+                      :src="mediaUrls[message.id]"
+                      :alt="messageMedia(message).filename || 'Изображение от клиента'"
+                      class="message-media__image"
+                    >
+                    <a
+                      v-else-if="mediaUrls[message.id]"
+                      :href="mediaUrls[message.id]"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="btn btn--small"
+                    >Открыть файл</a>
+                    <button
+                      v-else
+                      type="button"
+                      class="btn btn--small"
+                      :disabled="mediaLoading[message.id] || !messageMediaAvailable(message)"
+                      @click="loadMessageMedia(message)"
+                    >
+                      {{ mediaLoading[message.id] ? 'Открываем…' : (isImageMedia(message) ? 'Показать изображение' : 'Открыть файл') }}
+                    </button>
+                    <span v-if="mediaErrors[message.id]" class="message-media__error">{{ mediaErrors[message.id] }}</span>
+                  </div>
                   </div>
                   <div v-if="!visibleConversationMessages.length" class="empty">История сообщений пока пуста</div>
                 </div>
@@ -595,6 +620,9 @@ export default {
     recipientPhone: '',
     recipientTest: false,
     recipientSaving: false,
+    mediaUrls: {},
+    mediaLoading: {},
+    mediaErrors: {},
     whatsappTemplatePresets: [
       {
         name: 'riderra_baggage_request',
@@ -1636,6 +1664,35 @@ export default {
         return {}
       }
     },
+    messageMedia(message) {
+      const media = this.parseBodyJson(message)?.media
+      return media && typeof media === 'object' ? media : null
+    },
+    messageMediaAvailable(message) {
+      return Boolean(this.messageMedia(message)?.objectKey)
+    },
+    isImageMedia(message) {
+      return String(this.messageMedia(message)?.mimeType || '').toLowerCase().startsWith('image/')
+    },
+    async loadMessageMedia(message) {
+      if (!message?.id || this.mediaLoading[message.id]) return
+      this.$set(this.mediaLoading, message.id, true)
+      this.$set(this.mediaErrors, message.id, '')
+      try {
+        const response = await fetch(`/api/admin/chats/messages/${message.id}/media-url`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({})
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || !data?.url) throw new Error(data?.error || 'Не удалось открыть файл')
+        this.$set(this.mediaUrls, message.id, data.url)
+      } catch (error) {
+        this.$set(this.mediaErrors, message.id, error?.message || 'Не удалось открыть файл. Попробуйте ещё раз.')
+      } finally {
+        this.$set(this.mediaLoading, message.id, false)
+      }
+    },
     messageChannel(message) {
       return String(message?.channel || this.selectedTask?.channel || '').trim().toLowerCase()
     },
@@ -2317,6 +2374,9 @@ export default {
 .message-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: #64748b; font-size: 12px; margin-bottom: 6px; }
 .message-head strong { color: #17233d; }
 .message-body { white-space: pre-wrap; color: #1f2937; line-height: 1.45; }
+.message-media { display: grid; justify-items: start; gap: 8px; margin-top: 10px; }
+.message-media__image { display: block; width: auto; max-width: min(100%, 520px); max-height: 520px; border: 1px solid #d8e0ee; border-radius: 12px; object-fit: contain; background: #f8fafc; }
+.message-media__error { color: #b42318; font-size: 13px; }
 .technical-events { display: grid; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 10px; background: #f8fafc; }
 .technical-event { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 10px; color: #64748b; font-size: 12px; }
 .technical-event p { margin: 0; color: #475569; }

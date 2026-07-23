@@ -93,6 +93,50 @@ async function proxyMetaWebhookToOpenClaw(req, res) {
   }
 }
 
+async function createOpenClawMediaUrl({ objectKey, tenantCode }) {
+  const baseUrl = String(
+    process.env.OPENCLAW_META_BASE_URL ||
+    process.env.OPENCLAW_RUNTIME_BASE_URL ||
+    ''
+  ).trim().replace(/\/+$/, '')
+  if (!baseUrl || !OPENCLAW_INTERNAL_TOKEN) {
+    const error = new Error('Хранилище файлов временно недоступно')
+    error.statusCode = 503
+    throw error
+  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10000)
+  try {
+    const response = await fetch(`${baseUrl}/riderra/media/presign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-OpenClaw-Internal-Token': OPENCLAW_INTERNAL_TOKEN,
+        'X-Tenant-Code': tenantCode
+      },
+      body: JSON.stringify({ objectKey, expiresIn: 900 }),
+      signal: controller.signal
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok || !data?.url) {
+      const error = new Error('Не удалось открыть файл. Попробуйте ещё раз.')
+      error.statusCode = response.status >= 400 && response.status < 500 ? response.status : 502
+      throw error
+    }
+    return { url: data.url, expiresIn: Math.min(900, Number(data.expiresIn) || 900) }
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('Хранилище не ответило вовремя. Попробуйте ещё раз.')
+      timeoutError.statusCode = 504
+      throw timeoutError
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 app.get('/api/webhooks/meta/whatsapp', (req, res) => {
   const mode = String(req.query?.['hub.mode'] || req.query?.hub_mode || '')
   const providedToken = String(req.query?.['hub.verify_token'] || req.query?.hub_verify_token || '')
@@ -6940,7 +6984,19 @@ app.get('/api/admin/chats/inquiries/:id', authenticateToken, resolveActorContext
           templateRequired: !freeTextAllowed,
           lastInboundAt: lastInbound?.createdAt || null
         },
-        messages: row.messages.map((message) => ({ ...message, deliveryProblem: chatDeliveryProblem(message), bodyJson: undefined }))
+        messages: row.messages.map((message) => {
+          const parsed = parseMessageBodyJson(message.bodyJson)
+          const media = parsed?.media && typeof parsed.media === 'object'
+            ? {
+                mimeType: parsed.media.mimeType || null,
+                filename: parsed.media.filename || null,
+                size: parsed.media.size || null,
+                available: Boolean(parsed.media.objectKey),
+                storageError: parsed.media.storageError || null
+              }
+            : null
+          return { ...message, media, deliveryProblem: chatDeliveryProblem(message), bodyJson: undefined }
+        })
       }
     })
   } catch (error) {
@@ -7765,6 +7821,35 @@ app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, re
   } catch (error) {
     console.error('Error loading chat task details:', error)
     res.status(500).json({ error: 'Failed to load chat task details' })
+  }
+})
+
+app.post('/api/admin/chats/messages/:id/media-url', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const message = await prisma.chatMessage.findFirst({
+      where: { id: req.params.id, tenantId },
+      select: { id: true, bodyJson: true }
+    })
+    if (!message) return res.status(404).json({ error: 'Файл не найден' })
+
+    const media = parseMessageBodyJson(message.bodyJson)?.media
+    const objectKey = String(media?.objectKey || '').trim()
+    if (!objectKey) {
+      return res.status(409).json({ error: media?.storageError ? 'Файл не удалось сохранить. Передайте сообщение сотруднику.' : 'Файл ещё не готов к просмотру.' })
+    }
+
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { code: true } })
+    if (!tenant?.code) return res.status(404).json({ error: 'Бизнес не найден' })
+    const signed = await createOpenClawMediaUrl({ objectKey, tenantCode: tenant.code })
+    res.json({
+      ...signed,
+      mimeType: String(media?.mimeType || 'application/octet-stream'),
+      filename: String(media?.filename || 'attachment')
+    })
+  } catch (error) {
+    console.error('Error creating protected chat media URL:', error?.message || error)
+    res.status(error.statusCode || 500).json({ error: error.message || 'Не удалось открыть файл' })
   }
 })
 
@@ -9225,7 +9310,12 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
               id: String(mediaPayload?.id || '').trim() || null,
               mimeType: String(mediaPayload?.mimeType || mediaPayload?.mime_type || '').trim() || null,
               filename: String(mediaPayload?.filename || '').trim() || null,
-              caption: mediaCaption || null
+              caption: mediaCaption || null,
+              bucket: String(mediaPayload?.bucket || '').trim() || null,
+              objectKey: String(mediaPayload?.objectKey || mediaPayload?.object_key || '').trim() || null,
+              size: Number.isFinite(Number(mediaPayload?.size)) ? Math.max(0, Number(mediaPayload.size)) : null,
+              sha256: String(mediaPayload?.sha256 || '').trim() || null,
+              storageError: String(mediaPayload?.storageError || mediaPayload?.storage_error || '').trim() || null
             } : null,
             raw: req.body?.raw || null
           }),

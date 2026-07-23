@@ -43,7 +43,7 @@ async function requestJson(baseUrl, path, { method = 'GET', token = null, tenant
   return { status: response.status, data }
 }
 
-function startOpenClawMock(expectedToken) {
+function startOpenClawMock(expectedToken, mediaToken = expectedToken) {
   const stats = { requestKinds: [] }
   const server = http.createServer((req, res) => {
     const chunks = []
@@ -51,7 +51,8 @@ function startOpenClawMock(expectedToken) {
     req.on('end', () => {
       const requestBody = Buffer.concat(chunks).toString('utf8')
       const isIncompleteClarification = /Okay|Hope this is helpful/i.test(requestBody)
-      if (req.headers['x-openclaw-internal-token'] !== expectedToken) {
+      const requiredToken = req.url === '/riderra/media/presign' ? mediaToken : expectedToken
+      if (req.headers['x-openclaw-internal-token'] !== requiredToken) {
         res.writeHead(401, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ error: 'unauthorized' }))
         return
@@ -60,6 +61,13 @@ function startOpenClawMock(expectedToken) {
       if (req.method !== 'POST') {
         res.writeHead(405, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ error: 'method_not_allowed' }))
+        return
+      }
+
+      if (req.url === '/riderra/media/presign') {
+        const payload = JSON.parse(requestBody || '{}')
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ ok: true, url: `https://media.example.test/${encodeURIComponent(payload.objectKey)}`, expiresIn: 900 }))
         return
       }
 
@@ -259,7 +267,7 @@ async function main() {
   let appServer = null
   let mock = null
   try {
-    mock = await startOpenClawMock(runtimeToken)
+    mock = await startOpenClawMock(runtimeToken, internalToken)
     process.env.OPENCLAW_RUNTIME_BASE_URL = mock.baseUrl
     process.env.OPENCLAW_RUNTIME_TOKEN = runtimeToken
     process.env.OPENCLAW_INTERNAL_TOKEN = internalToken
@@ -358,6 +366,11 @@ async function main() {
       media: {
         id: `media-${crypto.randomUUID()}`,
         mimeType: 'image/jpeg',
+        filename: 'customer-photo.jpg',
+        bucket: 'riderra',
+        objectKey: `riderra/${tenantCode}/whatsapp/2026/07/test/customer-photo.jpg`,
+        size: 12345,
+        sha256: 'a'.repeat(64),
         caption: ''
       },
       from: '+447415353038'
@@ -382,6 +395,18 @@ async function main() {
     })
     assert(Boolean(savedMediaMessage), 'inbound image must be saved in the linked conversation')
     assert(/image|изображен/i.test(String(savedMediaMessage?.bodyText || '')), 'saved image must have a human-readable chat label')
+    const savedMediaBody = JSON.parse(savedMediaMessage?.bodyJson || '{}')
+    assert(savedMediaBody.media?.objectKey === mediaInboundBody.media.objectKey, 'stored S3 object key must be preserved on the chat message')
+    assert(savedMediaBody.media?.size === 12345, 'stored media size must be preserved on the chat message')
+    const mediaUrl = await requestJson(baseUrl, `/api/admin/chats/messages/${savedMediaMessage.id}/media-url`, {
+      method: 'POST',
+      token,
+      tenantCode,
+      body: {}
+    })
+    assert(mediaUrl.status === 200, `expected 200 for protected media URL, got ${mediaUrl.status}`)
+    assert(String(mediaUrl.data?.url || '').startsWith('https://media.example.test/'), 'protected media endpoint must return a short-lived URL')
+    assert(mediaUrl.data?.expiresIn === 900, 'protected media URL must expire in 15 minutes')
     const mediaReplay = await requestJson(baseUrl, '/api/internal/chats/inbound', {
       method: 'POST',
       tenantCode,

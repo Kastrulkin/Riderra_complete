@@ -111,6 +111,14 @@
           <div class="messages" ref="messages">
             <article v-for="message in selected.messages" :key="message.id" class="message" :class="`message--${message.direction}`">
               <p>{{ message.bodyText }}</p>
+              <div v-if="message.media" class="message-media">
+                <img v-if="mediaUrls[message.id] && isImageMedia(message)" :src="mediaUrls[message.id]" :alt="message.media.filename || 'Изображение от клиента'">
+                <a v-else-if="mediaUrls[message.id]" :href="mediaUrls[message.id]" target="_blank" rel="noopener noreferrer">Открыть файл</a>
+                <button v-else type="button" :disabled="mediaLoading[message.id] || !message.media.available" @click="loadMedia(message)">
+                  {{ mediaLoading[message.id] ? 'Открываем…' : (isImageMedia(message) ? 'Показать изображение' : 'Открыть файл') }}
+                </button>
+                <span v-if="mediaErrors[message.id]">{{ mediaErrors[message.id] }}</span>
+              </div>
               <footer>
                 <time>{{ messageTime(message.createdAt) }}</time>
                 <span v-if="message.direction === 'outbound'">{{ deliveryLabel(message) }}</span>
@@ -222,6 +230,7 @@ export default {
     showStartConversation: false, startPhone: '', startName: '', startTemplateName: '', startTemplateVariables: {}, startAttemptKey: '',
     banner: null, timer: null, searchTimer: null, orderTimer: null, pollTimer: null,
     showLink: false, showCreate: false, orderSearch: '', orderResults: [],
+    mediaUrls: {}, mediaLoading: {}, mediaErrors: {},
     newOrder: { fromPoint: '', toPoint: '', pickupAt: '', vehicleType: 'standard' }
   }),
   computed: {
@@ -308,6 +317,17 @@ export default {
         await this.$router.replace({ query: { ...this.$route.query, chatView: this.view, inquiry: id } }).catch(() => {})
         this.$nextTick(() => { if (this.$refs.messages) this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight })
       } catch (error) { this.showError(error) } finally { this.detailLoading = false }
+    },
+    isImageMedia (message) { return String(message?.media?.mimeType || '').toLowerCase().startsWith('image/') },
+    async loadMedia (message) {
+      if (!message?.id || this.mediaLoading[message.id]) return
+      this.$set(this.mediaLoading, message.id, true); this.$set(this.mediaErrors, message.id, '')
+      try {
+        const data = await this.request(`/api/admin/chats/messages/${message.id}/media-url`, { method: 'POST', body: '{}' })
+        this.$set(this.mediaUrls, message.id, data.url)
+      } catch (error) {
+        this.$set(this.mediaErrors, message.id, error.message || 'Не удалось открыть файл. Попробуйте ещё раз.')
+      } finally { this.$set(this.mediaLoading, message.id, false) }
     },
     async take () { const id = this.selected.id; await this.update({ take: true }, 'Обращение назначено вам'); this.view = 'work'; await this.$router.replace({ query: { ...this.$route.query, chatView: 'work', inquiry: id } }).catch(() => {}); await this.loadList(false); await this.open(id, false) },
     async assign (assignedToUserId) { await this.update({ assignedToUserId }, 'Ответственный обновлён') },
@@ -460,4 +480,5 @@ export default {
 .inbox__head h2{margin:0;font-size:22px}
 .state__action{margin-top:4px;border:0;border-radius:9px;background:var(--accent);color:#fff;padding:9px 13px;font-weight:700;cursor:pointer}
 @media(max-width:760px){.inbox{border-radius:0;border-left:0;border-right:0}.inbox__head{align-items:flex-start;flex-direction:column;padding:18px}.inbox__head h1{font-size:26px}.inbox__head-actions{width:100%}.inbox__head-actions button{flex:1}.start-conversation{margin:0 12px 14px;padding:14px}.start-conversation__grid{grid-template-columns:1fr}.start-conversation__submit{align-items:stretch;flex-direction:column}.start-conversation__submit button{width:100%}.toolbar{grid-template-columns:1fr;padding:12px}.workspace{display:block;min-height:560px}.list{border-right:0;max-height:none}.workspace--dialog .list{display:none}.dialog{display:none;min-height:560px}.workspace--dialog .dialog{display:flex}.back{display:block;padding:7px 10px}.dialog__head{padding:13px}.dialog__head .status{font-size:11px}.customer-panel{align-items:flex-start;flex-wrap:wrap;padding:11px 14px}.customer-panel select{width:100%;margin:0}.messages{padding:14px;max-height:none}.message{max-width:88%}.primary-action{align-items:flex-start;flex-direction:column;margin:10px 12px}.composer{padding:12px}.composer-mode{display:grid;grid-template-columns:1fr 1fr;width:100%}.composer-mode button{min-width:0}.template-variables{grid-template-columns:1fr}.composer-submit{align-items:stretch;flex-direction:column}.composer-submit small{max-width:none}.composer-submit button{width:100%}.actions{padding:0 12px 14px}.action-panel{margin:0 12px 14px}.create-order{grid-template-columns:1fr}.views{padding:0 8px}}
+.message-media{display:grid;justify-items:start;gap:7px;margin-top:9px}.message-media img{display:block;max-width:min(100%,480px);max-height:480px;border:1px solid var(--line);border-radius:10px;object-fit:contain;background:#fff}.message-media button,.message-media a{border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);padding:8px 11px;font-weight:700;text-decoration:none;cursor:pointer}.message-media span{color:#b42318;font-size:12px}
 </style>
