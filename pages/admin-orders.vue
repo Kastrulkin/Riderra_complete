@@ -276,6 +276,9 @@
             <button class="btn btn--ghost" type="button" @click="openRawFromCard">
               {{ t.findInDetails }}
             </button>
+            <nuxt-link class="btn btn--ghost" :to="{ path: '/admin-complaints', query: { createForOrder: selectedOrder.id } }">
+              Создать жалобу
+            </nuxt-link>
           </div>
         </div>
 

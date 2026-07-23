@@ -3,6 +3,8 @@ const archive = require('../../utils/orderArchiveDashboard')
 
 function run() {
   assert.strictEqual(archive.convertToEur(100, 'USD'), 92, 'USD converts to EUR')
+  assert.strictEqual(archive.convertToEur(100, 'CAD'), 67, 'CAD converts to EUR')
+  assert.strictEqual(archive.convertToEur(1000, 'RUB'), 11, 'RUB converts to EUR')
   assert.strictEqual(archive.totalEur({ EUR: 120, USD: 80 }), 193.6, 'mixed currencies convert to one EUR value')
   assert.strictEqual(archive.formatEur(193.6), 'EUR 193,6', 'EUR display is the analytics money format')
 

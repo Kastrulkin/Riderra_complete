@@ -37,6 +37,7 @@ const {
 const { inquiryInboundIdempotencyKey, nextInquiryState } = require('./utils/chatInquiry')
 const { staffChatReadWhere } = require('./utils/chatVisibility')
 const { extractOrderDetailsContacts, normalizeReference: normalizeDetailsReference } = require('./utils/orderDetailsContacts')
+const { resolveOrderCurrency } = require('./utils/orderCurrency')
 const { buildDriverCanonicalRegistry, resolveCanonicalDriverName } = require('./utils/orderDriverCanonicalization')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
@@ -46,6 +47,8 @@ const { jsonBodyParser } = require('./middleware/jsonBody')
 const { languageCookieMiddleware } = require('./middleware/languageCookie')
 const { registerAuthBootstrapRoutes, registerAuthRoutes } = require('./routes/auth')
 const { registerPublicRoutes } = require('./routes/public')
+const { ingestComplaintEmail, registerComplaintRoutes } = require('./routes/complaints')
+const { isComplaintEmail } = require('./utils/complaints')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -130,6 +133,54 @@ async function createOpenClawMediaUrl({ objectKey, tenantCode }) {
   } catch (error) {
     if (error?.name === 'AbortError') {
       const timeoutError = new Error('Хранилище не ответило вовремя. Попробуйте ещё раз.')
+      timeoutError.statusCode = 504
+      throw timeoutError
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function uploadOpenClawComplaintMedia({ complaintId, filename, mimeType, content, tenantCode }) {
+  const baseUrl = String(
+    process.env.OPENCLAW_META_BASE_URL ||
+    process.env.OPENCLAW_RUNTIME_BASE_URL ||
+    ''
+  ).trim().replace(/\/+$/, '')
+  if (!baseUrl || !OPENCLAW_INTERNAL_TOKEN) {
+    const error = new Error('Хранилище файлов временно недоступно')
+    error.statusCode = 503
+    throw error
+  }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 30000)
+  try {
+    const response = await fetch(`${baseUrl}/riderra/media/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-OpenClaw-Internal-Token': OPENCLAW_INTERNAL_TOKEN,
+        'X-Tenant-Code': tenantCode
+      },
+      body: JSON.stringify({
+        complaintId,
+        filename,
+        mimeType,
+        contentBase64: Buffer.from(content).toString('base64')
+      }),
+      signal: controller.signal
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok || !data?.objectKey) {
+      const error = new Error(data?.error || 'Не удалось сохранить файл')
+      error.statusCode = response.status >= 400 && response.status < 500 ? response.status : 502
+      throw error
+    }
+    return data
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('Хранилище не ответило вовремя. Повторите загрузку.')
       timeoutError.statusCode = 504
       throw timeoutError
     }
@@ -2312,7 +2363,9 @@ async function fetchGoogleSheetRows(sheetSource) {
         ''
       if (tabName) break
     }
-    if (!tabName && sheetSource.strictTabName) throw new Error(`Google Sheet tab not found: ${requestedTabName}`)
+    if (!tabName && sheetSource.strictTabName) {
+      throw new Error(`Google Sheet tab not found: ${requestedTabName}`)
+    }
     if (!tabName) tabName = titles[0] || requestedTabName
   }
   const rangeColumns = String(sheetSource.rangeColumns || 'A:AZ').trim() || 'A:AZ'
@@ -2334,7 +2387,12 @@ async function fetchGoogleSheetRows(sheetSource) {
 
 async function fetchDriverCanonicalRegistry(source) {
   try {
-    const rows = await fetchGoogleSheetRows({ googleSheetId: source.googleSheetId, tabName: 'тех лист', rangeColumns: 'A:A', strictTabName: true })
+    const rows = await fetchGoogleSheetRows({
+      googleSheetId: source.googleSheetId,
+      tabName: 'тех лист',
+      rangeColumns: 'A:A',
+      strictTabName: true
+    })
     return buildDriverCanonicalRegistry(rows.map((row) => row?.[0]))
   } catch (error) {
     console.warn(`Driver canonical registry is unavailable for ${source.id}: ${error.message}`)
@@ -2524,15 +2582,17 @@ async function syncSheetSource(sheetSourceId, tenantId) {
 
     try {
       const sourceOrderNumberRaw = pickField(raw, aliasesWithMapping(['external key', 'order id', 'номер заказа', 'id', 'номер'], mapping, 'orderNumber')) || ''
+      const sourceOrderMeta = parseOrderMetaFromSourceOrderNumber(sourceOrderNumberRaw)
       const sourceInternalOrderNumberRaw = pickField(raw, aliasesWithMapping(['internal_order_number', 'internalOrderNumber', 'внутренний номер заказа'], mapping, 'internalOrderNumber')) || ''
-      const sourceBookingId = parseOrderMetaFromSourceOrderNumber(sourceOrderNumberRaw).bookingId || ''
+      const sourceBookingId = sourceOrderMeta.bookingId || ''
       const stableSourceId = sourceInternalOrderNumberRaw || sourceBookingId || sourceOrderNumberRaw || 'row'
       const legacyExternalKey = `google_sheet:${normalizeGoogleSheetId(source.googleSheetId)}:${source.tabName}:${sourceRow}:${stableSourceId}`
 
       const fromPoint = pickField(raw, aliasesWithMapping(['from', 'откуда', 'адрес подачи', 'pickup'], mapping, 'fromPoint')) || 'UNKNOWN'
       const toPoint = pickField(raw, aliasesWithMapping(['to', 'куда', 'адрес назначения', 'dropoff'], mapping, 'toPoint')) || 'UNKNOWN'
       const vehicleType = pickField(raw, aliasesWithMapping(['vehicle type', 'тип авто', 'класс', 'class'], mapping, 'vehicleType')) || 'standard'
-      const clientPrice = toFloat(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), 0)
+      const clientPriceRaw = pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum'))
+      const clientPrice = toFloat(clientPriceRaw, 0)
       const driverPriceRaw = pickField(raw, aliasesWithMapping(['driver price', 'цена водителя', 'закупочная стоимость', 'закупка', 'себестоимость', 'supplier price'], mapping, 'driverPrice'))
       const driverPrice = toFloat(driverPriceRaw, null)
       const passengers = toInt(pickField(raw, aliasesWithMapping(['passengers', 'пассажиры', 'pax'], mapping, 'passengers')), null)
@@ -2565,9 +2625,14 @@ async function syncSheetSource(sheetSourceId, tenantId) {
         driver: pickField(raw, aliasesWithMapping(['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'], mapping, 'driver')) || null,
         orderNumber: sourceOrderNumberRaw,
         internal_order_number: sourceInternalOrderNumberRaw,
-        currency: parsePriceCurrency(pickField(raw, aliasesWithMapping(['price', 'цена', 'стоимость', 'сумма', 'client price'], mapping, 'sum')), null)
+        currency: resolveOrderCurrency(
+          pickField(raw, aliasesWithMapping(['currency', 'валюта'], mapping, 'currency')) || clientPriceRaw,
+          { cityCode: sourceOrderMeta.cityCode, monthLabel: source.monthLabel, fallback: 'EUR' }
+        ).currency
       })
-      sourceData.driverNameRaw = normalizeDriverNameForStats(resolveCanonicalDriverName(sourceData.driverNameRaw, driverCanonicalRegistry).value)
+      sourceData.driverNameRaw = normalizeDriverNameForStats(
+        resolveCanonicalDriverName(sourceData.driverNameRaw, driverCanonicalRegistry).value
+      )
       const incomingStatus = normalizeIncomingOrderStatus(
         isCancellationMarker(pickField(raw, aliasesWithMapping(['driver', 'водитель', 'водители', 'исполнитель', 'перевозчик'], mapping, 'driver')))
           ? 'cancelled'
@@ -15782,7 +15847,9 @@ const APPROX_EUR_RATES = {
   EUR: 1,
   DKK: 0.134,
   USD: 0.92,
-  GBP: 1.17
+  GBP: 1.17,
+  CAD: 0.67,
+  RUB: 0.011
 }
 
 function getApproxBaseAmount(amount, currency, baseCurrency = BASE_CURRENCY) {
@@ -16298,6 +16365,9 @@ function parsePriceCurrency(value, fallback = 'EUR') {
   if (/\bDKK\b/.test(raw) || /\bKR\b/.test(raw)) return 'DKK'
   if (/\bEUR\b/.test(raw) || /\bEURO\b/.test(raw)) return 'EUR'
   if (/\bUSD\b/.test(raw)) return 'USD'
+  if (/\bGBP\b/.test(raw) || /£/.test(raw)) return 'GBP'
+  if (/\bCAD\b/.test(raw)) return 'CAD'
+  if (/\bRUB\b|\bRUR\b|₽|руб(?:\.|\s|$)/i.test(raw)) return 'RUB'
   return fallback
 }
 
@@ -17626,7 +17696,9 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
     const toEmail = getEmailIngestField(req, ['toEmail', 'to']) || TECHNICAL_INBOX_EMAIL
     const gmailMessageId = getEmailIngestField(req, ['gmailMessageId', 'messageId'])
     const gmailThreadId = getEmailIngestField(req, ['gmailThreadId', 'threadId'])
+    const rfcMessageId = getEmailIngestField(req, ['rfcMessageId', 'internetMessageId'])
     const sourceType = getEmailIngestField(req, ['sourceType', 'source']) || 'gmail_forward'
+    const attachments = Array.isArray(req.body?.attachments) ? req.body.attachments.slice(0, 20) : []
     if (rawText.length < 10) {
       console.warn('Email ingest request missing rawText', {
         contentType: req.headers['content-type'] || null,
@@ -17644,11 +17716,30 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
         where: { tenantId: req.actorContext.tenantId, externalMessageId: gmailMessageId }
       })
       if (existingDraft) {
-        return res.json({ success: true, draftId: existingDraft.id, draft: existingDraft, order: null, promoted: null, idempotent: true })
+        const complaintResult = await ingestComplaintEmail({
+          prisma,
+          tenantId: req.actorContext.tenantId,
+          rawText,
+          subject,
+          fromEmail,
+          toEmail,
+          externalMessageId: gmailMessageId,
+          externalThreadId: gmailThreadId,
+          rfcMessageId,
+          sourceDraftId: existingDraft.id,
+          attachments,
+          createOpsTask
+        })
+        if (complaintResult.complaint && existingDraft.sourceClassification !== 'complaint') {
+          await prisma.opsEventDraft.update({ where: { id: existingDraft.id }, data: { sourceClassification: 'complaint', queueState: 'complaint' } })
+        }
+        return res.json({ success: true, draftId: existingDraft.id, draft: existingDraft, order: null, promoted: null, complaint: complaintResult.complaint ? complaintResult.case : null, idempotent: true })
       }
     }
 
     const payload = buildManualEmailOrderDraftPayload({ rawText, subject, fromEmail })
+    const complaintEmail = isComplaintEmail({ subject, rawText })
+    if (complaintEmail) payload.orderDraft.eventType = 'complaint'
     if (gmailMessageId) payload.externalMessageId = gmailMessageId
     payload.sourceType = sourceType
     payload.sourceChannel = 'email'
@@ -17681,6 +17772,23 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
         payload,
         skipFlightCheck: true
       })
+      const complaintResult = await ingestComplaintEmail({
+        prisma,
+        tenantId: req.actorContext.tenantId,
+        rawText,
+        subject,
+        fromEmail,
+        toEmail,
+        externalMessageId: gmailMessageId,
+        externalThreadId: gmailThreadId,
+        rfcMessageId,
+        sourceDraftId: draft.id,
+        attachments,
+        createOpsTask
+      })
+      if (complaintResult.complaint) {
+        await prisma.opsEventDraft.update({ where: { id: draft.id }, data: { sourceClassification: 'complaint', queueState: 'complaint' } })
+      }
       const emailEventType = String(payload?.orderDraft?.eventType || 'new')
       if (emailEventType === 'change' || emailEventType === 'cancel') {
         const responsible = await pickEmailOrderResponsibleUser(req.actorContext.tenantId, null)
@@ -17753,7 +17861,7 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
           gmailThreadId: gmailThreadId || null
         }
       })
-      return { draft: responseDraft, promoted }
+      return { draft: responseDraft, promoted, complaint: complaintResult.complaint ? complaintResult.case : null }
     })
 
     res.json({
@@ -17762,6 +17870,7 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
       draft: wrapped.data.draft,
       order: wrapped.data.promoted?.order || null,
       promoted: wrapped.data.promoted?.payload || null,
+      complaint: wrapped.data.complaint || null,
       idempotent: wrapped.replayed
     })
   } catch (error) {
@@ -20165,6 +20274,19 @@ app.post('/api/admin/city-routes/bulk-import', authenticateToken, resolveActorCo
     console.error('Error bulk importing routes:', error)
     res.status(500).json({ error: 'Failed to import routes' })
   }
+})
+
+registerComplaintRoutes(app, {
+  prisma,
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requireCan,
+  createOpsTask,
+  transporter,
+  emailFrom: EMAIL_FROM,
+  createMediaUrl: createOpenClawMediaUrl,
+  uploadMedia: uploadOpenClawComplaintMedia
 })
 
 registerAuthBootstrapRoutes(app, {

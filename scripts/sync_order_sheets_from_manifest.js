@@ -5,6 +5,7 @@ const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const { PrismaClient } = require('@prisma/client')
+const { resolveOrderCurrency } = require('../server/utils/orderCurrency')
 
 const prisma = new PrismaClient()
 
@@ -104,17 +105,12 @@ function parseOrderMeta(orderNumber) {
   }
 }
 
-function currency(value, meta = {}) {
-  const raw = clean(value).toUpperCase()
-  if (raw.includes('USD') || raw.includes('$')) return 'USD'
-  if (raw.includes('GBP') || raw.includes('£')) return 'GBP'
-  if (raw.includes('CAD')) return 'CAD'
-  if (raw.includes('RUB') || raw.includes('₽')) return 'RUB'
-  const cityCode = clean(meta.cityCode).toLowerCase()
-  if (cityCode.includes('los angeles')) return 'USD'
-  if (cityCode.includes('vancouver')) return 'CAD'
-  if (cityCode.includes('london')) return 'GBP'
-  return 'EUR'
+function resolveCurrency(value, meta = {}, fallback = 'EUR') {
+  return resolveOrderCurrency(value, { ...meta, fallback })
+}
+
+function currency(value, meta = {}, fallback = 'EUR') {
+  return resolveCurrency(value, meta, fallback).currency
 }
 
 function normalizeStatus(row) {
@@ -176,8 +172,9 @@ function classifyQualitySignals(row) {
   return signals
 }
 
-function buildRow({ item, sourceRow, rowMarker = '', counterparty = '', orderNumber = '', pickupAt = '', fromPoint = '', toPoint = '', clientPrice = null, driver = '', comment = '', internalOrderNumber = '' }) {
+function buildRow({ item, sourceRow, rowMarker = '', counterparty = '', orderNumber = '', pickupAt = '', fromPoint = '', toPoint = '', clientPrice = null, clientPriceRaw = '', driver = '', comment = '', internalOrderNumber = '' }) {
   const meta = parseOrderMeta(orderNumber)
+  const currencyResolution = resolveCurrency(clientPriceRaw || clientPrice, { ...meta, monthLabel: item.monthLabel }, item.defaultCurrency)
   const row = {
     sheet_source_id: item.spreadsheetId,
     source_name: item.sourceName,
@@ -192,7 +189,11 @@ function buildRow({ item, sourceRow, rowMarker = '', counterparty = '', orderNum
     from_point: clean(fromPoint),
     to_point: clean(toPoint),
     client_price: clientPrice,
-    currency: currency(clientPrice, meta),
+    // Currency must be read before/alongside the numeric amount. Passing only
+    // clientPrice here used to discard ₽/$/£/€ and silently label old RUB
+    // sheets as EUR.
+    currency: currencyResolution.currency,
+    currency_evidence: currencyResolution.evidence,
     driver: clean(driver),
     comment: clean(comment),
     internal_order_number: clean(internalOrderNumber),
@@ -243,6 +244,7 @@ function parseModernRows(item, values) {
       fromPoint: cells[idx.fromPoint],
       toPoint: cells[idx.toPoint],
       clientPrice: money(cells[idx.clientPrice]),
+      clientPriceRaw: cells[idx.clientPrice],
       driver: cells[idx.driver],
       comment: cells[idx.comment],
       internalOrderNumber: cells[idx.internalOrderNumber]
@@ -266,6 +268,7 @@ function parseCompactRows(item, values) {
       orderNumber,
       pickupAt,
       clientPrice: money(hasCounterparty ? cells[4] : cells[2]),
+      clientPriceRaw: hasCounterparty ? cells[4] : cells[2],
       driver: hasCounterparty ? cells[5] : cells[3],
       internalOrderNumber: hasCounterparty ? cells[6] : cells[4],
       comment: [hasCounterparty ? cells[7] : cells[5], hasCounterparty ? cells[8] : cells[6]].filter(Boolean).join('\n')
@@ -359,17 +362,17 @@ function extractVerboseRoute(block, kind) {
 
 function extractVerbosePrice(block) {
   const net = findFirstVerboseValue(block, /^Net price:|^Цена|^Стоимость/i)
-  if (net) return money(net.value)
+  if (net) return { amount: money(net.value), raw: net.value }
   for (const cells of block.rows) {
     for (const cell of cells) {
       const raw = clean(cell)
-      if (/\b(EUR|USD|GBP|CAD|RUB)\b|[$£€]/i.test(raw)) {
+      if (/\b(EUR|USD|GBP|CAD|RUB|RUR|DKK)\b|[$£€₽]|руб(?:\.|\s|$)/i.test(raw)) {
         const parsed = money(raw)
-        if (parsed !== null) return parsed
+        if (parsed !== null) return { amount: parsed, raw }
       }
     }
   }
-  return null
+  return { amount: null, raw: '' }
 }
 
 function parseVerboseRows(item, values) {
@@ -425,7 +428,8 @@ function parseVerboseRows(item, values) {
         pickupAt: event.pickupAt,
         fromPoint: event.route.fromPoint,
         toPoint: event.route.toPoint,
-        clientPrice: price,
+        clientPrice: price.amount,
+        clientPriceRaw: price.raw,
         comment: `Imported from legacy block row ${block.sourceRow}`
       }))
     }
@@ -644,6 +648,20 @@ function inRange(monthLabel, from, to) {
   return true
 }
 
+function currencyAudit(rows) {
+  const currencies = {}
+  const grossByCurrency = {}
+  const evidence = {}
+  for (const row of rows || []) {
+    const code = row.currency || 'UNKNOWN'
+    currencies[code] = (currencies[code] || 0) + 1
+    grossByCurrency[code] = Number(((grossByCurrency[code] || 0) + Number(row.client_price || 0)).toFixed(2))
+    const source = row.currency_evidence || 'unknown'
+    evidence[source] = (evidence[source] || 0) + 1
+  }
+  return { currencies, grossByCurrency, currencyEvidence: evidence }
+}
+
 async function main() {
   const args = parseArgs(process.argv)
   const dryRun = Boolean(args['dry-run'])
@@ -664,7 +682,15 @@ async function main() {
     const parsed = parseSheetRows({ ...item, tableTab: fetched.tabName }, values)
     const source = dryRun ? null : await upsertSheetSource(tenant.id, { ...item, tableTab: fetched.tabName })
     const imported = dryRun ? { created: 0, updated: 0, snapshots: 0 } : await importRows(tenant.id, source, parsed.rows, replace)
-    results.push({ monthLabel: item.monthLabel, sourceName: item.sourceName, tabName: fetched.tabName, format: parsed.format, rows: parsed.rows.length, ...imported })
+    results.push({
+      monthLabel: item.monthLabel,
+      sourceName: item.sourceName,
+      tabName: fetched.tabName,
+      format: parsed.format,
+      rows: parsed.rows.length,
+      ...currencyAudit(parsed.rows),
+      ...imported
+    })
     console.log(JSON.stringify(results[results.length - 1]))
   }
   console.log(JSON.stringify({
@@ -677,9 +703,23 @@ async function main() {
   }, null, 2))
 }
 
-main()
-  .catch((error) => {
-    console.error(error)
-    process.exitCode = 1
-  })
-  .finally(async () => prisma.$disconnect())
+if (require.main === module) {
+  main()
+    .catch((error) => {
+      console.error(error)
+      process.exitCode = 1
+    })
+    .finally(async () => prisma.$disconnect())
+}
+
+module.exports = {
+  buildRow,
+  currency,
+  currencyAudit,
+  extractVerbosePrice,
+  fetchValues,
+  getGoogleAccessToken,
+  money,
+  parseSheetRows,
+  resolveCurrency
+}

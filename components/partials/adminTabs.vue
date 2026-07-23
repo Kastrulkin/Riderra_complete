@@ -52,7 +52,8 @@ export default {
   data: () => ({
     isCondensed: false,
     selectedSectionKey: '',
-    inquiryUnread: 0
+    inquiryUnread: 0,
+    complaintAttention: 0
   }),
   computed: {
     lang () { return this.$store.state.language },
@@ -75,6 +76,7 @@ export default {
             { to: '/admin', label: 'Обзор', hint: 'Сегодня и риски' },
             { to: '/admin-orders', label: 'Заказы', hint: 'Основная очередь' },
             { to: '/admin-chats', label: 'Чаты', hint: 'Диалоги и SLA', badge: this.inquiryUnread },
+            { to: '/admin-complaints', label: 'Жалобы', hint: 'Расследования и ответы', badge: this.complaintAttention },
             { to: '/admin-ai-requests', label: 'Заявки с сайта', hint: 'Новые запросы' }
           ]
         },
@@ -145,6 +147,7 @@ export default {
             { to: '/admin', label: 'Overview', hint: 'Today and risks' },
             { to: '/admin-orders', label: 'Orders', hint: 'Main queue' },
             { to: '/admin-chats', label: 'Chats', hint: 'Dialogs and SLA', badge: this.inquiryUnread },
+            { to: '/admin-complaints', label: 'Complaints', hint: 'Investigations and replies', badge: this.complaintAttention },
             { to: '/admin-ai-requests', label: 'AI requests', hint: 'Public drafts' }
           ]
         },
@@ -226,6 +229,7 @@ export default {
   },
   mounted () {
     this.loadInquiryUnread()
+    this.loadComplaintAttention()
     window.addEventListener('riderra:inquiry-unread', this.handleInquiryUnread)
     if (!this.sticky) return
     this.handleScroll()
@@ -252,6 +256,15 @@ export default {
         if (!response.ok) return
         const data = await response.json()
         this.inquiryUnread = Number(data.unread || 0)
+      } catch (_) {}
+    },
+    async loadComplaintAttention () {
+      try {
+        const token = localStorage.getItem('authToken')
+        const response = await fetch('/api/admin/complaints/counts', { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        if (!response.ok) return
+        const data = await response.json()
+        this.complaintAttention = Number(data.new || 0) + Number(data.overdue || 0)
       } catch (_) {}
     },
     handleScroll () {

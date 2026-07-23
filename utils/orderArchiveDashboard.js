@@ -4,7 +4,9 @@ const APPROX_EUR_RATES = {
   EUR: 1,
   DKK: 0.134,
   USD: 0.92,
-  GBP: 1.17
+  GBP: 1.17,
+  CAD: 0.67,
+  RUB: 0.011
 }
 
 function toNumber(value) {

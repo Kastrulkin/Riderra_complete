@@ -8,12 +8,12 @@ datasource db {
 }
 
 model Tenant {
-  id                   String                  @id @default(cuid())
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
-  code                 String                  @unique
+  id                   String                      @id @default(cuid())
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  code                 String                      @unique
   name                 String
-  isActive             Boolean                 @default(true)
+  isActive             Boolean                     @default(true)
   memberships          TenantMembership[]
   idempotencyKeys      IdempotencyKey[]
   auditLogs            AuditLog[]
@@ -52,6 +52,12 @@ model Tenant {
   vpnProfiles          VpnProfile[]
   vpnAccessGrants      VpnAccessGrant[]
   wikiPages            WikiPage[]
+  complaintCases       ComplaintCase[]
+  complaintMessages    ComplaintMessage[]
+  complaintActivities  ComplaintActivity[]
+  complaintEvidence    ComplaintEvidence[]
+  providerTripEvents   ProviderTripEvent[]
+  complaintRules       CounterpartyComplaintRule[]
 }
 
 model TenantMembership {
@@ -83,11 +89,12 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Связь с водителем (если роль = driver)
-  driver        Driver?
-  roleLinks     UserRole[]
-  telegramLinks TelegramLink[]
-  opsTasks      OpsTask[]          @relation("OpsTaskAssignee")
-  memberships   TenantMembership[]
+  driver             Driver?
+  roleLinks          UserRole[]
+  telegramLinks      TelegramLink[]
+  opsTasks           OpsTask[]          @relation("OpsTaskAssignee")
+  memberships        TenantMembership[]
+  assignedComplaints ComplaintCase[]    @relation("ComplaintAssignee")
 
   @@map("users")
 }
@@ -307,15 +314,17 @@ model Order {
   updatedAt                 DateTime  @updatedAt
 
   // Связь с отзывами
-  reviews        Review[]
-  sourceHistory  OrderSourceSnapshot[]
-  priceConflicts PriceConflict[]
-  adjustments    OrderAdjustment[]
-  statusHistory  OrderStatusHistory[]
-  changeLogs     OrderChangeLog[]
-  chatTasks      ChatTask[]
-  qualitySignals OrderQualitySignal[]
-  tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  reviews            Review[]
+  sourceHistory      OrderSourceSnapshot[]
+  priceConflicts     PriceConflict[]
+  adjustments        OrderAdjustment[]
+  statusHistory      OrderStatusHistory[]
+  changeLogs         OrderChangeLog[]
+  chatTasks          ChatTask[]
+  qualitySignals     OrderQualitySignal[]
+  complaintCases     ComplaintCase[]
+  providerTripEvents ProviderTripEvent[]
+  tenant             Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
   @@index([tenantId, counterpartyName])
@@ -1055,6 +1064,161 @@ model ChatMessage {
   @@unique([tenantId, idempotencyKey], map: "uq_chat_message_idempotency")
   @@index([chatTaskId, createdAt])
   @@index([tenantId, createdAt])
+}
+
+model ComplaintCase {
+  id                 String                     @id @default(cuid())
+  tenantId           String
+  orderId            String?
+  sourceDraftId      String?
+  source             String                     @default("email") // email, phone, whatsapp, manual
+  externalThreadId   String?
+  complainantName    String?
+  complainantEmail   String?
+  subject            String?
+  summary            String
+  category           String                     @default("other")
+  severity           String                     @default("normal") // low, normal, high, critical
+  status             String                     @default("new") // new, needs_match, investigating, waiting_info, response_ready, response_sent, closed
+  isEscalated        Boolean                    @default(false)
+  assignedToUserId   String?
+  createdByUserId    String?
+  firstResponseDueAt DateTime
+  firstRespondedAt   DateTime?
+  resolution         String?
+  matchConfidence    Float?
+  matchReason        String?
+  missingInfoJson    String?
+  aiAnalysisJson     String?
+  investigationJson  String?
+  contractRuleId     String?
+  closedAt           DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order              Order?                     @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  assignedToUser     User?                      @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  messages           ComplaintMessage[]
+  activities         ComplaintActivity[]
+  evidence           ComplaintEvidence[]
+  contractRule       CounterpartyComplaintRule? @relation(fields: [contractRuleId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, externalThreadId], map: "uq_complaint_thread")
+  @@index([tenantId, status, firstResponseDueAt])
+  @@index([tenantId, assignedToUserId, status])
+  @@index([tenantId, orderId, updatedAt])
+}
+
+model CounterpartyComplaintRule {
+  id                       String          @id @default(cuid())
+  tenantId                 String
+  counterpartyName         String
+  title                    String
+  version                  Int             @default(1)
+  isActive                 Boolean         @default(true)
+  waitingMinutes           Int?
+  arrivalToleranceMin      Int?
+  requiredActionsJson      String?
+  approvedStatementsJson   String?
+  prohibitedStatementsJson String?
+  sourceDocumentName       String?
+  sourceObjectKey          String?
+  notes                    String?
+  createdByUserId          String?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+  tenant                   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  complaints               ComplaintCase[]
+
+  @@unique([tenantId, counterpartyName, version], map: "uq_counterparty_complaint_rule_version")
+  @@index([tenantId, counterpartyName, isActive])
+}
+
+model ComplaintMessage {
+  id                String        @id @default(cuid())
+  tenantId          String
+  complaintId       String
+  direction         String        @default("inbound") // inbound, outbound
+  externalMessageId String?
+  externalThreadId  String?
+  sender            String?
+  recipientsJson    String?
+  subject           String?
+  bodyText          String
+  attachmentsJson   String?
+  providerMessageId String?
+  deliveryStatus    String?
+  deliveryError     String?
+  approvalStatus    String?
+  idempotencyKey    String?
+  createdByUserId   String?
+  sentAt            DateTime?
+  createdAt         DateTime      @default(now())
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  complaint         ComplaintCase @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, externalMessageId], map: "uq_complaint_message_external")
+  @@unique([tenantId, idempotencyKey], map: "uq_complaint_message_idempotency")
+  @@index([complaintId, createdAt])
+}
+
+model ComplaintActivity {
+  id           String        @id @default(cuid())
+  tenantId     String
+  complaintId  String
+  type         String // created, status_changed, assigned, note, matched, evidence_added, response_prepared, response_sent
+  title        String
+  details      String?
+  actorUserId  String?
+  actorEmail   String?
+  metadataJson String?
+  createdAt    DateTime      @default(now())
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  complaint    ComplaintCase @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, complaintId, createdAt])
+}
+
+model ComplaintEvidence {
+  id              String        @id @default(cuid())
+  tenantId        String
+  complaintId     String
+  type            String // email_attachment, tracking_csv, document, internal_note
+  title           String
+  contentText     String?
+  objectKey       String?
+  mimeType        String?
+  filename        String?
+  size            Int?
+  source          String?
+  metadataJson    String?
+  createdByUserId String?
+  createdAt       DateTime      @default(now())
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  complaint       ComplaintCase @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, complaintId, createdAt])
+}
+
+model ProviderTripEvent {
+  id              String   @id @default(cuid())
+  tenantId        String
+  orderId         String
+  provider        String   @default("easytaxi")
+  externalEventId String
+  eventType       String
+  occurredAt      DateTime
+  driverName      String?
+  latitude        Float?
+  longitude       Float?
+  source          String   @default("api") // api, webhook, csv, manual
+  payloadJson     String?
+  createdAt       DateTime @default(now())
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider, externalEventId], map: "uq_provider_trip_event")
+  @@index([tenantId, orderId, occurredAt])
 }
 
 model ChatAgentConfig {

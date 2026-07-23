@@ -38,7 +38,7 @@ import WorkActivityIndicator from '~/components/admin/WorkActivityIndicator.vue'
 
 export default {
   components: { NotificationBell, WorkActivityIndicator },
-  data: () => ({ menuOpen: false, mobileOpen: false, inquiryUnread: 0 }),
+  data: () => ({ menuOpen: false, mobileOpen: false, inquiryUnread: 0, complaintAttention: 0 }),
   computed: {
     user () { return this.$store.state.user || {} },
     permissions () { return this.user.permissions || [] },
@@ -48,6 +48,7 @@ export default {
         { to: '/admin', label: 'Обзор', permissions: ['orders.read', 'ops.read', 'drivers.read', 'pricing.read', 'crm.read'] },
         { to: '/admin-orders', label: 'Заказы', permissions: ['orders.read'] },
         { to: '/admin-chats', label: 'Чаты', permissions: ['ops.read', 'orders.read'], badge: this.inquiryUnread },
+        { to: '/admin-complaints', label: 'Жалобы', permissions: ['orders.read'], badge: this.complaintAttention },
         { to: '/admin-drivers', label: 'Водители', permissions: ['drivers.read'] },
         { to: '/admin-pricing', label: 'Цены', permissions: ['pricing.read'] },
         { to: '/admin-crm', label: 'Клиенты', permissions: ['crm.read'] }
@@ -72,6 +73,7 @@ export default {
   },
   mounted () {
     this.loadInquiryUnread()
+    this.loadComplaintAttention()
     window.addEventListener('riderra:inquiry-unread', this.handleInquiryUnread)
   },
   beforeDestroy () { window.removeEventListener('riderra:inquiry-unread', this.handleInquiryUnread) },
@@ -84,6 +86,15 @@ export default {
         if (!response.ok) return
         const data = await response.json()
         this.inquiryUnread = Number(data.unread || 0)
+      } catch (_) {}
+    },
+    async loadComplaintAttention () {
+      try {
+        const token = localStorage.getItem('authToken')
+        const response = await fetch('/api/admin/complaints/counts', { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        if (!response.ok) return
+        const data = await response.json()
+        this.complaintAttention = Number(data.new || 0) + Number(data.overdue || 0)
       } catch (_) {}
     },
     logout () {

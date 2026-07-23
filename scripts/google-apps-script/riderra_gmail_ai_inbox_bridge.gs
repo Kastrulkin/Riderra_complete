@@ -66,6 +66,11 @@ function postMessageToRiderra_(ingestUrl, token, message) {
   const cc = message.getCc()
   const subject = message.getSubject()
   const body = message.getPlainBody()
+  const attachments = message.getAttachments({ includeInlineImages: false, includeAttachments: true }).slice(0, 20).map((attachment) => ({
+    filename: attachment.getName(),
+    mimeType: attachment.getContentType(),
+    size: attachment.getBytes().length
+  }))
   const rawText = [
     `From: ${from}`,
     `To: ${to}`,
@@ -90,7 +95,9 @@ function postMessageToRiderra_(ingestUrl, token, message) {
       rawText,
       sourceType: 'gmail_forward',
       gmailMessageId: message.getId(),
-      gmailThreadId: message.getThread().getId()
+      gmailThreadId: message.getThread().getId(),
+      rfcMessageId: message.getHeader('Message-ID'),
+      attachments
     })
   })
 }
