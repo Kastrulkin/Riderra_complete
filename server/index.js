@@ -5596,6 +5596,97 @@ async function ensureCustomerReplyAcknowledgementDraft({ tenantId, task, inbound
   }
 }
 
+function clarificationReplyNeedsFollowUp({ task, classification, extraction } = {}) {
+  if (String(task?.taskType || '') !== 'clarification' || task?.agentPaused) return false
+  const cls = String(classification?.class || '').trim().toLowerCase()
+  if (classification?.requiresHuman || ['negative', 'question'].includes(cls)) return false
+  const extractionConfidence = extraction?.confidence == null ? null : Number(extraction.confidence)
+  const hasValidValue = Boolean(extraction?.valid) && (extractionConfidence == null || extractionConfidence >= 0.7)
+  if (hasValidValue) return false
+  return ['', 'ack', 'answer', 'unclassified', 'irrelevant', 'no_reply'].includes(cls)
+}
+
+function clarificationFollowUpText(task = {}) {
+  const lang = normalizeCustomerMessageLang(task?.order?.lang)
+  const question = buildClarificationQuestion(task?.order?.infoReason || '', lang)
+  return lang === 'ru'
+    ? `Спасибо за ответ. Нужных данных пока нет. ${question}`
+    : `Thank you for your reply. I still need this information to arrange the transfer correctly. ${question}`
+}
+
+async function clarificationFollowUpMessages({ tenantId, taskId }) {
+  const rows = await prisma.chatMessage.findMany({
+    where: { tenantId, chatTaskId: taskId, direction: 'outbound' },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, bodyJson: true, approvalStatus: true, bodyText: true, channel: true, createdAt: true }
+  })
+  return rows.filter((message) => parseMessageBodyJson(message.bodyJson)?.kind === 'clarification_followup')
+}
+
+async function ensureClarificationFollowUpDraft({ tenantId, task, inboundMessage, inboundExternalId = '' }) {
+  const previous = await clarificationFollowUpMessages({ tenantId, taskId: task.id })
+  const sentCount = previous.filter((message) => message.approvalStatus === 'sent').length
+  const pendingDraft = previous.find((message) => message.approvalStatus === 'pending_human') || null
+  const attempt = sentCount + 1
+  if (sentCount >= 1) return { attempt: 2, draft: null, handoff: true }
+  if (pendingDraft) return { attempt, draft: pendingDraft, handoff: false, deduplicated: true }
+
+  const bodyText = clarificationFollowUpText(task)
+  const inboundAt = new Date(inboundMessage?.createdAt || Date.now()).getTime()
+  const freeTextAllowed = Number.isFinite(inboundAt) && (Date.now() - inboundAt) <= 24 * 60 * 60 * 1000
+  const delivery = freeTextAllowed
+    ? { mode: 'free_text' }
+    : await buildRecommendedDeliveryForTask({ tenantId, task, messageText: bodyText })
+  const idempotencyKey = `clarification-followup:${String(inboundExternalId || inboundMessage?.id || task.id)}`
+  try {
+    const draft = await prisma.chatMessage.create({
+      data: {
+        tenantId,
+        chatTaskId: task.id,
+        direction: 'outbound',
+        source: 'system',
+        channel: normalizeChannelName(task.channel || 'whatsapp'),
+        bodyText,
+        bodyJson: JSON.stringify({
+          kind: 'clarification_followup',
+          followUpAttempt: attempt,
+          replyToInboundMessageId: inboundMessage?.id || null,
+          delivery
+        }),
+        approvalStatus: 'pending_human',
+        traceId: inboundMessage?.traceId || null,
+        idempotencyKey
+      }
+    })
+    return { attempt, draft, handoff: false }
+  } catch (error) {
+    if (error?.code !== 'P2002') throw error
+    const draft = await prisma.chatMessage.findFirst({ where: { tenantId, idempotencyKey } })
+    return { attempt, draft, handoff: false, deduplicated: true }
+  }
+}
+
+async function pauseTaskForClarificationHandoff({ tenantId, task, reason }) {
+  await prisma.chatTask.update({
+    where: { id: task.id },
+    data: { state: 'handoff_human', agentPaused: true, lastError: reason }
+  })
+  await createOpsTask({
+    tenantId,
+    userId: task.assignedToUserId || null,
+    title: `Нужен сотрудник по заказу ${publicOrderReference(task.order) || task.orderId || task.id}`,
+    details: reason,
+    type: 'customer_reply_review',
+    priority: 'high',
+    source: 'customer_chat',
+    sourceRef: task.id,
+    dedupKey: `clarification-followup-handoff:${task.id}`,
+    linkUrl: `/admin-chats?taskId=${task.id}`,
+    payload: { taskId: task.id, orderId: task.orderId || null, followUpAttempts: 2 }
+  })
+  return 'handoff_human'
+}
+
 async function transitionChatTaskIfAllowed(taskId, currentState, targetState) {
   const from = String(currentState || '')
   const to = String(targetState || '')
@@ -7796,6 +7887,71 @@ app.post('/api/admin/chats/tasks/:id/assign-agent', authenticateToken, resolveAc
   }
 })
 
+app.post('/api/admin/chats/tasks/:id/retry-clarification', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
+  try {
+    const tenantId = req.actorContext.tenantId
+    const task = await prisma.chatTask.findFirst({
+      where: { id: req.params.id, tenantId },
+      include: {
+        order: true,
+        messages: {
+          where: { direction: 'inbound' },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      }
+    })
+    if (!task) return res.status(404).json({ error: 'Chat task not found' })
+    if (task.taskType !== 'clarification') return res.status(409).json({ error: 'Повторный вопрос доступен только для уточнения заказа' })
+    if (!['customer_replied', 'field_rejected'].includes(String(task.state || ''))) {
+      return res.status(409).json({ error: 'Сейчас повторный вопрос не требуется' })
+    }
+    const inboundMessage = task.messages?.[0]
+    if (!inboundMessage) return res.status(409).json({ error: 'Входящий ответ клиента не найден' })
+
+    const payload = { taskId: task.id, inboundMessageId: inboundMessage.id }
+    ensureIdempotencyKey(req, 'admin.chat_task.retry_clarification', payload)
+    const wrapped = await withIdempotency(req, 'admin.chat_task.retry_clarification', payload, async () => {
+      const result = await ensureClarificationFollowUpDraft({
+        tenantId,
+        task,
+        inboundMessage,
+        inboundExternalId: `manual:${inboundMessage.id}`
+      })
+      if (result.handoff) {
+        const reason = 'Повторное уточнение уже отправлялось, но нужные данные не получены. Диалог передан сотруднику.'
+        const taskState = await pauseTaskForClarificationHandoff({ tenantId, task, reason })
+        return { ...result, taskState }
+      }
+      const transition = await transitionChatTaskIfAllowed(task.id, task.state, 'field_rejected')
+      await prisma.chatTask.update({ where: { id: task.id }, data: { agentPaused: false, lastError: null } })
+      await writeAuditLog({
+        tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'chat_task.retry_clarification',
+        resource: 'chat_task',
+        resourceId: task.id,
+        traceId: req.actorContext.traceId,
+        decision: 'human_approved',
+        result: 'ok',
+        context: { inboundMessageId: inboundMessage.id, followUpAttempt: result.attempt, draftId: result.draft?.id || null }
+      })
+      return { ...result, taskState: transition.changed ? transition.state : task.state }
+    })
+    res.json({
+      taskState: wrapped.data.taskState,
+      followUpAttempt: wrapped.data.attempt,
+      followUpDraft: wrapped.data.draft,
+      handedOff: wrapped.data.handoff,
+      idempotent: wrapped.replayed || wrapped.data.deduplicated === true
+    })
+  } catch (error) {
+    console.error('Error retrying clarification:', error)
+    res.status(500).json({ error: 'Не удалось подготовить повторный вопрос' })
+  }
+})
+
 app.post('/api/admin/chats/tasks/:id/build', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
@@ -8755,14 +8911,24 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
       const toCustomerReplied = await transitionChatTaskIfAllowed(task.id, currentState, 'customer_replied')
       if (toCustomerReplied.changed) currentState = toCustomerReplied.state
 
-      const candidateState = computeNextChatStateForInbound({
+      let candidateState = computeNextChatStateForInbound({
         taskType: task.taskType,
         currentState,
         classification,
         extraction,
         agentPaused: task.agentPaused
       })
-      const decisionReason = explainInboundDecision({
+      let followUpResult = { attempt: 0, draft: null, handoff: false }
+      if (clarificationReplyNeedsFollowUp({ task, classification, extraction })) {
+        followUpResult = await ensureClarificationFollowUpDraft({
+          tenantId,
+          task,
+          inboundMessage,
+          inboundExternalId: getIdempotencyKey(req) || inboundMessage.id
+        })
+        candidateState = followUpResult.handoff ? 'handoff_human' : 'field_rejected'
+      }
+      let decisionReason = explainInboundDecision({
         taskType: task.taskType,
         currentState,
         classification,
@@ -8770,8 +8936,13 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         agentPaused: task.agentPaused,
         candidateState
       })
+      if (followUpResult.draft) decisionReason = 'В ответе нет запрошенных данных. Подготовлен повторный вопрос для одобрения сотрудником.'
+      if (followUpResult.handoff) decisionReason = 'После повторного вопроса запрошенные данные снова не получены. Диалог передан сотруднику.'
       const finalTransition = await transitionChatTaskIfAllowed(task.id, currentState, candidateState)
       if (finalTransition.changed) currentState = finalTransition.state
+      if (followUpResult.handoff) {
+        currentState = await pauseTaskForClarificationHandoff({ tenantId, task, reason: decisionReason })
+      }
 
       let orderPatchPreview = []
       let pendingOrderPatch = null
@@ -8791,6 +8962,8 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         decisionReason,
         orderPatchPreview,
         pendingOrderPatch,
+        followUpAttempt: followUpResult.attempt || null,
+        followUpDraftId: followUpResult.draft?.id || null,
         capabilities: [
           {
             name: 'riderra.customer.reply.classify',
@@ -8856,6 +9029,8 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
         taskState: currentState,
         classification,
         extraction,
+        followUpAttempt: followUpResult.attempt || null,
+        followUpDraft: followUpResult.draft || null,
         trace,
         pendingOrderPatch,
         runtime: {
@@ -9257,14 +9432,24 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
       const toCustomerReplied = await transitionChatTaskIfAllowed(task.id, currentState, 'customer_replied')
       if (toCustomerReplied.changed) currentState = toCustomerReplied.state
 
-      const candidateState = computeNextChatStateForInbound({
+      let candidateState = computeNextChatStateForInbound({
         taskType: task.taskType,
         currentState,
         classification,
         extraction,
         agentPaused: task.agentPaused
       })
-      const decisionReason = explainInboundDecision({
+      let followUpResult = { attempt: 0, draft: null, handoff: false }
+      if (clarificationReplyNeedsFollowUp({ task, classification, extraction })) {
+        followUpResult = await ensureClarificationFollowUpDraft({
+          tenantId,
+          task,
+          inboundMessage,
+          inboundExternalId
+        })
+        candidateState = followUpResult.handoff ? 'handoff_human' : 'field_rejected'
+      }
+      let decisionReason = explainInboundDecision({
         taskType: task.taskType,
         currentState,
         classification,
@@ -9272,8 +9457,13 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         agentPaused: task.agentPaused,
         candidateState
       })
+      if (followUpResult.draft) decisionReason = 'В ответе нет запрошенных данных. Подготовлен повторный вопрос для одобрения сотрудником.'
+      if (followUpResult.handoff) decisionReason = 'После повторного вопроса запрошенные данные снова не получены. Диалог передан сотруднику.'
       const finalTransition = await transitionChatTaskIfAllowed(task.id, currentState, candidateState)
       if (finalTransition.changed) currentState = finalTransition.state
+      if (followUpResult.handoff) {
+        currentState = await pauseTaskForClarificationHandoff({ tenantId, task, reason: decisionReason })
+      }
 
       let orderPatchPreview = []
       let pendingOrderPatch = null
@@ -9303,6 +9493,8 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         orderPatchPreview,
         pendingOrderPatch,
         acknowledgementDraftId: acknowledgementDraft?.id || null,
+        followUpAttempt: followUpResult.attempt || null,
+        followUpDraftId: followUpResult.draft?.id || null,
         capabilities: [
           { name: 'riderra.customer.reply.classify', runtime: classifyRuntime, output: classification },
           { name: 'riderra.order.field.extract_validate', runtime: extractRuntime, output: extraction }
@@ -9379,6 +9571,8 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         classification,
         extraction,
         acknowledgementDraft,
+        followUpAttempt: followUpResult.attempt || null,
+        followUpDraft: followUpResult.draft || null,
         pendingOrderPatch,
         trace,
         runtime: { classify: classifyRuntime, extract: extractRuntime }

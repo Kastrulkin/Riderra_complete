@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "status": "FIX_PROVEN",
+  "reason": "The same reproducer changed from failing to passing and broader checks passed.",
+  "reproduction": "confirmed",
+  "full_suite": "passed",
+  "same_command": true,
+  "before": {
+    "schema_version": 1,
+    "label": "clarification-followup-before",
+    "captured_at": "2026-07-23T12:50:00Z",
+    "command": [
+      "node",
+      "scripts/chat_internal_inbound_smoke.js"
+    ],
+    "cwd": "/Users/alexdemyanov/Yandex.Disk-demyanovap.localized/Riderra/Riderra-main",
+    "runtime": "Node.js local isolated PostgreSQL test database",
+    "duration_ms": 0,
+    "exit_code": 1,
+    "timed_out": false,
+    "stdout": "",
+    "stderr": "AssertionError: first incomplete reply must set followUpAttempt=1, got undefined",
+    "stdout_truncated": false,
+    "stderr_truncated": false,
+    "secrets_redacted": true
+  },
+  "after": {
+    "schema_version": 1,
+    "label": "clarification-followup-after",
+    "captured_at": "2026-07-23T13:42:48.575262+00:00",
+    "command": [
+      "node",
+      "scripts/chat_internal_inbound_smoke.js"
+    ],
+    "cwd": "/Users/alexdemyanov/Yandex.Disk-demyanovap.localized/Riderra/Riderra-main",
+    "runtime": "Python 3.11.7 on Darwin arm64",
+    "duration_ms": 1421.698,
+    "exit_code": 0,
+    "timed_out": false,
+    "stdout": "[dotenv@17.2.3] injecting env (18) from .env -- tip: \ud83d\uddc2\ufe0f backup and recover secrets: https://dotenvx.com/ops\n[dotenv@17.2.3] injecting env (0) from .env -- tip: \ud83d\udce1 add observability to secrets: https://dotenvx.com/ops\n{\"ok\":true,\"checks\":31,\"taskState\":\"order_complete\",\"inboundIdempotentReplay\":true,\"runtimeKinds\":[\"classify\",\"extract\",\"classify\",\"extract\",\"classify\",\"extract\"]}\n",
+    "stderr": "",
+    "stdout_truncated": false,
+    "stderr_truncated": false,
+    "secrets_redacted": true
+  }
+}

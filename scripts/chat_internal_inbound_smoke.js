@@ -49,6 +49,8 @@ function startOpenClawMock(expectedToken) {
     const chunks = []
     req.on('data', (chunk) => chunks.push(chunk))
     req.on('end', () => {
+      const requestBody = Buffer.concat(chunks).toString('utf8')
+      const isIncompleteClarification = /Okay|Hope this is helpful/i.test(requestBody)
       if (req.headers['x-openclaw-internal-token'] !== expectedToken) {
         res.writeHead(401, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ error: 'unauthorized' }))
@@ -76,7 +78,13 @@ function startOpenClawMock(expectedToken) {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({
           contract_version: OPENCLAW_CONTRACT_VERSION,
-          result: {
+          result: isIncompleteClarification ? {
+            valid: false,
+            confidence: 0.92,
+            field: 'flightNumber',
+            value: null,
+            reason: 'The flight number was not provided.'
+          } : {
             valid: true,
             confidence: 0.92,
             field: 'luggage',
@@ -188,6 +196,35 @@ async function main() {
     }
   })
 
+  const followupOrder = await prisma.order.create({
+    data: {
+      tenantId: tenant.id,
+      source: 'chat_internal_smoke',
+      externalKey: `chat-followup-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fromPoint: 'Los Angeles International Airport',
+      toPoint: 'Hotel',
+      clientPrice: 53,
+      vehicleType: 'standard',
+      status: 'pending_dispatch',
+      needsInfo: true,
+      infoReason: 'Уточнить рейс'
+    }
+  })
+
+  const followupTask = await prisma.chatTask.create({
+    data: {
+      tenantId: tenant.id,
+      orderId: followupOrder.id,
+      taskType: 'clarification',
+      state: 'request_sent',
+      priority: 1,
+      channel: 'whatsapp',
+      customerActorId: '+447415353038',
+      agentConfigId: agent.id,
+      agentPaused: false
+    }
+  })
+
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: '10m' })
 
   let appServer = null
@@ -281,9 +318,77 @@ async function main() {
     })
     assert(Boolean(auditInbound), 'internal inbound audit log must exist')
 
+    const firstIncompleteKey = `chat-internal-followup-${crypto.randomUUID()}`
+    const firstIncompleteBody = {
+      taskId: followupTask.id,
+      bodyText: 'Okay',
+      channel: 'whatsapp',
+      externalMessageId: `wa-${crypto.randomUUID()}`,
+      from: '+447415353038'
+    }
+    const firstIncomplete = await requestJson(baseUrl, '/api/internal/chats/inbound', {
+      method: 'POST',
+      tenantCode,
+      internalToken,
+      body: firstIncompleteBody,
+      idempotencyKey: firstIncompleteKey
+    })
+    assert(firstIncomplete.status === 200, `expected 200 for first incomplete reply, got ${firstIncomplete.status}`)
+    assert(firstIncomplete.data?.followUpAttempt === 1, `first incomplete reply must set followUpAttempt=1, got ${firstIncomplete.data?.followUpAttempt}`)
+    assert(firstIncomplete.data?.followUpDraft?.approvalStatus === 'pending_human', 'first incomplete reply must create one follow-up draft for human approval')
+    assert(/flight number/i.test(String(firstIncomplete.data?.followUpDraft?.bodyText || '')), 'follow-up draft must politely repeat the missing flight-number question')
+
+    const firstIncompleteReplay = await requestJson(baseUrl, '/api/internal/chats/inbound', {
+      method: 'POST',
+      tenantCode,
+      internalToken,
+      body: firstIncompleteBody,
+      idempotencyKey: firstIncompleteKey
+    })
+    assert(firstIncompleteReplay.data?.idempotent === true, 'incomplete reply replay must be idempotent')
+    const firstFollowupDraftCount = await prisma.chatMessage.count({
+      where: { tenantId: tenant.id, chatTaskId: followupTask.id, direction: 'outbound', idempotencyKey: { startsWith: 'clarification-followup:' } }
+    })
+    assert(firstFollowupDraftCount === 1, `first incomplete reply must create exactly one follow-up draft, got ${firstFollowupDraftCount}`)
+
+    const manualRetry = await requestJson(baseUrl, `/api/admin/chats/tasks/${followupTask.id}/retry-clarification`, {
+      method: 'POST',
+      token,
+      tenantCode,
+      body: {},
+      idempotencyKey: `chat-internal-manual-retry-${crypto.randomUUID()}`
+    })
+    assert(manualRetry.status === 200, `manual retry endpoint must return 200, got ${manualRetry.status}`)
+    assert(manualRetry.data?.followUpDraft?.id === firstIncomplete.data.followUpDraft.id, 'manual retry must reuse the existing pending follow-up draft')
+    assert(manualRetry.data?.idempotent === true, 'manual retry must report that the existing draft was reused')
+
+    await prisma.chatMessage.update({
+      where: { id: firstIncomplete.data.followUpDraft.id },
+      data: { approvalStatus: 'sent', deliveryStatus: 'delivered' }
+    })
+    await prisma.chatTask.update({ where: { id: followupTask.id }, data: { state: 'request_sent' } })
+
+    const secondIncomplete = await requestJson(baseUrl, '/api/internal/chats/inbound', {
+      method: 'POST',
+      tenantCode,
+      internalToken,
+      body: {
+        taskId: followupTask.id,
+        bodyText: 'Hope this is helpful',
+        channel: 'whatsapp',
+        externalMessageId: `wa-${crypto.randomUUID()}`,
+        from: '+447415353038'
+      },
+      idempotencyKey: `chat-internal-followup-${crypto.randomUUID()}`
+    })
+    assert(secondIncomplete.status === 200, `expected 200 for second incomplete reply, got ${secondIncomplete.status}`)
+    assert(secondIncomplete.data?.followUpAttempt === 2, `second incomplete reply must set followUpAttempt=2, got ${secondIncomplete.data?.followUpAttempt}`)
+    assert(secondIncomplete.data?.taskState === 'handoff_human', `second incomplete reply must hand off to an operator, got ${secondIncomplete.data?.taskState}`)
+    assert(!secondIncomplete.data?.followUpDraft, 'second incomplete reply must not create another customer message')
+
     console.log(JSON.stringify({
       ok: true,
-      checks: 18,
+      checks: 31,
       taskState: apply.data.taskState,
       inboundIdempotentReplay: replay.data?.idempotent === true,
       runtimeKinds: mock.stats.requestKinds
@@ -299,13 +404,13 @@ async function main() {
     if (previousInternalToken === undefined) delete process.env.OPENCLAW_INTERNAL_TOKEN
     else process.env.OPENCLAW_INTERNAL_TOKEN = previousInternalToken
 
-    await prisma.auditLog.deleteMany({ where: { tenantId: tenant.id, resourceId: task.id } })
+    await prisma.auditLog.deleteMany({ where: { tenantId: tenant.id, resourceId: { in: [task.id, followupTask.id] } } })
     await prisma.idempotencyKey.deleteMany({ where: { tenantId: tenant.id, key: { startsWith: 'chat-internal-' } } })
-    await prisma.chatMessage.deleteMany({ where: { chatTaskId: task.id } })
-    await prisma.chatTask.deleteMany({ where: { id: task.id } })
+    await prisma.chatMessage.deleteMany({ where: { chatTaskId: { in: [task.id, followupTask.id] } } })
+    await prisma.chatTask.deleteMany({ where: { id: { in: [task.id, followupTask.id] } } })
     await prisma.chatAgentConfig.deleteMany({ where: { id: agent.id } })
-    await prisma.orderStatusHistory.deleteMany({ where: { orderId: order.id } })
-    await prisma.order.deleteMany({ where: { id: order.id } })
+    await prisma.orderStatusHistory.deleteMany({ where: { orderId: { in: [order.id, followupOrder.id] } } })
+    await prisma.order.deleteMany({ where: { id: { in: [order.id, followupOrder.id] } } })
     await prisma.tenantMembership.deleteMany({ where: { userId: user.id } })
     await prisma.userRole.deleteMany({ where: { userId: user.id } })
     await prisma.user.deleteMany({ where: { id: user.id } })
