@@ -10,7 +10,7 @@
 
         <header class="chats-head">
           <h1>Чаты</h1>
-          <p>Новые сообщения клиентов, диалоги по заказам и безопасное тестирование AI-агента.</p>
+          <p>Новые сообщения клиентов, диалоги по заказам и безопасное тестирование AI-агента. История видна всей команде.</p>
         </header>
 
         <nav class="chat-sections" aria-label="Разделы чатов" role="tablist">
@@ -28,7 +28,7 @@
         <header class="page-head">
           <div>
             <h1>Очередь диалогов</h1>
-            <p class="page-subtitle">Задачи, которые требуют реакции, проверки черновика или отправки</p>
+            <p class="page-subtitle">Все диалоги Riderra. Ответственный показывает, кто ведёт беседу, но не скрывает её от коллег.</p>
           </div>
           <div class="page-actions">
             <button class="btn btn--ghost" @click="syncFromOrders">Синхронизировать</button>

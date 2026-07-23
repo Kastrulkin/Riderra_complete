@@ -35,6 +35,7 @@ const {
   normalizeManualOrderPatch
 } = require('./utils/orderManualDetails')
 const { inquiryInboundIdempotencyKey, nextInquiryState } = require('./utils/chatInquiry')
+const { staffChatReadWhere } = require('./utils/chatVisibility')
 const { extractOrderDetailsContacts, normalizeReference: normalizeDetailsReference } = require('./utils/orderDetailsContacts')
 const { buildDriverCanonicalRegistry, resolveCanonicalDriverName } = require('./utils/orderDriverCanonicalization')
 const { createCorsMiddleware } = require('./middleware/cors')
@@ -6947,15 +6948,14 @@ app.get('/api/admin/chats/inquiries', authenticateToken, resolveActorContext, re
     const view = String(req.query?.view || 'new')
     const assignee = String(req.query?.assignee || '').trim()
     const search = String(req.query?.search || '').trim()
-    const where = {
-      tenantId,
+    const where = staffChatReadWhere(tenantId, {
       taskType: 'inbound_inquiry',
       ...inquiryViewWhere(view),
       ...(assignee === 'me' ? { assignedToUserId: req.user?.id || '__none__' } : {}),
       ...(assignee === 'unassigned' ? { assignedToUserId: null } : {}),
       ...(assignee && !['me', 'unassigned'].includes(assignee) ? { assignedToUserId: assignee } : {}),
       ...(search ? { OR: [{ customerActorId: { contains: search } }, { customerDisplayName: { contains: search, mode: 'insensitive' } }] } : {})
-    }
+    })
     const rowsRaw = await prisma.chatTask.findMany({
       where,
       orderBy: [{ unreadCount: 'desc' }, { lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
@@ -6977,7 +6977,7 @@ app.get('/api/admin/chats/inquiries', authenticateToken, resolveActorContext, re
 app.get('/api/admin/chats/inquiries/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const task = await prisma.chatTask.findFirst({
-      where: { id: req.params.id, tenantId: req.actorContext.tenantId, taskType: 'inbound_inquiry' },
+      where: staffChatReadWhere(req.actorContext.tenantId, { id: req.params.id, taskType: 'inbound_inquiry' }),
       include: {
         order: { select: { id: true, sourceOrderNumber: true, sourceBookingId: true, sourceInternalOrderNumber: true, pickupAt: true, fromPoint: true, toPoint: true, customerName: true, customerPhone: true } },
         messages: { where: { direction: { not: 'internal' } }, orderBy: { createdAt: 'asc' } }
@@ -7161,11 +7161,10 @@ app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActor
   try {
     const { limit = '100', state = '', taskType = '' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 300)
-    const where = {
-      tenantId: req.actorContext.tenantId,
+    const where = staffChatReadWhere(req.actorContext.tenantId, {
       ...(state ? { state: String(state) } : {}),
       ...(taskType ? { taskType: String(taskType) } : {})
-    }
+    })
     const rows = await prisma.chatTask.findMany({
       where,
       orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
@@ -7203,14 +7202,13 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
     const { limit = '200', state = '', taskType = '', agentId = '' } = req.query
     const take = Math.min(parseInt(limit, 10) || 200, 500)
     const agentFilter = String(agentId || '').trim()
-    const where = {
-      tenantId: req.actorContext.tenantId,
+    const where = staffChatReadWhere(req.actorContext.tenantId, {
       ...(state ? { state: String(state) } : {}),
       ...(taskType ? { taskType: String(taskType) } : {}),
       ...(agentFilter === 'none'
         ? { agentConfigId: null }
         : (agentFilter ? { agentConfigId: agentFilter } : {}))
-    }
+    })
     const rowsRaw = await prisma.chatTask.findMany({
       where,
       orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
@@ -7775,7 +7773,7 @@ app.post('/api/admin/chats/tasks/bulk/transition', authenticateToken, resolveAct
 app.get('/api/admin/chats/tasks/:id', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
     const task = await prisma.chatTask.findFirst({
-      where: { id: req.params.id, tenantId: req.actorContext.tenantId },
+      where: staffChatReadWhere(req.actorContext.tenantId, { id: req.params.id }),
       include: {
         agentConfig: true,
         agentConfigVersion: true,
