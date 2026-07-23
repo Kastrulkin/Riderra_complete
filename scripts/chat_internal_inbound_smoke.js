@@ -225,6 +225,35 @@ async function main() {
     }
   })
 
+  const mediaOrder = await prisma.order.create({
+    data: {
+      tenantId: tenant.id,
+      source: 'chat_internal_smoke',
+      externalKey: `chat-media-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fromPoint: 'Airport',
+      toPoint: 'Hotel',
+      clientPrice: 75,
+      vehicleType: 'standard',
+      status: 'pending_dispatch',
+      needsInfo: true,
+      infoReason: 'Уточнить рейс'
+    }
+  })
+
+  const mediaTask = await prisma.chatTask.create({
+    data: {
+      tenantId: tenant.id,
+      orderId: mediaOrder.id,
+      taskType: 'clarification',
+      state: 'request_sent',
+      priority: 1,
+      channel: 'whatsapp',
+      customerActorId: '+447415353038',
+      agentConfigId: agent.id,
+      agentPaused: false
+    }
+  })
+
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: '10m' })
 
   let appServer = null
@@ -318,6 +347,54 @@ async function main() {
     })
     assert(Boolean(auditInbound), 'internal inbound audit log must exist')
 
+    const mediaExternalMessageId = `wa-image-${crypto.randomUUID()}`
+    const mediaInboundKey = `chat-internal-media-${crypto.randomUUID()}`
+    const mediaInboundBody = {
+      taskId: mediaTask.id,
+      bodyText: '',
+      channel: 'whatsapp',
+      externalMessageId: mediaExternalMessageId,
+      messageType: 'image',
+      media: {
+        id: `media-${crypto.randomUUID()}`,
+        mimeType: 'image/jpeg',
+        caption: ''
+      },
+      from: '+447415353038'
+    }
+    const mediaInbound = await requestJson(baseUrl, '/api/internal/chats/inbound', {
+      method: 'POST',
+      tenantCode,
+      internalToken,
+      body: mediaInboundBody,
+      idempotencyKey: mediaInboundKey
+    })
+    assert(mediaInbound.status === 200, `expected 200 for inbound image without text, got ${mediaInbound.status}`)
+    assert(mediaInbound.data?.taskState === 'handoff_human', `inbound image must hand the task to an operator, got ${mediaInbound.data?.taskState}`)
+    assert(mediaInbound.data?.requiresHuman === true, 'inbound image must require human review')
+    const savedMediaMessage = await prisma.chatMessage.findFirst({
+      where: {
+        tenantId: tenant.id,
+        chatTaskId: mediaTask.id,
+        direction: 'inbound',
+        providerMessageId: mediaExternalMessageId
+      }
+    })
+    assert(Boolean(savedMediaMessage), 'inbound image must be saved in the linked conversation')
+    assert(/image|изображен/i.test(String(savedMediaMessage?.bodyText || '')), 'saved image must have a human-readable chat label')
+    const mediaReplay = await requestJson(baseUrl, '/api/internal/chats/inbound', {
+      method: 'POST',
+      tenantCode,
+      internalToken,
+      body: mediaInboundBody,
+      idempotencyKey: mediaInboundKey
+    })
+    assert(mediaReplay.data?.idempotent === true, 'inbound image replay must be idempotent')
+    const savedMediaCount = await prisma.chatMessage.count({
+      where: { tenantId: tenant.id, chatTaskId: mediaTask.id, direction: 'inbound', providerMessageId: mediaExternalMessageId }
+    })
+    assert(savedMediaCount === 1, `inbound image replay must not create duplicates, got ${savedMediaCount}`)
+
     const firstIncompleteKey = `chat-internal-followup-${crypto.randomUUID()}`
     const firstIncompleteBody = {
       taskId: followupTask.id,
@@ -388,7 +465,7 @@ async function main() {
 
     console.log(JSON.stringify({
       ok: true,
-      checks: 31,
+      checks: 38,
       taskState: apply.data.taskState,
       inboundIdempotentReplay: replay.data?.idempotent === true,
       runtimeKinds: mock.stats.requestKinds
@@ -404,13 +481,13 @@ async function main() {
     if (previousInternalToken === undefined) delete process.env.OPENCLAW_INTERNAL_TOKEN
     else process.env.OPENCLAW_INTERNAL_TOKEN = previousInternalToken
 
-    await prisma.auditLog.deleteMany({ where: { tenantId: tenant.id, resourceId: { in: [task.id, followupTask.id] } } })
+    await prisma.auditLog.deleteMany({ where: { tenantId: tenant.id, resourceId: { in: [task.id, followupTask.id, mediaTask.id] } } })
     await prisma.idempotencyKey.deleteMany({ where: { tenantId: tenant.id, key: { startsWith: 'chat-internal-' } } })
-    await prisma.chatMessage.deleteMany({ where: { chatTaskId: { in: [task.id, followupTask.id] } } })
-    await prisma.chatTask.deleteMany({ where: { id: { in: [task.id, followupTask.id] } } })
+    await prisma.chatMessage.deleteMany({ where: { chatTaskId: { in: [task.id, followupTask.id, mediaTask.id] } } })
+    await prisma.chatTask.deleteMany({ where: { id: { in: [task.id, followupTask.id, mediaTask.id] } } })
     await prisma.chatAgentConfig.deleteMany({ where: { id: agent.id } })
-    await prisma.orderStatusHistory.deleteMany({ where: { orderId: { in: [order.id, followupOrder.id] } } })
-    await prisma.order.deleteMany({ where: { id: { in: [order.id, followupOrder.id] } } })
+    await prisma.orderStatusHistory.deleteMany({ where: { orderId: { in: [order.id, followupOrder.id, mediaOrder.id] } } })
+    await prisma.order.deleteMany({ where: { id: { in: [order.id, followupOrder.id, mediaOrder.id] } } })
     await prisma.tenantMembership.deleteMany({ where: { userId: user.id } })
     await prisma.userRole.deleteMany({ where: { userId: user.id } })
     await prisma.user.deleteMany({ where: { id: user.id } })

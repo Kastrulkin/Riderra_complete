@@ -9054,7 +9054,18 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
     }
 
     const tenantId = req.actorContext.tenantId
-    const bodyText = String(req.body?.bodyText || req.body?.message || req.body?.text || '').trim()
+    const messageType = String(req.body?.messageType || req.body?.message_type || req.body?.type || req.body?.media?.type || '').trim().toLowerCase()
+    const mediaPayload = req.body?.media && typeof req.body.media === 'object' ? req.body.media : null
+    const isMediaInbound = ['image', 'video', 'audio', 'document', 'sticker'].includes(messageType) && Boolean(mediaPayload)
+    const mediaLabels = {
+      image: 'Клиент прислал изображение',
+      video: 'Клиент прислал видео',
+      audio: 'Клиент прислал аудиосообщение',
+      document: 'Клиент прислал документ',
+      sticker: 'Клиент прислал стикер'
+    }
+    const mediaCaption = String(mediaPayload?.caption || req.body?.caption || '').trim()
+    const bodyText = String(req.body?.bodyText || req.body?.message || req.body?.text || mediaCaption || mediaLabels[messageType] || '').trim()
     if (!bodyText) return res.status(400).json({ error: 'bodyText is required' })
 
     const taskId = String(req.body?.chatTaskId || req.body?.taskId || '').trim()
@@ -9188,6 +9199,7 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
     const payload = {
       taskId: task.id,
       bodyText,
+      messageType: isMediaInbound ? messageType : 'text',
       channel: normalizeChannelName(req.body?.channel || task.channel || 'whatsapp'),
       inboundExternalId
     }
@@ -9208,6 +9220,13 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
             kind: 'openclaw_inbound',
             externalMessageId: inboundExternalId || null,
             from: req.body?.from || req.body?.phone || null,
+            messageType: isMediaInbound ? messageType : 'text',
+            media: isMediaInbound ? {
+              id: String(mediaPayload?.id || '').trim() || null,
+              mimeType: String(mediaPayload?.mimeType || mediaPayload?.mime_type || '').trim() || null,
+              filename: String(mediaPayload?.filename || '').trim() || null,
+              caption: mediaCaption || null
+            } : null,
             raw: req.body?.raw || null
           }),
           providerMessageId: inboundExternalId || null,
@@ -9215,6 +9234,62 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
           idempotencyKey: getIdempotencyKey(req)
         }
       })
+
+      if (isMediaInbound) {
+        const isInquiry = task.taskType === 'inbound_inquiry'
+        const mediaReason = `${bodyText}. Автоматический разбор файлов пока не включён — сообщение передано сотруднику.`
+        const nextState = isInquiry
+          ? nextInquiryState({ currentState: task.state, hasOrder: Boolean(task.orderId) })
+          : 'handoff_human'
+        const updatedTask = await prisma.chatTask.update({
+          where: { id: task.id },
+          data: {
+            state: nextState,
+            ...(isInquiry ? {} : { agentPaused: true }),
+            unreadCount: { increment: 1 },
+            lastMessageAt: new Date(),
+            lastInboundAt: new Date(),
+            closedAt: null,
+            lastError: isInquiry ? null : mediaReason
+          }
+        })
+        await createOpsTask({
+          tenantId,
+          userId: updatedTask.assignedToUserId || null,
+          title: task.orderId
+            ? `Клиент прислал файл по заказу ${publicOrderReference(task.order) || task.orderId}`
+            : `Новое сообщение от ${updatedTask.customerDisplayName || updatedTask.customerActorId || 'клиента'}`,
+          details: mediaReason,
+          type: 'customer_reply_review',
+          priority: 'high',
+          source: 'customer_chat',
+          sourceRef: inboundMessage.id,
+          dedupKey: `customer-media:${inboundExternalId}`,
+          linkUrl: `/admin-chats?${isInquiry ? 'inquiry' : 'taskId'}=${task.id}`,
+          payload: { taskId: task.id, orderId: task.orderId || null, messageId: inboundMessage.id, messageType }
+        })
+        await writeAuditLog({
+          tenantId,
+          actorId: 'openclaw',
+          actorRole: 'system',
+          action: isInquiry ? 'chat_inquiry.inbound' : 'chat_task.inbound.openclaw',
+          resource: 'chat_task',
+          resourceId: task.id,
+          traceId: req.actorContext.traceId,
+          decision: 'manual_review_required',
+          result: 'ok',
+          context: { inboundMessageId: inboundMessage.id, externalMessageId: inboundExternalId, messageType, state: nextState }
+        })
+        return {
+          message: inboundMessage,
+          taskId: task.id,
+          taskState: nextState,
+          inquiry: isInquiry,
+          requiresHuman: true,
+          classification: { class: 'media', confidence: 1, requiresHuman: true },
+          extraction: null
+        }
+      }
 
       if (task.taskType === 'inbound_inquiry') {
         const nextState = nextInquiryState({ currentState: task.state, hasOrder: Boolean(task.orderId) })

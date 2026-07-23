@@ -417,25 +417,11 @@
                 <p class="eyebrow">Следующий шаг</p>
                 <h4>Ответа на вопрос пока нет</h4>
                 <div class="hint">
-                  Агент может вежливо повторить вопрос. Если следующий ответ снова не содержит нужных данных, задача будет передана сотруднику.
+                  Напишите клиенту своё сообщение. Перед отправкой вы увидите точный текст.
                 </div>
-                <div class="reply-recovery">
-                  <div>
-                    <strong>Повторить вопрос клиенту</strong>
-                    <span>Агент подготовит короткое сообщение по той же проблеме. Перед отправкой вы проверите текст.</span>
-                  </div>
-                  <button
-                    class="btn btn--primary"
-                    :disabled="retryClarificationLoading"
-                    @click="retryClarification"
-                  >
-                    {{ retryClarificationLoading ? 'Готовлю вопрос...' : 'Переспросить клиента' }}
-                  </button>
-                </div>
-                <div class="draft-divider"><span>или напишите сообщение вручную</span></div>
                 <textarea v-model="draftText" class="input textarea" placeholder="Напишите сообщение клиенту"></textarea>
                 <div class="message-draft-actions">
-                  <button class="btn btn--ghost" :disabled="!draftText.trim()" @click="createDraft">Подготовить к отправке</button>
+                  <button class="btn btn--primary" :disabled="!draftText.trim()" @click="createDraft">Подготовить к отправке</button>
                 </div>
               </template>
 
@@ -599,7 +585,6 @@ export default {
     quickSendLoading: false,
     quickDispatchLoading: false,
     draftBuildLoading: false,
-    retryClarificationLoading: false,
     selectedTaskAgentId: '',
     assigningAgent: false,
     lastStepTrace: null,
@@ -1467,29 +1452,6 @@ export default {
         await this.loadTasks()
       } catch (error) {
         this.notice = error?.message || 'Не удалось подготовить сообщение'
-      }
-    },
-    async retryClarification() {
-      if (!this.selectedTask?.id || this.retryClarificationLoading) return
-      this.retryClarificationLoading = true
-      this.notice = ''
-      try {
-        const response = await fetch(`/api/admin/chats/tasks/${this.selectedTask.id}/retry-clarification`, {
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({})
-        })
-        const data = await response.json().catch(() => ({}))
-        if (!response.ok) throw new Error(data?.error || 'Не удалось подготовить повторный вопрос')
-        this.notice = data.handedOff
-          ? 'Повторное уточнение уже было — задача передана сотруднику.'
-          : 'Повторный вопрос готов. Проверьте текст и одобрите отправку.'
-        await this.openTask(this.selectedTask.id)
-        await this.loadTasks()
-      } catch (error) {
-        this.notice = error?.message || 'Не удалось подготовить повторный вопрос'
-      } finally {
-        this.retryClarificationLoading = false
       }
     },
     async copyMessage(message) {
@@ -2451,10 +2413,6 @@ export default {
 .draft-recommended > div { display: flex; flex-direction: column; gap: 3px; color: #64748b; }
 .draft-recommended strong { color: #17233d; }
 .draft-recommended .btn { flex: 0 0 auto; }
-.reply-recovery { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0; padding: 14px; border: 1px solid #bae6fd; border-radius: 10px; background: #f0f9ff; }
-.reply-recovery > div { display: flex; flex-direction: column; gap: 4px; color: #64748b; }
-.reply-recovery strong { color: #17233d; }
-.reply-recovery .btn { flex: 0 0 auto; }
 .draft-review { margin: 12px 0; padding: 14px; border: 1px solid #bae6fd; border-radius: 10px; background: #f0f9ff; }
 .draft-review .message-body { font-size: 16px; line-height: 1.5; }
 .draft-divider { display: flex; align-items: center; gap: 10px; margin: 12px 0 8px; color: #64748b; font-size: 12px; font-weight: 700; }
@@ -2494,7 +2452,6 @@ export default {
   .dialog-head,
   .dialog-head-actions,
   .draft-recommended,
-  .reply-recovery,
   .message-actions,
   .message-draft-actions {
     flex-direction: column;
