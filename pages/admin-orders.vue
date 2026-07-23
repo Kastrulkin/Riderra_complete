@@ -1178,8 +1178,14 @@ export default {
     this.workspaceView = ['action', 'orders', 'email'].includes(String(this.$route.query.view || '')) ? String(this.$route.query.view) : 'orders'
     this.restoreOrdersWorkspace()
     this.loadOpenMonths()
-      .then(() => this.load())
-      .catch(() => this.load().catch(() => {}))
+      .then(async () => {
+        await this.load()
+        await this.openRoutedOrderIfNeeded()
+      })
+      .catch(async () => {
+        await this.load().catch(() => {})
+        await this.openRoutedOrderIfNeeded().catch(() => {})
+      })
     this.autoSyncTimer = setInterval(() => {
       if (this.selectedMonth && !this.syncSaving) this.syncSelectedMonth()
     }, 5 * 60 * 1000)
@@ -1976,6 +1982,12 @@ export default {
       this.transitionsError = ''
       await this.loadOrderCardData(order.id)
     },
+    async openRoutedOrderIfNeeded () {
+      const orderId = String(this.$route.query.orderId || '').trim()
+      if (!orderId || this.selectedOrder?.id === orderId) return
+      const row = this.rows.find((item) => String(item?.id || '') === orderId)
+      await this.openOrderCard(row || { id: orderId })
+    },
     openInfoModal (order) {
       if (!order || !order.id) return
       this.infoModal.orderId = order.id
@@ -2232,6 +2244,8 @@ export default {
           const detail = detailData?.detail || {}
           this.selectedOrder = {
             ...this.selectedOrder,
+            orderNumber: detail.sourceOrderNumber || detail.sourceBookingId || this.selectedOrder.orderNumber,
+            internalOrderNumber: detail.sourceInternalOrderNumber || this.selectedOrder.internalOrderNumber,
             date: detail.pickupAt || this.selectedOrder.date,
             fromPoint: detail.fromPoint ?? this.selectedOrder.fromPoint,
             toPoint: detail.toPoint ?? this.selectedOrder.toPoint,
@@ -2243,6 +2257,7 @@ export default {
             flightNumber: detail.flightNumber || null,
             vehicleType: detail.vehicleType || this.selectedOrder.vehicleType,
             lang: detail.lang || null,
+            status: detail.status || this.selectedOrder.status,
             contractor: detail.counterpartyName ?? this.selectedOrder.contractor,
             driver: detail.driverNameRaw ?? this.selectedOrder.driver,
             orderClientPrice: detail.clientPrice ?? this.selectedOrder.orderClientPrice,

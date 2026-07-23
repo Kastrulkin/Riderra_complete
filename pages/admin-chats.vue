@@ -120,6 +120,7 @@
                 <span class="badge" :class="slaBadgeClass(task)">{{ slaLabel(task) }}</span>
               </div>
               <div class="queue-route">{{ routeLabel(task.order) }}</div>
+              <div class="queue-order-number">Заказ {{ publicOrderReference(task.order) || '—' }}</div>
               <div class="queue-status">{{ stateLabel(task.state) }}</div>
               <div class="queue-meta">
                 <span class="badge badge--state">{{ stateLabel(task.state) }}</span>
@@ -149,6 +150,15 @@
                   <div>
                     <h3>{{ routeLabel(selectedTask.order) }}</h3>
                     <div class="hint">{{ taskTypeLabel(selectedTask.taskType) }} · {{ formatMoney(selectedTask.order && selectedTask.order.clientPrice) }}</div>
+                    <div v-if="selectedTask.order" class="dialog-order-link">
+                      <span><strong>Заказ:</strong> {{ publicOrderReference(selectedTask.order) || 'номер не указан' }}</span>
+                      <nuxt-link
+                        class="dialog-order-link__action"
+                        :to="{ path: '/admin-orders', query: { orderId: selectedTask.order.id } }"
+                      >
+                        Открыть подробности заказа →
+                      </nuxt-link>
+                    </div>
                     <div class="dialog-status-row">
                       <span class="badge badge--state">{{ selectedTask.state === 'closed' ? 'Завершено' : stateLabel(selectedTask.state) }}</span>
                       <span v-if="selectedTask.state !== 'closed'" class="badge" :class="slaBadgeClass(selectedTask)">{{ slaLabel(selectedTask) }}</span>
@@ -2290,6 +2300,7 @@ export default {
 .queue-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 700; }
 .queue-title-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
 .queue-route { color: #17233d; margin-bottom: 5px; font-size: 16px; line-height: 1.28; font-weight: 900; }
+.queue-order-number { color: #475569; margin-bottom: 4px; font-size: 12px; font-weight: 800; }
 .queue-status { color: #60708f; margin-bottom: 8px; font-size: 13px; line-height: 1.35; }
 .queue-agent { color: #475569; margin-bottom: 6px; font-size: 12px; }
 .queue-meta { display: flex; gap: 8px; flex-wrap: wrap; color: #64748b; font-size: 12px; }
@@ -2298,6 +2309,9 @@ export default {
 .dialog { border: 1px solid #e5eaf1; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; min-height: 320px; }
 .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid #edf1f6; padding-bottom: 10px; margin-bottom: 10px; }
 .dialog-head h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.25; color: #17233d; }
+.dialog-order-link { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 7px; color: #475569; font-size: 13px; }
+.dialog-order-link__action { color: #1d4ed8; font-weight: 800; text-decoration: none; }
+.dialog-order-link__action:hover, .dialog-order-link__action:focus-visible { text-decoration: underline; }
 .dialog-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .dialog-status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .agent-summary { display: flex; align-items: center; gap: 10px; border: 1px solid #dbe4f0; border-radius: 10px; background: #f8fafc; padding: 10px 12px; margin-bottom: 14px; }
