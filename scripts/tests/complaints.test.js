@@ -11,6 +11,14 @@ const { findComplaintOrder } = require('../../server/routes/complaints')
 
 assert.equal(isComplaintEmail({ subject: 'Complaint booking 214314023', rawText: 'The driver did not show' }), true)
 assert.equal(isComplaintEmail({ subject: 'New booking 214314023', rawText: 'Please confirm the transfer' }), false)
+assert.equal(isComplaintEmail({
+  subject: 'Booking.com free cancellation ID #933628147.',
+  rawText: 'This booking has been cancelled free of charge. The passenger will receive a full refund.'
+}), false)
+assert.equal(isComplaintEmail({
+  subject: 'Complaint for booking 933628147',
+  rawText: 'The driver did not show. The passenger requests a full refund.'
+}), true)
 
 const refs = extractOrderReferences('Complaint for booking number MQMNVX and order 214314023')
 assert(refs.includes('MQMNVX'))

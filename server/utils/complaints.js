@@ -1,4 +1,5 @@
 const COMPLAINT_RE = /\b(complaint|claim|refund|compensation|no[ -]?show|driver (?:was )?late|passenger (?:was )?left|missed transfer|unacceptable|incident)\b|жалоб|претензи|возврат|компенсац|не приех|не встрет|опоздал|инцидент/i
+const BOOKING_FREE_CANCELLATION_SUBJECT_RE = /^booking\.com\s+free\s+cancellation\s+id\s*#?\s*[a-z0-9-]+\.?$/i
 
 function cleanText(value) {
   return String(value || '').replace(/\r/g, '').trim()
@@ -9,7 +10,9 @@ function parseJson(value, fallback) {
 }
 
 function isComplaintEmail({ subject, rawText }) {
-  return COMPLAINT_RE.test(`${cleanText(subject)}\n${cleanText(rawText)}`)
+  const subjectText = cleanText(subject)
+  if (BOOKING_FREE_CANCELLATION_SUBJECT_RE.test(subjectText)) return false
+  return COMPLAINT_RE.test(`${subjectText}\n${cleanText(rawText)}`)
 }
 
 function extractEmailAddress(value) {
