@@ -99,20 +99,11 @@
             <div>{{ t.status }}</div>
             <div>{{ t.nextStep }}</div>
           </div>
-          <template v-for="zone in operationalZones">
-            <div v-if="zone.rows.length" :key="`${zone.key}-head`" class="zone-head" :class="`zone-head--${zone.tone}`">
-              <div>
-                <div class="zone-head__title">{{ zone.title }}</div>
-                <div class="zone-head__hint">{{ zone.hint }}</div>
-              </div>
-              <span class="zone-head__count">{{ zone.rows.length }}</span>
-            </div>
-            <div
-              v-for="o in zone.rows"
-              :key="`${zone.key}-${o.sourceRow}-${o.id}`"
-              class="table-row main-grid"
-              :class="`table-row--${zone.tone}`"
-            >
+          <div
+            v-for="o in paginatedTableRows"
+            :key="`${o.sourceRow}-${o.id}`"
+            class="table-row main-grid"
+          >
               <div class="client-block">
                 <div class="client-block__title">{{ o.contractor || '-' }}</div>
                 <div class="client-block__line"><strong>ID:</strong> <span class="cell-ellipsis" :title="o.id">{{ o.id || '-' }}</span></div>
@@ -200,8 +191,7 @@
                   <option value="other">{{ t.infoPresetOther }}</option>
                 </select>
               </div>
-            </div>
-          </template>
+          </div>
         </div>
 
         <div v-if="mode === 'table' && displayedTableRows.length > pageSize" class="table-pagination">
@@ -851,12 +841,6 @@ export default {
             supplierStatusLabel: 'Статус источника',
             recommendedSupplierTitle: 'Рекомендуемый перевозчик',
             supplierMarginLabel: 'Маржа',
-            attentionZoneTitle: 'Требуют действия',
-            attentionZoneHint: 'Сначала разберите эти заказы: уточнение, водитель, маржа или инцидент.',
-            flowZoneTitle: 'В рабочем потоке',
-            flowZoneHint: 'Назначены или готовы к следующему штатному действию.',
-            doneZoneTitle: 'Закрытие и финансы',
-            doneZoneHint: 'Завершённые, финансовые и закрытые заказы.',
             changeStatus: 'Сменить статус',
             selectStatus: 'Выберите статус',
             reasonPlaceholder: 'Причина (необязательно)',
@@ -1009,12 +993,6 @@ export default {
             supplierStatusLabel: 'Source status',
             recommendedSupplierTitle: 'Recommended supplier',
             supplierMarginLabel: 'Margin',
-            attentionZoneTitle: 'Needs action',
-            attentionZoneHint: 'Handle these first: clarification, driver, margin or incident.',
-            flowZoneTitle: 'In flow',
-            flowZoneHint: 'Assigned or ready for the next normal action.',
-            doneZoneTitle: 'Done and finance',
-            doneZoneHint: 'Completed, finance-ready and closed orders.',
             changeStatus: 'Change status',
             selectStatus: 'Select status',
             reasonPlaceholder: 'Reason (optional)',
@@ -1072,7 +1050,15 @@ export default {
           ]
     },
     displayedTableRows () {
-      return this.filteredRows.filter((row) => this.matchesActiveView(row))
+      return this.filteredRows
+        .filter((row) => this.matchesActiveView(row))
+        .slice()
+        .sort((a, b) => {
+          const aTime = this.orderChronologicalTimestamp(a)
+          const bTime = this.orderChronologicalTimestamp(b)
+          if (aTime !== bTime) return aTime - bTime
+          return Number(a?.sourceRow || 0) - Number(b?.sourceRow || 0)
+        })
     },
     totalPages () {
       return Math.max(1, Math.ceil(this.displayedTableRows.length / this.pageSize))
@@ -1087,20 +1073,6 @@ export default {
     },
     tablePageEnd () {
       return Math.min(this.currentPage * this.pageSize, this.displayedTableRows.length)
-    },
-    operationalZones () {
-      const rows = this.paginatedTableRows
-      const zones = [
-        { key: 'attention', title: this.t.attentionZoneTitle, hint: this.t.attentionZoneHint, tone: 'critical', rows: [] },
-        { key: 'flow', title: this.t.flowZoneTitle, hint: this.t.flowZoneHint, tone: 'info', rows: [] },
-        { key: 'done', title: this.t.doneZoneTitle, hint: this.t.doneZoneHint, tone: 'done', rows: [] }
-      ]
-      rows.forEach((row) => {
-        const key = this.operationalZoneKey(row)
-        const zone = zones.find((item) => item.key === key) || zones[1]
-        zone.rows.push(row)
-      })
-      return zones
     },
     currentViewLabel () {
       return this.savedViews.find((view) => view.key === this.activeView)?.label || this.savedViews[0]?.label || '-'
@@ -1757,11 +1729,17 @@ export default {
       if (!String(row?.sum || '').trim()) return true
       return ['dispatch_risk', 'incident_open', 'incident_reported', 'finance_hold', 'cancelled'].includes(status)
     },
-    operationalZoneKey (row) {
-      const status = String(row?.status || '').toLowerCase()
-      if (['completed', 'ready_finance', 'paid', 'closed'].includes(status)) return 'done'
-      if (this.isProblemRow(row)) return 'attention'
-      return 'flow'
+    orderChronologicalTimestamp (row) {
+      const value = row?.date
+      if (!value) return Number.MAX_SAFE_INTEGER
+      const raw = String(value).trim()
+      const match = raw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})(?:[,\s]+(\d{1,2}):(\d{2}))?/)
+      if (match) {
+        const year = Number(match[3]) < 100 ? 2000 + Number(match[3]) : Number(match[3])
+        return Date.UTC(year, Number(match[2]) - 1, Number(match[1]), Number(match[4] || 0), Number(match[5] || 0))
+      }
+      const parsed = new Date(raw)
+      return Number.isNaN(parsed.getTime()) ? Number.MAX_SAFE_INTEGER : parsed.getTime()
     },
     isLikelyToday (row) {
       const token = String(row?.date || '').trim()
@@ -2639,58 +2617,10 @@ export default {
 .table-head, .table-row { gap: 14px; min-width: 2300px; padding: 12px 14px; }
 .table-head { font-weight: 700; border-bottom: 1px solid #e4e7f0; }
 .table-row { border-top: 1px solid #f0f2f7; color: #2f3e60; }
-.table-row--critical { background: linear-gradient(90deg, rgba(255, 247, 247, .96) 0%, #fff 42%); }
-.table-row--info { background: #fff; }
-.table-row--done { background: linear-gradient(90deg, rgba(248, 250, 252, .96) 0%, #fff 42%); }
 .table-row--group-start { border-top: 2px solid #8ea2c9; }
 .table-row--matched { background: #fff8dd; }
 .main-grid { display: grid; grid-template-columns: 190px 170px 170px minmax(240px, 1fr) minmax(240px, 1fr) 140px 180px minmax(280px, 1fr) 210px 150px 240px; align-items: start; }
 .raw-grid { display: grid; }
-.zone-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-width: 2300px;
-  padding: 12px 14px;
-  border-top: 1px solid #e4e7f0;
-  background: #f8fafc;
-}
-.zone-head:first-of-type {
-  border-top: none;
-}
-.zone-head--critical {
-  background: linear-gradient(90deg, #fff1f2 0%, #fff 64%);
-}
-.zone-head--info {
-  background: linear-gradient(90deg, #eff6ff 0%, #fff 64%);
-}
-.zone-head--done {
-  background: linear-gradient(90deg, #f8fafc 0%, #fff 64%);
-}
-.zone-head__title {
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: #17233d;
-}
-.zone-head__hint {
-  margin-top: 3px;
-  font-size: 12px;
-  color: #64748b;
-}
-.zone-head__count {
-  display: inline-flex;
-  min-width: 34px;
-  justify-content: center;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: #fff;
-  border: 1px solid #d8e0ef;
-  color: #17233d;
-  font-weight: 900;
-}
 .tech { font-size: 12px; color: #67748f; }
 .cell-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hint { margin-top: 10px; color: #637191; }
