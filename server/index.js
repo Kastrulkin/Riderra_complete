@@ -11487,11 +11487,15 @@ async function aggregateArchiveOverview(tenantId, sources, lang = 'ru') {
 
   const inSql = sourceIdsWhereSql(sourceIds)
   const aggregateFromSql = `
-    FROM "OrderSourceSnapshot" snapshot
+    FROM (
+      SELECT DISTINCT ON (history."sheetSourceId", history."sourceRow") history.*
+      FROM "OrderSourceSnapshot" history
+      WHERE history."tenantId" = $1
+        AND history."sheetSourceId" IN (${inSql})
+      ORDER BY history."sheetSourceId", history."sourceRow", history."createdAt" DESC, history."id" DESC
+    ) snapshot
     JOIN "SheetSource" sources ON sources."id" = snapshot."sheetSourceId"
     JOIN "Order" orders ON orders."id" = snapshot."orderId"
-    WHERE snapshot."tenantId" = $1
-      AND snapshot."sheetSourceId" IN (${inSql})
   `
   const cancellationDriverSql = `LOWER(TRIM(COALESCE(orders."driverNameRaw", ''))) IN ('отмена', 'отменен', 'отменён', 'отменена', 'отменено', 'cancel', 'canceled', 'cancelled', 'cancelled order')`
   const effectiveStatusSql = `CASE WHEN ${cancellationDriverSql} THEN 'cancelled' ELSE COALESCE(orders."status", 'pending') END`
@@ -11535,10 +11539,10 @@ async function aggregateArchiveOverview(tenantId, sources, lang = 'ru') {
   `, ...params)
   }
 
-  const [driverRows, counterpartyRows] = await Promise.all([
-    entityQuery('orders."driverNameRaw"', { normalizeDriver: true }),
-    entityQuery('orders."counterpartyName"', { normalizeCounterparty: true })
-  ])
+  // Keep the two large groupings sequential. Running both at once can exhaust
+  // PostgreSQL dynamic shared memory on the production database container.
+  const driverRows = await entityQuery('orders."driverNameRaw"', { normalizeDriver: true })
+  const counterpartyRows = await entityQuery('orders."counterpartyName"', { normalizeCounterparty: true })
 
   const monthAggregates = new Map()
   const summary = emptyTripSummary()
