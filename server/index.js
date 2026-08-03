@@ -4288,10 +4288,14 @@ function inquiryViewWhere(view) {
 
 function chatDeliveryProblem(message) {
   if (!message || message.deliveryStatus !== 'failed') return null
+  const detail = String(message.deliveryError || '').trim() || null
+  const recipientUnavailable = /131026|номер активен в WhatsApp/i.test(detail || '')
   return {
-    title: 'Сообщение не отправлено',
-    action: 'Проверьте соединение и нажмите «Повторить отправку».',
-    detail: String(message.deliveryError || '').trim() || null
+    title: recipientUnavailable ? 'WhatsApp недоступен для этого номера' : 'Сообщение не отправлено',
+    action: recipientUnavailable
+      ? 'Не повторяйте отправку на тот же номер. Проверьте другой контакт или свяжитесь с клиентом по другому каналу.'
+      : 'Проверьте соединение и нажмите «Повторить отправку».',
+    detail
   }
 }
 
@@ -4574,6 +4578,13 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
   const reason = String(infoReason || '').trim()
   const target = detectClarificationTarget(reason, '')
   const isRu = normalizeCustomerMessageLang(lang) === 'ru'
+  const asksPassengersAndLuggage = /(пассажир|passenger|passengers|pax|количеств[оа]\s+людей)/i.test(reason) && /(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(reason)
+  if (asksPassengersAndLuggage && isRu) {
+    return 'Подскажите, пожалуйста, сколько будет пассажиров и сколько чемоданов или сумок вы возьмёте с собой?'
+  }
+  if (asksPassengersAndLuggage) {
+    return 'Could you please tell us how many passengers will be traveling and how many suitcases or bags you will have?'
+  }
   if (target === 'luggage' && isRu) {
     return 'Подскажите, пожалуйста, сколько чемоданов и сумок будет с собой? Если есть крупный багаж, детская коляска или нестандартные вещи, напишите тоже.'
   }
@@ -4613,15 +4624,21 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
 }
 
 function pickWhatsAppTemplateNameForTask(task = {}, registry = []) {
-  if (String(task?.taskType || '') === 'dispatch_info') return 'riderra_trip_message'
-  const target = detectClarificationTarget(task?.order?.infoReason || '', '')
-  if (target === 'luggage') return 'riderra_baggage_request'
-  if (target === 'flightNumber') return 'riderra_flight_request'
-  if (target === 'passengers') return 'riderra_passengers_request'
-  if (target === 'pickupPoint') return 'riderra_trip_message'
-  if (target === 'destinationPoint') return 'riderra_destination_request'
   const knownNames = new Set((registry || []).map((tpl) => String(tpl?.name || '').trim()).filter(Boolean))
-  return knownNames.has('riderra_trip_message') ? 'riderra_trip_message' : 'riderra_baggage_request'
+  const pickAvailable = (...names) => names.find((name) => knownNames.has(name)) || names[names.length - 1]
+  if (String(task?.taskType || '') === 'dispatch_info') {
+    return pickAvailable('riderra_trip_confirmation_v2', 'riderra_trip_message')
+  }
+  const infoReason = String(task?.order?.infoReason || '')
+  const asksPassengersAndLuggage = /(пассажир|passenger|passengers|pax|количеств[оа]\s+людей)/i.test(infoReason) && /(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(infoReason)
+  if (asksPassengersAndLuggage) return pickAvailable('riderra_trip_confirmation_v2', 'riderra_trip_message')
+  const target = detectClarificationTarget(infoReason, '')
+  if (target === 'luggage') return pickAvailable('riderra_baggage_request_v2', 'riderra_baggage_request')
+  if (target === 'flightNumber') return pickAvailable('riderra_flight_request_v2', 'riderra_flight_request')
+  if (target === 'passengers') return pickAvailable('riderra_passengers_request_v2', 'riderra_passengers_request')
+  if (target === 'pickupPoint') return pickAvailable('riderra_pickup_request_v2', 'riderra_trip_message')
+  if (target === 'destinationPoint') return pickAvailable('riderra_destination_request_v2', 'riderra_destination_request')
+  return pickAvailable('riderra_trip_confirmation_v2', 'riderra_trip_message', 'riderra_baggage_request')
 }
 
 function buildWhatsAppTemplateVariables({ task = {}, messageText = '', templateName = '', registry = [] } = {}) {
@@ -4630,7 +4647,7 @@ function buildWhatsAppTemplateVariables({ task = {}, messageText = '', templateN
   const pickupDate = pickupAt && Number.isFinite(pickupAt.getTime())
     ? pickupAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
     : ''
-  const city = order.sourceCityCode || order.toPoint || order.fromPoint || ''
+  const city = order.sourceCityCode || ''
   const variables = {
     booking_number: publicOrderReference(order),
     route_from: order.fromPoint || '',
@@ -15018,6 +15035,60 @@ const WHATSAPP_TEMPLATE_REGISTRY_KEY = 'whatsapp_template_registry'
 
 function defaultWhatsAppTemplateRegistry() {
   return [
+    {
+      name: 'riderra_flight_request_v2',
+      label: 'Flight request with booking',
+      description: 'Запросить номер рейса с номером заказа, маршрутом и датой.',
+      language: 'en',
+      languages: ['en'],
+      category: 'UTILITY',
+      variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+    },
+    {
+      name: 'riderra_baggage_request_v2',
+      label: 'Baggage request with booking',
+      description: 'Запросить багаж с номером заказа, маршрутом и датой.',
+      language: 'en',
+      languages: ['en'],
+      category: 'UTILITY',
+      variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+    },
+    {
+      name: 'riderra_passengers_request_v2',
+      label: 'Passengers request with booking',
+      description: 'Запросить пассажиров с номером заказа, маршрутом и датой.',
+      language: 'en',
+      languages: ['en'],
+      category: 'UTILITY',
+      variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+    },
+    {
+      name: 'riderra_pickup_request_v2',
+      label: 'Pickup request with booking',
+      description: 'Запросить место подачи с номером заказа, маршрутом и датой.',
+      language: 'en',
+      languages: ['en'],
+      category: 'UTILITY',
+      variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+    },
+    {
+      name: 'riderra_destination_request_v2',
+      label: 'Destination request with booking',
+      description: 'Запросить адрес назначения с номером заказа, маршрутом и датой.',
+      language: 'en',
+      languages: ['en'],
+      category: 'UTILITY',
+      variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+    },
+    {
+      name: 'riderra_trip_confirmation_v2',
+      label: 'Trip details with booking',
+      description: 'Одно сообщение с номером заказа, маршрутом, датой и уточняемыми деталями.',
+      language: 'en',
+      languages: ['en'],
+      category: 'UTILITY',
+      variables: ['booking_number', 'route_from', 'route_to', 'pickup_date', 'trip_details']
+    },
     {
       name: 'riderra_baggage_request',
       label: 'Baggage request',

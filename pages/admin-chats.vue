@@ -661,6 +661,54 @@ export default {
     sendFeedback: null,
     whatsappTemplatePresets: [
       {
+        name: 'riderra_flight_request_v2',
+        label: 'Flight request with booking',
+        description: 'Запросить номер рейса с номером заказа, маршрутом и датой.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+      },
+      {
+        name: 'riderra_baggage_request_v2',
+        label: 'Baggage request with booking',
+        description: 'Запросить багаж с номером заказа, маршрутом и датой.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+      },
+      {
+        name: 'riderra_passengers_request_v2',
+        label: 'Passengers request with booking',
+        description: 'Запросить пассажиров с номером заказа, маршрутом и датой.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+      },
+      {
+        name: 'riderra_pickup_request_v2',
+        label: 'Pickup request with booking',
+        description: 'Запросить место подачи с номером заказа, маршрутом и датой.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+      },
+      {
+        name: 'riderra_destination_request_v2',
+        label: 'Destination request with booking',
+        description: 'Запросить адрес назначения с номером заказа, маршрутом и датой.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['booking_number', 'route_from', 'route_to', 'pickup_date']
+      },
+      {
+        name: 'riderra_trip_confirmation_v2',
+        label: 'Trip details with booking',
+        description: 'Одно сообщение с номером заказа, маршрутом, датой и уточняемыми деталями.',
+        language: 'en',
+        languages: ['en'],
+        variables: ['booking_number', 'route_from', 'route_to', 'pickup_date', 'trip_details']
+      },
+      {
         name: 'riderra_baggage_request',
         label: 'Baggage request',
         description: 'Запросить количество чемоданов, сумок и нестандартного багажа.',
@@ -1876,22 +1924,28 @@ export default {
     contactReasonCode(message = null) {
       const reason = String(this.selectedTask?.order?.infoReason || message?.bodyText || '').toLowerCase()
       if (this.selectedTask?.taskType === 'dispatch_info') return 'trip'
-      if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('baggage') || reason.includes('bag') || reason.includes('suitcase') || reason.includes('чемодан')) return 'baggage'
+      const mentionsBaggage = ['багаж', 'luggage', 'baggage', 'bag', 'suitcase', 'чемодан'].some((value) => reason.includes(value))
+      const mentionsPassengers = ['пассажир', 'passenger', 'pax', 'количество людей'].some((value) => reason.includes(value))
+      if (mentionsBaggage && mentionsPassengers) return 'trip'
+      if (mentionsBaggage) return 'baggage'
       if (reason.includes('рейс') || reason.includes('flight') || reason.includes('arrival') || reason.includes('прилет') || reason.includes('прилёт')) return 'flight'
-      if (reason.includes('пассажир') || reason.includes('passenger') || reason.includes('pax') || reason.includes('количество людей')) return 'passengers'
+      if (mentionsPassengers) return 'passengers'
       if (reason.includes('адрес назначения') || reason.includes('место назначения') || reason.includes('destination') || reason.includes('drop-off') || reason.includes('dropoff')) return 'destination'
+      if (reason.includes('место подачи') || reason.includes('pickup') || reason.includes('terminal') || reason.includes('терминал') || reason.includes('entrance') || reason.includes('вход')) return 'pickup'
       return 'trip'
     },
     suggestTemplateName(message) {
       const code = this.contactReasonCode(message)
       const byReason = {
-        baggage: 'riderra_baggage_request',
-        flight: 'riderra_flight_request',
-        passengers: 'riderra_passengers_request',
-        destination: 'riderra_destination_request',
-        trip: 'riderra_trip_message'
+        baggage: ['riderra_baggage_request_v2', 'riderra_baggage_request'],
+        flight: ['riderra_flight_request_v2', 'riderra_flight_request'],
+        passengers: ['riderra_passengers_request_v2', 'riderra_passengers_request'],
+        pickup: ['riderra_pickup_request_v2', 'riderra_trip_message'],
+        destination: ['riderra_destination_request_v2', 'riderra_destination_request'],
+        trip: ['riderra_trip_confirmation_v2', 'riderra_trip_message']
       }
-      return byReason[code] || 'riderra_trip_message'
+      const available = new Set(this.whatsappTemplatePresets.map((row) => String(row?.name || '').trim()))
+      return (byReason[code] || byReason.trip).find((name) => available.has(name)) || 'riderra_trip_message'
     },
     suggestTemplateVariables(message, templateName = '') {
       const order = this.selectedTask?.order || {}
@@ -1903,12 +1957,12 @@ export default {
         booking_number: this.publicOrderReference(order),
         route_from: order.fromPoint || '',
         route_to: order.toPoint || '',
-        city: order.sourceCityCode || order.toPoint || order.fromPoint || 'your city',
+        city: order.sourceCityCode || 'your city',
         pickup_date: pickupDate || 'your trip date',
         question: String(message?.bodyText || '').trim()
       }
       const name = String(templateName || this.suggestTemplateName(message)).trim()
-      if (name === 'riderra_trip_message') {
+      if (name === 'riderra_trip_confirmation_v2') {
         variables.trip_details = String(message?.bodyText || '').trim()
       }
       return variables
@@ -1925,7 +1979,14 @@ export default {
       try { variables = JSON.parse(form.variablesText || '{}') } catch (_) {}
       const city = String(variables.city || '{{1}}')
       const pickupDate = String(variables.pickup_date || '{{2}}')
+      const v2PickupDate = String(variables.pickup_date || '{{4}}')
       const templates = {
+        riderra_baggage_request_v2: `Hello! This is Riderra regarding booking ${variables.booking_number || '{{1}}'}.\nRoute: ${variables.route_from || '{{2}}'} to ${variables.route_to || '{{3}}'}.\nPickup date: ${v2PickupDate}.\nCould you please tell us how many suitcases and bags you will have? If you have oversized luggage, a stroller, or any non-standard items, please mention that too. Thank you!`,
+        riderra_flight_request_v2: `Hello! This is Riderra regarding booking ${variables.booking_number || '{{1}}'}.\nRoute: ${variables.route_from || '{{2}}'} to ${variables.route_to || '{{3}}'}.\nPickup date: ${v2PickupDate}.\nCould you please send us your flight number and arrival/departure date? This helps the driver track the flight correctly. Thank you!`,
+        riderra_passengers_request_v2: `Hello! This is Riderra regarding booking ${variables.booking_number || '{{1}}'}.\nRoute: ${variables.route_from || '{{2}}'} to ${variables.route_to || '{{3}}'}.\nPickup date: ${v2PickupDate}.\nCould you please clarify how many passengers will be traveling? Thank you!`,
+        riderra_pickup_request_v2: `Hello! This is Riderra regarding booking ${variables.booking_number || '{{1}}'}.\nRoute: ${variables.route_from || '{{2}}'} to ${variables.route_to || '{{3}}'}.\nPickup date: ${v2PickupDate}.\nCould you please confirm the exact pickup point: address, terminal, entrance, or a clear landmark? Thank you!`,
+        riderra_destination_request_v2: `Hello! This is Riderra regarding booking ${variables.booking_number || '{{1}}'}.\nRoute: ${variables.route_from || '{{2}}'} to ${variables.route_to || '{{3}}'}.\nPickup date: ${v2PickupDate}.\nCould you please share the exact destination address? Thank you!`,
+        riderra_trip_confirmation_v2: `Hello! This is Riderra regarding booking ${variables.booking_number || '{{1}}'}.\nRoute: ${variables.route_from || '{{2}}'} to ${variables.route_to || '{{3}}'}.\nPickup date: ${v2PickupDate}.\nTrip details: ${variables.trip_details || '{{5}}'}\nThank you!`,
         riderra_baggage_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please clarify how many bags or suitcases you will have? Thank you!`,
         riderra_flight_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please share your flight number? Thank you!`,
         riderra_passengers_request: `Hello! We are writing to you regarding your transfer in ${city} on ${pickupDate}. Could you please clarify how many passengers will be traveling? Thank you!`,
