@@ -188,6 +188,11 @@
                   <div v-for="message in visibleConversationMessages" :key="message.id" class="message" :class="`message--${message.direction}`">
                   <div class="message-head">
                     <strong>{{ message.direction === 'inbound' ? 'Клиент' : 'Riderra' }}</strong>
+                    <span
+                      v-if="message.direction === 'outbound'"
+                      class="badge message-kind"
+                      :class="outboundMessageKindClass(message)"
+                    >{{ outboundMessageKindLabel(message) }}</span>
                     <span v-if="message.deliveryStatus" class="badge" :class="deliveryStatusClass(message.deliveryStatus)">{{ deliveryStatusLabel(message.deliveryStatus) }}</span>
                     <span>{{ formatDate(message.createdAt) }}</span>
                   </div>
@@ -316,6 +321,20 @@
                 </div>
 
                 <div class="actions-block message-workspace">
+              <div
+                v-if="sendFeedback && selectedTask && sendFeedback.taskId === selectedTask.id"
+                class="send-feedback"
+                :class="`send-feedback--${sendFeedback.state}`"
+                role="status"
+                aria-live="polite"
+              >
+                <span v-if="sendFeedback.state === 'sending'" class="button-spinner" aria-hidden="true"></span>
+                <span v-else class="send-feedback__mark" aria-hidden="true">{{ sendFeedback.state === 'success' ? '✓' : '!' }}</span>
+                <div>
+                  <strong>{{ sendFeedback.title }}</strong>
+                  <span>{{ sendFeedback.detail }}</span>
+                </div>
+              </div>
               <template v-if="activeDraftMessage">
                 <p class="eyebrow">Текущий шаг</p>
                 <h4>{{ activeDraftMessage.approvalStatus === 'pending_human' ? 'Проверьте сообщение' : 'Отправьте сообщение' }}</h4>
@@ -325,6 +344,12 @@
                     : 'Сообщение одобрено. Проверьте получателя и отправьте его клиенту.' }}
                 </div>
                 <div class="draft-review">
+                  <div class="draft-review__label">
+                    <strong>{{ deliveryForm(activeDraftMessage).mode === 'template' ? 'Наш черновик — отдельно не отправляется' : 'Наш текст' }}</strong>
+                    <span>{{ deliveryForm(activeDraftMessage).mode === 'template'
+                      ? 'Из заказа и черновика берутся данные для одного согласованного шаблона WhatsApp.'
+                      : 'Клиент получит этот текст без изменений.' }}</span>
+                  </div>
                   <div class="message-body">{{ activeDraftMessage.bodyText }}</div>
                   <div class="send-preview">
                     <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
@@ -338,7 +363,7 @@
                 <div v-if="canSend(activeDraftMessage)" class="delivery-panel" :class="{ 'delivery-panel--warning': isWhatsappMessage(activeDraftMessage) && !whatsappFreeTextAllowed }">
                   <div class="delivery-panel__head">
                     <div>
-                      <strong>Как будет отправлено</strong>
+                      <strong>{{ deliveryForm(activeDraftMessage).mode === 'template' ? 'Будет отправлено одно сообщение' : 'Как будет отправлено' }}</strong>
                       <div class="hint">{{ deliveryHint(activeDraftMessage) }}</div>
                     </div>
                     <span v-if="isWhatsappMessage(activeDraftMessage)" class="badge" :class="whatsappFreeTextAllowed ? 'badge--sla-ok' : 'badge--sla-warning'">
@@ -346,7 +371,7 @@
                     </span>
                   </div>
                   <div v-if="deliveryForm(activeDraftMessage).mode === 'template'" class="template-preview">
-                    <strong>Текст, который получит клиент</strong>
+                    <strong>Согласованный шаблон WhatsApp — текст для клиента</strong>
                     <p>{{ approvedTemplatePreview(activeDraftMessage) }}</p>
                   </div>
                   <details class="delivery-settings">
@@ -429,11 +454,20 @@
                     <button class="btn btn--warn" @click="rejectMessage(activeDraftMessage.id)">Отклонить</button>
                   </template>
                   <template v-else-if="canSend(activeDraftMessage)">
-                    <button class="btn btn--primary" :disabled="!recipientReady" @click="sendMessage(activeDraftMessage.id)">
-                      Отправить в {{ recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram' }}
+                    <button
+                      class="btn btn--primary send-message-button"
+                      :class="{ 'send-message-button--sending': sendingMessageId === activeDraftMessage.id }"
+                      :disabled="!recipientReady || Boolean(sendingMessageId)"
+                      :aria-busy="sendingMessageId === activeDraftMessage.id ? 'true' : 'false'"
+                      @click="sendMessage(activeDraftMessage.id)"
+                    >
+                      <span v-if="sendingMessageId === activeDraftMessage.id" class="button-spinner" aria-hidden="true"></span>
+                      {{ sendingMessageId === activeDraftMessage.id
+                        ? `Отправляем в ${recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram'}…`
+                        : `Отправить в ${recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram'}` }}
                     </button>
-                    <button class="btn btn--ghost" @click="copyMessage(activeDraftMessage)">Скопировать</button>
-                    <button class="btn btn--ghost" @click="markManualSent(activeDraftMessage.id)">Отметить отправленным вручную</button>
+                    <button class="btn btn--ghost" :disabled="Boolean(sendingMessageId)" @click="copyMessage(activeDraftMessage)">Скопировать</button>
+                    <button class="btn btn--ghost" :disabled="Boolean(sendingMessageId)" @click="markManualSent(activeDraftMessage.id)">Отметить отправленным вручную</button>
                   </template>
                 </div>
               </template>
@@ -623,6 +657,8 @@ export default {
     mediaUrls: {},
     mediaLoading: {},
     mediaErrors: {},
+    sendingMessageId: '',
+    sendFeedback: null,
     whatsappTemplatePresets: [
       {
         name: 'riderra_baggage_request',
@@ -807,7 +843,10 @@ export default {
       })
     },
     visibleConversationMessages() {
-      return this.conversationMessages.filter((message) => ['inbound', 'outbound'].includes(String(message?.direction || '')))
+      return this.conversationMessages.filter((message) => {
+        if (!['inbound', 'outbound'].includes(String(message?.direction || ''))) return false
+        return !(message?.direction === 'outbound' && message?.approvalStatus === 'rejected')
+      })
     },
     technicalConversationMessages() {
       return this.conversationMessages.filter((message) => !['inbound', 'outbound'].includes(String(message?.direction || '')))
@@ -1616,6 +1655,16 @@ export default {
       await this.openTask(this.selectedTask.id)
     },
     async sendMessage(id) {
+      if (!id || this.sendingMessageId) return
+      const taskId = this.selectedTask?.id || ''
+      const channelLabel = this.recipientChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram'
+      this.sendingMessageId = id
+      this.sendFeedback = {
+        taskId,
+        state: 'sending',
+        title: `Отправляем в ${channelLabel}…`,
+        detail: 'Не нажимайте повторно — результат появится здесь.'
+      }
       try {
         if (!this.recipientReady) throw new Error('Сначала сохраните канал и номер получателя')
         const delivery = this.buildDeliveryPayload(id)
@@ -1635,11 +1684,28 @@ export default {
           }
           throw new Error(data?.error || 'Не удалось отправить сообщение')
         }
-        this.notice = data?.alreadySent ? 'Сообщение уже было отправлено — повторная отправка не выполнена' : 'Meta приняла сообщение. Ждём подтверждение доставки.'
+        const alreadySent = Boolean(data?.alreadySent)
+        this.notice = alreadySent ? 'Сообщение уже было отправлено — повторная отправка не выполнена' : 'Meta приняла сообщение. Ждём подтверждение доставки.'
+        this.sendFeedback = {
+          taskId,
+          state: 'success',
+          title: alreadySent ? 'Сообщение уже было отправлено' : `Отправлено в ${channelLabel}`,
+          detail: alreadySent
+            ? 'Повторная отправка не выполнялась.'
+            : 'Meta приняла сообщение. Повторно нажимать не нужно; статус доставки появится в истории.'
+        }
         await this.openTask(this.selectedTask.id)
         await this.loadTasks()
       } catch (error) {
         this.notice = error?.message || 'Ошибка отправки сообщения'
+        this.sendFeedback = {
+          taskId,
+          state: 'error',
+          title: 'Сообщение не отправлено',
+          detail: this.notice
+        }
+      } finally {
+        this.sendingMessageId = ''
       }
     },
     canSend(message) {
@@ -1875,8 +1941,8 @@ export default {
     },
     deliveryHint(message) {
       if (!this.isWhatsappMessage(message)) return 'Для Telegram/OpenClaw можно отправлять обычный текст.'
-      if (this.whatsappFreeTextAllowed) return 'Есть входящий ответ клиента за последние 24 часа: free text разрешён, template тоже можно выбрать вручную.'
-      return 'WhatsApp вне 24-часового окна: Meta пропустит только approved template.'
+      if (this.whatsappFreeTextAllowed) return 'Клиент отвечал за последние 24 часа: можно отправить наш текст или выбрать согласованный шаблон.'
+      return 'Первое сообщение и сообщения вне 24-часового окна обязаны быть согласованным шаблоном Meta. Клиент получит только шаблон ниже — одним сообщением.'
     },
     lastInboundAtMs() {
       const messages = Array.isArray(this.selectedTask?.messages) ? this.selectedTask.messages : []
@@ -2158,12 +2224,22 @@ export default {
     },
     deliveryStatusLabel(code) {
       const map = {
-        accepted: 'Принято Meta',
-        delivered: 'Доставлено',
-        read: 'Прочитано',
-        failed: 'Ошибка доставки'
+        accepted: 'Принято Meta · ждём доставку',
+        delivered: 'Доставлено клиенту',
+        read: 'Прочитано клиентом',
+        failed: 'Не доставлено'
       }
       return map[code] || code
+    },
+    outboundMessageKindLabel(message) {
+      return String(this.deliveryPayload(message)?.mode || '').toLowerCase() === 'template'
+        ? 'Шаблон WhatsApp'
+        : 'Наш текст'
+    },
+    outboundMessageKindClass(message) {
+      return String(this.deliveryPayload(message)?.mode || '').toLowerCase() === 'template'
+        ? 'message-kind--template'
+        : 'message-kind--text'
     },
     deliveryStatusClass(code) {
       if (code === 'failed') return 'badge--sla-critical'
@@ -2373,6 +2449,8 @@ export default {
 .message--inbound { align-self: flex-end; background: #f7f1fa; border-color: #ead7f0; border-bottom-right-radius: 4px; }
 .message-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: #64748b; font-size: 12px; margin-bottom: 6px; }
 .message-head strong { color: #17233d; }
+.message-kind--template { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+.message-kind--text { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
 .message-body { white-space: pre-wrap; color: #1f2937; line-height: 1.45; }
 .message-media { display: grid; justify-items: start; gap: 8px; margin-top: 10px; }
 .message-media__image { display: block; width: auto; max-width: min(100%, 520px); max-height: 520px; border: 1px solid #d8e0ee; border-radius: 12px; object-fit: contain; background: #f8fafc; }
@@ -2381,6 +2459,20 @@ export default {
 .technical-event { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 10px; color: #64748b; font-size: 12px; }
 .technical-event p { margin: 0; color: #475569; }
 .send-preview { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #475569; font-size: 12px; }
+.draft-review__label { display: grid; gap: 3px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #cbd5e1; }
+.draft-review__label strong { color: #17233d; }
+.draft-review__label span { color: #64748b; font-size: 12px; }
+.send-feedback { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff; color: #1e3a8a; padding: 10px 12px; }
+.send-feedback > div { display: grid; gap: 2px; }
+.send-feedback span { font-size: 12px; }
+.send-feedback__mark { display: grid; flex: 0 0 24px; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: currentColor; color: #fff; font-weight: 900; }
+.send-feedback--success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+.send-feedback--error { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.send-message-button { min-width: 228px; justify-content: center; }
+.send-message-button--sending { cursor: wait; }
+.button-spinner { display: inline-block; flex: 0 0 16px; width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: chat-button-spin 700ms linear infinite; }
+@keyframes chat-button-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .button-spinner { animation-duration: 1400ms; } }
 .quick-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .btn--tiny { padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; }
 .message-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
