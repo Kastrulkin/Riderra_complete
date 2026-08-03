@@ -8587,7 +8587,21 @@ app.post('/api/admin/chats/messages/:id/send', authenticateToken, resolveActorCo
       }
       if (isTemplateSend) {
         try {
-          await validateWhatsAppTemplateDelivery({ tenantId, delivery })
+          const templateValidation = await validateWhatsAppTemplateDelivery({ tenantId, delivery })
+          const templateVariables = Array.isArray(templateValidation.template?.variables)
+            ? templateValidation.template.variables
+            : []
+          const requestedVariables = delivery.variables && typeof delivery.variables === 'object'
+            ? delivery.variables
+            : {}
+          delivery.variables = templateVariables.reduce((allowed, name) => {
+            allowed[name] = requestedVariables[name]
+            return allowed
+          }, {})
+          delivery.policyTrace = {
+            ...(delivery.policyTrace && typeof delivery.policyTrace === 'object' ? delivery.policyTrace : {}),
+            templateVariables
+          }
         } catch (validationError) {
           await prisma.chatMessage.create({
             data: {

@@ -332,7 +332,9 @@ async function main() {
           language: 'en',
           variables: {
             city: 'Los Angeles',
-            pickup_date: '2 June'
+            pickup_date: '2 June',
+            booking_number: 'CI-BOOKING-001',
+            question: 'Please confirm the luggage.\n\nПожалуйста, подтвердите багаж.'
           }
         }
       }
@@ -341,6 +343,11 @@ async function main() {
     assert(sent.data?.message?.approvalStatus === 'sent', `message should be sent, got ${sent.data?.message?.approvalStatus}`)
     assert(sent.data?.taskState === 'request_sent', `task state should be request_sent, got ${sent.data?.taskState}`)
     assert(mock.requests.length === 1, `OpenClaw mock should receive exactly one valid send, got ${mock.requests.length}`)
+    const forwardedVariables = mock.requests[0]?.body?.message?.delivery?.variables || {}
+    assert(
+      JSON.stringify(forwardedVariables) === JSON.stringify({ city: 'Los Angeles', pickup_date: '2 June' }),
+      `template send must forward only registered variables, got ${JSON.stringify(forwardedVariables)}`
+    )
 
     const repeatedSend = await requestJson(baseUrl, `/api/admin/chats/messages/${message.id}/send`, {
       method: 'POST',

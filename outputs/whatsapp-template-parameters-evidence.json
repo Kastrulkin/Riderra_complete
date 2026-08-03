@@ -1,0 +1,25 @@
+{
+  "status": "FIX_PROVEN",
+  "reported_at": "2026-08-03T09:42:30Z",
+  "production_failure": {
+    "provider": "Meta WhatsApp Cloud API",
+    "http_status": 400,
+    "error_code": 132018,
+    "reason": "A non-template multiline field was forwarded as a template parameter."
+  },
+  "before": {
+    "command": "DATABASE_URL=<isolated-schema> node scripts/chat_whatsapp_template_policy_smoke.js",
+    "exit_code": 1,
+    "signal": "Expected only city and pickup_date; booking_number and multiline question were also forwarded."
+  },
+  "after": {
+    "command": "DATABASE_URL=<isolated-schema> node scripts/chat_whatsapp_template_policy_smoke.js",
+    "exit_code": 0,
+    "signal": "34 WhatsApp policy checks passed; only registered template variables were forwarded."
+  },
+  "broader_checks": {
+    "eslint": "passed",
+    "nuxt_generate": "passed",
+    "openclaw_runtime_contract_smoke": "stopped before send with an unrelated 409 published-agent-version precondition"
+  }
+}
