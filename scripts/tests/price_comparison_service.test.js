@@ -4,6 +4,7 @@ const {
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
+  externalRouteKey,
   nextScheduledServiceAt,
   parseSmartRydeQuotes,
   smartRydeVehicleMatches
@@ -34,6 +35,14 @@ test('sequential deductions remain available for future partner formulas', () =>
 test('service date is the first Wednesday at least seven days ahead', () => {
   const result = nextScheduledServiceAt(new Date('2026-08-04T09:00:00Z'), { weekday: 3, localTime: '12:00', minLeadDays: 7 })
   assert.equal(result.toISOString(), '2026-08-12T12:00:00.000Z')
+})
+
+test('external quote collection groups vehicle rows for the same route and currency', () => {
+  const standard = externalRouteKey({ routeFrom: ' LHR ', routeTo: 'London Hotel', currency: 'eur', vehicleType: 'Standard' })
+  const business = externalRouteKey({ routeFrom: 'lhr', routeTo: '  London   Hotel ', currency: 'EUR', vehicleType: 'Business' })
+  const reverse = externalRouteKey({ routeFrom: 'London Hotel', routeTo: 'LHR', currency: 'EUR' })
+  assert.equal(standard, business)
+  assert.notEqual(standard, reverse)
 })
 
 test('SmartRyde quote parser extracts safe vehicle facts', () => {

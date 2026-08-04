@@ -48,6 +48,7 @@ Status labels:
 | Compare client prices in matrix view | available | Read/comparison only unless pricing admin approves edits. |
 | Compare supplier prices in matrix view | available | Read/comparison only unless pricing admin approves edits. |
 | Run external client price comparison | beta | SmartRyde adapter is available; a pricing manager starts collection and approves ambiguous place/class mappings. Results and Excel exports never update the Riderra price book automatically. |
+| Reuse external public transfer quotes | beta | Search historical SmartRyde snapshots by route, class, currency, and freshness. Public sell prices are market evidence and are not treated as confirmed supplier net prices or availability. |
 | Edit base price book | available | Pricing admin approval required. |
 | Suggest price corrections | beta | Draft suggestion only; no autonomous write. |
 | Import external price files | internal | Treat as comparison/import source, not final truth. |

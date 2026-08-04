@@ -8,12 +8,12 @@ datasource db {
 }
 
 model Tenant {
-  id                      String                      @id @default(cuid())
-  createdAt               DateTime                    @default(now())
-  updatedAt               DateTime                    @updatedAt
-  code                    String                      @unique
+  id                      String                          @id @default(cuid())
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  code                    String                          @unique
   name                    String
-  isActive                Boolean                     @default(true)
+  isActive                Boolean                         @default(true)
   memberships             TenantMembership[]
   idempotencyKeys         IdempotencyKey[]
   auditLogs               AuditLog[]
@@ -64,6 +64,7 @@ model Tenant {
   priceComparisonResults  PriceComparisonResult[]
   priceComparisonPlaces   PriceComparisonPlaceMap[]
   priceComparisonVehicles PriceComparisonVehicleMap[]
+  externalPriceSnapshots  ExternalTransferPriceSnapshot[]
 }
 
 model TenantMembership {
@@ -808,11 +809,11 @@ model CityPricing {
 }
 
 model PriceComparisonSource {
-  id                      String                      @id @default(cuid())
+  id                      String                          @id @default(cuid())
   tenantId                String
   customerCompanyId       String?
-  createdAt               DateTime                    @default(now())
-  updatedAt               DateTime                    @updatedAt
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
   name                    String
   adapterKey              String
   baseUrl                 String
@@ -821,45 +822,81 @@ model PriceComparisonSource {
   passengerConfigJson     String
   pricingPolicyJson       String
   formulaVersion          String
-  maxConcurrency          Int                         @default(1)
-  requestDelayMs          Int                         @default(1000)
-  isActive                Boolean                     @default(true)
-  tenant                  Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customerCompany         CustomerCompany?            @relation(fields: [customerCompanyId], references: [id], onDelete: SetNull)
+  maxConcurrency          Int                             @default(1)
+  requestDelayMs          Int                             @default(1000)
+  isActive                Boolean                         @default(true)
+  tenant                  Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerCompany         CustomerCompany?                @relation(fields: [customerCompanyId], references: [id], onDelete: SetNull)
   runs                    PriceComparisonRun[]
   placeMappings           PriceComparisonPlaceMap[]
   vehicleMappings         PriceComparisonVehicleMap[]
+  externalPriceSnapshots  ExternalTransferPriceSnapshot[]
 
   @@unique([tenantId, adapterKey])
   @@index([tenantId, isActive, name])
 }
 
 model PriceComparisonRun {
-  id                 String                  @id @default(cuid())
-  tenantId           String
-  sourceId           String
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
-  status             String                  @default("draft")
-  serviceAt          DateTime
-  formulaVersion     String
-  pricingPolicyJson  String
-  routeCount         Int                     @default(0)
-  processedCount     Int                     @default(0)
-  opportunitiesCount Int                     @default(0)
-  needsReviewCount   Int                     @default(0)
-  failedCount        Int                     @default(0)
-  error              String?
-  startedAt          DateTime?
-  finishedAt         DateTime?
-  createdByUserId    String?
-  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  source             PriceComparisonSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  quotes             PriceComparisonQuote[]
-  results            PriceComparisonResult[]
+  id                     String                          @id @default(cuid())
+  tenantId               String
+  sourceId               String
+  createdAt              DateTime                        @default(now())
+  updatedAt              DateTime                        @updatedAt
+  status                 String                          @default("draft")
+  serviceAt              DateTime
+  formulaVersion         String
+  pricingPolicyJson      String
+  routeCount             Int                             @default(0)
+  processedCount         Int                             @default(0)
+  opportunitiesCount     Int                             @default(0)
+  needsReviewCount       Int                             @default(0)
+  failedCount            Int                             @default(0)
+  error                  String?
+  startedAt              DateTime?
+  finishedAt             DateTime?
+  createdByUserId        String?
+  tenant                 Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source                 PriceComparisonSource           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  quotes                 PriceComparisonQuote[]
+  results                PriceComparisonResult[]
+  externalPriceSnapshots ExternalTransferPriceSnapshot[]
 
   @@index([tenantId, status, createdAt])
   @@index([sourceId, createdAt])
+}
+
+model ExternalTransferPriceSnapshot {
+  id                  String                @id @default(cuid())
+  tenantId            String
+  sourceId            String
+  runId               String
+  createdAt           DateTime              @default(now())
+  routeKey            String
+  routeFrom           String
+  routeTo             String
+  pickupPlaceId       String
+  pickupLabel         String
+  dropoffPlaceId      String
+  dropoffLabel        String
+  serviceAt           DateTime
+  passengers          Int                   @default(1)
+  currency            String
+  externalVehicleKey  String
+  externalVehicleName String
+  maxPassengers       Int?
+  publicSellPrice     Float
+  quoteKind           String                @default("public_sell")
+  quotedAt            DateTime              @default(now())
+  sourceUrl           String?
+  evidenceJson        String?
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source              PriceComparisonSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  run                 PriceComparisonRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, routeKey, externalVehicleKey])
+  @@index([tenantId, sourceId, routeKey, quotedAt])
+  @@index([tenantId, routeFrom, routeTo, currency, quotedAt])
+  @@index([tenantId, externalVehicleKey, currency, quotedAt])
 }
 
 model PriceComparisonQuote {

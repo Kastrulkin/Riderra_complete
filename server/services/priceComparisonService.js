@@ -1,3 +1,5 @@
+const crypto = require('crypto')
+
 const ACTIVE_RUNS = new Set()
 
 const SMART_RYDE_DEFAULTS = Object.freeze({
@@ -23,6 +25,12 @@ function safeJsonParse(value, fallback) {
 
 function normalizeTextKey(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function externalRouteKey({ routeFrom, routeTo, currency }) {
+  return crypto.createHash('sha256')
+    .update([normalizeTextKey(routeFrom), normalizeTextKey(routeTo), String(currency || '').toUpperCase()].join('|'))
+    .digest('hex')
 }
 
 function roundMoney(value) {
@@ -368,7 +376,19 @@ async function markRouteIssue({ prisma, run, row, status, error, evidence }) {
   })
 }
 
-async function processRoute({ prisma, run, source, adapter, row, policy, passengers }) {
+async function hasFinalComparison(prisma, runId, cityPricingId) {
+  return prisma.priceComparisonQuote.findFirst({
+    where: {
+      runId,
+      cityPricingId,
+      status: 'compared',
+      externalVehicleKey: { notIn: ['_route_resolution', '_error'] }
+    },
+    select: { id: true }
+  })
+}
+
+async function applyFetchedQuotesToRow({ prisma, run, source, row, policy, pickup, dropoff, fetched, quotedAt }) {
   const finalExisting = await prisma.priceComparisonQuote.findFirst({
     where: {
       runId: run.id,
@@ -379,88 +399,149 @@ async function processRoute({ prisma, run, source, adapter, row, policy, passeng
   })
   if (finalExisting) return
 
-  try {
-    const pickup = await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: row.routeFrom })
-    if (!pickup.ok) {
-      await markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })
-      return
-    }
-    const dropoff = await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: row.routeTo, relatedPlaceId: pickup.id })
-    if (!dropoff.ok) {
-      await markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })
-      return
-    }
-
-    const fetched = await adapter.fetchQuotes({ pickup, dropoff, serviceAt: run.serviceAt, currency: row.currency, passengers })
-    const approvedMappings = await prisma.priceComparisonVehicleMap.findMany({
-      where: { sourceId: source.id, riderraVehicleType: row.vehicleType, status: 'approved' }
-    })
-    let selected = fetched.quotes.find((quote) => approvedMappings.some((mapping) => mapping.externalVehicleKey === quote.externalVehicleKey))
-    const automaticMatches = fetched.quotes.filter((quote) => smartRydeVehicleMatches(quote.externalVehicleKey, row.vehicleType))
-    if (!selected && automaticMatches.length === 1) {
-      selected = automaticMatches[0]
-      await prisma.priceComparisonVehicleMap.upsert({
-        where: {
-          sourceId_externalVehicleKey_riderraVehicleType: {
-            sourceId: source.id,
-            externalVehicleKey: selected.externalVehicleKey,
-            riderraVehicleType: row.vehicleType
-          }
-        },
-        update: { externalVehicleName: selected.externalVehicleName, status: 'approved', approvedAt: new Date() },
-        create: {
-          tenantId: run.tenantId,
+  const approvedMappings = await prisma.priceComparisonVehicleMap.findMany({
+    where: { sourceId: source.id, riderraVehicleType: row.vehicleType, status: 'approved' }
+  })
+  let selected = fetched.quotes.find((quote) => approvedMappings.some((mapping) => mapping.externalVehicleKey === quote.externalVehicleKey))
+  const automaticMatches = fetched.quotes.filter((quote) => smartRydeVehicleMatches(quote.externalVehicleKey, row.vehicleType))
+  if (!selected && automaticMatches.length === 1) {
+    selected = automaticMatches[0]
+    await prisma.priceComparisonVehicleMap.upsert({
+      where: {
+        sourceId_externalVehicleKey_riderraVehicleType: {
           sourceId: source.id,
           externalVehicleKey: selected.externalVehicleKey,
-          externalVehicleName: selected.externalVehicleName,
-          riderraVehicleType: row.vehicleType,
-          status: 'approved',
-          approvedAt: new Date()
+          riderraVehicleType: row.vehicleType
         }
+      },
+      update: { externalVehicleName: selected.externalVehicleName, status: 'approved', approvedAt: new Date() },
+      create: {
+        tenantId: run.tenantId,
+        sourceId: source.id,
+        externalVehicleKey: selected.externalVehicleKey,
+        externalVehicleName: selected.externalVehicleName,
+        riderraVehicleType: row.vehicleType,
+        status: 'approved',
+        approvedAt: new Date()
+      }
+    })
+  }
+
+  for (const externalQuote of fetched.quotes) {
+    const isSelected = selected?.externalVehicleKey === externalQuote.externalVehicleKey
+    const quote = await upsertQuote(prisma, {
+      tenantId: run.tenantId,
+      runId: run.id,
+      cityPricingId: row.id,
+      routeFrom: row.routeFrom,
+      routeTo: row.routeTo,
+      requestedVehicleType: row.vehicleType,
+      riderraSellPrice: row.fixedPrice,
+      riderraCurrency: row.currency,
+      pickupPlaceId: pickup.id,
+      pickupLabel: pickup.label,
+      dropoffPlaceId: dropoff.id,
+      dropoffLabel: dropoff.label,
+      externalVehicleKey: externalQuote.externalVehicleKey,
+      externalVehicleName: externalQuote.externalVehicleName,
+      maxPassengers: externalQuote.maxPassengers,
+      clientSellPrice: externalQuote.price,
+      clientCurrency: row.currency,
+      serviceAt: run.serviceAt,
+      quotedAt,
+      status: selected ? (isSelected ? 'compared' : 'ignored') : 'needs_review',
+      error: selected ? null : 'Vehicle mapping requires review',
+      evidenceJson: JSON.stringify(fetched.evidence)
+    })
+    if (isSelected) {
+      const comparison = buildComparison({ riderraSellPrice: row.fixedPrice, clientSellPrice: externalQuote.price, policy })
+      await prisma.priceComparisonResult.upsert({
+        where: { quoteId: quote.id },
+        update: { formulaVersion: run.formulaVersion, ...comparison },
+        create: { tenantId: run.tenantId, runId: run.id, quoteId: quote.id, formulaVersion: run.formulaVersion, ...comparison }
+      })
+    }
+  }
+  await prisma.priceComparisonQuote.updateMany({
+    where: { runId: run.id, cityPricingId: row.id, externalVehicleKey: { in: ['_route_resolution', '_error'] } },
+    data: { status: 'ignored', error: null }
+  })
+}
+
+async function processRouteGroup({ prisma, run, source, adapter, rows, policy, passengers }) {
+  const pending = []
+  for (const row of rows) {
+    if (!await hasFinalComparison(prisma, run.id, row.id)) pending.push(row)
+  }
+  if (!pending.length) return
+
+  const representative = pending[0]
+  try {
+    const pickup = await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom })
+    if (!pickup.ok) {
+      await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
+      return
+    }
+    const dropoff = await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id })
+    if (!dropoff.ok) {
+      await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })))
+      return
+    }
+
+    const routeKey = externalRouteKey(representative)
+    const stored = await prisma.externalTransferPriceSnapshot.findMany({
+      where: { runId: run.id, routeKey },
+      orderBy: { externalVehicleKey: 'asc' }
+    })
+    let fetched
+    let quotedAt
+    if (stored.length) {
+      quotedAt = stored[0].quotedAt
+      fetched = {
+        quotes: stored.map((quote) => ({
+          externalVehicleKey: quote.externalVehicleKey,
+          externalVehicleName: quote.externalVehicleName,
+          maxPassengers: quote.maxPassengers,
+          price: quote.publicSellPrice
+        })),
+        evidence: safeJsonParse(stored[0].evidenceJson, { sourceUrl: stored[0].sourceUrl, restoredFromSnapshot: true })
+      }
+    } else {
+      fetched = await adapter.fetchQuotes({ pickup, dropoff, serviceAt: run.serviceAt, currency: representative.currency, passengers })
+      quotedAt = new Date()
+      await prisma.externalTransferPriceSnapshot.createMany({
+        data: fetched.quotes.map((quote) => ({
+          tenantId: run.tenantId,
+          sourceId: source.id,
+          runId: run.id,
+          routeKey,
+          routeFrom: representative.routeFrom,
+          routeTo: representative.routeTo,
+          pickupPlaceId: pickup.id,
+          pickupLabel: pickup.label,
+          dropoffPlaceId: dropoff.id,
+          dropoffLabel: dropoff.label,
+          serviceAt: run.serviceAt,
+          passengers: Number(passengers.adults || 1) + Number(passengers.children || 0),
+          currency: representative.currency,
+          externalVehicleKey: quote.externalVehicleKey,
+          externalVehicleName: quote.externalVehicleName,
+          maxPassengers: quote.maxPassengers,
+          publicSellPrice: quote.price,
+          quoteKind: 'public_sell',
+          quotedAt,
+          sourceUrl: fetched.evidence?.sourceUrl || source.baseUrl,
+          evidenceJson: JSON.stringify(fetched.evidence)
+        })),
+        skipDuplicates: true
       })
     }
 
-    for (const externalQuote of fetched.quotes) {
-      const isSelected = selected?.externalVehicleKey === externalQuote.externalVehicleKey
-      const quote = await upsertQuote(prisma, {
-        tenantId: run.tenantId,
-        runId: run.id,
-        cityPricingId: row.id,
-        routeFrom: row.routeFrom,
-        routeTo: row.routeTo,
-        requestedVehicleType: row.vehicleType,
-        riderraSellPrice: row.fixedPrice,
-        riderraCurrency: row.currency,
-        pickupPlaceId: pickup.id,
-        pickupLabel: pickup.label,
-        dropoffPlaceId: dropoff.id,
-        dropoffLabel: dropoff.label,
-        externalVehicleKey: externalQuote.externalVehicleKey,
-        externalVehicleName: externalQuote.externalVehicleName,
-        maxPassengers: externalQuote.maxPassengers,
-        clientSellPrice: externalQuote.price,
-        clientCurrency: row.currency,
-        serviceAt: run.serviceAt,
-        quotedAt: new Date(),
-        status: selected ? (isSelected ? 'compared' : 'ignored') : 'needs_review',
-        error: selected ? null : 'Vehicle mapping requires review',
-        evidenceJson: JSON.stringify(fetched.evidence)
-      })
-      if (isSelected) {
-        const comparison = buildComparison({ riderraSellPrice: row.fixedPrice, clientSellPrice: externalQuote.price, policy })
-        await prisma.priceComparisonResult.upsert({
-          where: { quoteId: quote.id },
-          update: { formulaVersion: run.formulaVersion, ...comparison },
-          create: { tenantId: run.tenantId, runId: run.id, quoteId: quote.id, formulaVersion: run.formulaVersion, ...comparison }
-        })
-      }
+    for (const row of pending) {
+      await applyFetchedQuotesToRow({ prisma, run, source, row, policy, pickup, dropoff, fetched, quotedAt })
     }
-    await prisma.priceComparisonQuote.updateMany({
-      where: { runId: run.id, cityPricingId: row.id, externalVehicleKey: { in: ['_route_resolution', '_error'] } },
-      data: { status: 'ignored', error: null }
-    })
   } catch (error) {
-    await markRouteIssue({ prisma, run, row, status: 'failed', error: String(error.message || error).slice(0, 1000) })
+    await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'failed', error: String(error.message || error).slice(0, 1000) })))
   }
 }
 
@@ -513,12 +594,19 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
       data: { status: 'running', routeCount: rows.length, startedAt: run.startedAt || new Date(), error: null }
     })
 
+    const grouped = new Map()
+    for (const row of rows) {
+      const key = externalRouteKey(row)
+      if (!grouped.has(key)) grouped.set(key, [])
+      grouped.get(key).push(row)
+    }
+    const routeGroups = Array.from(grouped.values())
     let cursor = 0
     const concurrency = Math.max(1, Math.min(2, Number(source.maxConcurrency) || 1))
     const workers = Array.from({ length: concurrency }, async () => {
-      while (cursor < rows.length) {
-        const row = rows[cursor++]
-        await processRoute({ prisma, run, source, adapter, row, policy, passengers })
+      while (cursor < routeGroups.length) {
+        const routeRows = routeGroups[cursor++]
+        await processRouteGroup({ prisma, run, source, adapter, rows: routeRows, policy, passengers })
         await refreshRunCounters(prisma, run.id)
         if (source.requestDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, source.requestDelayMs))
       }
@@ -561,6 +649,7 @@ module.exports = {
   createAdapter,
   defaultSourceData,
   executePriceComparisonRun,
+  externalRouteKey,
   nextScheduledServiceAt,
   normalizeTextKey,
   parseSmartRydeQuotes,

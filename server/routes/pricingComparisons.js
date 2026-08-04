@@ -194,6 +194,52 @@ function registerPricingComparisonRoutes(app, dependencies) {
     res.json({ run, rows: run.quotes, placeMappings, vehicleMappings })
   })
 
+  app.get('/api/admin/pricing/external-quotes', ...canRead, async (req, res) => {
+    try {
+      const where = { tenantId: req.actorContext.tenantId }
+      if (req.query.sourceId) where.sourceId = String(req.query.sourceId)
+      if (req.query.currency) where.currency = String(req.query.currency).toUpperCase()
+      if (req.query.from) where.routeFrom = { contains: String(req.query.from), mode: 'insensitive' }
+      if (req.query.to) where.routeTo = { contains: String(req.query.to), mode: 'insensitive' }
+      const freshDays = Number(req.query.freshDays)
+      if (Number.isFinite(freshDays) && freshDays > 0) {
+        where.quotedAt = { gte: new Date(Date.now() - Math.min(freshDays, 365) * 86400000) }
+      }
+      const rows = await prisma.externalTransferPriceSnapshot.findMany({
+        where,
+        include: { source: { select: { id: true, name: true, adapterKey: true } } },
+        orderBy: { quotedAt: 'desc' },
+        take: Math.min(Math.max(Number(req.query.limit) || 100, 1), 500)
+      })
+      res.json({ rows })
+    } catch (error) {
+      console.error('Error listing external transfer quotes:', error)
+      res.status(500).json({ error: 'Failed to list external transfer quotes' })
+    }
+  })
+
+  app.get('/api/admin/pricing/external-quotes/coverage', ...canRead, async (req, res) => {
+    try {
+      const where = { tenantId: req.actorContext.tenantId }
+      if (req.query.sourceId) where.sourceId = String(req.query.sourceId)
+      const [totalQuotes, routeRows, currencies, latest] = await Promise.all([
+        prisma.externalTransferPriceSnapshot.count({ where }),
+        prisma.externalTransferPriceSnapshot.findMany({ where, distinct: ['routeKey'], select: { routeKey: true } }),
+        prisma.externalTransferPriceSnapshot.groupBy({ by: ['currency'], where, _count: { _all: true } }),
+        prisma.externalTransferPriceSnapshot.findFirst({ where, orderBy: { quotedAt: 'desc' }, select: { quotedAt: true } })
+      ])
+      res.json({
+        totalQuotes,
+        uniqueRoutes: routeRows.length,
+        currencies: currencies.map((row) => ({ currency: row.currency, count: row._count._all })),
+        latestQuotedAt: latest?.quotedAt || null
+      })
+    } catch (error) {
+      console.error('Error reading external quote coverage:', error)
+      res.status(500).json({ error: 'Failed to read external quote coverage' })
+    }
+  })
+
   app.put('/api/admin/pricing/comparison-mappings/places/:id', ...canManage, async (req, res) => {
     const existing = await prisma.priceComparisonPlaceMap.findFirst({ where: { id: req.params.id, tenantId: req.actorContext.tenantId } })
     if (!existing) return res.status(404).json({ error: 'Place mapping not found' })
