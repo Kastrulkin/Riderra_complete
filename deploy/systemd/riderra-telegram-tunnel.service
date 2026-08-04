@@ -1,0 +1,14 @@
+[Unit]
+Description=Riderra Telegram SOCKS tunnel via OpenClaw
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/riderra/telegram-tunnel.env
+ExecStart=/bin/sh -c 'exec /usr/bin/ssh -N -T -i /root/.ssh/riderra_openclaw_tunnel -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes -L "127.0.0.1:11080:${TELEGRAM_PROXY_TARGET}" "${OPENCLAW_SSH_TARGET}"'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

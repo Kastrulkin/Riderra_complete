@@ -4,6 +4,7 @@ loadEnv()
 const express = require('express')
 const bodyParser = require('body-parser')
 const { PrismaClient } = require('@prisma/client')
+const axios = require('axios')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
@@ -11,6 +12,7 @@ const fs = require('fs/promises')
 const crypto = require('crypto')
 const os = require('os')
 const path = require('path')
+const { SocksProxyAgent } = require('socks-proxy-agent')
 const {
   buildOpenClawEnvelope,
   validateOpenClawPayload,
@@ -18613,19 +18615,33 @@ app.get('/api/admin/ops/unavailability/:id/conflicts', authenticateToken, resolv
 })
 
 // ==================== TELEGRAM CRM LOOKUP ====================
+let telegramProxyAgent = null
+
+function getTelegramProxyAgent() {
+  const proxyUrl = String(process.env.TELEGRAM_PROXY_URL || '').trim()
+  if (!proxyUrl) return null
+  if (!telegramProxyAgent) telegramProxyAgent = new SocksProxyAgent(proxyUrl)
+  return telegramProxyAgent
+}
+
 async function telegramSendMessage(chatId, text) {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not configured')
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const response = await axios.post(
+    `https://api.telegram.org/bot${token}/sendMessage`,
+    {
       chat_id: chatId,
       text
-    })
-  })
-  if (!response.ok) {
-    const details = await response.text()
+    },
+    {
+      httpsAgent: getTelegramProxyAgent() || undefined,
+      proxy: false,
+      timeout: 15000,
+      validateStatus: () => true
+    }
+  )
+  if (response.status < 200 || response.status >= 300 || response.data?.ok === false) {
+    const details = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
     throw new Error(`Telegram sendMessage failed: ${details}`)
   }
 }

@@ -54,6 +54,7 @@
     "paysera-nodejs": "^1.0.2",
     "sass": "^1.32.0",
     "sass-loader": "^7.1.0",
+    "socks-proxy-agent": "8.0.5",
     "v-scroll-lock": "^1.0.1",
     "vue-click-outside": "^1.0.7",
     "vue-masked-input": "^0.5.2",
