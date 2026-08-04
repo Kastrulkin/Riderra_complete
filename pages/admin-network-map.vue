@@ -76,7 +76,7 @@ import adminTabs from '~/components/partials/adminTabs.vue'
 
 export default {
   layout: 'admin',
-  middleware: 'crm',
+  middleware: 'staff',
   components: { adminTabs },
   data: () => ({
     loading: true,
