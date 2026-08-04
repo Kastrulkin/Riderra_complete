@@ -35,6 +35,7 @@
     "smoke:order-sheet-identity": "node scripts/order_sheet_identity_smoke.js",
     "smoke:order-details-contacts": "node scripts/order_details_contacts_smoke.js",
     "test:london-pricing": "node scripts/tests/london_pricing_service.test.js",
+    "test:telegram-pricing": "node scripts/tests/telegram_order_pricing_service.test.js",
     "pricing:sync-london": "node scripts/sync_london_royal_mtt_prices.js",
     "ops:backfill-email-workspace": "node scripts/backfill_email_order_workspace.js"
   },

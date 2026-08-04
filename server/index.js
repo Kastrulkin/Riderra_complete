@@ -56,6 +56,12 @@ const {
   parseLondonPricingRequest,
   toMttRouteToken
 } = require('./services/londonPricingService')
+const {
+  findMatchingCityPrice,
+  hasCompleteLondonPricingRoute,
+  isOrderPriceRequest,
+  stripOrderPriceCommand
+} = require('./services/telegramOrderPricingService')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -16122,7 +16128,7 @@ async function findAuthoritativePriceForDraft({
         sellPrice: { not: null }
       },
       orderBy: [{ updatedAt: 'desc' }],
-      take: 500
+      take: 5000
     })
     const activeNow = counterpartyRows.filter((row) => {
       const now = new Date()
@@ -16193,48 +16199,31 @@ async function findAuthoritativePriceForDraft({
   const rows = await prisma.cityPricing.findMany({
     where: {
       tenantId: tenantId || null,
-      isActive: true,
-      ...(cityNorm ? { city: { equals: cityNorm, mode: 'insensitive' } } : {})
+      isActive: true
     },
     orderBy: [{ updatedAt: 'desc' }],
-    take: 200
+    take: 5000
   })
 
-  const exact = rows.find((row) =>
-    (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
-    (!row.routeFrom || String(row.routeFrom).trim().toLowerCase() === fromNorm.toLowerCase()) &&
-    (!row.routeTo || String(row.routeTo).trim().toLowerCase() === toNorm.toLowerCase()) &&
-    row.fixedPrice !== null
-  )
-  if (exact) return { ...exact, source: 'riderra_pricing', matchMeta: { matchedBy: 'address_text' } }
-
-  const geoZoneExact = (fromZoneNorm || toZoneNorm)
-    ? rows.find((row) =>
-        (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
-        (!row.routeFrom || String(row.routeFrom).trim().toLowerCase() === (fromZoneNorm || fromNorm).toLowerCase()) &&
-        (!row.routeTo || String(row.routeTo).trim().toLowerCase() === (toZoneNorm || toNorm).toLowerCase()) &&
-        row.fixedPrice !== null
-      )
-    : null
-  if (geoZoneExact) {
-    return {
-      ...geoZoneExact,
-      source: 'riderra_pricing',
-      matchMeta: {
-        matchedBy: 'geo_zone',
-        fromZoneName: fromZoneNorm || null,
-        toZoneName: toZoneNorm || null
-      }
+  const match = findMatchingCityPrice(rows, {
+    city: cityNorm,
+    fromPoint: fromNorm,
+    toPoint: toNorm,
+    vehicleType: vehicleNorm,
+    fromZoneName: fromZoneNorm,
+    toZoneName: toZoneNorm,
+    normalizeVehicleType
+  })
+  if (!match) return null
+  return {
+    ...match.row,
+    source: 'riderra_pricing',
+    matchMeta: {
+      matchedBy: match.matchedBy,
+      fromZoneName: fromZoneNorm || null,
+      toZoneName: toZoneNorm || null
     }
   }
-
-  const cityOnly = rows.find((row) =>
-    (!row.vehicleType || normalizeVehicleType(row.vehicleType) === vehicleNorm) &&
-    !row.routeFrom &&
-    !row.routeTo &&
-    row.fixedPrice !== null
-  )
-  return cityOnly ? { ...cityOnly, source: 'riderra_pricing', matchMeta: { matchedBy: 'city_fallback' } } : null
 }
 
 async function loadSupplierCostCandidates(tenantId) {
@@ -16271,7 +16260,7 @@ async function loadSupplierCostCandidates(tenantId) {
         }
       }
     },
-    take: 500
+    take: 5000
   })
 
   const cityRouteRows = await prisma.driverCityRoute.findMany({
@@ -16310,7 +16299,7 @@ async function loadSupplierCostCandidates(tenantId) {
       },
       cityRoute: true
     },
-    take: 500
+    take: 5000
   })
 
   return { driverRoutes, cityRouteRows }
@@ -18646,17 +18635,8 @@ async function telegramSendMessage(chatId, text) {
   }
 }
 
-function isLondonOrderPriceRequest(text = '') {
-  const raw = String(text || '').trim()
-  if (/^\/(?:order[-_]price|london[-_]price)(?:\s|$)/i.test(raw)) return true
-  const hasLondonAirport = /\b(?:LHR|LGW|LCY)\b|Heathrow|Gatwick|London City Airport/i.test(raw)
-  const hasRouteLabels = /(?:^|\n)\s*(?:from|pickup(?: location| address)?|pick-up(?: location| address)?|откуда|место подачи|адрес подачи)\s*[:\-–—]/i.test(raw) &&
-    /(?:^|\n)\s*(?:to|destination|drop-off(?: location| address)?|dropoff(?: location| address)?|куда|место назначения|адрес назначения)\s*[:\-–—]/i.test(raw)
-  return hasLondonAirport && hasRouteLabels
-}
-
 async function buildLondonOrderPriceAnswer(tenantId, text = '') {
-  const commandText = String(text || '').replace(/^\/(?:order[-_]price|london[-_]price)\s*/i, '').trim()
+  const commandText = stripOrderPriceCommand(text)
   const extractedPayload = buildManualEmailOrderDraftPayload({ rawText: commandText })
   const parsed = parseLondonPricingRequest(commandText, extractedPayload.orderDraft || {})
   if (parsed.missing.length) {
@@ -18732,6 +18712,77 @@ async function buildLondonOrderPriceAnswer(tenantId, text = '') {
     `Источник продажи: ${sale.notes?.includes('mtt-london-user-screenshot-2026-08-04') ? 'утверждённый прайс MyTravelThru от 04.08.2026' : 'прайс MyTravelThru в Riderra'}.`,
     `Источник нетто: ${net.sourceLabel || 'Royal Taxis Google Sheet'}.`,
     'Статус: справочный расчёт из подтверждённых прайсов; заказ не создавал и не изменял.'
+  ])
+}
+
+function formatPricingAmount(amount, currency = 'EUR') {
+  const numericAmount = Number(amount)
+  if (!Number.isFinite(numericAmount)) return null
+  return `${numericAmount.toFixed(2)} ${String(currency || 'EUR').toUpperCase()}`
+}
+
+function pricingMatchDescription(matchMeta = null) {
+  if (matchMeta?.matchedBy === 'geo_zone') return 'совпадение по геозонам'
+  if (matchMeta?.matchedBy === 'city_fallback') return 'городской тариф'
+  if (matchMeta?.matchedBy === 'address_text') return 'совпадение маршрута'
+  return 'прайс Riderra'
+}
+
+async function buildGeneralOrderPriceAnswer(tenantId, text = '') {
+  const commandText = stripOrderPriceCommand(text)
+  const extractedPayload = buildManualEmailOrderDraftPayload({ rawText: commandText })
+  const londonParsed = parseLondonPricingRequest(commandText, extractedPayload.orderDraft || {})
+  if (hasCompleteLondonPricingRoute(londonParsed)) {
+    return buildLondonOrderPriceAnswer(tenantId, commandText)
+  }
+
+  const initialDraft = extractedPayload.orderDraft || {}
+  const missingRouteFields = [
+    !initialDraft.fromPoint ? 'Pickup' : null,
+    !initialDraft.toPoint ? 'Destination' : null
+  ].filter(Boolean)
+  if (missingRouteFields.length) {
+    return buildCopilotMessage([
+      `Не могу определить: ${missingRouteFields.join(', ')}.`,
+      'Пришлите текст заказа со строками Pickup, Destination, Vehicle и Passengers. Если известен заказчик, добавьте Partner или Company.',
+      'Статус: цену не рассчитывал, заказ не создавал.'
+    ])
+  }
+
+  let payload = await buildOpenClawDraftPayload(extractedPayload, tenantId)
+  payload = await maybeAutoAttachAddressVerification(payload, tenantId)
+  payload = await refreshOpenClawDraftPayloadPricingOnly(payload, tenantId)
+
+  const order = payload.orderDraft || initialDraft
+  const pricing = payload.pricing || {}
+  const saleAmount = Number(pricing.authoritativeClientPrice)
+  const hasSalePrice = Number.isFinite(saleAmount) && saleAmount > 0
+  const saleCurrency = String(pricing.authoritativeCurrency || order.currency || 'EUR').toUpperCase()
+  const supplierDisplay = buildSupplierCostDisplay(pricing.supplierCost, BASE_CURRENCY)
+  const supplierAmount = Number(pricing.supplierCost?.supplierPrice)
+  const supplierCurrency = String(pricing.supplierCost?.currency || BASE_CURRENCY).toUpperCase()
+  const sameCurrency = hasSalePrice && Number.isFinite(supplierAmount) && saleCurrency === supplierCurrency
+  const margin = sameCurrency ? saleAmount - supplierAmount : null
+  const marginPct = margin != null && saleAmount > 0 ? (margin / saleAmount) * 100 : null
+  const sourceLabel = pricing.pricingSource === 'counterparty_pricing'
+    ? `согласованный прайс заказчика${order.counterpartyName ? ` ${order.counterpartyName}` : ''}`
+    : 'внутренний прайс Riderra'
+  const fromZone = String(payload.geoZones?.fromPoint?.name || '').trim()
+  const toZone = String(payload.geoZones?.toPoint?.name || '').trim()
+
+  return buildCopilotMessage([
+    `Маршрут: ${order.fromPoint} → ${order.toPoint}`,
+    `Класс: ${order.vehicleType || 'не указан'}${order.passengers ? `, пассажиров: ${order.passengers}` : ''}`,
+    hasSalePrice
+      ? `Продажная цена: ${formatPricingAmount(saleAmount, saleCurrency)}`
+      : `Продажная цена не найдена${pricing.pricingMissingReason ? `: ${pricing.pricingMissingReason}` : ' для этого маршрута и класса'}.`,
+    supplierDisplay
+      ? `Нетто исполнителя: ${supplierDisplay.line}`
+      : 'Нетто исполнителя не найдено для этого маршрута и класса.',
+    margin != null ? `Маржа: ${formatPricingAmount(margin, saleCurrency)} (${marginPct.toFixed(1)}%)` : null,
+    fromZone || toZone ? `Геозоны: ${fromZone || '—'} → ${toZone || '—'}` : null,
+    hasSalePrice ? `Источник продажи: ${sourceLabel}, ${pricingMatchDescription(pricing.pricingMatchMeta)}.` : null,
+    'Статус: справочный расчёт из прайс-листов Riderra; заказ не создавал и не изменял.'
   ])
 }
 
@@ -19968,8 +20019,8 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
     if (canUseOpsCopilot) {
       const lowerText = text.toLowerCase()
 
-      if (isLondonOrderPriceRequest(text)) {
-        await telegramSendMessage(telegramChatId, await buildLondonOrderPriceAnswer(linkTenantId, text))
+      if (isOrderPriceRequest(text)) {
+        await telegramSendMessage(telegramChatId, await buildGeneralOrderPriceAnswer(linkTenantId, text))
         return res.json({ ok: true })
       }
 
@@ -20189,7 +20240,7 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
       await telegramSendMessage(
         telegramChatId,
         buildCopilotMessage([
-          'Чтобы узнать цены по Лондону, отправьте /order_price и текст заказа со строками Pickup, Destination, Vehicle и Passengers.',
+          'Чтобы узнать продажную и нетто-цену по прайс-листам Riderra, отправьте /order_price и текст заказа со строками Pickup, Destination, Vehicle и Passengers. Если известен заказчик, добавьте Partner или Company.',
           'Другие команды: /customer <запрос>, /company <запрос>, /tasks, /task-done <id>, /report la, /new-order-check, /easytaxi-reminder',
           'Источник: системные команды Riderra.',
           'Статус: доступно в личном чате.'
