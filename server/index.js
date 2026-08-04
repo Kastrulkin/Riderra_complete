@@ -49,6 +49,11 @@ const { registerAuthBootstrapRoutes, registerAuthRoutes } = require('./routes/au
 const { registerPublicRoutes } = require('./routes/public')
 const { ingestComplaintEmail, registerComplaintRoutes } = require('./routes/complaints')
 const { isComplaintEmail } = require('./utils/complaints')
+const {
+  londonParkingFee,
+  parseLondonPricingRequest,
+  toMttRouteToken
+} = require('./services/londonPricingService')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -18625,6 +18630,95 @@ async function telegramSendMessage(chatId, text) {
   }
 }
 
+function isLondonOrderPriceRequest(text = '') {
+  const raw = String(text || '').trim()
+  if (/^\/(?:order-price|london-price)(?:\s|$)/i.test(raw)) return true
+  const hasLondonAirport = /\b(?:LHR|LGW|LCY)\b|Heathrow|Gatwick|London City Airport/i.test(raw)
+  const hasRouteLabels = /(?:^|\n)\s*(?:from|pickup(?: location| address)?|pick-up(?: location| address)?|откуда|место подачи|адрес подачи)\s*[:\-–—]/i.test(raw) &&
+    /(?:^|\n)\s*(?:to|destination|drop-off(?: location| address)?|dropoff(?: location| address)?|куда|место назначения|адрес назначения)\s*[:\-–—]/i.test(raw)
+  return hasLondonAirport && hasRouteLabels
+}
+
+async function buildLondonOrderPriceAnswer(tenantId, text = '') {
+  const commandText = String(text || '').replace(/^\/(?:order-price|london-price)\s*/i, '').trim()
+  const extractedPayload = buildManualEmailOrderDraftPayload({ rawText: commandText })
+  const parsed = parseLondonPricingRequest(commandText, extractedPayload.orderDraft || {})
+  if (parsed.missing.length) {
+    return buildCopilotMessage([
+      `Не могу однозначно определить: ${parsed.missing.join(', ')}.`,
+      'Пришлите строки «Pickup: ...», «Destination: ...», класс машины или количество пассажиров. Для Лондона в адресе нужен почтовый индекс.',
+      'Статус: цену не рассчитывал, заказ не создавал.'
+    ])
+  }
+
+  const saleFrom = toMttRouteToken(parsed.fromPoint)
+  const saleTo = toMttRouteToken(parsed.toPoint)
+  const [sale, net] = await Promise.all([
+    prisma.counterpartyPriceRule.findFirst({
+      where: {
+        tenantId,
+        isActive: true,
+        counterpartyName: { equals: 'My Travel Throu', mode: 'insensitive' },
+        routeFrom: { equals: saleFrom, mode: 'insensitive' },
+        routeTo: { equals: saleTo, mode: 'insensitive' },
+        vehicleType: { equals: parsed.vehicleType, mode: 'insensitive' },
+        sellPrice: { not: null }
+      },
+      orderBy: { updatedAt: 'desc' }
+    }),
+    prisma.driverRoute.findFirst({
+      where: {
+        tenantId,
+        isActive: true,
+        sourceStatus: 'approved',
+        fromPoint: { equals: parsed.fromPoint, mode: 'insensitive' },
+        toPoint: { equals: parsed.toPoint, mode: 'insensitive' },
+        vehicleType: { equals: parsed.vehicleType, mode: 'insensitive' },
+        driver: {
+          isActive: true,
+          OR: [
+            { name: { contains: 'Royal Taxis', mode: 'insensitive' } },
+            { supplierCompany: { name: { contains: 'Royal Taxis', mode: 'insensitive' } } }
+          ]
+        }
+      },
+      include: { driver: { select: { name: true, supplierCompany: { select: { name: true } } } } },
+      orderBy: { updatedAt: 'desc' }
+    })
+  ])
+
+  if (!sale || !net) {
+    return buildCopilotMessage([
+      `Маршрут: ${parsed.fromPoint} → ${parsed.toPoint}`,
+      `Класс: ${parsed.vehicleType}`,
+      !sale ? 'Продажная цена MyTravelThru не найдена.' : null,
+      !net ? 'Нетто Royal Taxis не найдено.' : null,
+      'Статус: цена не подтверждена, заказ не создавал.'
+    ])
+  }
+
+  const parking = londonParkingFee(parsed.fromPoint, parsed.toPoint)
+  const sellBase = Number(sale.sellPrice)
+  const netBase = Number(net.driverPrice)
+  const sellTotal = sellBase + parking.amount
+  const netTotal = netBase + parking.amount
+  const margin = sellTotal - netTotal
+  const marginPct = sellTotal > 0 ? (margin / sellTotal) * 100 : 0
+  const supplierName = net.driver?.supplierCompany?.name || net.driver?.name || 'Royal Taxis London'
+  return buildCopilotMessage([
+    `Маршрут: ${parsed.fromPoint} → ${parsed.toPoint}`,
+    `Класс: ${parsed.vehicleType}${parsed.vehicleAssumed ? ' (определён автоматически — проверьте)' : ''}${parsed.passengers ? `, пассажиров: ${parsed.passengers}` : ''}`,
+    `Продажа MyTravelThru: ${sellBase.toFixed(2)} GBP`,
+    `Нетто ${supplierName}: ${netBase.toFixed(2)} GBP`,
+    parking.amount > 0 ? `Парковка (${parking.reason}): +${parking.amount.toFixed(2)} GBP` : 'Парковка: 0.00 GBP',
+    `Итого клиент / исполнитель: ${sellTotal.toFixed(2)} / ${netTotal.toFixed(2)} GBP`,
+    `Маржа: ${margin.toFixed(2)} GBP (${marginPct.toFixed(1)}%)`,
+    `Источник продажи: ${sale.notes?.includes('mtt-london-user-screenshot-2026-08-04') ? 'утверждённый прайс MyTravelThru от 04.08.2026' : 'прайс MyTravelThru в Riderra'}.`,
+    `Источник нетто: ${net.sourceLabel || 'Royal Taxis Google Sheet'}.`,
+    'Статус: справочный расчёт из подтверждённых прайсов; заказ не создавал и не изменял.'
+  ])
+}
+
 function formatCompanyResult(rows) {
   if (!rows.length) return 'Ничего не найдено по компании.'
   return rows
@@ -19855,6 +19949,11 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
     if (canUseOpsCopilot) {
       const lowerText = text.toLowerCase()
 
+      if (isLondonOrderPriceRequest(text)) {
+        await telegramSendMessage(telegramChatId, await buildLondonOrderPriceAnswer(linkTenantId, text))
+        return res.json({ ok: true })
+      }
+
       if (text.startsWith('/tasks')) {
         const tasks = await getOpenOpsTasksForUser(link.userId, linkTenantId)
         await telegramSendMessage(
@@ -20071,7 +20170,7 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
       await telegramSendMessage(
         telegramChatId,
         buildCopilotMessage([
-          'Команды: /customer <запрос>, /company <запрос>, /tasks, /task-done <id>, /report la, /new-order-check, /easytaxi-reminder',
+          'Команды: /order-price <текст заказа>, /customer <запрос>, /company <запрос>, /tasks, /task-done <id>, /report la, /new-order-check, /easytaxi-reminder',
           'Источник: системные команды Riderra.',
           'Статус: доступно в личном чате.'
         ])
