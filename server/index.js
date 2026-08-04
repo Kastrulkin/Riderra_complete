@@ -13100,6 +13100,7 @@ app.get('/api/admin/email-ingest/status', authenticateToken, resolveActorContext
 
 const GEO_ZONE_UPLOAD_MAX_BYTES = 12 * 1024 * 1024
 const GEO_ZONE_ALLOWED_EXTENSIONS = new Set(['.csv', '.geojson', '.json', '.kml', '.kmz'])
+const BUNDLED_MASTER_GEO_ZONES_PATH = path.join(process.cwd(), 'reports', 'eto-sync', 'riderra_master_geozones.kml')
 const geoZoneIndexCache = new Map()
 
 function getGeoZoneImportDir(tenantId) {
@@ -13221,6 +13222,12 @@ function stripXmlTags(value = '') {
   return decodeXmlEntities(String(value || '').replace(/<[^>]+>/g, '')).trim()
 }
 
+function extractKmlDataValue(placemark = '', key = '') {
+  const safeKey = String(key || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = String(placemark).match(new RegExp(`<Data\\s+name=["']${safeKey}["'][^>]*>[\\s\\S]*?<value[^>]*>([\\s\\S]*?)<\\/value>[\\s\\S]*?<\\/Data>`, 'i'))
+  return stripXmlTags(match?.[1] || '')
+}
+
 function parseKmlCoordinateList(value = '') {
   return String(value || '')
     .trim()
@@ -13250,9 +13257,11 @@ function extractKmlZones(text = '') {
     }).filter(Boolean)
     if (name || polygons.length) {
       zones.push({
+        id: extractKmlDataValue(placemark, 'zoneId') || null,
         name: name || `Zone ${zones.length + 1}`,
         polygons,
-        sourceFormat: 'kml'
+        sourceFormat: 'kml',
+        sourceFile: extractKmlDataValue(placemark, 'sourceFile') || null
       })
     }
   }
@@ -13296,6 +13305,7 @@ function extractGeoJsonZones(parsed) {
         : []
     }
     return {
+      id: String(feature?.properties?.zoneId || feature?.properties?.id || feature?.id || '').trim() || null,
       name: geoJsonFeatureName(feature, index),
       polygons,
       sourceFormat: 'geojson'
@@ -13348,6 +13358,7 @@ function extractPointFromGeoResult(geo = null) {
 function buildGeoZoneMatch(zone, manifest, matchedBy = 'polygon') {
   if (!zone) return null
   return {
+    id: zone.id || null,
     name: zone.name || null,
     matchedBy,
     sourceSystem: manifest?.sourceSystem || 'easy_taxi_eto',
@@ -13507,7 +13518,24 @@ async function readGeoZoneImportStatus(tenantId) {
     const raw = await fs.readFile(getGeoZoneLatestPath(tenantId), 'utf8')
     return JSON.parse(raw)
   } catch (_) {
-    return null
+    try {
+      const fileBuffer = await fs.readFile(BUNDLED_MASTER_GEO_ZONES_PATH)
+      const stat = await fs.stat(BUNDLED_MASTER_GEO_ZONES_PATH)
+      return {
+        uploadedAt: stat.mtime.toISOString(),
+        tenantId,
+        originalFileName: path.basename(BUNDLED_MASTER_GEO_ZONES_PATH),
+        storedFileName: path.basename(BUNDLED_MASTER_GEO_ZONES_PATH),
+        storedPath: BUNDLED_MASTER_GEO_ZONES_PATH,
+        contentType: 'application/vnd.google-earth.kml+xml',
+        sizeBytes: fileBuffer.length,
+        sourceSystem: 'riderra_master_geo_zones',
+        bundled: true,
+        ...summarizeGeoZoneFile(fileBuffer, '.kml')
+      }
+    } catch (_) {
+      return null
+    }
   }
 }
 
@@ -13521,6 +13549,30 @@ app.get('/api/admin/geo-zones/import/status', authenticateToken, resolveActorCon
   } catch (error) {
     console.error('Error fetching geo zone import status:', error)
     res.status(500).json({ error: 'Failed to fetch geo zone import status' })
+  }
+})
+
+app.get('/api/admin/geo-zones/map', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['crm.read', 'directions.read', 'pricing.read']), async (req, res) => {
+  try {
+    const latest = await readGeoZoneImportStatus(req.actorContext.tenantId)
+    const index = latest ? await loadGeoZoneIndex(req.actorContext.tenantId) : null
+    const mapId = String(process.env.GOOGLE_MY_MAPS_ID || '').trim()
+    res.json({
+      configured: Boolean(latest),
+      latest,
+      polygonZoneCount: index?.polygonZoneCount || 0,
+      googleMap: mapId
+        ? {
+            id: mapId,
+            viewUrl: `https://www.google.com/maps/d/viewer?mid=${encodeURIComponent(mapId)}`,
+            editUrl: `https://www.google.com/maps/d/edit?mid=${encodeURIComponent(mapId)}`,
+            embedUrl: `https://www.google.com/maps/d/embed?mid=${encodeURIComponent(mapId)}`
+          }
+        : null
+    })
+  } catch (error) {
+    console.error('Error fetching geo zone map:', error)
+    res.status(500).json({ error: 'Failed to fetch geo zone map' })
   }
 })
 

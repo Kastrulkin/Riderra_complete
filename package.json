@@ -36,6 +36,8 @@
     "smoke:order-details-contacts": "node scripts/order_details_contacts_smoke.js",
     "test:london-pricing": "node scripts/tests/london_pricing_service.test.js",
     "test:telegram-pricing": "node scripts/tests/telegram_order_pricing_service.test.js",
+    "test:geo-zones": "node scripts/tests/master_geo_zones.test.js",
+    "geo-zones:build-master": "node scripts/build_master_geo_zones.js",
     "pricing:sync-london": "node scripts/sync_london_royal_mtt_prices.js",
     "ops:backfill-email-workspace": "node scripts/backfill_email_order_workspace.js"
   },

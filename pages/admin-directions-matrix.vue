@@ -7,6 +7,7 @@
     <section class="site-section site-section--pf matrix-section">
       <div class="container">
         <admin-tabs />
+        <network-direction-views />
 
         <div class="section-actions">
           <button class="btn btn--ghost" @click="load">{{ t.refresh }}</button>
@@ -141,11 +142,12 @@
 
 <script>
 import adminTabs from '~/components/partials/adminTabs.vue'
+import networkDirectionViews from '~/components/partials/networkDirectionViews.vue'
 
 export default {
   layout: 'admin',
   middleware: 'crm',
-  components: { adminTabs },
+  components: { adminTabs, networkDirectionViews },
   data: () => ({
     rows: [],
     filtered: [],

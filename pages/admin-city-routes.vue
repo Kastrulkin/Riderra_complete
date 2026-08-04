@@ -8,6 +8,7 @@
     <section class="site-section site-section--pf admin-section">
       <div class="container">
         <admin-tabs />
+        <network-direction-views />
         <div class="admin-header">
           <h1 class="h2 admin-title">{{ t.title }}</h1>
           <div class="header-actions">
@@ -220,11 +221,12 @@
 <script>
 import Papa from 'papaparse'
 import adminTabs from '~/components/partials/adminTabs.vue'
+import networkDirectionViews from '~/components/partials/networkDirectionViews.vue'
 
 export default {
   layout: 'admin',
   middleware: 'admin',
-  components: { adminTabs },
+  components: { adminTabs, networkDirectionViews },
   computed: {
     lang() { return this.$store.state.language },
     t() {

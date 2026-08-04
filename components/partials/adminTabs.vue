@@ -90,9 +90,9 @@ export default {
           tabs: [
             { to: '/admin-drivers', label: 'Водители', hint: 'Люди и машины' },
             { to: '/admin-crm', label: 'CRM', hint: 'Клиенты и компании' },
-            { to: '/admin-directions-matrix', label: 'Направления', hint: 'Спрос и покрытие' },
+            { to: '/admin-directions-matrix', matches: ['/admin-city-routes'], label: 'Направления', hint: 'Покрытие и маршруты' },
+            { to: '/admin-network-map', label: 'Карта', hint: 'Геозоны и покрытие' },
             ...(this.canAdmin ? [
-              { to: '/admin-city-routes', label: 'Маршруты', hint: 'Города и направления' },
               { to: '/admin-driver-switch', label: 'Войти как водитель', hint: 'Проверка кабинета' }
             ] : [])
           ]
@@ -161,9 +161,9 @@ export default {
           tabs: [
             { to: '/admin-drivers', label: 'Drivers', hint: 'People and vehicles' },
             { to: '/admin-crm', label: 'CRM', hint: 'Clients and companies' },
-            { to: '/admin-directions-matrix', label: 'Coverage', hint: 'Demand and supply' },
+            { to: '/admin-directions-matrix', matches: ['/admin-city-routes'], label: 'Directions', hint: 'Coverage and routes' },
+            { to: '/admin-network-map', label: 'Map', hint: 'Zones and coverage' },
             ...(this.canAdmin ? [
-              { to: '/admin-city-routes', label: 'Routes', hint: 'Cities and directions' },
               { to: '/admin-driver-switch', label: 'View as driver', hint: 'Check driver workspace' }
             ] : [])
           ]
@@ -213,7 +213,7 @@ export default {
         return this.selectedSectionKey
       }
       const path = this.routePath
-      const found = this.sections.find((section) => section.tabs.some((tab) => path === tab.to || path.startsWith(`${tab.to}/`)))
+      const found = this.sections.find((section) => section.tabs.some((tab) => path === tab.to || path.startsWith(`${tab.to}/`) || (tab.matches || []).some((match) => path === match || path.startsWith(`${match}/`))))
       return found ? found.key : 'operations'
     },
     activeTabs () {
@@ -224,7 +224,7 @@ export default {
     },
     activeTabContext () {
       const path = this.routePath
-      return this.activeTabs.find(tab => path === tab.to || (tab.to !== '/admin' && path.startsWith(`${tab.to}/`))) || this.activeTabs[0] || this.activeSectionContext
+      return this.activeTabs.find(tab => path === tab.to || (tab.to !== '/admin' && path.startsWith(`${tab.to}/`)) || (tab.matches || []).some((match) => path === match || path.startsWith(`${match}/`))) || this.activeTabs[0] || this.activeSectionContext
     }
   },
   mounted () {
