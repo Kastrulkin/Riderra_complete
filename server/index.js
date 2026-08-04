@@ -19927,7 +19927,10 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
       include: { user: true }
     })
     if (!link) {
-      await telegramSendMessage(telegramChatId, 'Этот Telegram аккаунт не привязан к Riderra. Обратитесь к администратору.')
+      await telegramSendMessage(
+        telegramChatId,
+        `Этот Telegram аккаунт ещё не привязан к Riderra. Ваш Telegram ID: ${telegramUserId}. Передайте его администратору вместе с рабочим email.`
+      )
       return res.json({ ok: true })
     }
     const linkTenantId = link.tenantId || tenantId
