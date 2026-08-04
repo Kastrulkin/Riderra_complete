@@ -7,6 +7,7 @@ const {
   externalRouteKey,
   nextScheduledServiceAt,
   parseSmartRydeQuotes,
+  placeCandidateMatches,
   smartRydeVehicleMatches
 } = require('../../server/services/priceComparisonService')
 
@@ -43,6 +44,14 @@ test('external quote collection groups vehicle rows for the same route and curre
   const reverse = externalRouteKey({ routeFrom: 'London Hotel', routeTo: 'LHR', currency: 'EUR' })
   assert.equal(standard, business)
   assert.notEqual(standard, reverse)
+})
+
+test('place auto-approval rejects semantically wrong single results', () => {
+  assert.equal(placeCandidateMatches('Baku', 'Kushok Bakula Rimpochee Airport'), false)
+  assert.equal(placeCandidateMatches('Burgas', 'Burgas Airport (BOJ)'), false)
+  assert.equal(placeCandidateMatches('GuangZhou city center', 'Guangzhou'), true)
+  assert.equal(placeCandidateMatches('Hong Kong Airport (HKG)', 'Hong Kong International Airport (HKG)'), true)
+  assert.equal(placeCandidateMatches('Hilton Garden Inn London Heathrow', 'Hilton Garden Inn London Heathrow'), true)
 })
 
 test('SmartRyde quote parser extracts safe vehicle facts', () => {

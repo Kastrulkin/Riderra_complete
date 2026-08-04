@@ -27,6 +27,33 @@ function normalizeTextKey(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+function placeCandidateMatches(inputText, candidateLabel) {
+  const input = normalizeTextKey(inputText)
+  const candidate = normalizeTextKey(candidateLabel)
+  if (!input || !candidate) return false
+  if (input === candidate) return true
+
+  const inputIata = String(inputText || '').match(/\(([A-Z]{3})\)/)?.[1]
+  if (inputIata) return new RegExp(`\\b${inputIata}\\b`, 'i').test(String(candidateLabel || ''))
+
+  const tokens = (value) => normalizeTextKey(value)
+    .replace(/[^a-z0-9\p{L}]+/gu, ' ')
+    .split(' ')
+    .filter(Boolean)
+  const inputTokens = tokens(input)
+  const candidateTokens = new Set(tokens(candidate))
+  const stopwords = new Set(['airport', 'international', 'city', 'centre', 'center', 'downtown', 'hotel', 'station', 'terminal'])
+  const meaningful = inputTokens.filter((token) => !stopwords.has(token))
+  if (!meaningful.length) return false
+
+  if (/(?:city|centre|center|downtown)/i.test(input) && meaningful.length === 1) {
+    return candidateTokens.has(meaningful[0])
+  }
+  if (meaningful.length === 1) return false
+  const overlap = meaningful.filter((token) => candidateTokens.has(token)).length
+  return overlap / meaningful.length >= 0.75
+}
+
 function externalRouteKey({ routeFrom, routeTo, currency }) {
   return crypto.createHash('sha256')
     .update([normalizeTextKey(routeFrom), normalizeTextKey(routeTo), String(currency || '').toUpperCase()].join('|'))
@@ -318,7 +345,7 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
   }
 
   const candidates = await adapter.resolvePlace(inputText, relatedPlaceId)
-  const autoApprove = candidates.length === 1
+  const autoApprove = candidates.length === 1 && placeCandidateMatches(inputText, candidates[0].label)
   const selected = autoApprove ? candidates[0] : null
   const mapping = await prisma.priceComparisonPlaceMap.upsert({
     where: { sourceId_normalizedInput: { sourceId: source.id, normalizedInput } },
@@ -653,6 +680,7 @@ module.exports = {
   nextScheduledServiceAt,
   normalizeTextKey,
   parseSmartRydeQuotes,
+  placeCandidateMatches,
   refreshRunCounters,
   smartRydeVehicleMatches
 }
