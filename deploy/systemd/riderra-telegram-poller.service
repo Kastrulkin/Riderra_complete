@@ -1,0 +1,15 @@
+[Unit]
+Description=Riderra Telegram long-polling worker
+Requires=riderra-telegram-tunnel.service
+After=network-online.target riderra-telegram-tunnel.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/riderra
+ExecStart=/usr/bin/node /opt/riderra/scripts/telegram_polling_worker.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target
