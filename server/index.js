@@ -50,6 +50,7 @@ const { languageCookieMiddleware } = require('./middleware/languageCookie')
 const { registerAuthBootstrapRoutes, registerAuthRoutes } = require('./routes/auth')
 const { registerPublicRoutes } = require('./routes/public')
 const { ingestComplaintEmail, registerComplaintRoutes } = require('./routes/complaints')
+const { registerPricingComparisonRoutes } = require('./routes/pricingComparisons')
 const { isComplaintEmail } = require('./utils/complaints')
 const {
   applyLondonPostcodeZoneOverrides,
@@ -20833,6 +20834,15 @@ registerComplaintRoutes(app, {
   emailFrom: EMAIL_FROM,
   createMediaUrl: createOpenClawMediaUrl,
   uploadMedia: uploadOpenClawComplaintMedia
+})
+
+registerPricingComparisonRoutes(app, {
+  prisma,
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requireCan,
+  writeAuditLog
 })
 
 registerAuthBootstrapRoutes(app, {

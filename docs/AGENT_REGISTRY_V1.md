@@ -69,6 +69,8 @@ Required invariants:
 | `riderra.pricing.base_price.write` | available | changes internal price book | pricing admin human required | `POST/PUT/DELETE /api/admin/pricing/cities` |
 | `riderra.pricing.counterparty_rules.read` | available | no | pricing read permission | `GET /api/admin/pricing/counterparty-rules` |
 | `riderra.pricing.counterparty_rules.write` | available | changes price rules | pricing admin human required | `POST/PUT /api/admin/pricing/counterparty-rules` |
+| `riderra.pricing.comparison.read` | available | no | pricing read permission | `GET /api/admin/pricing/comparison-sources`, `GET /api/admin/pricing/comparison-runs/:id/results` |
+| `riderra.pricing.comparison.run` | beta | creates immutable external quote snapshots and comparison results; does not change the price book | pricing manager human starts the run and approves ambiguous mappings | `POST /api/admin/pricing/comparison-runs`, `POST /api/admin/pricing/comparison-runs/:id/execute`, `PUT /api/admin/pricing/comparison-mappings/*` |
 | `riderra.chat.message.compose` | available | creates draft message | human required before send | `POST /api/admin/chats/tasks/:id/build` |
 | `riderra.chat.message.approve` | available | approves message draft | human required | `POST /api/admin/chats/messages/:id/approve` |
 | `riderra.chat.message.send` | available | sends outbound message | human required | `POST /api/admin/chats/messages/:id/send` |

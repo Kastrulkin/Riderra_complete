@@ -8,56 +8,62 @@ datasource db {
 }
 
 model Tenant {
-  id                   String                      @id @default(cuid())
-  createdAt            DateTime                    @default(now())
-  updatedAt            DateTime                    @updatedAt
-  code                 String                      @unique
-  name                 String
-  isActive             Boolean                     @default(true)
-  memberships          TenantMembership[]
-  idempotencyKeys      IdempotencyKey[]
-  auditLogs            AuditLog[]
-  approvals            HumanApproval[]
-  orders               Order[]
-  orderQualitySignals  OrderQualitySignal[]
-  orderStatusEvents    OrderStatusHistory[]
-  orderChangeLogs      OrderChangeLog[]
-  pricingRows          CityPricing[]
-  counterpartyRules    CounterpartyPriceRule[]
-  drivers              Driver[]
-  driverRoutes         DriverRoute[]
-  cityRoutes           CityRoute[]
-  driverCityRoutes     DriverCityRoute[]
-  requests             Request[]
-  reviews              Review[]
-  customerCompanies    CustomerCompany[]
-  customerContacts     CustomerContact[]
-  crmCompanies         CrmCompany[]
-  crmContacts          CrmContact[]
-  opsEventDrafts       OpsEventDraft[]
-  opsEvents            OpsEvent[]
-  driverBlocks         DriverUnavailability[]
-  opsTasks             OpsTask[]
-  orderAdjustments     OrderAdjustment[]
-  telegramLinks        TelegramLink[]
-  fleetVehicles        FleetVehicle[]
-  chatTasks            ChatTask[]
-  chatMessages         ChatMessage[]
-  chatAgentConfigs     ChatAgentConfig[]
-  chatAgentVersions    ChatAgentVersion[]
-  agentRuns            AgentRun[]
-  agentSandboxSessions AgentSandboxSession[]
-  promptTemplates      PromptTemplate[]
-  aiLearningEvents     AiLearningEvent[]
-  vpnProfiles          VpnProfile[]
-  vpnAccessGrants      VpnAccessGrant[]
-  wikiPages            WikiPage[]
-  complaintCases       ComplaintCase[]
-  complaintMessages    ComplaintMessage[]
-  complaintActivities  ComplaintActivity[]
-  complaintEvidence    ComplaintEvidence[]
-  providerTripEvents   ProviderTripEvent[]
-  complaintRules       CounterpartyComplaintRule[]
+  id                      String                      @id @default(cuid())
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  code                    String                      @unique
+  name                    String
+  isActive                Boolean                     @default(true)
+  memberships             TenantMembership[]
+  idempotencyKeys         IdempotencyKey[]
+  auditLogs               AuditLog[]
+  approvals               HumanApproval[]
+  orders                  Order[]
+  orderQualitySignals     OrderQualitySignal[]
+  orderStatusEvents       OrderStatusHistory[]
+  orderChangeLogs         OrderChangeLog[]
+  pricingRows             CityPricing[]
+  counterpartyRules       CounterpartyPriceRule[]
+  drivers                 Driver[]
+  driverRoutes            DriverRoute[]
+  cityRoutes              CityRoute[]
+  driverCityRoutes        DriverCityRoute[]
+  requests                Request[]
+  reviews                 Review[]
+  customerCompanies       CustomerCompany[]
+  customerContacts        CustomerContact[]
+  crmCompanies            CrmCompany[]
+  crmContacts             CrmContact[]
+  opsEventDrafts          OpsEventDraft[]
+  opsEvents               OpsEvent[]
+  driverBlocks            DriverUnavailability[]
+  opsTasks                OpsTask[]
+  orderAdjustments        OrderAdjustment[]
+  telegramLinks           TelegramLink[]
+  fleetVehicles           FleetVehicle[]
+  chatTasks               ChatTask[]
+  chatMessages            ChatMessage[]
+  chatAgentConfigs        ChatAgentConfig[]
+  chatAgentVersions       ChatAgentVersion[]
+  agentRuns               AgentRun[]
+  agentSandboxSessions    AgentSandboxSession[]
+  promptTemplates         PromptTemplate[]
+  aiLearningEvents        AiLearningEvent[]
+  vpnProfiles             VpnProfile[]
+  vpnAccessGrants         VpnAccessGrant[]
+  wikiPages               WikiPage[]
+  complaintCases          ComplaintCase[]
+  complaintMessages       ComplaintMessage[]
+  complaintActivities     ComplaintActivity[]
+  complaintEvidence       ComplaintEvidence[]
+  providerTripEvents      ProviderTripEvent[]
+  complaintRules          CounterpartyComplaintRule[]
+  priceComparisonSources  PriceComparisonSource[]
+  priceComparisonRuns     PriceComparisonRun[]
+  priceComparisonQuotes   PriceComparisonQuote[]
+  priceComparisonResults  PriceComparisonResult[]
+  priceComparisonPlaces   PriceComparisonPlaceMap[]
+  priceComparisonVehicles PriceComparisonVehicleMap[]
 }
 
 model TenantMembership {
@@ -695,6 +701,7 @@ model CustomerCompany {
   segments            CustomerCompanySegment[]
   pricingRules        CounterpartyPriceRule[]
   orderAdjustments    OrderAdjustment[]
+  comparisonSources   PriceComparisonSource[]
   supplierDrivers     Driver[]                 @relation("SupplierCompanyDriverLink")
   tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
@@ -775,28 +782,179 @@ model CustomerContactSegment {
 }
 
 model CityPricing {
-  id             String   @id @default(cuid())
-  tenantId       String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  country        String?
-  city           String
-  routeFrom      String?
-  routeTo        String?
-  vehicleType    String?
-  fixedPrice     Float?
-  pricePerKm     Float?
-  hourlyRate     Float?
-  childSeatPrice Float?
-  currency       String   @default("EUR")
-  isActive       Boolean  @default(true)
-  notes          String?
-  source         String   @default("manual")
-  tenant         Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  id               String                 @id @default(cuid())
+  tenantId         String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  country          String?
+  city             String
+  routeFrom        String?
+  routeTo          String?
+  vehicleType      String?
+  fixedPrice       Float?
+  pricePerKm       Float?
+  hourlyRate       Float?
+  childSeatPrice   Float?
+  currency         String                 @default("EUR")
+  isActive         Boolean                @default(true)
+  notes            String?
+  source           String                 @default("manual")
+  tenant           Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  comparisonQuotes PriceComparisonQuote[]
 
   @@index([tenantId, city, isActive])
   @@index([city])
   @@index([isActive])
+}
+
+model PriceComparisonSource {
+  id                      String                      @id @default(cuid())
+  tenantId                String
+  customerCompanyId       String?
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  name                    String
+  adapterKey              String
+  baseUrl                 String
+  supportedCurrenciesJson String
+  scheduleJson            String
+  passengerConfigJson     String
+  pricingPolicyJson       String
+  formulaVersion          String
+  maxConcurrency          Int                         @default(1)
+  requestDelayMs          Int                         @default(1000)
+  isActive                Boolean                     @default(true)
+  tenant                  Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerCompany         CustomerCompany?            @relation(fields: [customerCompanyId], references: [id], onDelete: SetNull)
+  runs                    PriceComparisonRun[]
+  placeMappings           PriceComparisonPlaceMap[]
+  vehicleMappings         PriceComparisonVehicleMap[]
+
+  @@unique([tenantId, adapterKey])
+  @@index([tenantId, isActive, name])
+}
+
+model PriceComparisonRun {
+  id                 String                  @id @default(cuid())
+  tenantId           String
+  sourceId           String
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  status             String                  @default("draft")
+  serviceAt          DateTime
+  formulaVersion     String
+  pricingPolicyJson  String
+  routeCount         Int                     @default(0)
+  processedCount     Int                     @default(0)
+  opportunitiesCount Int                     @default(0)
+  needsReviewCount   Int                     @default(0)
+  failedCount        Int                     @default(0)
+  error              String?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdByUserId    String?
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source             PriceComparisonSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  quotes             PriceComparisonQuote[]
+  results            PriceComparisonResult[]
+
+  @@index([tenantId, status, createdAt])
+  @@index([sourceId, createdAt])
+}
+
+model PriceComparisonQuote {
+  id                   String                 @id @default(cuid())
+  tenantId             String
+  runId                String
+  cityPricingId        String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  routeFrom            String
+  routeTo              String
+  requestedVehicleType String
+  riderraSellPrice     Float
+  riderraCurrency      String
+  pickupPlaceId        String?
+  pickupLabel          String?
+  dropoffPlaceId       String?
+  dropoffLabel         String?
+  externalVehicleKey   String
+  externalVehicleName  String?
+  maxPassengers        Int?
+  clientSellPrice      Float?
+  clientCurrency       String?
+  serviceAt            DateTime
+  quotedAt             DateTime?
+  status               String                 @default("needs_review")
+  error                String?
+  evidenceJson         String?
+  tenant               Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run                  PriceComparisonRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  cityPricing          CityPricing            @relation(fields: [cityPricingId], references: [id], onDelete: Cascade)
+  result               PriceComparisonResult?
+
+  @@unique([runId, cityPricingId, externalVehicleKey])
+  @@index([tenantId, runId, status])
+  @@index([cityPricingId, quotedAt])
+}
+
+model PriceComparisonResult {
+  id                String               @id @default(cuid())
+  tenantId          String
+  runId             String
+  quoteId           String               @unique
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  formulaVersion    String
+  targetPrice       Float
+  opportunityGapAbs Float
+  opportunityGapPct Float?
+  status            String
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run               PriceComparisonRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  quote             PriceComparisonQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, runId, status])
+}
+
+model PriceComparisonPlaceMap {
+  id               String                @id @default(cuid())
+  tenantId         String
+  sourceId         String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  inputText        String
+  normalizedInput  String
+  externalPlaceId  String?
+  externalLabel    String?
+  status           String                @default("needs_review")
+  candidatesJson   String?
+  approvedByUserId String?
+  approvedAt       DateTime?
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source           PriceComparisonSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, normalizedInput])
+  @@index([tenantId, sourceId, status])
+}
+
+model PriceComparisonVehicleMap {
+  id                  String                @id @default(cuid())
+  tenantId            String
+  sourceId            String
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  externalVehicleKey  String
+  externalVehicleName String
+  riderraVehicleType  String
+  status              String                @default("needs_review")
+  approvedByUserId    String?
+  approvedAt          DateTime?
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source              PriceComparisonSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalVehicleKey, riderraVehicleType])
+  @@index([tenantId, sourceId, status])
 }
 
 model CounterpartyPriceRule {

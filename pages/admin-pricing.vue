@@ -20,6 +20,7 @@
 
         <div class="subtabs">
           <button class="subtab" :class="{ 'subtab--active': tab==='base' }" @click="tab='base'">{{ t.base }}</button>
+          <button class="subtab" :class="{ 'subtab--active': tab==='opportunities' }" @click="tab='opportunities'">{{ t.opportunities }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='counterparty' }" @click="tab='counterparty'">{{ t.counterparty }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='driver' }" @click="tab='driver'">{{ t.driver }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='conflicts' }" @click="tab='conflicts'">{{ t.conflicts }}</button>
@@ -33,6 +34,101 @@
         </div>
 
         <div v-if="notice" class="hint">{{ notice }}</div>
+
+        <div v-if="tab==='opportunities'" class="panel comparison-workspace">
+          <div class="panel-head comparison-head">
+            <div>
+              <h3>{{ t.opportunities }}</h3>
+              <p class="panel-hint">{{ t.opportunitiesHint }}</p>
+            </div>
+            <div class="comparison-actions">
+              <button v-if="!comparisonSources.length" class="btn btn--primary" :disabled="comparisonBusy" @click="configureSmartRyde">{{ t.connectSmartRyde }}</button>
+              <button v-else class="btn btn--primary" :disabled="comparisonBusy" @click="createComparisonRun">{{ t.newAnalysis }}</button>
+            </div>
+          </div>
+
+          <div v-if="comparisonSources.length" class="comparison-setup">
+            <label class="pricing-field__label">{{ t.comparisonSource }}</label>
+            <select v-model="selectedComparisonSourceId" class="input" @change="reloadComparisonRuns">
+              <option v-for="source in comparisonSources" :key="source.id" :value="source.id">{{ source.name }}</option>
+            </select>
+            <div v-if="selectedComparisonSource" class="comparison-policy">
+              <span><strong>{{ t.formula }}:</strong> {{ comparisonFormulaLabel(selectedComparisonSource) }}</span>
+              <span><strong>{{ t.schedule }}:</strong> {{ comparisonScheduleLabel(selectedComparisonSource) }}</span>
+              <span><strong>{{ t.status }}:</strong> {{ selectedComparisonSource.isActive ? t.active : t.paused }}</span>
+            </div>
+          </div>
+
+          <div v-if="comparisonRuns.length" class="comparison-runs">
+            <button
+              v-for="run in comparisonRuns"
+              :key="run.id"
+              class="comparison-run-card"
+              :class="{ 'comparison-run-card--active': run.id === selectedComparisonRunId }"
+              @click="selectComparisonRun(run.id)"
+            >
+              <span class="status-pill" :class="`status-pill--${run.status}`">{{ comparisonStatusLabel(run.status) }}</span>
+              <strong>{{ formatDateTime(run.serviceAt) }}</strong>
+              <span>{{ run.processedCount }}/{{ run.routeCount }} · {{ t.green }}: {{ run.opportunitiesCount }}</span>
+            </button>
+          </div>
+
+          <div v-if="activeComparisonRun" class="comparison-current">
+            <div class="comparison-kpis">
+              <div class="mini-stat"><span>{{ t.runStatus }}</span><strong>{{ comparisonStatusLabel(activeComparisonRun.status) }}</strong></div>
+              <div class="mini-stat"><span>{{ t.processed }}</span><strong>{{ activeComparisonRun.processedCount }}/{{ activeComparisonRun.routeCount }}</strong></div>
+              <div class="mini-stat mini-stat--green"><span>{{ t.greenRoutes }}</span><strong>{{ activeComparisonRun.opportunitiesCount }}</strong></div>
+              <div class="mini-stat"><span>{{ t.needsReview }}</span><strong>{{ activeComparisonRun.needsReviewCount }}</strong></div>
+            </div>
+            <div class="comparison-actions">
+              <button v-if="['configured','needs_review','failed'].includes(activeComparisonRun.status)" class="btn btn--primary" :disabled="comparisonBusy" @click="executeComparisonRun">{{ activeComparisonRun.status === 'configured' ? t.launchAnalysis : t.resumeAnalysis }}</button>
+              <button v-if="comparisonRows.length" class="btn" @click="downloadComparisonWorkbook">{{ t.downloadExcel }}</button>
+            </div>
+          </div>
+
+          <div v-if="comparisonPlaceMappings.length" class="review-block">
+            <h4>{{ t.reviewPlaces }}</h4>
+            <p class="panel-hint">{{ t.reviewPlacesHint }}</p>
+            <div v-for="mapping in comparisonPlaceMappings" :key="mapping.id" class="review-row">
+              <strong>{{ mapping.inputText }}</strong>
+              <div class="review-candidates">
+                <button v-for="candidate in mappingCandidates(mapping)" :key="candidate.id" class="btn btn--small" @click="approvePlaceMapping(mapping, candidate)">{{ candidate.label }}</button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="comparisonVehicleReviewRows.length" class="review-block">
+            <h4>{{ t.reviewVehicles }}</h4>
+            <p class="panel-hint">{{ t.reviewVehiclesHint }}</p>
+            <div v-for="quote in comparisonVehicleReviewRows" :key="quote.id" class="review-row review-row--vehicle">
+              <div><strong>{{ quote.externalVehicleName }}</strong><span>{{ quote.routeFrom }} → {{ quote.routeTo }}</span></div>
+              <div>{{ t.mapTo }} <strong>{{ quote.requestedVehicleType }}</strong></div>
+              <button class="btn btn--small btn--primary" @click="approveVehicleMapping(quote)">{{ t.approve }}</button>
+            </div>
+          </div>
+
+          <div v-if="comparisonRows.length" class="pricing-list comparison-results">
+            <div class="pricing-list__head pricing-list__head--opportunities">
+              <div>{{ t.route }}</div>
+              <div>{{ t.vehicleClass }}</div>
+              <div>{{ t.riderraPrice }}</div>
+              <div>{{ t.clientPrice }}</div>
+              <div>{{ t.targetPrice }}</div>
+              <div>{{ t.gap }}</div>
+              <div>{{ t.status }}</div>
+            </div>
+            <div v-for="row in filteredComparisonRows" :key="row.id" class="pricing-row pricing-row--opportunities">
+              <div class="route-cell"><strong>{{ row.routeFrom }} → {{ row.routeTo }}</strong><span>{{ row.cityPricing?.country || '' }} {{ row.cityPricing?.city || '' }}</span></div>
+              <div>{{ row.requestedVehicleType }}</div>
+              <div>{{ priceLabel(row.riderraSellPrice, row.riderraCurrency) }}</div>
+              <div>{{ priceLabel(row.clientSellPrice, row.clientCurrency) }}</div>
+              <div>{{ priceLabel(row.result?.targetPrice, row.riderraCurrency) }}</div>
+              <div>{{ priceLabel(row.result?.opportunityGapAbs, row.riderraCurrency) }}</div>
+              <div><span class="status-pill" :class="`status-pill--${row.result?.status || row.status}`">{{ comparisonStatusLabel(row.result?.status || row.status) }}</span></div>
+            </div>
+          </div>
+          <div v-else-if="comparisonSources.length && !comparisonBusy" class="empty-state">{{ t.comparisonEmpty }}</div>
+        </div>
 
         <div v-if="tab==='base'" class="panel">
           <div class="panel-head">
@@ -329,6 +425,13 @@ export default {
     conflictRows: [],
     driverRows: [],
     adjustmentSummary: null,
+    comparisonSources: [],
+    comparisonRuns: [],
+    comparisonData: null,
+    selectedComparisonSourceId: '',
+    selectedComparisonRunId: '',
+    comparisonBusy: false,
+    comparisonPollTimer: null,
     selectedCounterparties: [],
     selectedSuppliers: [],
     counterpartyVisibleLimit: 250,
@@ -363,6 +466,34 @@ export default {
             title: 'Прайс и контроль маржи',
             subtitle: 'Здесь команда видит не просто набор цен, а управленческую картину: где базовый прайс, где особые договорённости, где водительские ставки и где уже есть риск для маржи.',
             base: 'Базовый прайс',
+            opportunities: 'Возможности',
+            opportunitiesHint: 'Сравните активные маршруты Riderra с публичными ценами выбранной компании и найдите направления для партнёрского предложения.',
+            connectSmartRyde: 'Подключить SmartRyde',
+            newAnalysis: 'Новый анализ',
+            comparisonSource: 'Компания для сравнения',
+            formula: 'Формула',
+            schedule: 'Срез цены',
+            status: 'Статус',
+            active: 'Активен',
+            paused: 'Приостановлен',
+            green: 'зелёных',
+            greenRoutes: 'Зелёные маршруты',
+            runStatus: 'Статус запуска',
+            processed: 'Обработано',
+            needsReview: 'Нужно проверить',
+            launchAnalysis: 'Запустить сбор',
+            resumeAnalysis: 'Продолжить после проверки',
+            downloadExcel: 'Скачать Excel',
+            reviewPlaces: 'Проверьте точки маршрута',
+            reviewPlacesHint: 'SmartRyde нашёл несколько вариантов. Выберите точный адрес, прежде чем продолжить.',
+            reviewVehicles: 'Проверьте классы автомобилей',
+            reviewVehiclesHint: 'Подтвердите, как внешний класс соответствует классу в прайсе Riderra.',
+            mapTo: 'сопоставить с',
+            approve: 'Подтвердить',
+            clientPrice: 'Цена компании',
+            targetPrice: 'Наша целевая цена',
+            gap: 'Запас',
+            comparisonEmpty: 'Создайте анализ, проверьте параметры и вручную запустите сбор цен.',
             counterparty: 'Прайсы клиентов',
             driver: 'Прайсы исполнителей',
             allCounterparties: 'Все клиенты',
@@ -421,6 +552,34 @@ export default {
             title: 'Pricing & Margin Control',
             subtitle: 'This screen shows more than price rows. It gives the team a management view of base pricing, special agreements, driver economics, and margin risk.',
             base: 'Base pricing',
+            opportunities: 'Opportunities',
+            opportunitiesHint: 'Compare active Riderra routes with public prices from a selected company and find routes for a partnership offer.',
+            connectSmartRyde: 'Connect SmartRyde',
+            newAnalysis: 'New analysis',
+            comparisonSource: 'Comparison company',
+            formula: 'Formula',
+            schedule: 'Price snapshot',
+            status: 'Status',
+            active: 'Active',
+            paused: 'Paused',
+            green: 'green',
+            greenRoutes: 'Green routes',
+            runStatus: 'Run status',
+            processed: 'Processed',
+            needsReview: 'Needs review',
+            launchAnalysis: 'Start collection',
+            resumeAnalysis: 'Resume after review',
+            downloadExcel: 'Download Excel',
+            reviewPlaces: 'Review route places',
+            reviewPlacesHint: 'The provider returned several candidates. Select the exact place before continuing.',
+            reviewVehicles: 'Review vehicle classes',
+            reviewVehiclesHint: 'Confirm how the external vehicle class maps to the Riderra price class.',
+            mapTo: 'map to',
+            approve: 'Approve',
+            clientPrice: 'Company price',
+            targetPrice: 'Our target price',
+            gap: 'Gap',
+            comparisonEmpty: 'Create an analysis, review its parameters, and manually start price collection.',
             counterparty: 'Customer prices',
             driver: 'Supplier prices',
             allCounterparties: 'All customers',
@@ -477,6 +636,7 @@ export default {
           }
     },
     searchPlaceholder () {
+      if (this.tab === 'opportunities') return this.$store.state.language === 'ru' ? 'Поиск по маршруту, классу или статусу' : 'Search by route, class, or status'
       if (this.tab === 'base') return this.$store.state.language === 'ru' ? 'Поиск по стране, маршруту или классу авто' : 'Search by country, route, or vehicle class'
       if (this.tab === 'counterparty') return this.$store.state.language === 'ru' ? 'Поиск по клиенту, городу или маршруту' : 'Search by customer, city, or route'
       if (this.tab === 'driver') return this.$store.state.language === 'ru' ? 'Поиск по исполнителю, стране или городу' : 'Search by supplier, country, or city'
@@ -499,6 +659,33 @@ export default {
     },
     adjustmentTotals () {
       return this.adjustmentSummary?.totals || {}
+    },
+    selectedComparisonSource () {
+      return this.comparisonSources.find((source) => source.id === this.selectedComparisonSourceId) || null
+    },
+    activeComparisonRun () {
+      return this.comparisonData?.run || this.comparisonRuns.find((run) => run.id === this.selectedComparisonRunId) || null
+    },
+    comparisonRows () {
+      return (this.comparisonData?.rows || []).filter((row) => row.status !== 'ignored')
+    },
+    comparisonPlaceMappings () {
+      return this.comparisonData?.placeMappings || []
+    },
+    comparisonVehicleReviewRows () {
+      const seen = new Set()
+      return this.comparisonRows.filter((row) => {
+        if (row.status !== 'needs_review' || !row.externalVehicleName || row.externalVehicleKey.startsWith('_')) return false
+        const key = `${row.externalVehicleKey}|${row.requestedVehicleType}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+    },
+    filteredComparisonRows () {
+      const q = this.q.trim().toLowerCase()
+      if (!q) return this.comparisonRows
+      return this.comparisonRows.filter((row) => `${row.routeFrom} ${row.routeTo} ${row.requestedVehicleType} ${row.result?.status || row.status}`.toLowerCase().includes(q))
     },
     filteredBaseRows () {
       const q = this.q.trim().toLowerCase()
@@ -763,6 +950,9 @@ export default {
     }
   },
   mounted () { this.reloadAll() },
+  beforeDestroy () {
+    if (this.comparisonPollTimer) clearTimeout(this.comparisonPollTimer)
+  },
   methods: {
     headers () {
       const token = localStorage.getItem('authToken')
@@ -775,6 +965,130 @@ export default {
         throw new Error(body.error || `HTTP ${response.status}`)
       }
       return body
+    },
+    comparisonFormulaLabel (source) {
+      const policy = source?.pricingPolicy || {}
+      if (policy.type === 'percentage_discount') return `Riderra × ${(1 - (Number(policy.discountPercent || 0) / 100)).toFixed(2)} (${policy.discountPercent}% ниже)`
+      if (policy.type === 'sequential_deductions') return (policy.deductions || []).map((value) => `−${value}%`).join(' → ')
+      return source?.formulaVersion || '-'
+    },
+    comparisonScheduleLabel (source) {
+      const schedule = source?.schedule || {}
+      return this.$store.state.language === 'ru'
+        ? `среда, ${schedule.localTime || '12:00'}, не раньше чем через ${schedule.minLeadDays || 7} дней`
+        : `Wednesday, ${schedule.localTime || '12:00'}, at least ${schedule.minLeadDays || 7} days ahead`
+    },
+    comparisonStatusLabel (status) {
+      const labelsRu = { draft: 'Черновик', configured: 'Готов к запуску', running: 'Сбор цен', needs_review: 'Нужна проверка', ready: 'Готово', failed: 'Ошибка', opportunity: 'Зелёный', not_opportunity: 'Нет преимущества', compared: 'Сравнено' }
+      const labelsEn = { draft: 'Draft', configured: 'Ready to start', running: 'Collecting', needs_review: 'Needs review', ready: 'Ready', failed: 'Failed', opportunity: 'Green', not_opportunity: 'No advantage', compared: 'Compared' }
+      return (this.$store.state.language === 'ru' ? labelsRu : labelsEn)[status] || status || '-'
+    },
+    formatDateTime (value) {
+      if (!value) return '-'
+      return new Date(value).toLocaleString(this.$store.state.language === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    },
+    mappingCandidates (mapping) {
+      try { return JSON.parse(mapping.candidatesJson || '[]') } catch (_) { return [] }
+    },
+    async configureSmartRyde () {
+      this.comparisonBusy = true
+      try {
+        const source = await this.fetchJson('/api/admin/pricing/comparison-sources', {
+          method: 'POST',
+          headers: { ...this.headers(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adapterKey: 'smart-ryde', name: 'SmartRyde' })
+        })
+        await this.reloadComparisons()
+        this.selectedComparisonSourceId = source.id
+      } finally { this.comparisonBusy = false }
+    },
+    async reloadComparisons () {
+      const sources = await this.fetchJson('/api/admin/pricing/comparison-sources')
+      this.comparisonSources = sources.rows || []
+      if (!this.selectedComparisonSourceId && this.comparisonSources.length) this.selectedComparisonSourceId = this.comparisonSources[0].id
+      await this.reloadComparisonRuns()
+    },
+    async reloadComparisonRuns () {
+      if (!this.selectedComparisonSourceId) {
+        this.comparisonRuns = []
+        this.comparisonData = null
+        return
+      }
+      const payload = await this.fetchJson(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(this.selectedComparisonSourceId)}`)
+      this.comparisonRuns = payload.rows || []
+      if (!this.selectedComparisonRunId && this.comparisonRuns.length) this.selectedComparisonRunId = this.comparisonRuns[0].id
+      if (this.selectedComparisonRunId) await this.loadComparisonRun(this.selectedComparisonRunId)
+    },
+    async createComparisonRun () {
+      if (!this.selectedComparisonSourceId) return
+      this.comparisonBusy = true
+      try {
+        const run = await this.fetchJson('/api/admin/pricing/comparison-runs', {
+          method: 'POST',
+          headers: { ...this.headers(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: this.selectedComparisonSourceId })
+        })
+        this.selectedComparisonRunId = run.id
+        await this.reloadComparisonRuns()
+      } finally { this.comparisonBusy = false }
+    },
+    async selectComparisonRun (runId) {
+      this.selectedComparisonRunId = runId
+      await this.loadComparisonRun(runId)
+    },
+    async loadComparisonRun (runId) {
+      if (!runId) return
+      this.comparisonData = await this.fetchJson(`/api/admin/pricing/comparison-runs/${runId}/results`)
+      if (this.comparisonData.run.status === 'running') this.scheduleComparisonPoll()
+    },
+    scheduleComparisonPoll () {
+      if (this.comparisonPollTimer) clearTimeout(this.comparisonPollTimer)
+      this.comparisonPollTimer = setTimeout(async () => {
+        await this.loadComparisonRun(this.selectedComparisonRunId).catch(() => {})
+      }, 2500)
+    },
+    async executeComparisonRun () {
+      if (!this.selectedComparisonRunId) return
+      this.comparisonBusy = true
+      try {
+        await this.fetchJson(`/api/admin/pricing/comparison-runs/${this.selectedComparisonRunId}/execute`, { method: 'POST', headers: this.headers() })
+        await this.loadComparisonRun(this.selectedComparisonRunId)
+        this.scheduleComparisonPoll()
+      } finally { this.comparisonBusy = false }
+    },
+    async approvePlaceMapping (mapping, candidate) {
+      await this.fetchJson(`/api/admin/pricing/comparison-mappings/places/${mapping.id}`, {
+        method: 'PUT',
+        headers: { ...this.headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ externalPlaceId: candidate.id, externalLabel: candidate.label })
+      })
+      await this.loadComparisonRun(this.selectedComparisonRunId)
+    },
+    async approveVehicleMapping (quote) {
+      await this.fetchJson('/api/admin/pricing/comparison-mappings/vehicles', {
+        method: 'PUT',
+        headers: { ...this.headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceId: this.activeComparisonRun.sourceId,
+          externalVehicleKey: quote.externalVehicleKey,
+          externalVehicleName: quote.externalVehicleName,
+          riderraVehicleType: quote.requestedVehicleType
+        })
+      })
+      await this.loadComparisonRun(this.selectedComparisonRunId)
+    },
+    async downloadComparisonWorkbook () {
+      const response = await fetch(`/api/admin/pricing/comparison-runs/${this.selectedComparisonRunId}/export.xlsx`, { headers: this.headers() })
+      if (!response.ok) return
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `price-comparison-${this.selectedComparisonRunId}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     },
     priceLabel (value, currency = '') {
       if (value === null || value === undefined || value === '') return '-'
@@ -1032,6 +1346,9 @@ export default {
       this.notice = errors.length
         ? `Часть данных не загружена: ${errors.join('; ')}`
         : `${this.t.loadedRows}: ${this.baseRows.length}`
+      await this.reloadComparisons().catch((error) => {
+        this.notice = `${this.notice ? `${this.notice}. ` : ''}${error.message}`
+      })
     },
     async recalc () {
       await fetch('/api/admin/pricing/conflicts/recalculate', { method: 'POST', headers: this.headers() })
@@ -1516,6 +1833,156 @@ export default {
   color: #fff;
 }
 
+.btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.comparison-workspace {
+  display: grid;
+  gap: 20px;
+}
+
+.comparison-head,
+.comparison-current,
+.comparison-actions,
+.comparison-policy,
+.review-row,
+.review-candidates {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.comparison-head,
+.comparison-current,
+.review-row {
+  justify-content: space-between;
+}
+
+.comparison-setup,
+.review-block {
+  padding: 18px;
+  border: 1px solid #d7e0ef;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.comparison-setup {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) 1fr;
+  gap: 8px 18px;
+}
+
+.comparison-setup > label {
+  grid-column: 1 / -1;
+}
+
+.comparison-policy {
+  flex-wrap: wrap;
+  color: #52647f;
+  font-size: 13px;
+}
+
+.comparison-runs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.comparison-run-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #d7e0ef;
+  border-radius: 14px;
+  background: #fff;
+  color: #17233d;
+  text-align: left;
+  cursor: pointer;
+}
+
+.comparison-run-card--active {
+  border-color: #1f4fff;
+  box-shadow: 0 0 0 2px rgba(31, 79, 255, 0.12);
+}
+
+.comparison-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 10px;
+  flex: 1;
+}
+
+.mini-stat--green {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.review-block h4 {
+  margin: 0 0 4px;
+}
+
+.review-row {
+  padding: 12px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.review-row:first-of-type {
+  border-top: none;
+}
+
+.review-row--vehicle > div {
+  display: grid;
+  gap: 3px;
+}
+
+.review-row--vehicle span,
+.route-cell span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.review-candidates {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pricing-list__head--opportunities,
+.pricing-row--opportunities {
+  grid-template-columns: minmax(260px, 1.7fr) minmax(160px, 1fr) repeat(4, minmax(110px, .7fr)) minmax(130px, .8fr);
+}
+
+.status-pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-pill--opportunity,
+.status-pill--ready {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pill--needs_review,
+.status-pill--configured,
+.status-pill--running {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 @media (max-width: 1100px) {
   .overview-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1524,8 +1991,16 @@ export default {
   .pricing-list__head,
   .pricing-row,
   .split-panels,
-  .stats-grid {
+  .stats-grid,
+  .comparison-kpis,
+  .comparison-setup {
     grid-template-columns: 1fr;
+  }
+
+  .comparison-current,
+  .review-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

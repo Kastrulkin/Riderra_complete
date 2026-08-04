@@ -47,6 +47,7 @@ Status labels:
 | Read base Riderra price book | available | Internal authenticated read. |
 | Compare client prices in matrix view | available | Read/comparison only unless pricing admin approves edits. |
 | Compare supplier prices in matrix view | available | Read/comparison only unless pricing admin approves edits. |
+| Run external client price comparison | beta | SmartRyde adapter is available; a pricing manager starts collection and approves ambiguous place/class mappings. Results and Excel exports never update the Riderra price book automatically. |
 | Edit base price book | available | Pricing admin approval required. |
 | Suggest price corrections | beta | Draft suggestion only; no autonomous write. |
 | Import external price files | internal | Treat as comparison/import source, not final truth. |
