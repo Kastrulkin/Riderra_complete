@@ -34,7 +34,7 @@ function placeCandidateMatches(inputText, candidateLabel) {
   if (input === candidate) return true
 
   const inputIata = String(inputText || '').match(/\(([A-Z]{3})\)/)?.[1]
-  if (inputIata) return new RegExp(`\\b${inputIata}\\b`, 'i').test(String(candidateLabel || ''))
+  if (inputIata && new RegExp(`\\b${inputIata}\\b`, 'i').test(String(candidateLabel || ''))) return true
 
   const tokens = (value) => normalizeTextKey(value)
     .replace(/[^a-z0-9\p{L}]+/gu, ' ')
@@ -43,7 +43,7 @@ function placeCandidateMatches(inputText, candidateLabel) {
   const inputTokens = tokens(input)
   const candidateTokens = new Set(tokens(candidate))
   const stopwords = new Set(['airport', 'international', 'city', 'centre', 'center', 'downtown', 'hotel', 'station', 'terminal'])
-  const meaningful = inputTokens.filter((token) => !stopwords.has(token))
+  const meaningful = inputTokens.filter((token) => !stopwords.has(token) && token !== inputIata?.toLowerCase())
   if (!meaningful.length) return false
 
   if (/(?:city|centre|center|downtown)/i.test(input) && meaningful.length === 1) {
@@ -52,6 +52,12 @@ function placeCandidateMatches(inputText, candidateLabel) {
   if (meaningful.length === 1) return false
   const overlap = meaningful.filter((token) => candidateTokens.has(token)).length
   return overlap / meaningful.length >= 0.75
+}
+
+function selectPlaceCandidate(inputText, candidates) {
+  const matches = (Array.isArray(candidates) ? candidates : [])
+    .filter((candidate) => placeCandidateMatches(inputText, candidate.label))
+  return matches.length === 1 ? matches[0] : null
 }
 
 function externalRouteKey({ routeFrom, routeTo, currency }) {
@@ -345,8 +351,8 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
   }
 
   const candidates = await adapter.resolvePlace(inputText, relatedPlaceId)
-  const autoApprove = candidates.length === 1 && placeCandidateMatches(inputText, candidates[0].label)
-  const selected = autoApprove ? candidates[0] : null
+  const selected = selectPlaceCandidate(inputText, candidates)
+  const autoApprove = !!selected
   const mapping = await prisma.priceComparisonPlaceMap.upsert({
     where: { sourceId_normalizedInput: { sourceId: source.id, normalizedInput } },
     update: {
@@ -682,5 +688,6 @@ module.exports = {
   parseSmartRydeQuotes,
   placeCandidateMatches,
   refreshRunCounters,
+  selectPlaceCandidate,
   smartRydeVehicleMatches
 }
