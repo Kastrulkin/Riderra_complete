@@ -214,6 +214,16 @@ async function retry(fn, attempts = 3) {
   throw lastError
 }
 
+async function fetchWithTimeout(fetchImpl, url, options = {}, timeoutMs = 20000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetchImpl(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 class SmartRydeAdapter {
   constructor(config = {}, dependencies = {}) {
     this.baseUrl = String(config.baseUrl || SMART_RYDE_DEFAULTS.baseUrl).replace(/\/+$/, '')
@@ -224,9 +234,9 @@ class SmartRydeAdapter {
   async resolvePlace(inputText, relatedPlaceId = null) {
     const query = new URLSearchParams({ term: String(inputText || '').trim() })
     if (relatedPlaceId) query.set('place_id', relatedPlaceId)
-    const response = await retry(() => this.fetchImpl(`${this.baseUrl}/search-places?${query}`, {
+    const response = await retry(() => fetchWithTimeout(this.fetchImpl, `${this.baseUrl}/search-places?${query}`, {
       headers: { Accept: 'application/json', 'User-Agent': 'Riderra price comparison/1.0' }
-    }))
+    }, 20000))
     if (!response.ok) throw new Error(`SmartRyde place search failed: HTTP ${response.status}`)
     const rows = await response.json()
     return (Array.isArray(rows) ? rows : []).map((row) => ({
