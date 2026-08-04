@@ -85,17 +85,57 @@ function extractUkPostcode(value = '') {
   return match ? normalizeSpaces(match[1]) : null
 }
 
-function londonZoneFromPostcode(value = '') {
+function postcodeDistrictFromPostcode(value = '') {
+  const postcode = extractUkPostcode(value)
+  return postcode ? postcode.replace(/\s+.*$/, '') : null
+}
+
+function normalizeLondonZoneOverrides(overrides = {}) {
+  if (!overrides || typeof overrides !== 'object') return {}
+  return Object.fromEntries(Object.entries(overrides)
+    .map(([district, zone]) => [String(district || '').trim().toUpperCase(), String(zone || '').trim()])
+    .filter(([district, zone]) => district && Object.values(LONDON_DESTINATIONS).includes(zone)))
+}
+
+function applyLondonPostcodeZoneOverrides(parsed = {}, overrides = {}) {
+  const normalized = normalizeLondonZoneOverrides(overrides)
+  const fromOverride = parsed.fromDistrict ? normalized[parsed.fromDistrict] : null
+  const toOverride = parsed.toDistrict ? normalized[parsed.toDistrict] : null
+  return {
+    ...parsed,
+    fromPoint: fromOverride || parsed.fromPoint,
+    toPoint: toOverride || parsed.toPoint,
+    appliedZoneOverrides: [
+      fromOverride ? parsed.fromDistrict : null,
+      toOverride ? parsed.toDistrict : null
+    ].filter(Boolean)
+  }
+}
+
+function londonZoneFromPostcode(value = '', overrides = {}) {
   const postcode = extractUkPostcode(value)
   if (!postcode) return null
-  const outward = postcode.replace(/\s+.*$/, '')
+  const outward = postcodeDistrictFromPostcode(postcode)
+  const override = normalizeLondonZoneOverrides(overrides)[outward]
+  if (override) return override
   const district = outward.match(/^([A-Z]{1,2}\d{1,2})/)?.[1] || ''
   if (CENTRAL_POSTCODES.has(district)) return LONDON_DESTINATIONS.CENTER
   const area = outward.match(/^([A-Z]{1,2})/)?.[1] || ''
   return POSTCODE_AREA_TO_ZONE[area] || null
 }
 
-function canonicalLondonPoint(value = '') {
+function postcodeFromGeocodingResult(result = {}) {
+  const bestMatch = result?.bestMatch || result || {}
+  if (Array.isArray(bestMatch.address)) {
+    const component = bestMatch.address.find((item) => Array.isArray(item?.types) && item.types.includes('postal_code'))
+    const postcode = extractUkPostcode(component?.long_name || component?.short_name || '')
+    if (postcode) return postcode
+  }
+  const postcode = extractUkPostcode(bestMatch.address?.postcode || bestMatch.displayName || '')
+  return postcode || null
+}
+
+function canonicalLondonPoint(value = '', overrides = {}) {
   const text = normalizeSpaces(value)
   const lower = text.toLowerCase()
   const airport = detectLondonAirport(text)
@@ -111,7 +151,7 @@ function canonicalLondonPoint(value = '') {
   if (/london\s+north|(?:^|\s)n(?:\s|$)/i.test(text)) return LONDON_DESTINATIONS.N
   if (/london\s+west|(?:^|\s)w(?:\s|$)/i.test(text)) return LONDON_DESTINATIONS.W
   if (/london\s+east|(?:^|\s)e(?:\s|$)/i.test(text)) return LONDON_DESTINATIONS.E
-  return londonZoneFromPostcode(text)
+  return londonZoneFromPostcode(text, overrides)
 }
 
 function parseLabeledValue(text = '', labels = []) {
@@ -150,14 +190,16 @@ function detectLondonVehicle(text = '', passengers = null) {
   return { vehicleType: VEHICLES.STANDARD, assumed: true }
 }
 
-function parseLondonPricingRequest(text = '', extracted = {}) {
+function parseLondonPricingRequest(text = '', extracted = {}, zoneOverrides = {}) {
   const fallbackRoute = splitRouteText(text)
   const fromRaw = normalizeSpaces(extracted.fromPoint || fallbackRoute.from)
   const toRaw = normalizeSpaces(extracted.toPoint || fallbackRoute.to)
-  const fromPoint = canonicalLondonPoint(fromRaw)
-  const toPoint = canonicalLondonPoint(toRaw)
+  const fromPoint = canonicalLondonPoint(fromRaw, zoneOverrides)
+  const toPoint = canonicalLondonPoint(toRaw, zoneOverrides)
   const passengers = extracted.passengers != null ? Number(extracted.passengers) : extractPassengerCount(text)
   const vehicle = detectLondonVehicle(extracted.vehicleType || text, passengers)
+  const fromPostcode = extractUkPostcode(fromRaw)
+  const toPostcode = extractUkPostcode(toRaw)
   const missing = []
   if (!fromRaw) missing.push('место подачи')
   else if (!fromPoint) missing.push(`лондонская зона для «${fromRaw}»`)
@@ -172,9 +214,53 @@ function parseLondonPricingRequest(text = '', extracted = {}) {
     fromPoint,
     toPoint,
     passengers,
+    fromPostcode,
+    toPostcode,
+    fromDistrict: postcodeDistrictFromPostcode(fromPostcode),
+    toDistrict: postcodeDistrictFromPostcode(toPostcode),
     vehicleType: vehicle.vehicleType,
     vehicleAssumed: vehicle.assumed,
     missing
+  }
+}
+
+async function resolveLondonPricingRequest(text = '', extracted = {}, geocode = null, zoneOverrides = {}) {
+  const initial = parseLondonPricingRequest(text, extracted, zoneOverrides)
+  if (typeof geocode !== 'function') return initial
+  const resolved = { ...extracted }
+  const addressResolution = {}
+
+  for (const field of ['fromPoint', 'toPoint']) {
+    const currentPoint = field === 'fromPoint' ? initial.fromPoint : initial.toPoint
+    const raw = field === 'fromPoint' ? initial.fromRaw : initial.toRaw
+    if (currentPoint || !raw) continue
+    const query = /\blondon\b|\bunited kingdom\b|\buk\b/i.test(raw) ? raw : `${raw}, London, UK`
+    try {
+      const geocoding = await geocode(query, { language: 'en' })
+      const postcode = postcodeFromGeocodingResult(geocoding)
+      if (!postcode) continue
+      resolved[field] = `${raw}, ${postcode}`
+      addressResolution[field] = {
+        postcode,
+        district: postcodeDistrictFromPostcode(postcode),
+        displayName: geocoding?.bestMatch?.displayName || null,
+        provider: geocoding?.provider || null
+      }
+    } catch (error) {
+      addressResolution[field] = { error: error?.message || String(error) }
+    }
+  }
+
+  const parsed = parseLondonPricingRequest(text, resolved, zoneOverrides)
+  return {
+    ...parsed,
+    fromRaw: initial.fromRaw,
+    toRaw: initial.toRaw,
+    fromPostcode: parsed.fromPostcode || addressResolution.fromPoint?.postcode || null,
+    toPostcode: parsed.toPostcode || addressResolution.toPoint?.postcode || null,
+    fromDistrict: parsed.fromDistrict || addressResolution.fromPoint?.district || null,
+    toDistrict: parsed.toDistrict || addressResolution.toPoint?.district || null,
+    addressResolution
   }
 }
 
@@ -196,12 +282,17 @@ module.exports = {
   LONDON_AIRPORTS,
   LONDON_DESTINATIONS,
   VEHICLES,
+  applyLondonPostcodeZoneOverrides,
   canonicalLondonPoint,
   detectLondonAirport,
   detectLondonVehicle,
   extractUkPostcode,
+  postcodeDistrictFromPostcode,
+  postcodeFromGeocodingResult,
   londonParkingFee,
   londonZoneFromPostcode,
+  normalizeLondonZoneOverrides,
   parseLondonPricingRequest,
+  resolveLondonPricingRequest,
   toMttRouteToken
 }

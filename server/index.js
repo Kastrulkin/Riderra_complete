@@ -52,8 +52,12 @@ const { registerPublicRoutes } = require('./routes/public')
 const { ingestComplaintEmail, registerComplaintRoutes } = require('./routes/complaints')
 const { isComplaintEmail } = require('./utils/complaints')
 const {
+  applyLondonPostcodeZoneOverrides,
+  detectLondonAirport,
+  LONDON_DESTINATIONS,
   londonParkingFee,
   parseLondonPricingRequest,
+  resolveLondonPricingRequest,
   toMttRouteToken
 } = require('./services/londonPricingService')
 const {
@@ -13101,6 +13105,18 @@ app.get('/api/admin/email-ingest/status', authenticateToken, resolveActorContext
 const GEO_ZONE_UPLOAD_MAX_BYTES = 12 * 1024 * 1024
 const GEO_ZONE_ALLOWED_EXTENSIONS = new Set(['.csv', '.geojson', '.json', '.kml', '.kmz'])
 const BUNDLED_MASTER_GEO_ZONES_PATH = path.join(process.cwd(), 'reports', 'eto-sync', 'riderra_master_geozones.kml')
+const LONDON_POSTCODE_OVERLAY_PATH = path.join(process.cwd(), 'reports', 'eto-sync', 'london_postcode_districts.kml')
+const LONDON_POSTCODE_MAPPING_ACTION = 'geo_zone.postcode_mapping.update'
+const LONDON_POSTCODE_MAPPING_RESOURCE = 'london_postcode_district'
+const LONDON_TARIFF_ZONES = [
+  LONDON_DESTINATIONS.CENTER,
+  LONDON_DESTINATIONS.NW,
+  LONDON_DESTINATIONS.N,
+  LONDON_DESTINATIONS.SW,
+  LONDON_DESTINATIONS.W,
+  LONDON_DESTINATIONS.E,
+  LONDON_DESTINATIONS.SE
+]
 const geoZoneIndexCache = new Map()
 
 function getGeoZoneImportDir(tenantId) {
@@ -13226,6 +13242,73 @@ function extractKmlDataValue(placemark = '', key = '') {
   const safeKey = String(key || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = String(placemark).match(new RegExp(`<Data\\s+name=["']${safeKey}["'][^>]*>[\\s\\S]*?<value[^>]*>([\\s\\S]*?)<\\/value>[\\s\\S]*?<\\/Data>`, 'i'))
   return stripXmlTags(match?.[1] || '')
+}
+
+function parseJsonObject(value = '') {
+  try {
+    const parsed = JSON.parse(value || '{}')
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch (_) {
+    return {}
+  }
+}
+
+async function readLondonPostcodeBaseMappings() {
+  let text = ''
+  try {
+    text = await fs.readFile(LONDON_POSTCODE_OVERLAY_PATH, 'utf8')
+  } catch (error) {
+    if (error?.code === 'ENOENT') return []
+    throw error
+  }
+  return [...text.matchAll(/<Placemark\b[\s\S]*?<\/Placemark>/gi)]
+    .map((match) => ({
+      district: extractKmlDataValue(match[0], 'postcodeDistrict').toUpperCase(),
+      baseZone: extractKmlDataValue(match[0], 'pricingZone')
+    }))
+    .filter((row) => row.district && LONDON_TARIFF_ZONES.includes(row.baseZone))
+    .sort((a, b) => a.district.localeCompare(b.district, 'en', { numeric: true }))
+}
+
+function latestApprovedLondonPostcodeOverrides(approvals = []) {
+  const overrides = {}
+  for (const approval of approvals) {
+    if (approval.status !== 'approved' || overrides[approval.resourceId]) continue
+    const payload = parseJsonObject(approval.payloadJson)
+    if (LONDON_TARIFF_ZONES.includes(payload.proposedZone)) {
+      overrides[approval.resourceId] = payload.proposedZone
+    }
+  }
+  return overrides
+}
+
+async function loadLondonPostcodeApprovals(tenantId, districts = null) {
+  return prisma.humanApproval.findMany({
+    where: {
+      tenantId,
+      action: LONDON_POSTCODE_MAPPING_ACTION,
+      resource: LONDON_POSTCODE_MAPPING_RESOURCE,
+      ...(Array.isArray(districts) && districts.length ? { resourceId: { in: districts } } : {})
+    },
+    orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
+    take: 1000
+  })
+}
+
+function serializeLondonPostcodeApproval(approval) {
+  const payload = parseJsonObject(approval.payloadJson)
+  return {
+    id: approval.id,
+    district: approval.resourceId,
+    status: approval.status,
+    currentZone: payload.currentZone || null,
+    proposedZone: payload.proposedZone || null,
+    reason: payload.reason || null,
+    requesterId: approval.requesterId,
+    reviewerId: approval.reviewerId,
+    createdAt: approval.createdAt,
+    reviewedAt: approval.reviewedAt
+  }
 }
 
 function parseKmlCoordinateList(value = '') {
@@ -13557,10 +13640,17 @@ app.get('/api/admin/geo-zones/map', authenticateToken, resolveActorContext, requ
     const latest = await readGeoZoneImportStatus(req.actorContext.tenantId)
     const index = latest ? await loadGeoZoneIndex(req.actorContext.tenantId) : null
     const mapId = String(process.env.GOOGLE_MY_MAPS_ID || '').trim()
+    const londonPostcodeDistrictCount = (await readLondonPostcodeBaseMappings()).length
     res.json({
       configured: Boolean(latest),
       latest,
       polygonZoneCount: index?.polygonZoneCount || 0,
+      londonPostcodes: {
+        districtCount: londonPostcodeDistrictCount,
+        tariffZones: 7,
+        sourceUrl: 'https://github.com/missinglink/uk-postcode-polygons',
+        attribution: '© Wikipedia contributors, CC BY-SA 3.0'
+      },
       googleMap: mapId
         ? {
             id: mapId,
@@ -13573,6 +13663,138 @@ app.get('/api/admin/geo-zones/map', authenticateToken, resolveActorContext, requ
   } catch (error) {
     console.error('Error fetching geo zone map:', error)
     res.status(500).json({ error: 'Failed to fetch geo zone map' })
+  }
+})
+
+app.get('/api/admin/geo-zones/london-postcodes', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['crm.read', 'directions.read', 'pricing.read']), async (req, res) => {
+  try {
+    const [baseMappings, approvals] = await Promise.all([
+      readLondonPostcodeBaseMappings(),
+      loadLondonPostcodeApprovals(req.actorContext.tenantId)
+    ])
+    const overrides = latestApprovedLondonPostcodeOverrides(approvals)
+    const pendingByDistrict = {}
+    for (const approval of approvals) {
+      if (approval.status === 'pending_human' && !pendingByDistrict[approval.resourceId]) {
+        pendingByDistrict[approval.resourceId] = serializeLondonPostcodeApproval(approval)
+      }
+    }
+    const rows = baseMappings.map((row) => ({
+      ...row,
+      effectiveZone: overrides[row.district] || row.baseZone,
+      changed: Boolean(overrides[row.district]),
+      pendingProposal: pendingByDistrict[row.district] || null
+    }))
+    res.json({
+      rows,
+      pending: Object.values(pendingByDistrict),
+      tariffZones: LONDON_TARIFF_ZONES,
+      canApprove: hasAnyPermission(req, ['pricing.manage', 'approvals.resolve'])
+    })
+  } catch (error) {
+    console.error('Error fetching London postcode mappings:', error)
+    res.status(500).json({ error: 'Failed to fetch London postcode mappings' })
+  }
+})
+
+app.post('/api/admin/geo-zones/london-postcodes/:district/proposals', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['crm.read', 'directions.read', 'pricing.read']), async (req, res) => {
+  try {
+    const district = String(req.params.district || '').trim().toUpperCase()
+    const proposedZone = String(req.body?.proposedZone || '').trim()
+    const reason = String(req.body?.reason || '').trim()
+    const baseMappings = await readLondonPostcodeBaseMappings()
+    const base = baseMappings.find((row) => row.district === district)
+    if (!base) return res.status(404).json({ error: 'London postcode district not found' })
+    if (!LONDON_TARIFF_ZONES.includes(proposedZone)) return res.status(400).json({ error: 'Unknown London tariff zone' })
+    if (reason.length < 3) return res.status(400).json({ error: 'Please explain why the zone should change' })
+
+    const approvals = await loadLondonPostcodeApprovals(req.actorContext.tenantId, [district])
+    const pending = approvals.find((approval) => approval.status === 'pending_human')
+    if (pending) return res.status(409).json({ error: 'A proposal for this district is already pending', approval: serializeLondonPostcodeApproval(pending) })
+    const currentZone = latestApprovedLondonPostcodeOverrides(approvals)[district] || base.baseZone
+    if (currentZone === proposedZone) return res.status(400).json({ error: 'This tariff zone is already active' })
+
+    const approval = await prisma.humanApproval.create({
+      data: {
+        tenantId: req.actorContext.tenantId,
+        action: LONDON_POSTCODE_MAPPING_ACTION,
+        resource: LONDON_POSTCODE_MAPPING_RESOURCE,
+        resourceId: district,
+        payloadJson: JSON.stringify({ district, currentZone, proposedZone, reason }),
+        requesterId: req.actorContext.actorId || null,
+        traceId: req.actorContext.traceId || null
+      }
+    })
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'geo_zone.postcode_mapping.propose',
+      resource: LONDON_POSTCODE_MAPPING_RESOURCE,
+      resourceId: district,
+      traceId: req.actorContext.traceId,
+      decision: 'pending_human',
+      result: 'ok',
+      context: { currentZone, proposedZone, reason, approvalId: approval.id }
+    })
+    res.status(201).json({ success: true, approval: serializeLondonPostcodeApproval(approval) })
+  } catch (error) {
+    console.error('Error proposing London postcode mapping:', error)
+    res.status(500).json({ error: 'Failed to propose London postcode mapping' })
+  }
+})
+
+app.post('/api/admin/geo-zones/london-postcodes/proposals/:id/resolve', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['pricing.manage', 'approvals.resolve']), async (req, res) => {
+  try {
+    const decision = String(req.body?.decision || '').trim().toLowerCase()
+    const reviewReason = String(req.body?.reason || '').trim()
+    if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'decision must be approved or rejected' })
+    const approval = await prisma.humanApproval.findFirst({
+      where: {
+        id: req.params.id,
+        tenantId: req.actorContext.tenantId,
+        action: LONDON_POSTCODE_MAPPING_ACTION,
+        resource: LONDON_POSTCODE_MAPPING_RESOURCE
+      }
+    })
+    if (!approval) return res.status(404).json({ error: 'Zone proposal not found' })
+    if (approval.status !== 'pending_human') return res.status(409).json({ error: 'Zone proposal already resolved', status: approval.status })
+    const payload = parseJsonObject(approval.payloadJson)
+    if (!LONDON_TARIFF_ZONES.includes(payload.proposedZone)) return res.status(409).json({ error: 'Proposal contains an invalid tariff zone' })
+    if (decision === 'approved') {
+      const priorApprovals = (await loadLondonPostcodeApprovals(req.actorContext.tenantId, [approval.resourceId]))
+        .filter((row) => row.id !== approval.id)
+      const base = (await readLondonPostcodeBaseMappings()).find((row) => row.district === approval.resourceId)
+      const currentZone = latestApprovedLondonPostcodeOverrides(priorApprovals)[approval.resourceId] || base?.baseZone || null
+      if (currentZone !== payload.currentZone) {
+        return res.status(409).json({ error: 'The active zone changed after this proposal. Create a new proposal.' })
+      }
+    }
+    const resolved = await prisma.humanApproval.update({
+      where: { id: approval.id },
+      data: {
+        status: decision,
+        reviewerId: req.actorContext.actorId || null,
+        reviewedAt: new Date(),
+        payloadJson: JSON.stringify({ ...payload, reviewReason: reviewReason || null })
+      }
+    })
+    await writeAuditLog({
+      tenantId: req.actorContext.tenantId,
+      actorId: req.actorContext.actorId,
+      actorRole: req.actorContext.actorRole,
+      action: 'geo_zone.postcode_mapping.resolve',
+      resource: LONDON_POSTCODE_MAPPING_RESOURCE,
+      resourceId: approval.resourceId,
+      traceId: req.actorContext.traceId,
+      decision,
+      result: 'ok',
+      context: { approvalId: approval.id, proposedZone: payload.proposedZone, reviewReason: reviewReason || null }
+    })
+    res.json({ success: true, approval: serializeLondonPostcodeApproval(resolved) })
+  } catch (error) {
+    console.error('Error resolving London postcode mapping:', error)
+    res.status(500).json({ error: 'Failed to resolve London postcode mapping' })
   }
 })
 
@@ -18690,11 +18912,14 @@ async function telegramSendMessage(chatId, text) {
 async function buildLondonOrderPriceAnswer(tenantId, text = '') {
   const commandText = stripOrderPriceCommand(text)
   const extractedPayload = buildManualEmailOrderDraftPayload({ rawText: commandText })
-  const parsed = parseLondonPricingRequest(commandText, extractedPayload.orderDraft || {})
+  const initiallyParsed = await resolveLondonPricingRequest(commandText, extractedPayload.orderDraft || {}, geocodeAddress)
+  const districts = [...new Set([initiallyParsed.fromDistrict, initiallyParsed.toDistrict].filter(Boolean))]
+  const approvals = districts.length ? await loadLondonPostcodeApprovals(tenantId, districts) : []
+  const parsed = applyLondonPostcodeZoneOverrides(initiallyParsed, latestApprovedLondonPostcodeOverrides(approvals))
   if (parsed.missing.length) {
     return buildCopilotMessage([
       `Не могу однозначно определить: ${parsed.missing.join(', ')}.`,
-      'Пришлите строки «Pickup: ...», «Destination: ...», класс машины или количество пассажиров. Для Лондона в адресе нужен почтовый индекс.',
+      'Пришлите строки «Pickup: ...», «Destination: ...», класс машины или количество пассажиров. Для Лондона укажите полный адрес или почтовый индекс.',
       'Статус: цену не рассчитывал, заказ не создавал.'
     ])
   }
@@ -18753,8 +18978,18 @@ async function buildLondonOrderPriceAnswer(tenantId, text = '') {
   const margin = sellTotal - netTotal
   const marginPct = sellTotal > 0 ? (margin / sellTotal) * 100 : 0
   const supplierName = net.driver?.supplierCompany?.name || net.driver?.name || 'Royal Taxis London'
+  const postcodeMatches = [
+    parsed.fromDistrict ? `${parsed.fromDistrict} = ${parsed.fromPoint}` : null,
+    parsed.toDistrict ? `${parsed.toDistrict} = ${parsed.toPoint}` : null
+  ].filter(Boolean)
+  const geocodedAddresses = Object.values(parsed.addressResolution || {})
+    .filter((item) => item?.postcode && item?.displayName)
+    .map((item) => `${item.displayName} (${item.postcode})`)
   return buildCopilotMessage([
     `Маршрут: ${parsed.fromPoint} → ${parsed.toPoint}`,
+    postcodeMatches.length ? `Индекс и тарифная зона: ${postcodeMatches.join(' | ')}` : null,
+    parsed.appliedZoneOverrides?.length ? `Применено подтверждённое исправление зоны: ${parsed.appliedZoneOverrides.join(', ')}.` : null,
+    geocodedAddresses.length ? `Адрес найден: ${geocodedAddresses.join(' | ')}` : null,
     `Класс: ${parsed.vehicleType}${parsed.vehicleAssumed ? ' (определён автоматически — проверьте)' : ''}${parsed.passengers ? `, пассажиров: ${parsed.passengers}` : ''}`,
     `Продажа MyTravelThru: ${sellBase.toFixed(2)} GBP`,
     `Нетто ${supplierName}: ${netBase.toFixed(2)} GBP`,
@@ -18784,7 +19019,7 @@ async function buildGeneralOrderPriceAnswer(tenantId, text = '') {
   const commandText = stripOrderPriceCommand(text)
   const extractedPayload = buildManualEmailOrderDraftPayload({ rawText: commandText })
   const londonParsed = parseLondonPricingRequest(commandText, extractedPayload.orderDraft || {})
-  if (hasCompleteLondonPricingRoute(londonParsed)) {
+  if (hasCompleteLondonPricingRoute(londonParsed) || detectLondonAirport(commandText)) {
     return buildLondonOrderPriceAnswer(tenantId, commandText)
   }
 
