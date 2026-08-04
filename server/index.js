@@ -18648,7 +18648,7 @@ async function telegramSendMessage(chatId, text) {
 
 function isLondonOrderPriceRequest(text = '') {
   const raw = String(text || '').trim()
-  if (/^\/(?:order-price|london-price)(?:\s|$)/i.test(raw)) return true
+  if (/^\/(?:order[-_]price|london[-_]price)(?:\s|$)/i.test(raw)) return true
   const hasLondonAirport = /\b(?:LHR|LGW|LCY)\b|Heathrow|Gatwick|London City Airport/i.test(raw)
   const hasRouteLabels = /(?:^|\n)\s*(?:from|pickup(?: location| address)?|pick-up(?: location| address)?|откуда|место подачи|адрес подачи)\s*[:\-–—]/i.test(raw) &&
     /(?:^|\n)\s*(?:to|destination|drop-off(?: location| address)?|dropoff(?: location| address)?|куда|место назначения|адрес назначения)\s*[:\-–—]/i.test(raw)
@@ -18656,7 +18656,7 @@ function isLondonOrderPriceRequest(text = '') {
 }
 
 async function buildLondonOrderPriceAnswer(tenantId, text = '') {
-  const commandText = String(text || '').replace(/^\/(?:order-price|london-price)\s*/i, '').trim()
+  const commandText = String(text || '').replace(/^\/(?:order[-_]price|london[-_]price)\s*/i, '').trim()
   const extractedPayload = buildManualEmailOrderDraftPayload({ rawText: commandText })
   const parsed = parseLondonPricingRequest(commandText, extractedPayload.orderDraft || {})
   if (parsed.missing.length) {
@@ -20182,11 +20182,12 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
       return res.json({ ok: true })
     }
 
-    if (text.startsWith('/help')) {
+    if (text.startsWith('/help') || text.startsWith('/start')) {
       await telegramSendMessage(
         telegramChatId,
         buildCopilotMessage([
-          'Команды: /order-price <текст заказа>, /customer <запрос>, /company <запрос>, /tasks, /task-done <id>, /report la, /new-order-check, /easytaxi-reminder',
+          'Чтобы узнать цены по Лондону, отправьте /order_price и текст заказа со строками Pickup, Destination, Vehicle и Passengers.',
+          'Другие команды: /customer <запрос>, /company <запрос>, /tasks, /task-done <id>, /report la, /new-order-check, /easytaxi-reminder',
           'Источник: системные команды Riderra.',
           'Статус: доступно в личном чате.'
         ])
