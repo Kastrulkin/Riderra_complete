@@ -9,6 +9,17 @@
         <admin-tabs />
         <network-direction-views />
 
+        <div class="workspace-tabs" role="tablist" :aria-label="t.workspaceLabel">
+          <button type="button" class="workspace-tab" :class="{ 'workspace-tab--active': activeWorkspace === 'coverage' }" @click="activeWorkspace = 'coverage'">
+            {{ t.coverageTab }}
+          </button>
+          <button type="button" class="workspace-tab" :class="{ 'workspace-tab--active': activeWorkspace === 'benchmarks' }" @click="openBenchmarks">
+            {{ t.benchmarkTab }}
+            <span v-if="benchmarkSummary.total" class="workspace-tab__count">{{ benchmarkSummary.total }}</span>
+          </button>
+        </div>
+
+        <template v-if="activeWorkspace === 'coverage'">
         <div class="section-actions">
           <button class="btn btn--ghost" @click="load">{{ t.refresh }}</button>
         </div>
@@ -101,6 +112,65 @@
 
           <div v-if="!displayedRows.length" class="empty-state">{{ t.empty }}</div>
         </div>
+        </template>
+
+        <template v-else>
+          <div class="benchmark-hero">
+            <div>
+              <h2>{{ t.benchmarkTitle }}</h2>
+              <p>{{ t.benchmarkSubtitle }}</p>
+            </div>
+            <button class="btn btn--primary" type="button" @click="openPointForm()">{{ t.addPoint }}</button>
+          </div>
+
+          <div class="benchmark-summary">
+            <div><strong>{{ benchmarkSummary.total || 0 }}</strong><span>{{ t.allPoints }}</span></div>
+            <div><strong>{{ benchmarkSummary.verified || 0 }}</strong><span>{{ t.verified }}</span></div>
+            <div><strong>{{ (benchmarkSummary.candidate || 0) + (benchmarkSummary.needs_review || 0) }}</strong><span>{{ t.awaitingReview }}</span></div>
+            <div><strong>{{ benchmarkSummary.coveredZones || 0 }}</strong><span>{{ t.coveredZones }}</span></div>
+          </div>
+
+          <div class="benchmark-note">
+            <strong>{{ t.howItWorks }}</strong>
+            <span>{{ t.howItWorksCopy }}</span>
+          </div>
+
+          <div class="toolbar benchmark-toolbar">
+            <input v-model="benchmarkQuery" class="input toolbar-search" :placeholder="t.benchmarkSearch" @keyup.enter="loadBenchmarks" />
+            <select v-model="benchmarkStatus" class="input status-filter" @change="loadBenchmarks">
+              <option value="">{{ t.allStatuses }}</option>
+              <option value="candidate">{{ statusLabel('candidate') }}</option>
+              <option value="needs_review">{{ statusLabel('needs_review') }}</option>
+              <option value="verified">{{ statusLabel('verified') }}</option>
+              <option value="rejected">{{ statusLabel('rejected') }}</option>
+            </select>
+            <button class="btn btn--ghost" type="button" @click="loadBenchmarks">{{ t.refresh }}</button>
+          </div>
+
+          <div v-if="benchmarkError" class="form-error">{{ benchmarkError }}</div>
+          <div class="benchmark-table">
+            <div class="benchmark-table__head">
+              <div>{{ t.route }}</div><div>{{ t.controlAddress }}</div><div>{{ t.geoZone }}</div><div>{{ t.status }}</div><div></div>
+            </div>
+            <div v-for="point in benchmarkPoints" :key="point.id" class="benchmark-row">
+              <div>
+                <strong>{{ point.airportIata || '—' }} · {{ point.city || point.country || '—' }}</strong>
+                <small>{{ point.pickupAddress }}</small>
+                <small v-if="point.sourceDistanceKm != null">{{ point.sourceDistanceKm }} km · {{ point.source }}</small>
+              </div>
+              <div class="benchmark-address">{{ point.destinationAddress }}</div>
+              <div>{{ point.zoneName || t.zoneNotSelected }}</div>
+              <div><span class="status-badge" :class="`status-badge--${point.status}`">{{ statusLabel(point.status) }}</span></div>
+              <div><button class="link-button" type="button" @click="openPointForm(point)">{{ t.review }}</button></div>
+            </div>
+            <div v-if="!benchmarkLoading && !benchmarkPoints.length" class="empty-state">
+              <strong>{{ t.noBenchmarkPoints }}</strong>
+              <p>{{ t.noBenchmarkPointsCopy }}</p>
+              <button class="btn btn--primary" type="button" @click="openPointForm()">{{ t.addFirstPoint }}</button>
+            </div>
+            <div v-if="benchmarkLoading" class="empty-state">{{ t.loading }}</div>
+          </div>
+        </template>
       </div>
     </section>
 
@@ -137,6 +207,37 @@
         </div>
       </div>
     </div>
+
+    <div v-if="pointModal.open" class="modal-overlay" @click="pointModal.open = false">
+      <div class="modal benchmark-modal" @click.stop>
+        <div class="modal-head">
+          <div><h3>{{ pointModal.id ? t.reviewPoint : t.addPoint }}</h3><p class="modal-subtitle">{{ t.pointFormHint }}</p></div>
+          <button class="modal-close" type="button" @click="pointModal.open = false">×</button>
+        </div>
+        <div class="grid two-cols">
+          <input v-model="pointForm.country" class="input" :placeholder="t.country" />
+          <input v-model="pointForm.city" class="input" :placeholder="t.city" />
+          <input v-model="pointForm.airportIata" class="input" :placeholder="t.airportIata" />
+          <input v-model="pointForm.pickupAddress" class="input" :placeholder="t.pickupAddress" />
+          <textarea v-model="pointForm.destinationAddress" class="input textarea textarea--wide" :placeholder="t.destinationAddress"></textarea>
+          <input v-model="pointForm.latitude" class="input" :placeholder="t.latitude" />
+          <input v-model="pointForm.longitude" class="input" :placeholder="t.longitude" />
+          <select v-model="pointForm.zoneName" class="input textarea--wide">
+            <option value="">{{ t.chooseZone }}</option>
+            <option v-for="zone in geoZones" :key="zone.id || zone.name" :value="zone.name">{{ zone.name }}</option>
+          </select>
+          <input v-model="pointForm.smartRydePickupPlaceId" class="input" :placeholder="t.smartRydePickupId" />
+          <input v-model="pointForm.smartRydeDropoffPlaceId" class="input" :placeholder="t.smartRydeDropoffId" />
+          <textarea v-model="pointForm.reviewNote" class="input textarea textarea--wide" :placeholder="t.reviewNote"></textarea>
+        </div>
+        <div v-if="pointFormError" class="form-error">{{ pointFormError }}</div>
+        <div class="actions">
+          <button class="btn btn--primary" type="button" @click="savePoint('verified')">{{ t.verifyAndSave }}</button>
+          <button class="btn" type="button" @click="savePoint('needs_review')">{{ t.saveForReview }}</button>
+          <button v-if="pointModal.id" class="btn btn--danger" type="button" @click="savePoint('rejected')">{{ t.reject }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -149,12 +250,23 @@ export default {
   middleware: 'crm',
   components: { adminTabs, networkDirectionViews },
   data: () => ({
+    activeWorkspace: 'coverage',
     rows: [],
     filtered: [],
     q: '',
     activeView: 'all',
     companyModal: { open: false, id: '' },
-    companyForm: {}
+    companyForm: {},
+    benchmarkPoints: [],
+    benchmarkSummary: {},
+    benchmarkQuery: '',
+    benchmarkStatus: '',
+    benchmarkLoading: false,
+    benchmarkError: '',
+    geoZones: [],
+    pointModal: { open: false, id: '' },
+    pointForm: {},
+    pointFormError: ''
   }),
   computed: {
     t () {
@@ -187,6 +299,47 @@ export default {
             comment: 'Комментарий',
             save: 'Сохранить',
             close: 'Закрыть',
+            workspaceLabel: 'Разделы направлений',
+            coverageTab: 'Покрытие',
+            benchmarkTab: 'Контрольные адреса',
+            benchmarkTitle: 'База контрольных адресов',
+            benchmarkSubtitle: 'Точные точки внутри геозон Riderra для проверки публичных цен SmartRyde и других агрегаторов.',
+            addPoint: 'Добавить адрес',
+            allPoints: 'всего адресов',
+            verified: 'подтверждено',
+            awaitingReview: 'ждут проверки',
+            coveredZones: 'геозон покрыто',
+            howItWorks: 'Как используется:',
+            howItWorksCopy: 'в анализ цен попадают только подтверждённые адреса с выбранной геозоной. Импортированные точки сначала требуют ручной проверки.',
+            benchmarkSearch: 'Страна, город, IATA, адрес или геозона',
+            allStatuses: 'Все статусы',
+            route: 'Аэропорт / город',
+            controlAddress: 'Контрольный адрес',
+            geoZone: 'Геозона Riderra',
+            status: 'Статус',
+            zoneNotSelected: 'Не выбрана',
+            review: 'Проверить',
+            noBenchmarkPoints: 'База адресов пока пуста',
+            noBenchmarkPointsCopy: 'Добавьте первую точную точку внутри геозоны или импортируйте подготовленный список.',
+            addFirstPoint: 'Добавить первый адрес',
+            loading: 'Загрузка…',
+            reviewPoint: 'Проверка контрольного адреса',
+            pointFormHint: 'Проверьте точный адрес и выберите геозону. Координаты позволяют автоматически сверить попадание в KML-полигон.',
+            country: 'Страна',
+            city: 'Город',
+            airportIata: 'IATA аэропорта',
+            pickupAddress: 'Точный адрес отправления',
+            destinationAddress: 'Точный контрольный адрес назначения',
+            latitude: 'Широта (необязательно)',
+            longitude: 'Долгота (необязательно)',
+            chooseZone: 'Выберите геозону Riderra',
+            smartRydePickupId: 'SmartRyde Place ID отправления',
+            smartRydeDropoffId: 'SmartRyde Place ID назначения',
+            reviewNote: 'Комментарий проверяющего',
+            verifyAndSave: 'Подтвердить адрес',
+            saveForReview: 'Сохранить для проверки',
+            reject: 'Отклонить',
+            statuses: { candidate: 'Кандидат', needs_review: 'Нужна проверка', verified: 'Подтверждён', rejected: 'Отклонён' },
             views: {
               all: 'Все направления',
               demand_gap: 'Есть спрос, нет исполнителей',
@@ -244,6 +397,37 @@ export default {
             comment: 'Comment',
             save: 'Save',
             close: 'Close',
+            workspaceLabel: 'Directions sections',
+            coverageTab: 'Coverage',
+            benchmarkTab: 'Control addresses',
+            benchmarkTitle: 'Control address database',
+            benchmarkSubtitle: 'Exact points inside Riderra zones for checking public SmartRyde and other aggregator prices.',
+            addPoint: 'Add address',
+            allPoints: 'all addresses',
+            verified: 'verified',
+            awaitingReview: 'awaiting review',
+            coveredZones: 'zones covered',
+            howItWorks: 'How it works:',
+            howItWorksCopy: 'only verified addresses with a selected zone are used in price analysis. Imported points require human review first.',
+            benchmarkSearch: 'Country, city, IATA, address or zone',
+            allStatuses: 'All statuses',
+            route: 'Airport / city',
+            controlAddress: 'Control address',
+            geoZone: 'Riderra zone',
+            status: 'Status',
+            zoneNotSelected: 'Not selected',
+            review: 'Review',
+            noBenchmarkPoints: 'The address database is empty',
+            noBenchmarkPointsCopy: 'Add an exact point inside a zone or import a prepared list.',
+            addFirstPoint: 'Add first address',
+            loading: 'Loading…',
+            reviewPoint: 'Review control address',
+            pointFormHint: 'Check the exact address and select its zone. Coordinates enable automatic KML polygon validation.',
+            country: 'Country', city: 'City', airportIata: 'Airport IATA', pickupAddress: 'Exact pickup address',
+            destinationAddress: 'Exact control destination address', latitude: 'Latitude (optional)', longitude: 'Longitude (optional)',
+            chooseZone: 'Select Riderra zone', smartRydePickupId: 'SmartRyde pickup Place ID', smartRydeDropoffId: 'SmartRyde drop-off Place ID',
+            reviewNote: 'Reviewer note', verifyAndSave: 'Verify address', saveForReview: 'Save for review', reject: 'Reject',
+            statuses: { candidate: 'Candidate', needs_review: 'Needs review', verified: 'Verified', rejected: 'Rejected' },
             views: {
               all: 'All directions',
               demand_gap: 'Demand without suppliers',
@@ -311,6 +495,61 @@ export default {
     authHeaders () {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' }
+    },
+    statusLabel (status) {
+      return this.t.statuses?.[status] || status
+    },
+    async openBenchmarks () {
+      this.activeWorkspace = 'benchmarks'
+      if (!this.benchmarkPoints.length) await Promise.all([this.loadBenchmarks(), this.loadGeoZones()])
+    },
+    async loadBenchmarks () {
+      this.benchmarkLoading = true
+      this.benchmarkError = ''
+      try {
+        const params = new URLSearchParams({ limit: '500' })
+        if (this.benchmarkQuery.trim()) params.set('q', this.benchmarkQuery.trim())
+        if (this.benchmarkStatus) params.set('status', this.benchmarkStatus)
+        const res = await fetch(`/api/admin/directions/benchmark-points?${params}`, { headers: this.authHeaders() })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to load benchmark points')
+        this.benchmarkPoints = data.rows || []
+        this.benchmarkSummary = data.summary || {}
+      } catch (error) {
+        this.benchmarkError = error.message
+      } finally {
+        this.benchmarkLoading = false
+      }
+    },
+    async loadGeoZones () {
+      const res = await fetch('/api/admin/directions/geo-zone-catalog', { headers: this.authHeaders() })
+      const data = await res.json()
+      if (res.ok) this.geoZones = data.rows || []
+    },
+    openPointForm (point = null) {
+      this.pointFormError = ''
+      this.pointModal = { open: true, id: point?.id || '' }
+      this.pointForm = point
+        ? { ...point, latitude: point.latitude ?? '', longitude: point.longitude ?? '' }
+        : { country: '', city: '', airportIata: '', pickupAddress: '', destinationAddress: '', latitude: '', longitude: '', zoneName: '', smartRydePickupPlaceId: '', smartRydeDropoffPlaceId: '', reviewNote: '' }
+      if (!this.geoZones.length) this.loadGeoZones()
+    },
+    async savePoint (status) {
+      this.pointFormError = ''
+      try {
+        const url = this.pointModal.id ? `/api/admin/directions/benchmark-points/${this.pointModal.id}` : '/api/admin/directions/benchmark-points'
+        const res = await fetch(url, {
+          method: this.pointModal.id ? 'PUT' : 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ ...this.pointForm, status })
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to save benchmark point')
+        this.pointModal.open = false
+        await this.loadBenchmarks()
+      } catch (error) {
+        this.pointFormError = error.message
+      }
     },
     splitPresenceList (raw) {
       return String(raw || '')
@@ -468,6 +707,65 @@ export default {
 .matrix-section {
   padding-top: 150px;
 }
+
+.workspace-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0;
+  padding: 5px;
+  width: fit-content;
+  border: 1px solid #d8e0ef;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.workspace-tab {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: transparent;
+  color: #52617d;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.workspace-tab--active { background: #f6eaf9; color: #702283; }
+.workspace-tab__count { margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: #fff; }
+
+.benchmark-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 22px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff 0%, #f9effb 100%);
+  border: 1px solid #e4d5e8;
+}
+
+.benchmark-hero h2 { margin: 0; color: #1f2b46; }
+.benchmark-hero p { margin: 8px 0 0; max-width: 760px; color: #60708f; line-height: 1.5; }
+.benchmark-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
+.benchmark-summary > div { display: grid; gap: 4px; padding: 15px; border: 1px solid #dce3ef; border-radius: 14px; background: #fff; }
+.benchmark-summary strong { font-size: 25px; color: #1d2c4a; }
+.benchmark-summary span { color: #68758d; font-size: 13px; }
+.benchmark-note { display: flex; gap: 8px; padding: 12px 15px; margin-bottom: 14px; border-radius: 12px; background: #eef7ff; color: #29456f; line-height: 1.45; }
+.benchmark-toolbar { align-items: stretch; }
+.status-filter { width: auto; min-width: 180px; }
+.benchmark-table { overflow: hidden; border: 1px solid #d8dfe9; border-radius: 16px; background: #fff; }
+.benchmark-table__head, .benchmark-row { display: grid; grid-template-columns: minmax(180px, .9fr) minmax(260px, 1.4fr) minmax(180px, .8fr) 150px 90px; gap: 12px; align-items: center; padding: 13px 16px; }
+.benchmark-table__head { background: #f8faff; border-bottom: 1px solid #e2e7f0; color: #354563; font-weight: 700; }
+.benchmark-row { border-bottom: 1px solid #eef1f6; color: #31405c; }
+.benchmark-row small { display: block; margin-top: 5px; color: #7a8497; line-height: 1.35; }
+.benchmark-address { line-height: 1.45; }
+.status-badge { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.status-badge--candidate { background: #f3f4f6; color: #4b5563; }
+.status-badge--needs_review { background: #fff4d6; color: #8a5b00; }
+.status-badge--verified { background: #eafaf0; color: #166534; }
+.status-badge--rejected { background: #fef2f2; color: #991b1b; }
+.link-button { border: 0; background: transparent; color: #702283; font-weight: 700; cursor: pointer; }
+.form-error { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #fef2f2; color: #991b1b; }
+.btn--danger { background: #fef2f2; color: #991b1b; }
 
 .page-head {
   display: flex;
@@ -805,9 +1103,17 @@ export default {
   .grid.two-cols {
     grid-template-columns: 1fr;
   }
+
+  .benchmark-table__head { display: none; }
+  .benchmark-row { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 720px) {
+  .benchmark-hero { flex-direction: column; }
+  .benchmark-summary { grid-template-columns: 1fr 1fr; }
+  .benchmark-row { grid-template-columns: 1fr; }
+  .workspace-tabs { width: 100%; }
+  .workspace-tab { flex: 1; }
   .page-head {
     flex-direction: column;
   }

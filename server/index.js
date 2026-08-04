@@ -51,6 +51,7 @@ const { registerAuthBootstrapRoutes, registerAuthRoutes } = require('./routes/au
 const { registerPublicRoutes } = require('./routes/public')
 const { ingestComplaintEmail, registerComplaintRoutes } = require('./routes/complaints')
 const { registerPricingComparisonRoutes } = require('./routes/pricingComparisons')
+const { registerBenchmarkPointRoutes } = require('./routes/benchmarkPoints')
 const { isComplaintEmail } = require('./utils/complaints')
 const {
   applyLondonPostcodeZoneOverrides,
@@ -20843,6 +20844,17 @@ registerPricingComparisonRoutes(app, {
   requireActorContext,
   requireCan,
   writeAuditLog
+})
+
+registerBenchmarkPointRoutes(app, {
+  prisma,
+  authenticateToken,
+  resolveActorContext,
+  requireActorContext,
+  requireCan,
+  writeAuditLog,
+  loadGeoZoneIndex,
+  findGeoZoneForGeoResult
 })
 
 registerAuthBootstrapRoutes(app, {
