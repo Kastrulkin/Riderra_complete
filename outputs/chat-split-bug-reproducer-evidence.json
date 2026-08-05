@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "status": "FIX_PROVEN",
+  "reason": "The same isolated inbound-routing smoke changed from assigning a recent acknowledgement to a new inquiry to retaining it in the recently closed order dialog; broader checks passed.",
+  "reproduction": "confirmed",
+  "full_suite": "passed",
+  "same_command": true,
+  "before": {
+    "command": "DATABASE_URL=<isolated-postgres> npm run smoke:chat-internal-inbound",
+    "exit_code": 1,
+    "timed_out": false,
+    "duration_ms": 6100,
+    "stdout": "Error: a reply sent immediately after closure must remain in the same order dialog",
+    "stderr": ""
+  },
+  "after": {
+    "command": "DATABASE_URL=<isolated-postgres> npm run smoke:chat-internal-inbound",
+    "exit_code": 0,
+    "timed_out": false,
+    "duration_ms": 6100,
+    "stdout": "{\"ok\":true,\"checks\":38,\"taskState\":\"order_complete\",\"inboundIdempotentReplay\":true}",
+    "stderr": ""
+  }
+}

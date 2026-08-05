@@ -1,0 +1,70 @@
+{
+  "title": "Recent WhatsApp acknowledgement creates a duplicate dialog",
+  "project": "Riderra",
+  "generated_at": "2026-08-05",
+  "mode": "prove-fix",
+  "original_report": "A customer replied Thank you immediately after an order clarification was completed, but Riderra created a new unlinked dialog instead of keeping the response in the order conversation.",
+  "discovery_scope": [
+    "Production chat tasks and messages for booking 787761543",
+    "Internal WhatsApp inbound routing handler",
+    "Existing internal inbound smoke harness"
+  ],
+  "candidates": [],
+  "expected": "A short acknowledgement from the same phone immediately after closure remains in the recently closed order dialog and creates no outbound draft.",
+  "actual": "The closed task was excluded from phone matching, so Riderra created an inbound_inquiry with an unrelated pending AI draft.",
+  "environment": "Node.js Riderra service, disposable local PostgreSQL 15 database, production verification after deployment",
+  "reproduction": "The smoke creates one closed order dialog with a recently delivered outbound WhatsApp message, posts Thank you from the same number without taskId, and asserts task identity, closed state, ack classification, and absence of a split inquiry or draft.",
+  "failure_signal": "The pre-fix API returned the id of a newly created inbound inquiry instead of the recently closed order task.",
+  "root_cause": "Phone-based inbound routing filtered out every task in state closed before considering that a short acknowledgement can arrive seconds after the final Riderra message.",
+  "fix_summary": "Recognize a narrow set of standalone acknowledgements, attach one to the unique recently closed WhatsApp order dialog from the same phone within 24 hours, keep the dialog closed, and skip response-draft generation.",
+  "why_causal": "The new fallback runs exactly where the active-task lookup previously failed and selects the proven original task before inquiry creation.",
+  "reproduction_files": [
+    {
+      "path": "/Users/alexdemyanov/Yandex.Disk-demyanovap.localized/Riderra/Riderra-main/scripts/chat_internal_inbound_smoke.js",
+      "line": 265,
+      "summary": "Approved red-to-green regression fixture for a recently closed WhatsApp order dialog."
+    }
+  ],
+  "fix_files": [
+    {
+      "path": "/Users/alexdemyanov/Yandex.Disk-demyanovap.localized/Riderra/Riderra-main/server/index.js",
+      "line": 5554,
+      "summary": "Approved acknowledgement recognition, recent closed-task routing, and no-draft terminal handling."
+    }
+  ],
+  "checks": [
+    {
+      "name": "Regression smoke",
+      "status": "passed",
+      "detail": "The same assertion failed before the fix and passed afterward in a disposable database."
+    },
+    {
+      "name": "ESLint",
+      "status": "passed",
+      "detail": "server/index.js and scripts/chat_internal_inbound_smoke.js passed."
+    },
+    {
+      "name": "Nuxt production build",
+      "status": "passed",
+      "detail": "All static routes generated successfully; only pre-existing dependency and bundle-size warnings remained."
+    },
+    {
+      "name": "Production repair",
+      "status": "passed",
+      "detail": "Thank you is now in booking 787761543; the duplicate task and its open OpsTask were removed, and the unsent draft was rejected."
+    }
+  ],
+  "reproduce": [
+    "DATABASE_URL=<isolated-postgres> npm run smoke:chat-internal-inbound"
+  ],
+  "limitations": [
+    "The fallback applies only to a standalone acknowledgement, exactly one recent closed order task for the phone, and a 24-hour window."
+  ],
+  "residual_risks": [
+    "An ambiguous phone with multiple recent closed order dialogs remains an inbound inquiry for manual linking instead of being guessed."
+  ],
+  "notes": [
+    "No customer message was sent during diagnosis, repair, or verification.",
+    "The pre-existing generic bug-reproducer report files were left untouched because they document a separate WhatsApp image issue."
+  ]
+}
