@@ -5551,6 +5551,17 @@ function classifyCustomerReplyFallback(text = '') {
     : { class: 'unclassified', confidence: 0.2, requiresHuman: false, source: 'local_fallback' }
 }
 
+function isSimpleCustomerAcknowledgement(text = '') {
+  const normalized = String(text || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?,;:()\[\]{}'"“”‘’]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!normalized) return false
+  return /^(?:thank you|thanks|thank you very much|many thanks|ok|okay|got it|спасибо|большое спасибо|понял|поняла|хорошо)$/.test(normalized)
+}
+
 function detectClarificationTarget(infoReason = '', text = '') {
   const combined = `${infoReason || ''} ${text || ''}`.toLowerCase()
   const specialTarget = detectSpecialClarificationTarget(combined)
@@ -9416,6 +9427,29 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
       task = recipientMatches[0] || null
     }
 
+    if (!task && senderPhone && isSimpleCustomerAcknowledgement(bodyText)) {
+      const recentClosedMatches = await prisma.chatTask.findMany({
+        where: {
+          tenantId,
+          channel: 'whatsapp',
+          customerActorId: senderPhone,
+          taskType: { not: 'inbound_inquiry' },
+          state: 'closed',
+          lastMessageAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+          messages: {
+            some: {
+              direction: 'outbound',
+              providerMessageId: { not: null }
+            }
+          }
+        },
+        orderBy: { lastMessageAt: 'desc' },
+        take: 2,
+        include
+      })
+      if (recentClosedMatches.length === 1) task = recentClosedMatches[0]
+    }
+
     if (!task && orderId) {
       task = await prisma.chatTask.findFirst({
         where: { tenantId, orderId, taskType: requestedTaskType },
@@ -9512,6 +9546,40 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
           idempotencyKey: getIdempotencyKey(req)
         }
       })
+
+      if (task.state === 'closed' && isSimpleCustomerAcknowledgement(bodyText)) {
+        const updatedTask = await prisma.chatTask.update({
+          where: { id: task.id },
+          data: {
+            unreadCount: { increment: 1 },
+            lastMessageAt: new Date(),
+            lastInboundAt: new Date(),
+            lastError: null
+          }
+        })
+        const classification = { class: 'ack', confidence: 1, requiresHuman: false, source: 'local_acknowledgement' }
+        await writeAuditLog({
+          tenantId,
+          actorId: 'openclaw',
+          actorRole: 'system',
+          action: 'chat_task.inbound.openclaw',
+          resource: 'chat_task',
+          resourceId: task.id,
+          traceId: req.actorContext.traceId,
+          decision: 'acknowledgement_attached_to_recent_closed_dialog',
+          result: 'ok',
+          context: { inboundMessageId: inboundMessage.id, externalMessageId: inboundExternalId, state: updatedTask.state }
+        })
+        return {
+          message: inboundMessage,
+          taskId: task.id,
+          taskState: updatedTask.state,
+          inquiry: false,
+          classification,
+          extraction: null,
+          acknowledgementDraft: null
+        }
+      }
 
       if (isMediaInbound) {
         const isInquiry = task.taskType === 'inbound_inquiry'

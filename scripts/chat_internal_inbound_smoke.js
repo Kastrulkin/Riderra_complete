@@ -262,6 +262,51 @@ async function main() {
     }
   })
 
+  const recentClosedPhone = '+34618000001'
+  const recentClosedOrder = await prisma.order.create({
+    data: {
+      tenantId: tenant.id,
+      source: 'chat_internal_smoke',
+      externalKey: `chat-recent-closed-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      sourceBookingId: `recent-closed-${Date.now()}`,
+      fromPoint: 'Riga Hotel',
+      toPoint: 'Riga International Airport',
+      clientPrice: 40,
+      vehicleType: 'standard',
+      status: 'confirmed',
+      customerPhone: recentClosedPhone,
+      needsInfo: false
+    }
+  })
+  const recentClosedTask = await prisma.chatTask.create({
+    data: {
+      tenantId: tenant.id,
+      orderId: recentClosedOrder.id,
+      taskType: 'clarification',
+      state: 'closed',
+      priority: 1,
+      channel: 'whatsapp',
+      customerActorId: recentClosedPhone,
+      agentConfigId: agent.id,
+      agentPaused: false,
+      closedAt: new Date(),
+      lastMessageAt: new Date()
+    }
+  })
+  await prisma.chatMessage.create({
+    data: {
+      tenantId: tenant.id,
+      chatTaskId: recentClosedTask.id,
+      direction: 'outbound',
+      source: 'system',
+      channel: 'whatsapp',
+      bodyText: 'Thank you! We have received the information.',
+      providerMessageId: `wa-recent-closed-${crypto.randomUUID()}`,
+      approvalStatus: 'sent',
+      deliveryStatus: 'delivered'
+    }
+  })
+
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: '10m' })
 
   let appServer = null
@@ -276,6 +321,31 @@ async function main() {
     appServer = app.listen(0)
     const appPort = appServer.address().port
     const baseUrl = `http://127.0.0.1:${appPort}`
+
+    const recentClosedReplyExternalId = `wa-recent-closed-reply-${crypto.randomUUID()}`
+    const recentClosedReply = await requestJson(baseUrl, '/api/internal/chats/inbound', {
+      method: 'POST',
+      tenantCode,
+      internalToken,
+      body: {
+        bodyText: 'Thank you!',
+        channel: 'whatsapp',
+        externalMessageId: recentClosedReplyExternalId,
+        from: recentClosedPhone
+      },
+      idempotencyKey: `chat-internal-recent-closed-${crypto.randomUUID()}`
+    })
+    assert(recentClosedReply.status === 200, `expected 200 for a reply to a recently closed dialog, got ${recentClosedReply.status}`)
+    assert(recentClosedReply.data?.taskId === recentClosedTask.id, 'a reply sent immediately after closure must remain in the same order dialog')
+    assert(recentClosedReply.data?.inquiry !== true, 'a reply to a recently closed order dialog must not create a new inbound inquiry')
+    assert(recentClosedReply.data?.taskState === 'closed', 'a simple thank-you must not reopen an already completed dialog')
+    assert(recentClosedReply.data?.classification?.class === 'ack', 'a simple thank-you must be classified as acknowledgement')
+    assert(!recentClosedReply.data?.draft && !recentClosedReply.data?.acknowledgementDraft, 'a simple thank-you must not create another outbound draft')
+
+    const splitInquiry = await prisma.chatTask.findUnique({
+      where: { tenantId_conversationKey: { tenantId: tenant.id, conversationKey: `whatsapp:${recentClosedPhone}` } }
+    })
+    assert(!splitInquiry, 'a recent closed order reply must not leave a split inquiry dialog')
 
     const unauthorized = await requestJson(baseUrl, '/api/internal/chats/inbound', {
       method: 'POST',
@@ -506,13 +576,21 @@ async function main() {
     if (previousInternalToken === undefined) delete process.env.OPENCLAW_INTERNAL_TOKEN
     else process.env.OPENCLAW_INTERNAL_TOKEN = previousInternalToken
 
-    await prisma.auditLog.deleteMany({ where: { tenantId: tenant.id, resourceId: { in: [task.id, followupTask.id, mediaTask.id] } } })
+    const splitInquiry = await prisma.chatTask.findUnique({
+      where: { tenantId_conversationKey: { tenantId: tenant.id, conversationKey: `whatsapp:${recentClosedPhone}` } },
+      include: { messages: { select: { id: true } } }
+    })
+    const cleanupTaskIds = [task.id, followupTask.id, mediaTask.id, recentClosedTask.id, splitInquiry?.id].filter(Boolean)
+    const cleanupMessageIds = splitInquiry?.messages?.map((message) => message.id) || []
+    await prisma.opsTask.deleteMany({ where: { tenantId: tenant.id, sourceRef: { in: cleanupMessageIds } } })
+    await prisma.auditLog.deleteMany({ where: { tenantId: tenant.id, resourceId: { in: cleanupTaskIds } } })
     await prisma.idempotencyKey.deleteMany({ where: { tenantId: tenant.id, key: { startsWith: 'chat-internal-' } } })
-    await prisma.chatMessage.deleteMany({ where: { chatTaskId: { in: [task.id, followupTask.id, mediaTask.id] } } })
-    await prisma.chatTask.deleteMany({ where: { id: { in: [task.id, followupTask.id, mediaTask.id] } } })
+    await prisma.chatMessage.deleteMany({ where: { chatTaskId: { in: cleanupTaskIds } } })
+    await prisma.chatTask.deleteMany({ where: { id: { in: cleanupTaskIds } } })
     await prisma.chatAgentConfig.deleteMany({ where: { id: agent.id } })
-    await prisma.orderStatusHistory.deleteMany({ where: { orderId: { in: [order.id, followupOrder.id, mediaOrder.id] } } })
-    await prisma.order.deleteMany({ where: { id: { in: [order.id, followupOrder.id, mediaOrder.id] } } })
+    const cleanupOrderIds = [order.id, followupOrder.id, mediaOrder.id, recentClosedOrder.id]
+    await prisma.orderStatusHistory.deleteMany({ where: { orderId: { in: cleanupOrderIds } } })
+    await prisma.order.deleteMany({ where: { id: { in: cleanupOrderIds } } })
     await prisma.tenantMembership.deleteMany({ where: { userId: user.id } })
     await prisma.userRole.deleteMany({ where: { userId: user.id } })
     await prisma.user.deleteMany({ where: { id: user.id } })
