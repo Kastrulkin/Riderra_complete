@@ -77,7 +77,7 @@ function addResultSheet(workbook, name, rows, assumptionsSheetName = 'Assumption
       { formula: `IF(OR(F${excelRow}="",H${excelRow}=""),"",ROUND(F${excelRow}*(1-'${assumptionsSheetName}'!$B$2),2))`, result: targetResult },
       { formula: `IF(OR(H${excelRow}="",I${excelRow}=""),"",ROUND(H${excelRow}-I${excelRow},2))`, result: gapResult },
       { formula: `IF(OR(H${excelRow}=0,J${excelRow}=""),"",J${excelRow}/H${excelRow})`, result: pctResult },
-      { formula: `IF(OR(F${excelRow}="",H${excelRow}=""),"needs_review",IF(I${excelRow}<H${excelRow},"opportunity","not_opportunity"))`, result: row.status },
+      { formula: `IF(LEN(H${excelRow})=0,IF(P${excelRow}="SmartRyde returned no available vehicles","coverage_opportunity","needs_review"),IF(I${excelRow}<H${excelRow},"opportunity","not_opportunity"))`, result: row.status === 'no_quote' ? 'coverage_opportunity' : row.status },
       row.serviceAt,
       row.quotedAt,
       row.sourceUrl,
@@ -113,6 +113,8 @@ async function buildPriceComparisonWorkbook(run) {
 
   const rows = resultRows(run)
   const opportunities = rows.filter((row) => row.status === 'opportunity')
+  const coverageOpportunities = rows.filter((row) => row.status === 'no_quote')
+  const coverageRouteCount = new Set(coverageOpportunities.map((row) => `${row.routeFrom}\u0000${row.routeTo}`)).size
   const needsReview = rows.filter((row) => ['needs_review', 'failed'].includes(row.status))
 
   const assumptions = workbook.addWorksheet('Assumptions')
@@ -124,7 +126,7 @@ async function buildPriceComparisonWorkbook(run) {
     ['Adapter', run.source.adapterKey],
     ['Base URL', run.source.baseUrl],
     ['Service date', run.serviceAt],
-    ['Rule', 'Target price = Riderra sell × (1 − discount); opportunity when target < client sell']
+    ['Rule', 'Price opportunity: target < client sell. Coverage opportunity: partner returned no available vehicles.']
   ])
   configureSheet(assumptions, [28, 88])
   assumptions.getCell('B2').numFmt = '0.0%'
@@ -137,15 +139,17 @@ async function buildPriceComparisonWorkbook(run) {
     ['Run status', run.status],
     ['Routes processed', run.processedCount],
     ['Green opportunities', { formula: `COUNTIF('All results'!L2:L${Math.max(2, rows.length + 1)},"opportunity")`, result: opportunities.length }],
+    ['Coverage opportunities', coverageRouteCount],
     ['Needs review', { formula: `COUNTIF('All results'!L2:L${Math.max(2, rows.length + 1)},"needs_review")+COUNTIF('All results'!L2:L${Math.max(2, rows.length + 1)},"failed")`, result: needsReview.length }],
     ['Service date', run.serviceAt],
     ['Formula', run.formulaVersion]
   ])
   configureSheet(summary, [34, 34])
-  summary.getCell('B7').numFmt = 'yyyy-mm-dd hh:mm'
+  summary.getCell('B8').numFmt = 'yyyy-mm-dd hh:mm'
   summary.getCell('A1').font = { bold: true, color: { argb: COLORS.white }, size: 14 }
 
   addResultSheet(workbook, 'Green opportunities', opportunities)
+  addResultSheet(workbook, 'Coverage opportunities', coverageOpportunities)
   addResultSheet(workbook, 'All results', rows)
   addResultSheet(workbook, 'Needs review', needsReview)
   return workbook.xlsx.writeBuffer()

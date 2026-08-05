@@ -69,7 +69,7 @@
             >
               <span class="status-pill" :class="`status-pill--${run.status}`">{{ comparisonStatusLabel(run.status) }}</span>
               <strong>{{ formatDateTime(run.serviceAt) }}</strong>
-              <span>{{ run.processedCount }}/{{ run.routeCount }} · {{ t.green }}: {{ run.opportunitiesCount }}</span>
+              <span>{{ run.processedCount }}/{{ run.routeCount }} · {{ t.green }}: {{ run.opportunitiesCount }} · {{ t.coverageShort }}: {{ run.coverageOpportunityCount || 0 }}</span>
             </button>
           </div>
 
@@ -78,6 +78,7 @@
               <div class="mini-stat"><span>{{ t.runStatus }}</span><strong>{{ comparisonStatusLabel(activeComparisonRun.status) }}</strong></div>
               <div class="mini-stat"><span>{{ t.processed }}</span><strong>{{ activeComparisonRun.processedCount }}/{{ activeComparisonRun.routeCount }}</strong></div>
               <div class="mini-stat mini-stat--green"><span>{{ t.greenRoutes }}</span><strong>{{ activeComparisonRun.opportunitiesCount }}</strong></div>
+              <div class="mini-stat"><span>{{ t.coverageOpportunities }}</span><strong>{{ activeComparisonRun.coverageOpportunityCount || 0 }}</strong></div>
               <div class="mini-stat"><span>{{ t.needsReview }}</span><strong>{{ activeComparisonRun.needsReviewCount }}</strong></div>
             </div>
             <div class="comparison-actions">
@@ -478,6 +479,8 @@ export default {
             paused: 'Приостановлен',
             green: 'зелёных',
             greenRoutes: 'Зелёные маршруты',
+            coverageShort: 'нет у партнёра',
+            coverageOpportunities: 'SmartRyde не продаёт',
             runStatus: 'Статус запуска',
             processed: 'Обработано',
             needsReview: 'Нужно проверить',
@@ -564,6 +567,8 @@ export default {
             paused: 'Paused',
             green: 'green',
             greenRoutes: 'Green routes',
+            coverageShort: 'partner gaps',
+            coverageOpportunities: 'Not sold by partner',
             runStatus: 'Run status',
             processed: 'Processed',
             needsReview: 'Needs review',
@@ -979,8 +984,8 @@ export default {
         : `Wednesday, ${schedule.localTime || '12:00'}, at least ${schedule.minLeadDays || 7} days ahead`
     },
     comparisonStatusLabel (status) {
-      const labelsRu = { draft: 'Черновик', configured: 'Готов к запуску', running: 'Сбор цен', needs_review: 'Нужна проверка', ready: 'Готово', failed: 'Ошибка', opportunity: 'Зелёный', not_opportunity: 'Нет преимущества', compared: 'Сравнено' }
-      const labelsEn = { draft: 'Draft', configured: 'Ready to start', running: 'Collecting', needs_review: 'Needs review', ready: 'Ready', failed: 'Failed', opportunity: 'Green', not_opportunity: 'No advantage', compared: 'Compared' }
+      const labelsRu = { draft: 'Черновик', configured: 'Готов к запуску', running: 'Сбор цен', needs_review: 'Нужна проверка', ready: 'Готово', failed: 'Ошибка', opportunity: 'Зелёный', not_opportunity: 'Нет преимущества', no_quote: 'SmartRyde не продаёт', compared: 'Сравнено' }
+      const labelsEn = { draft: 'Draft', configured: 'Ready to start', running: 'Collecting', needs_review: 'Needs review', ready: 'Ready', failed: 'Failed', opportunity: 'Green', not_opportunity: 'No advantage', no_quote: 'Partner does not sell', compared: 'Compared' }
       return (this.$store.state.language === 'ru' ? labelsRu : labelsEn)[status] || status || '-'
     },
     formatDateTime (value) {

@@ -32,6 +32,14 @@ function normalizeRoutePairs(value) {
   return Array.from(unique.values())
 }
 
+function withCoverageOpportunities(run) {
+  const quotes = Array.isArray(run?.quotes) ? run.quotes : []
+  const coverageOpportunityCount = new Set(quotes
+    .filter((quote) => quote.status === 'no_quote')
+    .map((quote) => `${quote.routeFrom}\u0000${quote.routeTo}`)).size
+  return { ...run, coverageOpportunityCount }
+}
+
 function registerPricingComparisonRoutes(app, dependencies) {
   const {
     prisma,
@@ -98,11 +106,14 @@ function registerPricingComparisonRoutes(app, dependencies) {
       if (req.query.sourceId) where.sourceId = String(req.query.sourceId)
       const rows = await prisma.priceComparisonRun.findMany({
         where,
-        include: { source: { select: { id: true, name: true, adapterKey: true } } },
+        include: {
+          source: { select: { id: true, name: true, adapterKey: true } },
+          quotes: { where: { status: 'no_quote' }, select: { routeFrom: true, routeTo: true, status: true } }
+        },
         orderBy: { createdAt: 'desc' },
         take: Math.min(Number(req.query.limit) || 50, 200)
       })
-      res.json({ rows })
+      res.json({ rows: rows.map(withCoverageOpportunities) })
     } catch (error) {
       res.status(500).json({ error: 'Failed to list comparison runs' })
     }
@@ -206,7 +217,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
       prisma.priceComparisonPlaceMap.findMany({ where: { sourceId: run.sourceId, status: 'needs_review' }, orderBy: { inputText: 'asc' } }),
       prisma.priceComparisonVehicleMap.findMany({ where: { sourceId: run.sourceId }, orderBy: [{ status: 'asc' }, { externalVehicleName: 'asc' }] })
     ])
-    res.json({ run, rows: run.quotes, placeMappings, vehicleMappings })
+    res.json({ run: withCoverageOpportunities(run), rows: run.quotes, placeMappings, vehicleMappings })
   })
 
   app.get('/api/admin/pricing/external-quotes', ...canRead, async (req, res) => {
