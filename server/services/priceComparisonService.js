@@ -2,6 +2,8 @@ const crypto = require('crypto')
 
 const ACTIVE_RUNS = new Set()
 
+class NoQuotesError extends Error {}
+
 const SMART_RYDE_DEFAULTS = Object.freeze({
   name: 'SmartRyde',
   adapterKey: 'smart-ryde',
@@ -335,7 +337,7 @@ class SmartRydeAdapter {
       return response.text()
     })
     const quotes = parseSmartRydeQuotes(html).map((quote) => this.normalizeVehicle(quote))
-    if (!quotes.length) throw new Error('SmartRyde returned no vehicle prices')
+    if (!quotes.length) throw new NoQuotesError('SmartRyde returned no available vehicles')
     return { quotes, evidence: this.extractEvidence({ searchUrl, html, quotes }) }
   }
 }
@@ -429,7 +431,7 @@ async function markRouteIssue({ prisma, run, row, status, error, evidence }) {
     requestedVehicleType: row.vehicleType,
     riderraSellPrice: row.fixedPrice,
     riderraCurrency: row.currency,
-    externalVehicleKey: status === 'failed' ? '_error' : '_route_resolution',
+    externalVehicleKey: status === 'failed' ? '_error' : (status === 'no_quote' ? '_no_quote' : '_route_resolution'),
     serviceAt: run.serviceAt,
     status,
     error,
@@ -604,7 +606,14 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
       await applyFetchedQuotesToRow({ prisma, run, source, row, policy, pickup, dropoff, fetched, quotedAt })
     }
   } catch (error) {
-    await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'failed', error: String(error.message || error).slice(0, 1000) })))
+    const status = error instanceof NoQuotesError ? 'no_quote' : 'failed'
+    await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status, error: String(error.message || error).slice(0, 1000) })))
+    if (status === 'no_quote') {
+      await prisma.priceComparisonQuote.updateMany({
+        where: { runId: run.id, cityPricingId: { in: pending.map((row) => row.id) }, externalVehicleKey: { in: ['_error', '_route_resolution'] } },
+        data: { status: 'ignored', error: null }
+      })
+    }
   }
 }
 
