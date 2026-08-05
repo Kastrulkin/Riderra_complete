@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 const {
   executeBenchmarkResolutionBatch,
+  generateZoneBenchmarkBatch,
   isBenchmarkResolutionRunning
 } = require('../services/benchmarkPointResolutionService')
 
@@ -26,10 +27,11 @@ function normalize(value) {
 }
 
 function normalizedKey(data) {
+  const parts = data.source === 'riderra_geo_zone' && data.zoneId
+    ? ['zone', normalize(data.zoneId)]
+    : [normalize(data.airportIata), normalize(data.pickupAddress), normalize(data.destinationAddress)]
   return crypto.createHash('sha256').update([
-    normalize(data.airportIata),
-    normalize(data.pickupAddress),
-    normalize(data.destinationAddress)
+    ...parts
   ].join('|')).digest('hex')
 }
 
@@ -167,6 +169,18 @@ function registerBenchmarkPointRoutes(app, dependencies) {
         await audit(writeAuditLog, req, 'directions.benchmark_points.resolve', 'batch', { limit, processed: result.processed })
       })
       .catch((error) => console.error('Benchmark point resolution failed:', error))
+    res.status(202).json({ status: 'running', limit })
+  })
+
+  app.post('/api/admin/directions/benchmark-points/generate-from-zones', ...canManage, async (req, res) => {
+    const tenantId = req.actorContext.tenantId
+    if (isBenchmarkResolutionRunning(tenantId)) return res.status(409).json({ error: 'Benchmark resolution is already running' })
+    const limit = Math.min(Math.max(Number(req.body?.limit) || 10, 1), 100)
+    generateZoneBenchmarkBatch({ prisma, tenantId, limit, loadGeoZoneIndex, geocodeAddress })
+      .then(async (result) => {
+        await audit(writeAuditLog, req, 'directions.benchmark_points.generate_from_zones', 'batch', result)
+      })
+      .catch((error) => console.error('Geo-zone benchmark generation failed:', error))
     res.status(202).json({ status: 'running', limit })
   })
 

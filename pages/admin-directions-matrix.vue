@@ -122,7 +122,7 @@
             </div>
             <div class="benchmark-hero__actions">
               <button class="btn btn--primary" type="button" :disabled="resolutionRunning" @click="startResolution">
-                {{ resolutionRunning ? t.resolving : t.resolveNext }}
+                {{ resolutionRunning ? t.resolving : t.generateZonePoints }}
               </button>
               <button class="btn btn--ghost" type="button" @click="openPointForm()">{{ t.addPoint }}</button>
             </div>
@@ -313,7 +313,7 @@ export default {
             benchmarkTitle: 'База контрольных адресов',
             benchmarkSubtitle: 'Точные точки внутри геозон Riderra для проверки публичных цен SmartRyde и других агрегаторов.',
             addPoint: 'Добавить адрес',
-            resolveNext: 'Проверить следующие 10',
+            generateZonePoints: 'Создать точки для 10 геозон',
             resolving: 'Идёт проверка…',
             allPoints: 'всего адресов',
             verified: 'подтверждено',
@@ -413,7 +413,7 @@ export default {
             benchmarkTitle: 'Control address database',
             benchmarkSubtitle: 'Exact points inside Riderra zones for checking public SmartRyde and other aggregator prices.',
             addPoint: 'Add address',
-            resolveNext: 'Check next 10',
+            generateZonePoints: 'Create points for 10 zones',
             resolving: 'Checking…',
             allPoints: 'all addresses',
             verified: 'verified',
@@ -540,7 +540,7 @@ export default {
     async startResolution () {
       this.benchmarkError = ''
       try {
-        const res = await fetch('/api/admin/directions/benchmark-points/resolve', {
+        const res = await fetch('/api/admin/directions/benchmark-points/generate-from-zones', {
           method: 'POST',
           headers: this.authHeaders(),
           body: JSON.stringify({ limit: 10 })

@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { normalizedKey, pointData } = require('../../server/routes/benchmarkPoints')
-const { compactQuery, selectBenchmarkPlaceCandidate } = require('../../server/services/benchmarkPointResolutionService')
+const { compactQuery, representativePointForZone, selectBenchmarkPlaceCandidate } = require('../../server/services/benchmarkPointResolutionService')
 
 test('benchmark point requires exact pickup and destination addresses', () => {
   assert.throws(() => pointData({ pickupAddress: 'LHR' }), /required/)
@@ -38,4 +38,11 @@ test('benchmark SmartRyde matching rejects a country mismatch and ambiguity', ()
 
 test('benchmark query removes duplicate location parts', () => {
   assert.equal(compactQuery(['Hotel, Paris', 'Paris', 'France', 'France']), 'Hotel, Paris, Paris, France')
+})
+
+test('representative geo-zone point is inside a simple polygon', () => {
+  const point = representativePointForZone({ polygons: [[[
+    [0, 0], [4, 0], [4, 4], [0, 4], [0, 0]
+  ]]] })
+  assert.deepEqual(point, { lon: 2, lat: 2 })
 })
