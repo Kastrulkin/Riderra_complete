@@ -180,6 +180,52 @@
         </details>
 
         <div class="detail-sections">
+          <details v-if="detailsMode==='company' && (companyComparison.source || companyComparison.loading)" class="links-block detail-card crm-detail-panel comparison-card" open>
+            <summary class="section-summary">Цены и возможности</summary>
+            <div v-if="companyComparison.loading" class="hint">Загружаем последний анализ цен…</div>
+            <template v-else-if="companyComparison.source">
+              <div class="comparison-card__head">
+                <div>
+                  <h4>{{ companyComparison.source.name }}: текущая картина</h4>
+                  <div class="hint">Публичные цены компании сравниваются с действующим прайсом Riderra. Основной прайс автоматически не меняется.</div>
+                </div>
+                <span class="comparison-status">{{ comparisonStatusLabel(companyComparison.run?.status) }}</span>
+              </div>
+
+              <div class="comparison-kpis">
+                <div class="summary-chip"><span>Ценовое преимущество</span><strong>{{ companyComparison.run?.opportunitiesCount || 0 }}</strong></div>
+                <div class="summary-chip"><span>Компания не продаёт</span><strong>{{ companyComparison.run?.coverageOpportunityCount || 0 }}</strong></div>
+                <div class="summary-chip"><span>Нужно проверить</span><strong>{{ companyComparison.run?.needsReviewCount || 0 }}</strong></div>
+                <div class="summary-chip"><span>Последний срез</span><strong>{{ formatDateTime(companyComparison.run?.finishedAt || companyComparison.run?.createdAt) }}</strong></div>
+              </div>
+
+              <div v-if="companyComparison.run" class="comparison-assumptions">
+                <span><strong>Формула:</strong> {{ comparisonFormulaLabel(companyComparison.source) }}</span>
+                <span><strong>Дата поездки:</strong> {{ formatDateTime(companyComparison.run.serviceAt) }}</span>
+                <span><strong>Объём:</strong> {{ comparisonRouteCount }} направлений · {{ companyComparison.run.routeCount }} строк прайса</span>
+              </div>
+
+              <div v-if="companyComparisonRoutes.length" class="comparison-route-list">
+                <div v-for="route in companyComparisonRoutes" :key="route.key" class="comparison-route-row">
+                  <div><strong>{{ route.routeFrom }} → {{ route.routeTo }}</strong><span>{{ route.vehicleCount }} классов Riderra</span></div>
+                  <div><span class="comparison-status" :class="`comparison-status--${route.status}`">{{ comparisonStatusLabel(route.status) }}</span></div>
+                  <div>{{ route.priceLabel }}</div>
+                </div>
+              </div>
+              <div v-else class="hint">Анализ ещё не запускался.</div>
+
+              <div v-if="companyComparison.error" class="hint hint--error">{{ companyComparison.error }}</div>
+              <div class="comparison-card__actions">
+                <button class="btn btn--primary" :disabled="companyComparison.busy" @click="rerunCompanyComparison">
+                  {{ companyComparison.busy ? 'Идёт сбор и сверка…' : 'Собрать цены заново и сравнить' }}
+                </button>
+                <button v-if="companyComparison.run && companyComparison.rows.length" class="btn btn--ghost" @click="downloadCompanyComparison">
+                  Скачать Excel
+                </button>
+              </div>
+            </template>
+          </details>
+
           <details class="segments-block detail-card crm-detail-panel">
             <summary class="section-summary">Сегменты</summary>
             <h4>Сегменты</h4>
@@ -336,7 +382,8 @@ export default {
       detailsTitle: '',
       detailsMode: 'company',
       detailsId: '',
-      form: {}
+      form: {},
+      companyComparison: { source: null, run: null, rows: [], loading: false, busy: false, error: '', pollTimer: null }
     }
   },
   computed: {
@@ -384,10 +431,40 @@ export default {
         { key: 'geo', value: withGeo, label: 'С географией', hint: 'Есть присутствие', tone: withGeo ? 'ok' : 'warn' },
         { key: 'gaps', value: gaps, label: 'Нужен разбор', hint: 'Не хватает связей или каналов', tone: gaps ? 'critical' : 'ok' }
       ]
+    },
+    companyComparisonRoutes() {
+      const grouped = new Map()
+      for (const row of this.companyComparison.rows || []) {
+        if (row.status === 'ignored') continue
+        const key = `${row.routeFrom}\u0000${row.routeTo}`
+        if (!grouped.has(key)) grouped.set(key, { key, routeFrom: row.routeFrom, routeTo: row.routeTo, rows: [] })
+        grouped.get(key).rows.push(row)
+      }
+      return Array.from(grouped.values()).map((route) => {
+        const statuses = route.rows.map((row) => row.result?.status || row.status)
+        const prices = route.rows.map((row) => Number(row.clientSellPrice)).filter(Number.isFinite)
+        const currency = route.rows.find((row) => row.clientCurrency)?.clientCurrency || ''
+        const status = statuses.includes('opportunity') ? 'opportunity'
+          : statuses.includes('no_quote') ? 'coverage_opportunity'
+            : statuses.some((value) => ['needs_review', 'failed'].includes(value)) ? 'needs_review'
+              : 'not_opportunity'
+        return {
+          ...route,
+          status,
+          vehicleCount: new Set(route.rows.map((row) => row.requestedVehicleType)).size,
+          priceLabel: prices.length ? `${Math.min(...prices)}–${Math.max(...prices)} ${currency}` : 'Цена отсутствует'
+        }
+      })
+    },
+    comparisonRouteCount() {
+      return this.companyComparisonRoutes.length || this.comparisonScopePairs().length
     }
   },
   mounted() {
     this.reload()
+  },
+  beforeDestroy() {
+    if (this.companyComparison.pollTimer) clearTimeout(this.companyComparison.pollTimer)
   },
   methods: {
     authHeaders() {
@@ -516,6 +593,100 @@ export default {
     },
     formatSegments(list) {
       return list.length ? list.map((s) => this.segmentLabel(s.segment || s)).join(', ') : '-'
+    },
+    comparisonStatusLabel(status) {
+      const labels = {
+        configured: 'Готов к запуску', running: 'Собираем цены', needs_review: 'Нужна проверка', ready: 'Готово', failed: 'Ошибка',
+        opportunity: 'Цена выгоднее', coverage_opportunity: 'Компания не продаёт', no_quote: 'Компания не продаёт', not_opportunity: 'Ценового преимущества нет'
+      }
+      return labels[status] || status || 'Нет запусков'
+    },
+    comparisonFormulaLabel(source) {
+      const policy = source?.pricingPolicy || {}
+      if (policy.type === 'percentage_discount') return `Riderra × ${(1 - Number(policy.discountPercent || 0) / 100).toFixed(2)}`
+      return source?.formulaVersion || '—'
+    },
+    comparisonScopePairs() {
+      try { return JSON.parse(this.companyComparison.run?.scopeJson || '{}').routePairs || [] } catch (_) { return [] }
+    },
+    async loadCompanyComparison(companyId) {
+      this.companyComparison = { source: null, run: null, rows: [], loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
+      try {
+        const sourcesRes = await fetch('/api/admin/pricing/comparison-sources', { headers: this.authHeaders() })
+        const sourcesData = await sourcesRes.json()
+        if (sourcesRes.status === 403) return
+        if (!sourcesRes.ok) throw new Error(sourcesData.error || 'Не удалось загрузить источник сравнения')
+        const source = (sourcesData.rows || []).find((row) => row.customerCompanyId === companyId || row.customerCompany?.id === companyId)
+        if (!source) return
+        this.companyComparison.source = source
+        const runsRes = await fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=1`, { headers: this.authHeaders() })
+        const runsData = await runsRes.json()
+        if (!runsRes.ok) throw new Error(runsData.error || 'Не удалось загрузить запуски')
+        const run = runsData.rows?.[0] || null
+        this.companyComparison.run = run
+        if (run) await this.loadCompanyComparisonRun(run.id)
+      } catch (error) {
+        this.companyComparison.error = error.message
+      } finally {
+        this.companyComparison.loading = false
+      }
+    },
+    async loadCompanyComparisonRun(runId) {
+      const res = await fetch(`/api/admin/pricing/comparison-runs/${runId}/results`, { headers: this.authHeaders() })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Не удалось загрузить результаты анализа')
+      this.companyComparison.run = data.run
+      this.companyComparison.rows = data.rows || []
+    },
+    async rerunCompanyComparison() {
+      const source = this.companyComparison.source
+      if (!source || this.companyComparison.busy) return
+      const routePairs = this.comparisonScopePairs()
+      const routeCount = routePairs.length || 'все активные'
+      if (!window.confirm(`Запустить публичный сбор цен ${source.name} для ${routeCount} направлений и сравнить с текущим прайсом Riderra?`)) return
+      this.companyComparison.busy = true
+      this.companyComparison.error = ''
+      try {
+        const createRes = await fetch('/api/admin/pricing/comparison-runs', {
+          method: 'POST', headers: this.authHeaders(), body: JSON.stringify({ sourceId: source.id, routePairs })
+        })
+        const run = await createRes.json()
+        if (!createRes.ok) throw new Error(run.error || 'Не удалось подготовить анализ')
+        this.companyComparison.run = run
+        this.companyComparison.rows = []
+        const executeRes = await fetch(`/api/admin/pricing/comparison-runs/${run.id}/execute`, { method: 'POST', headers: this.authHeaders() })
+        const executeData = await executeRes.json()
+        if (!executeRes.ok) throw new Error(executeData.error || 'Не удалось запустить анализ')
+        this.pollCompanyComparison(run.id)
+      } catch (error) {
+        this.companyComparison.busy = false
+        this.companyComparison.error = error.message
+      }
+    },
+    async pollCompanyComparison(runId) {
+      if (this.companyComparison.pollTimer) clearTimeout(this.companyComparison.pollTimer)
+      try {
+        await this.loadCompanyComparisonRun(runId)
+        const active = ['configured', 'running'].includes(this.companyComparison.run?.status)
+        this.companyComparison.busy = active
+        if (active) this.companyComparison.pollTimer = setTimeout(() => this.pollCompanyComparison(runId), 3000)
+      } catch (error) {
+        this.companyComparison.busy = false
+        this.companyComparison.error = error.message
+      }
+    },
+    async downloadCompanyComparison() {
+      const runId = this.companyComparison.run?.id
+      if (!runId) return
+      const response = await fetch(`/api/admin/pricing/comparison-runs/${runId}/export.xlsx`, { headers: this.authHeaders() })
+      if (!response.ok) return
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${this.companyComparison.source.name}-price-comparison.xlsx`
+      link.click()
+      URL.revokeObjectURL(url)
     },
     vehicleClassLabel(value) {
       const map = {
@@ -666,6 +837,7 @@ export default {
         comment: this.details.comment || '',
         segments: (this.details.segments || []).map((s) => s.segment)
       }
+      await this.loadCompanyComparison(id)
     },
     async openContact(id) {
       const res = await fetch(`/api/admin/crm/contacts/${id}`, { headers: this.authHeaders() })
@@ -802,6 +974,24 @@ export default {
 .textarea--wide { grid-column:1 / -1; }
 .detail-sections { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 .detail-card { border:1px solid #e7ebf2; border-radius:12px; padding:14px; background:#fbfcff; }
+.comparison-card { grid-column:1 / -1; }
+.comparison-card__head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+.comparison-card__head h4 { margin:0; color:#17233d; font-size:18px; }
+.comparison-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+.comparison-kpis .summary-chip { display:grid; gap:4px; padding:12px; border:1px solid #e7ebf2; border-radius:12px; background:#fff; }
+.comparison-kpis .summary-chip span { color:#64748b; font-size:12px; }
+.comparison-kpis .summary-chip strong { color:#17233d; font-size:18px; }
+.comparison-assumptions { display:flex; flex-wrap:wrap; gap:8px 18px; margin:14px 0; padding:10px 12px; border-radius:10px; background:#f8f3fb; color:#475569; font-size:13px; }
+.comparison-route-list { display:grid; border:1px solid #e7ebf2; border-radius:12px; overflow:hidden; }
+.comparison-route-row { display:grid; grid-template-columns:minmax(0,1fr) 180px 150px; gap:12px; align-items:center; padding:10px 12px; background:#fff; border-top:1px solid #eef2f8; }
+.comparison-route-row:first-child { border-top:0; }
+.comparison-route-row > div:first-child { display:grid; gap:3px; }
+.comparison-route-row span { color:#64748b; font-size:12px; }
+.comparison-status { display:inline-flex; align-items:center; width:max-content; padding:5px 9px; border-radius:999px; background:#eef2f8; color:#475569; font-size:12px; font-weight:800; }
+.comparison-status--opportunity { background:#dcfce7; color:#166534; }
+.comparison-status--coverage_opportunity { background:#e0f2fe; color:#075985; }
+.comparison-status--needs_review { background:#fef3c7; color:#92400e; }
+.comparison-card__actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
 .crm-detail-panel {
   overflow:hidden;
 }
@@ -911,6 +1101,8 @@ export default {
   .crm-header, .crm-filters { grid-template-columns:1fr; display:grid; }
   .crm-actions { justify-content:flex-start; }
   .crm-focus-card, .detail-sections, .card-grid { grid-template-columns:1fr; }
+  .comparison-kpis { grid-template-columns:1fr 1fr; }
+  .comparison-route-row { grid-template-columns:1fr; }
   .supplier-driver-grid,
   .supplier-driver-card__head { grid-template-columns:1fr; display:grid; }
   .overview-strip { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -938,6 +1130,8 @@ export default {
   .linked-row {
     grid-template-columns:1fr;
   }
+  .comparison-kpis { grid-template-columns:1fr; }
+  .comparison-card__head { display:grid; }
   .modal {
     width:min(100vw - 16px, 980px);
     padding:16px;
