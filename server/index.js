@@ -54,6 +54,12 @@ const { registerPricingComparisonRoutes } = require('./routes/pricingComparisons
 const { registerBenchmarkPointRoutes } = require('./routes/benchmarkPoints')
 const { isComplaintEmail } = require('./utils/complaints')
 const {
+  SPECIAL_CLARIFICATION_TARGETS,
+  detectSpecialClarificationTarget,
+  extractSpecialClarificationValue,
+  specialClarificationQuestion
+} = require('./services/specialClarificationService')
+const {
   applyLondonPostcodeZoneOverrides,
   detectLondonAirport,
   LONDON_DESTINATIONS,
@@ -4597,6 +4603,8 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
   const reason = String(infoReason || '').trim()
   const target = detectClarificationTarget(reason, '')
   const isRu = normalizeCustomerMessageLang(lang) === 'ru'
+  const specialQuestion = specialClarificationQuestion(target, isRu ? 'ru' : 'en')
+  if (specialQuestion) return specialQuestion
   const asksPassengersAndLuggage = /(пассажир|passenger|passengers|pax|количеств[оа]\s+людей)/i.test(reason) && /(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(reason)
   if (asksPassengersAndLuggage && isRu) {
     return 'Подскажите, пожалуйста, сколько будет пассажиров и сколько чемоданов или сумок вы возьмёте с собой?'
@@ -4611,10 +4619,10 @@ function buildClarificationQuestion(infoReason = '', lang = 'en') {
     return 'Could you please tell us how many suitcases and bags you will have? If you have oversized luggage, a stroller, or any non-standard items, please mention that too.'
   }
   if (target === 'flightNumber' && isRu) {
-    return 'Подскажите, пожалуйста, номер рейса и дату прилёта/вылета. Это нужно, чтобы водитель корректно отследил рейс.'
+    return 'Подскажите, пожалуйста, номер рейса. Это нужно, чтобы водитель корректно отследил рейс.'
   }
   if (target === 'flightNumber') {
-    return 'Could you please send us your flight number and arrival/departure date? This helps the driver track the flight correctly.'
+    return 'Could you please send us your flight number? This helps the driver track the flight correctly.'
   }
   if (target === 'pickupPoint' && isRu) {
     return 'Подскажите, пожалуйста, точное место подачи: адрес, терминал, вход или ориентир.'
@@ -4652,6 +4660,9 @@ function pickWhatsAppTemplateNameForTask(task = {}, registry = []) {
   const asksPassengersAndLuggage = /(пассажир|passenger|passengers|pax|количеств[оа]\s+людей)/i.test(infoReason) && /(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(infoReason)
   if (asksPassengersAndLuggage) return pickAvailable('riderra_trip_confirmation_v2', 'riderra_trip_message')
   const target = detectClarificationTarget(infoReason, '')
+  if ([SPECIAL_CLARIFICATION_TARGETS.CHILD_AGE, SPECIAL_CLARIFICATION_TARGETS.CHILD_WEIGHT, SPECIAL_CLARIFICATION_TARGETS.ARRIVAL_DATE_TIME].includes(target)) {
+    return pickAvailable('riderra_trip_confirmation_v2', 'riderra_trip_message')
+  }
   if (target === 'luggage') return pickAvailable('riderra_baggage_request_v2', 'riderra_baggage_request')
   if (target === 'flightNumber') return pickAvailable('riderra_flight_request_v2', 'riderra_flight_request')
   if (target === 'passengers') return pickAvailable('riderra_passengers_request_v2', 'riderra_passengers_request')
@@ -5528,7 +5539,8 @@ function classifyCustomerReplyFallback(text = '') {
     /\b[A-Z0-9]{2,3}\s?\d{2,5}[A-Z]?\b/i,
     /\b\d+\s*(багаж|чемодан|чемодана|чемоданов|bag|bags|suitcase|suitcases)\b/i,
     /\b(без багажа|no luggage|no bags)\b/i,
-    /\b(terminal|терминал|entrance|вход|address|адрес|hotel|отель|lobby|лобби)\b/i
+    /\b(terminal|терминал|entrance|вход|address|адрес|hotel|отель|lobby|лобби)\b/i,
+    /^\s*\d{1,3}(?:[.,]\d{1,2})?\s*(?:kg|кг|lb|lbs|лет|год|года|месяц|месяца|месяцев|years?|months?)?\s*$/i
   ]
   if (answerSignals.some((re) => re.test(raw))) {
     return { class: 'answer', confidence: 0.82, requiresHuman: false, source: 'local_fallback' }
@@ -5541,6 +5553,8 @@ function classifyCustomerReplyFallback(text = '') {
 
 function detectClarificationTarget(infoReason = '', text = '') {
   const combined = `${infoReason || ''} ${text || ''}`.toLowerCase()
+  const specialTarget = detectSpecialClarificationTarget(combined)
+  if (specialTarget) return specialTarget
   if (/(рейс|flight|авиа|arrival|прилет|прил[её]т)/i.test(combined)) return 'flightNumber'
   if (/(багаж|luggage|baggage|bag|suitcase|чемодан)/i.test(combined)) return 'luggage'
   if (/(пассажир|passenger|passengers|pax|количеств[оа]\s+людей)/i.test(combined)) return 'passengers'
@@ -5565,6 +5579,18 @@ function extractOrderFieldFallback({ text = '', infoReason = '' } = {}) {
       field: 'flightNumber',
       value,
       reason: value ? 'Номер рейса найден локальным правилом.' : 'Не найден номер рейса.',
+      source: 'local_fallback'
+    }
+  }
+
+  if ([SPECIAL_CLARIFICATION_TARGETS.CHILD_AGE, SPECIAL_CLARIFICATION_TARGETS.CHILD_WEIGHT, SPECIAL_CLARIFICATION_TARGETS.ARRIVAL_DATE_TIME].includes(target)) {
+    const value = extractSpecialClarificationValue(target, raw)
+    return {
+      valid: Boolean(value),
+      confidence: value ? 0.86 : 0.35,
+      field: target,
+      value,
+      reason: value ? 'Запрошенное уточнение найдено в ответе клиента.' : 'Ответ не содержит всех запрошенных данных.',
       source: 'local_fallback'
     }
   }
@@ -5645,6 +5671,15 @@ function buildOrderPatchFromInboundExtraction(order = {}, extraction = null, bod
     const normalized = normalizeFlightNumber(value)
     patch.flightNumber = normalized
     preview.push(`flightNumber: ${normalized}`)
+  } else if (field === SPECIAL_CLARIFICATION_TARGETS.CHILD_AGE && value) {
+    patch.comment = appendOrderComment(order?.comment || null, `Возраст ребёнка: ${String(value).trim()}`)
+    preview.push('comment: child age appended')
+  } else if (field === SPECIAL_CLARIFICATION_TARGETS.CHILD_WEIGHT && value) {
+    patch.comment = appendOrderComment(order?.comment || null, `Вес ребёнка: ${String(value).trim()}`)
+    preview.push('comment: child weight appended')
+  } else if (field === SPECIAL_CLARIFICATION_TARGETS.ARRIVAL_DATE_TIME && value) {
+    patch.comment = appendOrderComment(order?.comment || null, `Дата и время прилёта: ${String(value).trim()}`)
+    preview.push('comment: arrival date and time appended')
   } else if (field === 'luggage' && value !== null && value !== undefined) {
     const luggage = toInt(value, null)
     if (luggage !== null) {

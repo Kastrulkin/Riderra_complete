@@ -188,6 +188,9 @@
                   <option value="baggage">{{ t.infoPresetBaggage }}</option>
                   <option value="pickup">{{ t.infoPresetPickup }}</option>
                   <option value="flight">{{ t.infoPresetFlight }}</option>
+                  <option value="arrivalDateTime">{{ t.infoPresetArrivalDateTime }}</option>
+                  <option value="childAge">{{ t.infoPresetChildAge }}</option>
+                  <option value="childWeight">{{ t.infoPresetChildWeight }}</option>
                   <option value="other">{{ t.infoPresetOther }}</option>
                 </select>
               </div>
@@ -857,6 +860,9 @@ export default {
             infoPresetBaggage: 'Уточнить багаж',
             infoPresetPickup: 'Уточнить место подачи',
             infoPresetFlight: 'Уточнить рейс',
+            infoPresetArrivalDateTime: 'Уточнить дату и время прилёта',
+            infoPresetChildAge: 'Сколько ребёнку лет',
+            infoPresetChildWeight: 'Сколько он весит',
             infoPresetOther: 'Другое...',
             infoModalTitle: 'Инфо-пометка заказа',
             infoModalHint: 'Коротко укажите, что уточнить.',
@@ -1009,6 +1015,9 @@ export default {
             infoPresetBaggage: 'Clarify luggage',
             infoPresetPickup: 'Clarify pickup location',
             infoPresetFlight: 'Clarify flight',
+            infoPresetArrivalDateTime: 'Clarify arrival date and time',
+            infoPresetChildAge: 'How old is the child?',
+            infoPresetChildWeight: 'How much does the child weigh?',
             infoPresetOther: 'Other...',
             infoModalTitle: 'Info flag',
             infoModalHint: 'Briefly describe what is missing.',
@@ -1991,6 +2000,9 @@ export default {
     infoPresetFromRow (row) {
       if (!row || !row.needsInfo) return 'none'
       const reason = String(row.infoReason || '').toLowerCase()
+      if (reason.includes('дата и время прилёта') || reason.includes('arrival date and time')) return 'arrivalDateTime'
+      if (reason.includes('ребёнку лет') || reason.includes('ребенку лет') || reason.includes('old is the child')) return 'childAge'
+      if (reason.includes('он весит') || reason.includes('вес ребёнка') || reason.includes('вес ребенка') || reason.includes('child weigh')) return 'childWeight'
       if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('baggage')) return 'baggage'
       if (reason.includes('место подачи') || reason.includes('pickup')) return 'pickup'
       if (reason.includes('рейс') || reason.includes('flight')) return 'flight'
@@ -2000,7 +2012,10 @@ export default {
       const map = {
         baggage: this.t.infoPresetBaggage,
         pickup: this.t.infoPresetPickup,
-        flight: this.t.infoPresetFlight
+        flight: this.t.infoPresetFlight,
+        arrivalDateTime: this.t.infoPresetArrivalDateTime,
+        childAge: this.t.infoPresetChildAge,
+        childWeight: this.t.infoPresetChildWeight
       }
       return map[preset] || ''
     },
