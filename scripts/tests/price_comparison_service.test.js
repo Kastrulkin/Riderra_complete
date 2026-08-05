@@ -4,6 +4,7 @@ const {
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
+  comparisonRunScopeWhere,
   externalRouteKey,
   nextScheduledServiceAt,
   parseSmartRydeQuotes,
@@ -45,6 +46,14 @@ test('external quote collection groups vehicle rows for the same route and curre
   const reverse = externalRouteKey({ routeFrom: 'London Hotel', routeTo: 'LHR', currency: 'EUR' })
   assert.equal(standard, business)
   assert.notEqual(standard, reverse)
+})
+
+test('comparison run scope limits collection to selected route pairs', () => {
+  assert.deepEqual(comparisonRunScopeWhere(JSON.stringify({ routePairs: [
+    { routeFrom: 'VIE', routeTo: 'Vienna' },
+    { routeFrom: '', routeTo: 'ignored' }
+  ] })), { OR: [{ routeFrom: 'VIE', routeTo: 'Vienna' }] })
+  assert.deepEqual(comparisonRunScopeWhere(null), {})
 })
 
 test('place auto-approval rejects semantically wrong single results', () => {

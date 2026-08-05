@@ -140,6 +140,21 @@
             <span>{{ t.howItWorksCopy }}</span>
           </div>
 
+          <div class="benchmark-note zone-source-editor">
+            <div>
+              <strong>{{ t.zoneSourceTitle }}</strong>
+              <span>{{ t.zoneSourceCopy }}</span>
+              <small v-if="geoZoneImport.latest">{{ geoZoneImport.latest.originalFileName }} · {{ geoZoneImport.latest.zoneCount || 0 }} {{ t.zonesShort }}</small>
+              <small v-if="geoZoneUploadNotice">{{ geoZoneUploadNotice }}</small>
+            </div>
+            <div class="zone-source-editor__actions">
+              <input ref="geoZoneFile" type="file" accept=".kml,.kmz,.csv,.geojson,.json" @change="onGeoZoneFile" />
+              <button class="btn btn--ghost" type="button" :disabled="!geoZoneFile || geoZoneUploading" @click="uploadGeoZones">
+                {{ geoZoneUploading ? t.zoneUploading : t.zoneUpload }}
+              </button>
+            </div>
+          </div>
+
           <div class="toolbar benchmark-toolbar">
             <input v-model="benchmarkQuery" class="input toolbar-search" :placeholder="t.benchmarkSearch" @keyup.enter="loadBenchmarks" />
             <select v-model="benchmarkStatus" class="input status-filter" @change="loadBenchmarks">
@@ -270,6 +285,10 @@ export default {
     benchmarkLoading: false,
     benchmarkError: '',
     geoZones: [],
+    geoZoneImport: { configured: false, latest: null },
+    geoZoneFile: null,
+    geoZoneUploading: false,
+    geoZoneUploadNotice: '',
     pointModal: { open: false, id: '' },
     pointForm: {},
     pointFormError: '',
@@ -321,6 +340,11 @@ export default {
             coveredZones: 'геозон покрыто',
             howItWorks: 'Как используется:',
             howItWorksCopy: 'подтверждённые адреса с выбранной геозоной формируют готовую выборку для следующего запуска анализа. Импортированные точки сначала требуют ручной проверки.',
+            zoneSourceTitle: 'Изменить границы геозон',
+            zoneSourceCopy: 'Отредактируйте исходный KML/GeoJSON и загрузите новую версию. Она станет текущей картой зон; предыдущий файл сохранится в истории загрузок.',
+            zoneUpload: 'Применить новый файл',
+            zoneUploading: 'Загрузка…',
+            zonesShort: 'зон',
             benchmarkSearch: 'Страна, город, IATA, адрес или геозона',
             allStatuses: 'Все статусы',
             route: 'Аэропорт / город',
@@ -421,6 +445,11 @@ export default {
             coveredZones: 'zones covered',
             howItWorks: 'How it works:',
             howItWorksCopy: 'verified addresses with a selected zone form the ready dataset for the next analysis run. Imported points require human review first.',
+            zoneSourceTitle: 'Change geo-zone boundaries',
+            zoneSourceCopy: 'Edit the source KML/GeoJSON and upload the new version. It becomes the active zone map; the previous upload remains stored.',
+            zoneUpload: 'Apply new file',
+            zoneUploading: 'Uploading…',
+            zonesShort: 'zones',
             benchmarkSearch: 'Country, city, IATA, address or zone',
             allStatuses: 'All statuses',
             route: 'Airport / city',
@@ -516,7 +545,7 @@ export default {
     },
     async openBenchmarks () {
       this.activeWorkspace = 'benchmarks'
-      if (!this.benchmarkPoints.length) await Promise.all([this.loadBenchmarks(), this.loadGeoZones()])
+      if (!this.benchmarkPoints.length) await Promise.all([this.loadBenchmarks(), this.loadGeoZones(), this.loadGeoZoneImport()])
     },
     async loadBenchmarks () {
       this.benchmarkLoading = true
@@ -569,6 +598,37 @@ export default {
       const res = await fetch('/api/admin/directions/geo-zone-catalog', { headers: this.authHeaders() })
       const data = await res.json()
       if (res.ok) this.geoZones = data.rows || []
+    },
+    async loadGeoZoneImport () {
+      const res = await fetch('/api/admin/geo-zones/import/status', { headers: this.authHeaders() })
+      const data = await res.json()
+      if (res.ok) this.geoZoneImport = data
+    },
+    onGeoZoneFile (event) {
+      this.geoZoneFile = event.target.files?.[0] || null
+      this.geoZoneUploadNotice = ''
+    },
+    async uploadGeoZones () {
+      if (!this.geoZoneFile) return
+      this.geoZoneUploading = true
+      this.geoZoneUploadNotice = ''
+      try {
+        const form = new FormData()
+        form.append('file', this.geoZoneFile)
+        const token = localStorage.getItem('authToken')
+        const res = await fetch('/api/admin/geo-zones/import', { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' }, body: form })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to upload geo zones')
+        this.geoZoneImport = { configured: true, latest: data.latest }
+        this.geoZoneFile = null
+        if (this.$refs.geoZoneFile) this.$refs.geoZoneFile.value = ''
+        this.geoZoneUploadNotice = this.$store.state.language === 'ru' ? 'Новая версия геозон применена.' : 'The new geo-zone version is active.'
+        await this.loadGeoZones()
+      } catch (error) {
+        this.geoZoneUploadNotice = error.message
+      } finally {
+        this.geoZoneUploading = false
+      }
     },
     openPointForm (point = null) {
       this.pointFormError = ''

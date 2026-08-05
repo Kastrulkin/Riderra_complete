@@ -21,6 +21,17 @@ function serializeSource(row) {
   }
 }
 
+function normalizeRoutePairs(value) {
+  if (!Array.isArray(value)) return []
+  const unique = new Map()
+  for (const pair of value.slice(0, 100)) {
+    const routeFrom = String(pair?.routeFrom || '').trim()
+    const routeTo = String(pair?.routeTo || '').trim()
+    if (routeFrom && routeTo) unique.set(`${routeFrom}\u0000${routeTo}`, { routeFrom, routeTo })
+  }
+  return Array.from(unique.values())
+}
+
 function registerPricingComparisonRoutes(app, dependencies) {
   const {
     prisma,
@@ -103,6 +114,8 @@ function registerPricingComparisonRoutes(app, dependencies) {
         where: { id: String(req.body?.sourceId || ''), tenantId: req.actorContext.tenantId, isActive: true }
       })
       if (!source) return res.status(404).json({ error: 'Comparison source not found' })
+      const routePairs = normalizeRoutePairs(req.body?.routePairs)
+      const routeScope = routePairs.length ? { OR: routePairs } : {}
       const routeCount = await prisma.cityPricing.count({
         where: {
           tenantId: req.actorContext.tenantId,
@@ -110,7 +123,8 @@ function registerPricingComparisonRoutes(app, dependencies) {
           fixedPrice: { not: null },
           routeFrom: { not: null },
           routeTo: { not: null },
-          vehicleType: { not: null }
+          vehicleType: { not: null },
+          ...routeScope
         }
       })
       const schedule = parseJson(source.scheduleJson, {})
@@ -124,6 +138,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
           serviceAt,
           formulaVersion: source.formulaVersion,
           pricingPolicyJson: source.pricingPolicyJson,
+          scopeJson: routePairs.length ? JSON.stringify({ type: 'route_pairs', routePairs }) : null,
           routeCount,
           createdByUserId: req.actorContext.actorId || null
         },
@@ -139,7 +154,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
         traceId: req.actorContext.traceId,
         decision: 'human_approved',
         result: 'ok',
-        context: { sourceId: source.id, serviceAt, routeCount, formulaVersion: source.formulaVersion }
+        context: { sourceId: source.id, serviceAt, routeCount, formulaVersion: source.formulaVersion, routePairs }
       })
       res.status(201).json(row)
     } catch (error) {

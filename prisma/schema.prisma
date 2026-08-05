@@ -847,6 +847,7 @@ model PriceComparisonRun {
   serviceAt              DateTime
   formulaVersion         String
   pricingPolicyJson      String
+  scopeJson              String?
   routeCount             Int                             @default(0)
   processedCount         Int                             @default(0)
   opportunitiesCount     Int                             @default(0)

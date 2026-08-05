@@ -66,6 +66,15 @@ function externalRouteKey({ routeFrom, routeTo, currency }) {
     .digest('hex')
 }
 
+function comparisonRunScopeWhere(scopeJson) {
+  const scope = safeJsonParse(scopeJson, null)
+  const routePairs = Array.isArray(scope?.routePairs) ? scope.routePairs : []
+  const normalized = routePairs
+    .map((pair) => ({ routeFrom: String(pair?.routeFrom || '').trim(), routeTo: String(pair?.routeTo || '').trim() }))
+    .filter((pair) => pair.routeFrom && pair.routeTo)
+  return normalized.length ? { OR: normalized } : {}
+}
+
 function roundMoney(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100
 }
@@ -390,6 +399,18 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
     : { ok: false, mapping, candidates }
 }
 
+async function resolveBenchmarkPlace({ prisma, tenantId, zoneName, endpoint }) {
+  const point = await prisma.geoZoneBenchmarkPoint.findFirst({
+    where: { tenantId, source: 'riderra_geo_zone', zoneName, status: 'verified' },
+    orderBy: { verifiedAt: 'desc' }
+  })
+  if (!point) return null
+  const isDropoff = endpoint === 'dropoff'
+  const id = isDropoff ? point.smartRydeDropoffPlaceId : point.smartRydePickupPlaceId
+  const label = isDropoff ? point.smartRydeDropoffLabel : point.smartRydePickupLabel
+  return id && label ? { ok: true, id, label, benchmarkPointId: point.id } : null
+}
+
 async function upsertQuote(prisma, data) {
   const key = {
     runId_cityPricingId_externalVehicleKey: {
@@ -520,12 +541,14 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
 
   const representative = pending[0]
   try {
-    const pickup = await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom })
+    const pickup = await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' })
+      || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom })
     if (!pickup.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
       return
     }
-    const dropoff = await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id })
+    const dropoff = await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' })
+      || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id })
     if (!dropoff.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })))
       return
@@ -628,7 +651,8 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
         fixedPrice: { not: null },
         routeFrom: { not: null },
         routeTo: { not: null },
-        vehicleType: { not: null }
+        vehicleType: { not: null },
+        ...comparisonRunScopeWhere(run.scopeJson)
       },
       orderBy: [{ country: 'asc' }, { city: 'asc' }, { routeFrom: 'asc' }, { routeTo: 'asc' }, { vehicleType: 'asc' }]
     })
@@ -689,6 +713,7 @@ module.exports = {
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
+  comparisonRunScopeWhere,
   createAdapter,
   defaultSourceData,
   executePriceComparisonRun,

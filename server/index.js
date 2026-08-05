@@ -13659,7 +13659,7 @@ async function readGeoZoneImportStatus(tenantId) {
   }
 }
 
-app.get('/api/admin/geo-zones/import/status', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+app.get('/api/admin/geo-zones/import/status', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['settings.manage', 'directions.manage']), async (req, res) => {
   try {
     const latest = await readGeoZoneImportStatus(req.actorContext.tenantId)
     res.json({
@@ -13835,7 +13835,7 @@ app.post('/api/admin/geo-zones/london-postcodes/proposals/:id/resolve', authenti
   }
 })
 
-app.post('/api/admin/geo-zones/import', authenticateToken, resolveActorContext, requireActorContext, requireCan('settings.manage', 'setting'), async (req, res) => {
+app.post('/api/admin/geo-zones/import', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['settings.manage', 'directions.manage']), async (req, res) => {
   try {
     const contentType = String(req.headers['content-type'] || '')
     if (!contentType.toLowerCase().includes('multipart/form-data')) {
