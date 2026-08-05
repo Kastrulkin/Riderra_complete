@@ -296,12 +296,11 @@ class SmartRydeAdapter {
     })
     const searchUrl = `${this.baseUrl}/search?${params}`
 
-    const initialPageResponse = await retry(async () => {
+    const initialPageHtml = await retry(async () => {
       const response = await session.request(searchUrl, { headers: { 'User-Agent': 'Riderra price comparison/1.0' } })
       if (!response.ok) throw new Error(`SmartRyde initial search page failed: HTTP ${response.status}`)
-      return response
+      return response.text()
     })
-    const initialPageHtml = await initialPageResponse.text()
     const initialCsrfToken = initialPageHtml.match(/<meta name="csrf-token" content="([^"]+)"/)?.[1]
     if (!initialCsrfToken) throw new Error('SmartRyde CSRF token was not found')
 
@@ -312,16 +311,15 @@ class SmartRydeAdapter {
       if (!response.ok) throw new Error(`SmartRyde currency setup failed: HTTP ${response.status}`)
     })
 
-    const pageResponse = await retry(async () => {
+    const pageHtml = await retry(async () => {
       const response = await session.request(searchUrl, { headers: { 'User-Agent': 'Riderra price comparison/1.0' } })
       if (!response.ok) throw new Error(`SmartRyde search page failed: HTTP ${response.status}`)
-      return response
+      return response.text()
     })
-    const pageHtml = await pageResponse.text()
     const csrfToken = pageHtml.match(/<meta name="csrf-token" content="([^"]+)"/)?.[1]
     if (!csrfToken) throw new Error('SmartRyde CSRF token was not found')
 
-    const quoteResponse = await retry(async () => {
+    const html = await retry(async () => {
       const response = await session.request(`${this.baseUrl}/search-car`, {
         method: 'POST',
         headers: {
@@ -334,9 +332,8 @@ class SmartRydeAdapter {
         body: params.toString()
       })
       if (!response.ok) throw new Error(`SmartRyde quote search failed: HTTP ${response.status}`)
-      return response
+      return response.text()
     })
-    const html = await quoteResponse.text()
     const quotes = parseSmartRydeQuotes(html).map((quote) => this.normalizeVehicle(quote))
     if (!quotes.length) throw new Error('SmartRyde returned no vehicle prices')
     return { quotes, evidence: this.extractEvidence({ searchUrl, html, quotes }) }
