@@ -7335,19 +7335,43 @@ app.get('/api/admin/chats', authenticateToken, resolveActorContext, requireActor
 
 app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order'), async (req, res) => {
   try {
-    const { limit = '200', state = '', taskType = '', agentId = '' } = req.query
+    const { limit = '200', state = '', taskType = '', agentId = '', q = '' } = req.query
     const take = Math.min(parseInt(limit, 10) || 200, 500)
     const agentFilter = String(agentId || '').trim()
+    const searchQuery = String(q || '').trim().slice(0, 120)
     const where = staffChatReadWhere(req.actorContext.tenantId, {
       ...(state ? { state: String(state) } : {}),
       ...(taskType ? { taskType: String(taskType) } : {}),
       ...(agentFilter === 'none'
         ? { agentConfigId: null }
-        : (agentFilter ? { agentConfigId: agentFilter } : {}))
+        : (agentFilter ? { agentConfigId: agentFilter } : {})),
+      ...(searchQuery ? {
+        OR: [
+          { id: { contains: searchQuery, mode: 'insensitive' } },
+          { customerActorId: { contains: searchQuery, mode: 'insensitive' } },
+          { customerDisplayName: { contains: searchQuery, mode: 'insensitive' } },
+          {
+            order: {
+              is: {
+                OR: [
+                  { externalKey: { contains: searchQuery, mode: 'insensitive' } },
+                  { sourceOrderNumber: { contains: searchQuery, mode: 'insensitive' } },
+                  { sourceBookingId: { contains: searchQuery, mode: 'insensitive' } },
+                  { sourceInternalOrderNumber: { contains: searchQuery, mode: 'insensitive' } },
+                  { customerName: { contains: searchQuery, mode: 'insensitive' } },
+                  { customerPhone: { contains: searchQuery, mode: 'insensitive' } },
+                  { fromPoint: { contains: searchQuery, mode: 'insensitive' } },
+                  { toPoint: { contains: searchQuery, mode: 'insensitive' } }
+                ]
+              }
+            }
+          }
+        ]
+      } : {})
     })
     const rowsRaw = await prisma.chatTask.findMany({
       where,
-      orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
+      orderBy: [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }, { updatedAt: 'desc' }],
       take,
       include: {
         agentConfig: true,
@@ -7368,6 +7392,8 @@ app.get('/api/admin/chats/tasks', authenticateToken, resolveActorContext, requir
             status: true,
             needsInfo: true,
             infoReason: true,
+            customerName: true,
+            customerPhone: true,
             updatedAt: true
           }
         },

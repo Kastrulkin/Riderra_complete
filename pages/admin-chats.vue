@@ -37,6 +37,19 @@
         </header>
         <div v-if="notice" class="hint">{{ notice }}</div>
 
+        <form class="queue-search" role="search" @submit.prevent="loadTasks">
+          <input
+            v-model.trim="searchQuery"
+            class="input queue-search__input"
+            type="search"
+            aria-label="Поиск диалогов"
+            placeholder="Номер заказа, клиент, телефон или маршрут"
+            @input="scheduleTaskSearch"
+          />
+          <button v-if="searchQuery" class="btn btn--ghost queue-search__clear" type="button" @click="clearTaskSearch">Очистить</button>
+          <button class="btn btn--primary" type="submit">Найти</button>
+        </form>
+
         <div class="filters">
           <select v-model="ownerFilter" class="input">
             <option value="">Все ответственные</option>
@@ -53,8 +66,8 @@
           <label class="quick-filter"><input type="checkbox" v-model="urgentOnly" /> Только срочные</label>
           <select v-model="sortMode" class="input">
             <option value="priority">Приоритет (SLA + важность)</option>
-            <option value="updated_desc">Сначала новые</option>
-            <option value="updated_asc">Сначала старые</option>
+            <option value="last_message_desc">Последнее сообщение сверху</option>
+            <option value="last_message_asc">Старые сообщения сверху</option>
           </select>
         </div>
 
@@ -121,6 +134,7 @@
               </div>
               <div class="queue-route">{{ routeLabel(task.order) }}</div>
               <div class="queue-order-number">Заказ {{ publicOrderReference(task.order) || '—' }}</div>
+              <div class="queue-last-message">Последнее сообщение: {{ formatDate(task.lastMessageAt || task.updatedAt) }}</div>
               <div class="queue-status">{{ stateLabel(task.state) }}</div>
               <div class="queue-meta">
                 <span class="badge badge--state">{{ stateLabel(task.state) }}</span>
@@ -139,7 +153,9 @@
                 </button>
               </div>
             </button>
-            <div v-if="!displayedTasks.length" class="empty empty--queue">Нет задач, требующих реакции</div>
+            <div v-if="!displayedTasks.length" class="empty empty--queue">
+              {{ searchQuery ? 'По вашему запросу диалоги не найдены' : 'Нет задач, требующих реакции' }}
+            </div>
           </aside>
 
           <main class="detail-pane">
@@ -624,7 +640,10 @@ export default {
     owners: [],
     myOnly: false,
     urgentOnly: false,
-    sortMode: 'priority',
+    sortMode: 'last_message_desc',
+    searchQuery: '',
+    searchTimer: null,
+    taskLoadSequence: 0,
     currentUserId: '',
     selectedTaskIds: [],
     bulkLoading: false,
@@ -983,6 +1002,7 @@ export default {
   },
   beforeDestroy() {
     this.stopAutoRefresh()
+    if (this.searchTimer) clearTimeout(this.searchTimer)
   },
   methods: {
     async initializeSection() {
@@ -1307,13 +1327,16 @@ export default {
       }
     },
     async loadTasks() {
+      const requestSequence = ++this.taskLoadSequence
       const query = new URLSearchParams()
       if (this.taskType) query.set('taskType', this.taskType)
       if (this.state) query.set('state', this.state)
       if (this.agentFilter) query.set('agentId', this.agentFilter)
+      if (this.searchQuery) query.set('q', this.searchQuery)
       query.set('limit', '300')
       const res = await fetch(`/api/admin/chats/tasks?${query.toString()}`, { headers: this.headers() })
       const data = await res.json()
+      if (requestSequence !== this.taskLoadSequence) return
       this.tasks = data.rows || []
       this.refreshOwnersFromTasks()
       this.selectedTaskIds = this.selectedTaskIds.filter((id) => this.tasks.some((task) => task.id === id))
@@ -1321,6 +1344,19 @@ export default {
         const exists = this.tasks.some((t) => t.id === this.selectedTask.id)
         if (!exists) this.selectedTask = null
       }
+    },
+    scheduleTaskSearch() {
+      if (this.searchTimer) clearTimeout(this.searchTimer)
+      this.searchTimer = setTimeout(() => {
+        this.searchTimer = null
+        this.loadTasks().catch(() => {})
+      }, 300)
+    },
+    clearTaskSearch() {
+      this.searchQuery = ''
+      if (this.searchTimer) clearTimeout(this.searchTimer)
+      this.searchTimer = null
+      this.loadTasks().catch(() => {})
     },
     refreshOwnersFromTasks() {
       const seen = new Map()
@@ -2272,10 +2308,10 @@ export default {
       return ''
     },
     compareBySortMode(a, b) {
-      const updatedA = new Date(a?.updatedAt || 0).getTime()
-      const updatedB = new Date(b?.updatedAt || 0).getTime()
-      if (this.sortMode === 'updated_desc') return updatedB - updatedA
-      if (this.sortMode === 'updated_asc') return updatedA - updatedB
+      const updatedA = new Date(a?.lastMessageAt || a?.updatedAt || a?.createdAt || 0).getTime()
+      const updatedB = new Date(b?.lastMessageAt || b?.updatedAt || b?.createdAt || 0).getTime()
+      if (this.sortMode === 'last_message_desc') return updatedB - updatedA
+      if (this.sortMode === 'last_message_asc') return updatedA - updatedB
 
       const slaA = this.getSlaMeta(a).weight
       const slaB = this.getSlaMeta(b).weight
@@ -2427,6 +2463,9 @@ export default {
 .page-head h1 { margin: 0; font-size: 34px; line-height: 1.1; color: #17233d; }
 .page-subtitle { margin: 6px 0 0; max-width: 760px; color: #60708f; font-size: 15px; line-height: 1.55; }
 .page-actions { display: flex; gap: 8px; }
+.queue-search { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; margin-bottom: 12px; }
+.queue-search__input { min-width: 0; }
+.queue-search__clear { white-space: nowrap; }
 .filters { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; align-items: center; }
 .advanced-filters { border: 1px solid #d8d9e6; border-radius: 12px; background: #fff; padding: 10px 12px; margin-bottom: 14px; }
 .advanced-filters summary { cursor: pointer; font-weight: 800; color: #17233d; }
@@ -2462,6 +2501,7 @@ export default {
 .queue { padding: 10px; overflow: auto; max-height: calc(100vh - 190px); position: sticky; top: 14px; }
 .queue-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 700; margin-bottom: 10px; }
 .queue-head-meta { font-size: 12px; font-weight: 500; color: #64748b; }
+.queue-last-message { margin-top: 4px; color: #64748b; font-size: 12px; }
 .queue-bulk { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; padding: 8px; border: 1px solid #dbe4f0; border-radius: 10px; background: #f8fafc; }
 .queue-bulk__count { display: inline-flex; align-items: center; color: #475569; font-size: 12px; font-weight: 800; padding: 0 4px; }
 .queue-item { width: 100%; border: 1px solid #d6dceb; border-radius: 10px; background: #f8fbff; padding: 12px; margin-bottom: 8px; text-align: left; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
@@ -2671,7 +2711,7 @@ export default {
   .workspace { grid-template-columns: 1fr; }
   .queue, .detail-pane, .dialog { min-height: auto; }
   .queue { position: static; max-height: none; }
-  .filters, .advanced-filters__grid { grid-template-columns: 1fr; }
+  .queue-search, .filters, .advanced-filters__grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
