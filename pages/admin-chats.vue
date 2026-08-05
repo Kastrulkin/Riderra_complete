@@ -343,35 +343,24 @@
                     ? 'Текст ещё не отправлен. Проверьте его и нажмите «Одобрить».'
                     : 'Сообщение одобрено. Проверьте получателя и отправьте его клиенту.' }}
                 </div>
-                <div class="draft-review">
-                  <div class="draft-review__label">
-                    <strong>{{ deliveryForm(activeDraftMessage).mode === 'template' ? 'Наш черновик — отдельно не отправляется' : 'Наш текст' }}</strong>
-                    <span>{{ deliveryForm(activeDraftMessage).mode === 'template'
-                      ? 'Из заказа и черновика берутся данные для одного согласованного шаблона WhatsApp.'
-                      : 'Клиент получит этот текст без изменений.' }}</span>
-                  </div>
-                  <div class="message-body">{{ activeDraftMessage.bodyText }}</div>
-                  <div class="send-preview">
-                    <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
-                    <span><strong>Канал:</strong> {{ activeDraftMessage.channel || selectedTask.channel || '—' }}</span>
-                    <span><strong>Проблема:</strong> {{ clarificationProblemLabel }}</span>
-                    <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
-                    <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
-                  </div>
-                </div>
-
-                <div v-if="canSend(activeDraftMessage)" class="delivery-panel" :class="{ 'delivery-panel--warning': isWhatsappMessage(activeDraftMessage) && !whatsappFreeTextAllowed }">
+                <div class="delivery-panel" :class="{ 'delivery-panel--warning': isWhatsappMessage(activeDraftMessage) && !whatsappFreeTextAllowed }">
                   <div class="delivery-panel__head">
                     <div>
                       <strong>{{ deliveryForm(activeDraftMessage).mode === 'template' ? 'Будет отправлено одно сообщение' : 'Как будет отправлено' }}</strong>
-                      <div class="hint">{{ deliveryHint(activeDraftMessage) }}</div>
+                      <div v-if="deliveryForm(activeDraftMessage).mode === 'template'" class="hint">Первое сообщение обязательно отправляется утверждённым шаблоном Meta. Клиент получит точный текст ниже.</div>
+                      <div v-else class="hint">{{ deliveryHint(activeDraftMessage) }}</div>
                     </div>
-                    <span v-if="isWhatsappMessage(activeDraftMessage)" class="badge" :class="whatsappFreeTextAllowed ? 'badge--sla-ok' : 'badge--sla-warning'">
-                      {{ whatsappFreeTextAllowed ? 'Обычное сообщение' : 'Шаблон WhatsApp' }}
+                    <span v-if="isWhatsappMessage(activeDraftMessage)" class="badge" :class="deliveryForm(activeDraftMessage).mode === 'template' ? 'badge--sla-warning' : 'badge--sla-ok'">
+                      {{ deliveryForm(activeDraftMessage).mode === 'template' ? 'Шаблон WhatsApp' : 'Обычное сообщение' }}
                     </span>
                   </div>
                   <div v-if="deliveryForm(activeDraftMessage).mode === 'template'" class="template-preview">
                     <strong>Согласованный шаблон WhatsApp — текст для клиента</strong>
+                    <div class="template-preview__meta">
+                      <span><strong>Тема:</strong> {{ templateDisplayLabel(activeDraftMessage) }}</span>
+                      <span><strong>Название шаблона:</strong> {{ deliveryForm(activeDraftMessage).templateName }}</span>
+                      <span class="badge badge--sla-ok">APPROVED Meta</span>
+                    </div>
                     <p>{{ approvedTemplatePreview(activeDraftMessage) }}</p>
                   </div>
                   <details class="delivery-settings">
@@ -448,6 +437,23 @@
                   </details>
                 </div>
 
+                <details class="draft-review draft-review--internal">
+                  <summary class="draft-review__label">
+                    <strong>{{ deliveryForm(activeDraftMessage).mode === 'template' ? 'Внутренний AI-черновик — отдельно не отправляется' : 'Наш текст' }}</strong>
+                    <span>{{ deliveryForm(activeDraftMessage).mode === 'template'
+                      ? 'Он используется для подготовки переменных и проверки темы. Клиент его не получит.'
+                      : 'Клиент получит этот текст без изменений.' }}</span>
+                  </summary>
+                  <div class="message-body">{{ activeDraftMessage.bodyText }}</div>
+                  <div class="send-preview">
+                    <span><strong>Кому:</strong> {{ selectedTask.customerActorId || 'не указан' }}</span>
+                    <span><strong>Канал:</strong> {{ activeDraftMessage.channel || selectedTask.channel || '—' }}</span>
+                    <span><strong>Проблема:</strong> {{ clarificationProblemLabel }}</span>
+                    <span><strong>Заказ:</strong> {{ orderLabel(selectedTask.order) }}</span>
+                    <span v-if="selectedTask.recipientSource === 'test_override'" class="badge badge--sla-warning">Тест</span>
+                  </div>
+                </details>
+
                 <div class="message-draft-actions">
                   <template v-if="activeDraftMessage.approvalStatus === 'pending_human'">
                     <button class="btn btn--primary" @click="approveMessage(activeDraftMessage.id)">Одобрить</button>
@@ -518,6 +524,7 @@
                   <button class="btn btn--tiny" @click="applyClarificationTemplate('luggage')">Уточнить багаж</button>
                   <button class="btn btn--tiny" @click="applyClarificationTemplate('flight')">Уточнить рейс</button>
                   <button class="btn btn--tiny" @click="applyClarificationTemplate('pickup')">Уточнить место подачи</button>
+                  <button class="btn btn--tiny" @click="applyClarificationTemplate('destination')">Уточнить адрес назначения</button>
                 </div>
                 <textarea v-model="draftText" class="input textarea" placeholder="Напишите сообщение клиенту"></textarea>
                 <div class="message-draft-actions">
@@ -1973,6 +1980,11 @@ export default {
       const variables = tpl.variables?.length ? ` Переменные: ${tpl.variables.join(', ')}.` : ''
       return `${tpl.description}${variables}`
     },
+    templateDisplayLabel(message) {
+      const templateName = String(this.deliveryForm(message).templateName || '').trim()
+      const template = this.whatsappTemplatePresets.find((row) => String(row?.name || '').trim() === templateName)
+      return template?.label || templateName || 'Шаблон не выбран'
+    },
     approvedTemplatePreview(message) {
       const form = this.deliveryForm(message)
       let variables = {}
@@ -2369,13 +2381,15 @@ export default {
         generic: `${base}${orderKey}${infoReason ? `Подскажите, пожалуйста: ${infoReason}. ` : `Подскажите, пожалуйста, недостающие детали по поездке${route && route !== '-' ? ` (${route})` : ''}. `}${closing}`,
         luggage: `${base}${orderKey}Подскажите, пожалуйста, сколько чемоданов и сумок будет с собой? Если есть крупный багаж, детская коляска или нестандартные вещи, напишите тоже. ${closing}`,
         flight: `${base}${orderKey}Подскажите, пожалуйста, номер рейса и дату прилёта/вылета. Это нужно, чтобы водитель корректно отследил рейс. ${closing}`,
-        pickup: `${base}${orderKey}Уточните, пожалуйста, точное место подачи (адрес/терминал/вход). ${closing}`
+        pickup: `${base}${orderKey}Уточните, пожалуйста, точное место подачи (адрес/терминал/вход). ${closing}`,
+        destination: `${base}${orderKey}Подскажите, пожалуйста, точный адрес назначения. ${closing}`
       }
       const mapEn = {
         generic: `${base}${orderKey}Could you please clarify the missing booking details${route && route !== '-' ? ` (${route})` : ''}? ${closing}`,
         luggage: `${base}${orderKey}Could you please tell us how many suitcases and bags you will have? If you have oversized luggage, a stroller, or any non-standard items, please mention that too. ${closing}`,
         flight: `${base}${orderKey}Could you please send us your flight number and arrival/departure date? This helps the driver track the flight correctly. ${closing}`,
-        pickup: `${base}${orderKey}Could you please confirm the exact pickup point: address, terminal, entrance, or a clear landmark? ${closing}`
+        pickup: `${base}${orderKey}Could you please confirm the exact pickup point: address, terminal, entrance, or a clear landmark? ${closing}`,
+        destination: `${base}${orderKey}Could you please share the exact destination address? ${closing}`
       }
       const map = isRu ? mapRu : mapEn
       this.draftText = map[template] || map.generic
@@ -2523,6 +2537,8 @@ export default {
 .draft-review__label { display: grid; gap: 3px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #cbd5e1; }
 .draft-review__label strong { color: #17233d; }
 .draft-review__label span { color: #64748b; font-size: 12px; }
+.draft-review--internal > summary { cursor: pointer; list-style: none; }
+.draft-review--internal > summary::-webkit-details-marker { display: none; }
 .send-feedback { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff; color: #1e3a8a; padding: 10px 12px; }
 .send-feedback > div { display: grid; gap: 2px; }
 .send-feedback span { font-size: 12px; }
@@ -2548,6 +2564,7 @@ export default {
 .delivery-vars { min-height: 74px; margin-bottom: 0; }
 .template-help { border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.35; padding: 8px; }
 .template-preview { border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; color: #14532d; padding: 10px; font-size: 13px; line-height: 1.45; }
+.template-preview__meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 8px; }
 .template-preview p { margin: 5px 0 0; }
 .delivery-settings { margin-top: 10px; }
 .delivery-settings summary { cursor: pointer; color: #475569; font-size: 13px; font-weight: 700; }

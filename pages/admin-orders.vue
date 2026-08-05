@@ -187,6 +187,7 @@
                   <option value="none">{{ t.infoNone }}</option>
                   <option value="baggage">{{ t.infoPresetBaggage }}</option>
                   <option value="pickup">{{ t.infoPresetPickup }}</option>
+                  <option value="destination">{{ t.infoPresetDestination }}</option>
                   <option value="flight">{{ t.infoPresetFlight }}</option>
                   <option value="arrivalDateTime">{{ t.infoPresetArrivalDateTime }}</option>
                   <option value="childAge">{{ t.infoPresetChildAge }}</option>
@@ -859,6 +860,7 @@ export default {
             infoNone: 'Без пометки',
             infoPresetBaggage: 'Уточнить багаж',
             infoPresetPickup: 'Уточнить место подачи',
+            infoPresetDestination: 'Уточнить адрес назначения',
             infoPresetFlight: 'Уточнить рейс',
             infoPresetArrivalDateTime: 'Уточнить дату и время прилёта',
             infoPresetChildAge: 'Сколько ребёнку лет',
@@ -1014,6 +1016,7 @@ export default {
             infoNone: 'No flag',
             infoPresetBaggage: 'Clarify luggage',
             infoPresetPickup: 'Clarify pickup location',
+            infoPresetDestination: 'Clarify destination address',
             infoPresetFlight: 'Clarify flight',
             infoPresetArrivalDateTime: 'Clarify arrival date and time',
             infoPresetChildAge: 'How old is the child?',
@@ -2004,6 +2007,7 @@ export default {
       if (reason.includes('ребёнку лет') || reason.includes('ребенку лет') || reason.includes('old is the child')) return 'childAge'
       if (reason.includes('он весит') || reason.includes('вес ребёнка') || reason.includes('вес ребенка') || reason.includes('child weigh')) return 'childWeight'
       if (reason.includes('багаж') || reason.includes('luggage') || reason.includes('baggage')) return 'baggage'
+      if (reason.includes('адрес назначения') || reason.includes('место назначения') || reason.includes('destination') || reason.includes('drop-off') || reason.includes('dropoff')) return 'destination'
       if (reason.includes('место подачи') || reason.includes('pickup')) return 'pickup'
       if (reason.includes('рейс') || reason.includes('flight')) return 'flight'
       return 'other'
@@ -2012,6 +2016,7 @@ export default {
       const map = {
         baggage: this.t.infoPresetBaggage,
         pickup: this.t.infoPresetPickup,
+        destination: this.t.infoPresetDestination,
         flight: this.t.infoPresetFlight,
         arrivalDateTime: this.t.infoPresetArrivalDateTime,
         childAge: this.t.infoPresetChildAge,
