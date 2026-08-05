@@ -120,13 +120,18 @@
               <h2>{{ t.benchmarkTitle }}</h2>
               <p>{{ t.benchmarkSubtitle }}</p>
             </div>
-            <button class="btn btn--primary" type="button" @click="openPointForm()">{{ t.addPoint }}</button>
+            <div class="benchmark-hero__actions">
+              <button class="btn btn--primary" type="button" :disabled="resolutionRunning" @click="startResolution">
+                {{ resolutionRunning ? t.resolving : t.resolveNext }}
+              </button>
+              <button class="btn btn--ghost" type="button" @click="openPointForm()">{{ t.addPoint }}</button>
+            </div>
           </div>
 
           <div class="benchmark-summary">
             <div><strong>{{ benchmarkSummary.total || 0 }}</strong><span>{{ t.allPoints }}</span></div>
             <div><strong>{{ benchmarkSummary.verified || 0 }}</strong><span>{{ t.verified }}</span></div>
-            <div><strong>{{ (benchmarkSummary.candidate || 0) + (benchmarkSummary.needs_review || 0) }}</strong><span>{{ t.awaitingReview }}</span></div>
+            <div><strong>{{ (benchmarkSummary.candidate || 0) + (benchmarkSummary.resolving || 0) + (benchmarkSummary.needs_review || 0) }}</strong><span>{{ t.awaitingReview }}</span></div>
             <div><strong>{{ benchmarkSummary.coveredZones || 0 }}</strong><span>{{ t.coveredZones }}</span></div>
           </div>
 
@@ -140,6 +145,7 @@
             <select v-model="benchmarkStatus" class="input status-filter" @change="loadBenchmarks">
               <option value="">{{ t.allStatuses }}</option>
               <option value="candidate">{{ statusLabel('candidate') }}</option>
+              <option value="resolving">{{ statusLabel('resolving') }}</option>
               <option value="needs_review">{{ statusLabel('needs_review') }}</option>
               <option value="verified">{{ statusLabel('verified') }}</option>
               <option value="rejected">{{ statusLabel('rejected') }}</option>
@@ -159,7 +165,7 @@
                 <small v-if="point.sourceDistanceKm != null">{{ point.sourceDistanceKm }} km · {{ point.source }}</small>
               </div>
               <div class="benchmark-address">{{ point.destinationAddress }}</div>
-              <div>{{ point.zoneName || t.zoneNotSelected }}</div>
+              <div><span>{{ point.zoneName || t.zoneNotSelected }}</span><small v-if="point.resolutionError">{{ point.resolutionError }}</small></div>
               <div><span class="status-badge" :class="`status-badge--${point.status}`">{{ statusLabel(point.status) }}</span></div>
               <div><button class="link-button" type="button" @click="openPointForm(point)">{{ t.review }}</button></div>
             </div>
@@ -266,7 +272,9 @@ export default {
     geoZones: [],
     pointModal: { open: false, id: '' },
     pointForm: {},
-    pointFormError: ''
+    pointFormError: '',
+    resolutionRunning: false,
+    resolutionPollTimer: null
   }),
   computed: {
     t () {
@@ -305,6 +313,8 @@ export default {
             benchmarkTitle: 'База контрольных адресов',
             benchmarkSubtitle: 'Точные точки внутри геозон Riderra для проверки публичных цен SmartRyde и других агрегаторов.',
             addPoint: 'Добавить адрес',
+            resolveNext: 'Проверить следующие 10',
+            resolving: 'Идёт проверка…',
             allPoints: 'всего адресов',
             verified: 'подтверждено',
             awaitingReview: 'ждут проверки',
@@ -339,7 +349,7 @@ export default {
             verifyAndSave: 'Подтвердить адрес',
             saveForReview: 'Сохранить для проверки',
             reject: 'Отклонить',
-            statuses: { candidate: 'Кандидат', needs_review: 'Нужна проверка', verified: 'Подтверждён', rejected: 'Отклонён' },
+            statuses: { candidate: 'Кандидат', resolving: 'Проверяется', needs_review: 'Нужна проверка', verified: 'Подтверждён', rejected: 'Отклонён' },
             views: {
               all: 'Все направления',
               demand_gap: 'Есть спрос, нет исполнителей',
@@ -403,6 +413,8 @@ export default {
             benchmarkTitle: 'Control address database',
             benchmarkSubtitle: 'Exact points inside Riderra zones for checking public SmartRyde and other aggregator prices.',
             addPoint: 'Add address',
+            resolveNext: 'Check next 10',
+            resolving: 'Checking…',
             allPoints: 'all addresses',
             verified: 'verified',
             awaitingReview: 'awaiting review',
@@ -427,7 +439,7 @@ export default {
             destinationAddress: 'Exact control destination address', latitude: 'Latitude (optional)', longitude: 'Longitude (optional)',
             chooseZone: 'Select Riderra zone', smartRydePickupId: 'SmartRyde pickup Place ID', smartRydeDropoffId: 'SmartRyde drop-off Place ID',
             reviewNote: 'Reviewer note', verifyAndSave: 'Verify address', saveForReview: 'Save for review', reject: 'Reject',
-            statuses: { candidate: 'Candidate', needs_review: 'Needs review', verified: 'Verified', rejected: 'Rejected' },
+            statuses: { candidate: 'Candidate', resolving: 'Resolving', needs_review: 'Needs review', verified: 'Verified', rejected: 'Rejected' },
             views: {
               all: 'All directions',
               demand_gap: 'Demand without suppliers',
@@ -491,6 +503,9 @@ export default {
   mounted () {
     this.load()
   },
+  beforeDestroy () {
+    if (this.resolutionPollTimer) clearTimeout(this.resolutionPollTimer)
+  },
   methods: {
     authHeaders () {
       const token = localStorage.getItem('authToken')
@@ -515,10 +530,39 @@ export default {
         if (!res.ok) throw new Error(data.error || 'Failed to load benchmark points')
         this.benchmarkPoints = data.rows || []
         this.benchmarkSummary = data.summary || {}
+        this.resolutionRunning = Boolean(data.resolutionRunning)
       } catch (error) {
         this.benchmarkError = error.message
       } finally {
         this.benchmarkLoading = false
+      }
+    },
+    async startResolution () {
+      this.benchmarkError = ''
+      try {
+        const res = await fetch('/api/admin/directions/benchmark-points/resolve', {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ limit: 10 })
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to start address resolution')
+        this.resolutionRunning = true
+        this.pollResolution()
+      } catch (error) {
+        this.benchmarkError = error.message
+      }
+    },
+    async pollResolution () {
+      if (this.resolutionPollTimer) clearTimeout(this.resolutionPollTimer)
+      try {
+        const res = await fetch('/api/admin/directions/benchmark-points/resolution-status', { headers: this.authHeaders() })
+        const data = await res.json()
+        this.resolutionRunning = Boolean(data.running || data.resolving)
+        await this.loadBenchmarks()
+        if (this.resolutionRunning) this.resolutionPollTimer = setTimeout(() => this.pollResolution(), 3000)
+      } catch (error) {
+        this.benchmarkError = error.message
       }
     },
     async loadGeoZones () {
@@ -745,6 +789,7 @@ export default {
 
 .benchmark-hero h2 { margin: 0; color: #1f2b46; }
 .benchmark-hero p { margin: 8px 0 0; max-width: 760px; color: #60708f; line-height: 1.5; }
+.benchmark-hero__actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .benchmark-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
 .benchmark-summary > div { display: grid; gap: 4px; padding: 15px; border: 1px solid #dce3ef; border-radius: 14px; background: #fff; }
 .benchmark-summary strong { font-size: 25px; color: #1d2c4a; }
@@ -760,12 +805,14 @@ export default {
 .benchmark-address { line-height: 1.45; }
 .status-badge { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .status-badge--candidate { background: #f3f4f6; color: #4b5563; }
+.status-badge--resolving { background: #eef7ff; color: #1f4d96; }
 .status-badge--needs_review { background: #fff4d6; color: #8a5b00; }
 .status-badge--verified { background: #eafaf0; color: #166534; }
 .status-badge--rejected { background: #fef2f2; color: #991b1b; }
 .link-button { border: 0; background: transparent; color: #702283; font-weight: 700; cursor: pointer; }
 .form-error { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #fef2f2; color: #991b1b; }
 .btn--danger { background: #fef2f2; color: #991b1b; }
+.btn:disabled { cursor: wait; opacity: .65; }
 
 .page-head {
   display: flex;

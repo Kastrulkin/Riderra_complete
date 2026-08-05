@@ -20889,7 +20889,8 @@ registerBenchmarkPointRoutes(app, {
   requireCan,
   writeAuditLog,
   loadGeoZoneIndex,
-  findGeoZoneForGeoResult
+  findGeoZoneForGeoResult,
+  geocodeAddress
 })
 
 registerAuthBootstrapRoutes(app, {

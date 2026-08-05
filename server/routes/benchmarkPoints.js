@@ -1,6 +1,10 @@
 const crypto = require('crypto')
+const {
+  executeBenchmarkResolutionBatch,
+  isBenchmarkResolutionRunning
+} = require('../services/benchmarkPointResolutionService')
 
-const ALLOWED_STATUSES = new Set(['candidate', 'needs_review', 'verified', 'rejected'])
+const ALLOWED_STATUSES = new Set(['candidate', 'resolving', 'needs_review', 'verified', 'rejected'])
 
 function clean(value, max = 500) {
   return String(value == null ? '' : value).trim().slice(0, max)
@@ -89,7 +93,8 @@ function registerBenchmarkPointRoutes(app, dependencies) {
     requireCan,
     writeAuditLog,
     loadGeoZoneIndex,
-    findGeoZoneForGeoResult
+    findGeoZoneForGeoResult,
+    geocodeAddress
   } = dependencies
   const canRead = [authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.read', 'pricing')]
   const canManage = [authenticateToken, resolveActorContext, requireActorContext, requireCan('pricing.manage', 'pricing')]
@@ -113,12 +118,19 @@ function registerBenchmarkPointRoutes(app, dependencies) {
         prisma.geoZoneBenchmarkPoint.groupBy({ by: ['status'], where: { tenantId: req.actorContext.tenantId }, _count: { _all: true } }),
         prisma.geoZoneBenchmarkPoint.findMany({ where: { tenantId: req.actorContext.tenantId, status: 'verified', zoneName: { not: null } }, distinct: ['zoneName'], select: { zoneName: true } })
       ])
-      const summary = { total: 0, candidate: 0, needs_review: 0, verified: 0, rejected: 0, coveredZones: coveredZones.length }
+      const summary = { total: 0, candidate: 0, resolving: 0, needs_review: 0, verified: 0, rejected: 0, coveredZones: coveredZones.length }
       for (const item of grouped) {
         summary[item.status] = item._count._all
         summary.total += item._count._all
       }
-      res.json({ rows, total, offset: skip, limit: take, summary })
+      res.json({
+        rows: rows.map(({ smartRydePickupCandidatesJson, smartRydeDropoffCandidatesJson, ...row }) => row),
+        total,
+        offset: skip,
+        limit: take,
+        summary,
+        resolutionRunning: isBenchmarkResolutionRunning(req.actorContext.tenantId)
+      })
     } catch (error) {
       console.error('Error listing benchmark points:', error)
       res.status(500).json({ error: 'Failed to list benchmark points' })
@@ -133,6 +145,29 @@ function registerBenchmarkPointRoutes(app, dependencies) {
     } catch (error) {
       res.status(500).json({ error: 'Failed to load geo-zone catalog' })
     }
+  })
+
+  app.get('/api/admin/directions/benchmark-points/resolution-status', ...canRead, async (req, res) => {
+    const tenantId = req.actorContext.tenantId
+    const [candidate, resolving, needsReview, verified] = await Promise.all([
+      prisma.geoZoneBenchmarkPoint.count({ where: { tenantId, status: 'candidate' } }),
+      prisma.geoZoneBenchmarkPoint.count({ where: { tenantId, status: 'resolving' } }),
+      prisma.geoZoneBenchmarkPoint.count({ where: { tenantId, status: 'needs_review' } }),
+      prisma.geoZoneBenchmarkPoint.count({ where: { tenantId, status: 'verified' } })
+    ])
+    res.json({ running: isBenchmarkResolutionRunning(tenantId), candidate, resolving, needsReview, verified })
+  })
+
+  app.post('/api/admin/directions/benchmark-points/resolve', ...canManage, async (req, res) => {
+    const tenantId = req.actorContext.tenantId
+    if (isBenchmarkResolutionRunning(tenantId)) return res.status(409).json({ error: 'Benchmark resolution is already running' })
+    const limit = Math.min(Math.max(Number(req.body?.limit) || 10, 1), 100)
+    executeBenchmarkResolutionBatch({ prisma, tenantId, limit, geocodeAddress, findGeoZoneForGeoResult })
+      .then(async (result) => {
+        await audit(writeAuditLog, req, 'directions.benchmark_points.resolve', 'batch', { limit, processed: result.processed })
+      })
+      .catch((error) => console.error('Benchmark point resolution failed:', error))
+    res.status(202).json({ status: 'running', limit })
   })
 
   app.post('/api/admin/directions/benchmark-points', ...canManage, async (req, res) => {

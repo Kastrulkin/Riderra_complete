@@ -996,34 +996,43 @@ model PriceComparisonVehicleMap {
 }
 
 model GeoZoneBenchmarkPoint {
-  id                      String    @id @default(cuid())
-  tenantId                String
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  country                 String?
-  city                    String?
-  airportIata             String?
-  pickupAddress           String
-  destinationAddress      String
-  normalizedKey           String
-  zoneId                  String?
-  zoneName                String?
-  latitude                Float?
-  longitude               Float?
-  source                  String    @default("manual")
-  sourceFileName          String?
-  sourceSheetName         String?
-  sourceRowNumber         Int?
-  sourceDistanceKm        Float?
-  smartRydePickupPlaceId  String?
-  smartRydePickupLabel    String?
-  smartRydeDropoffPlaceId String?
-  smartRydeDropoffLabel   String?
-  status                  String    @default("candidate")
-  reviewNote              String?
-  verifiedByUserId        String?
-  verifiedAt              DateTime?
-  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                             String    @id @default(cuid())
+  tenantId                       String
+  createdAt                      DateTime  @default(now())
+  updatedAt                      DateTime  @updatedAt
+  country                        String?
+  city                           String?
+  airportIata                    String?
+  pickupAddress                  String
+  destinationAddress             String
+  normalizedKey                  String
+  zoneId                         String?
+  zoneName                       String?
+  latitude                       Float?
+  longitude                      Float?
+  source                         String    @default("manual")
+  sourceFileName                 String?
+  sourceSheetName                String?
+  sourceRowNumber                Int?
+  sourceDistanceKm               Float?
+  smartRydePickupPlaceId         String?
+  smartRydePickupLabel           String?
+  smartRydeDropoffPlaceId        String?
+  smartRydeDropoffLabel          String?
+  googlePlaceId                  String?
+  geocodingProvider              String?
+  geocodedAddress                String?
+  geocodedAt                     DateTime?
+  smartRydePickupCandidatesJson  String?
+  smartRydeDropoffCandidatesJson String?
+  resolutionError                String?
+  resolvedAt                     DateTime?
+  verificationMethod             String?
+  status                         String    @default("candidate")
+  reviewNote                     String?
+  verifiedByUserId               String?
+  verifiedAt                     DateTime?
+  tenant                         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, normalizedKey])
   @@index([tenantId, status, country, city])
