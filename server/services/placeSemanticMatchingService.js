@@ -47,7 +47,7 @@ async function backfillApprovedPlaceMappings({ prisma, tenantId, sourceId = null
   })
   const pending = []
   for (const mapping of mappings) {
-    const canonicalKey = `place-map:${mapping.id}`
+    const canonicalKey = `source-place:${mapping.sourceId}:${mapping.externalPlaceId}`
     const searchText = placeSearchText({ name: mapping.inputText, description: mapping.externalLabel })
     const place = await prisma.canonicalTransferPlace.upsert({
       where: { tenantId_canonicalKey: { tenantId, canonicalKey } },
