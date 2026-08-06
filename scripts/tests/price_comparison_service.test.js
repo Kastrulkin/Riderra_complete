@@ -136,6 +136,8 @@ test('known SmartRyde classes map deterministically and do not collapse executiv
   assert.equal(smartRydeVehicleMatches('standard_5_seat', 'Standard e-vehicle 3 pax'), false)
   assert.equal(smartRydeVehicleMatches('lengthened_5_seat', 'Business Class Car'), true)
   assert.equal(smartRydeVehicleMatches('standard_7_seat', 'MPV 6 pax'), true)
+  assert.equal(smartRydeVehicleMatches('standard_7_seat', 'Standard minivan 6 pax'), true)
+  assert.equal(smartRydeVehicleMatches('standard_7_seat', 'Standard minivan 8 pax'), false)
   assert.equal(smartRydeVehicleMatches('8_seat_bus', 'Standard 8 Seats'), true)
   assert.equal(smartRydeVehicleMatches('8_seat_bus', 'Businessvan 6 pax'), false)
   assert.equal(smartRydeVehicleMatches('10_seat_bus', 'Standard Minibus 9pax'), true)
