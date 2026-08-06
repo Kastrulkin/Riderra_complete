@@ -13,12 +13,12 @@ const {
   smartRydeVehicleMatches
 } = require('../../server/services/priceComparisonService')
 
-test('SmartRyde policy deducts 30 percent from Riderra sell price', () => {
-  assert.equal(applyPricingPolicy(100, { type: 'percentage_discount', discountPercent: 30 }), 70)
-  assert.deepEqual(buildComparison({ riderraSellPrice: 100, clientSellPrice: 90, policy: { type: 'percentage_discount', discountPercent: 30 } }), {
-    targetPrice: 70,
-    opportunityGapAbs: 20,
-    opportunityGapPct: 22.22,
+test('SmartRyde policy deducts 30 percent from the client public price', () => {
+  assert.equal(applyPricingPolicy(200, { type: 'client_commission', commissionPercent: 30 }), 140)
+  assert.deepEqual(buildComparison({ riderraSellPrice: 100, clientSellPrice: 200, policy: { type: 'client_commission', commissionPercent: 30 } }), {
+    targetPrice: 140,
+    opportunityGapAbs: 40,
+    opportunityGapPct: 28.57,
     status: 'opportunity'
   })
 })
@@ -26,8 +26,8 @@ test('SmartRyde policy deducts 30 percent from Riderra sell price', () => {
 test('equality is not a green opportunity', () => {
   assert.equal(buildComparison({
     riderraSellPrice: 100,
-    clientSellPrice: 70,
-    policy: { type: 'percentage_discount', discountPercent: 30 }
+    clientSellPrice: 142.857142857,
+    policy: { type: 'client_commission', commissionPercent: 30 }
   }).status, 'not_opportunity')
 })
 

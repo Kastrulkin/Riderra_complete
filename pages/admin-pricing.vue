@@ -494,7 +494,7 @@ export default {
             mapTo: 'сопоставить с',
             approve: 'Подтвердить',
             clientPrice: 'Цена компании',
-            targetPrice: 'Наша целевая цена',
+            targetPrice: 'Цена компании после комиссии',
             gap: 'Запас',
             comparisonEmpty: 'Создайте анализ, проверьте параметры и вручную запустите сбор цен.',
             counterparty: 'Прайсы клиентов',
@@ -582,7 +582,7 @@ export default {
             mapTo: 'map to',
             approve: 'Approve',
             clientPrice: 'Company price',
-            targetPrice: 'Our target price',
+            targetPrice: 'Company price after commission',
             gap: 'Gap',
             comparisonEmpty: 'Create an analysis, review its parameters, and manually start price collection.',
             counterparty: 'Customer prices',
@@ -973,6 +973,7 @@ export default {
     },
     comparisonFormulaLabel (source) {
       const policy = source?.pricingPolicy || {}
+      if (policy.type === 'client_commission') return `${source?.name || 'Company'} × ${(1 - (Number(policy.commissionPercent || 0) / 100)).toFixed(2)} (${policy.commissionPercent}% комиссия)`
       if (policy.type === 'percentage_discount') return `Riderra × ${(1 - (Number(policy.discountPercent || 0) / 100)).toFixed(2)} (${policy.discountPercent}% ниже)`
       if (policy.type === 'sequential_deductions') return (policy.deductions || []).map((value) => `−${value}%`).join(' → ')
       return source?.formulaVersion || '-'

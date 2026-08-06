@@ -53,7 +53,7 @@ function configureSheet(sheet, widths) {
   sheet.autoFilter = { from: 'A1', to: sheet.getRow(1).getCell(widths.length).address }
 }
 
-function addResultSheet(workbook, name, rows, assumptionsSheetName = 'Assumptions') {
+function addResultSheet(workbook, name, rows, policy, assumptionsSheetName = 'Assumptions') {
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] })
   const headers = ['Country', 'City', 'From', 'To', 'Vehicle', 'Riderra sell', 'Currency', 'Client sell', 'Target price', 'Gap', 'Gap %', 'Status', 'Service date', 'Quoted at', 'Source URL', 'Issue']
   sheet.addRow(headers)
@@ -65,6 +65,17 @@ function addResultSheet(workbook, name, rows, assumptionsSheetName = 'Assumption
     const targetResult = hasPrices ? Number(row.targetPrice) : null
     const gapResult = hasPrices ? Number(row.gapAbs) : null
     const pctResult = hasPrices && Number(row.clientSellPrice) > 0 ? Number(row.gapPct) / 100 : null
+    const clientBased = policy?.type === 'client_commission'
+    const targetFormula = clientBased
+      ? `IF(OR(F${excelRow}="",H${excelRow}=""),"",ROUND(H${excelRow}*(1-'${assumptionsSheetName}'!$B$2),2))`
+      : `IF(OR(F${excelRow}="",H${excelRow}=""),"",ROUND(F${excelRow}*(1-'${assumptionsSheetName}'!$B$2),2))`
+    const gapFormula = clientBased
+      ? `IF(OR(F${excelRow}="",I${excelRow}=""),"",ROUND(I${excelRow}-F${excelRow},2))`
+      : `IF(OR(H${excelRow}="",I${excelRow}=""),"",ROUND(H${excelRow}-I${excelRow},2))`
+    const pctFormula = clientBased
+      ? `IF(OR(I${excelRow}=0,J${excelRow}=""),"",J${excelRow}/I${excelRow})`
+      : `IF(OR(H${excelRow}=0,J${excelRow}=""),"",J${excelRow}/H${excelRow})`
+    const opportunityFormula = clientBased ? `F${excelRow}<I${excelRow}` : `I${excelRow}<H${excelRow}`
     sheet.addRow([
       row.country,
       row.city,
@@ -74,10 +85,10 @@ function addResultSheet(workbook, name, rows, assumptionsSheetName = 'Assumption
       row.riderraSellPrice,
       row.currency,
       row.clientSellPrice,
-      { formula: `IF(OR(F${excelRow}="",H${excelRow}=""),"",ROUND(F${excelRow}*(1-'${assumptionsSheetName}'!$B$2),2))`, result: targetResult },
-      { formula: `IF(OR(H${excelRow}="",I${excelRow}=""),"",ROUND(H${excelRow}-I${excelRow},2))`, result: gapResult },
-      { formula: `IF(OR(H${excelRow}=0,J${excelRow}=""),"",J${excelRow}/H${excelRow})`, result: pctResult },
-      { formula: `IF(LEN(H${excelRow})=0,IF(P${excelRow}="SmartRyde returned no available vehicles","coverage_opportunity","needs_review"),IF(I${excelRow}<H${excelRow},"opportunity","not_opportunity"))`, result: row.status === 'no_quote' ? 'coverage_opportunity' : row.status },
+      { formula: targetFormula, result: targetResult },
+      { formula: gapFormula, result: gapResult },
+      { formula: pctFormula, result: pctResult },
+      { formula: `IF(LEN(H${excelRow})=0,IF(P${excelRow}="SmartRyde returned no available vehicles","coverage_opportunity","needs_review"),IF(${opportunityFormula},"opportunity","not_opportunity"))`, result: row.status === 'no_quote' ? 'coverage_opportunity' : row.status },
       row.serviceAt,
       row.quotedAt,
       row.sourceUrl,
@@ -112,6 +123,7 @@ async function buildPriceComparisonWorkbook(run) {
   workbook.calcProperties.fullCalcOnLoad = true
 
   const rows = resultRows(run)
+  const policy = JSON.parse(run.pricingPolicyJson || '{}')
   const opportunities = rows.filter((row) => row.status === 'opportunity')
   const coverageOpportunities = rows.filter((row) => row.status === 'no_quote')
   const coverageRouteCount = new Set(coverageOpportunities.map((row) => `${row.routeFrom}\u0000${row.routeTo}`)).size
@@ -120,13 +132,15 @@ async function buildPriceComparisonWorkbook(run) {
   const assumptions = workbook.addWorksheet('Assumptions')
   assumptions.addRows([
     ['Parameter', 'Value'],
-    ['Discount rate', Number(JSON.parse(run.pricingPolicyJson || '{}').discountPercent || 0) / 100],
+    ['Commission / discount rate', Number(policy.commissionPercent ?? policy.discountPercent ?? 0) / 100],
     ['Formula version', run.formulaVersion],
     ['Source', run.source.name],
     ['Adapter', run.source.adapterKey],
     ['Base URL', run.source.baseUrl],
     ['Service date', run.serviceAt],
-    ['Rule', 'Price opportunity: target < client sell. Coverage opportunity: partner returned no available vehicles.']
+    ['Rule', policy.type === 'client_commission'
+      ? 'Price opportunity: Riderra sell < client public sell after commission. Coverage opportunity: partner returned no available vehicles.'
+      : 'Price opportunity: target < client sell. Coverage opportunity: partner returned no available vehicles.']
   ])
   configureSheet(assumptions, [28, 88])
   assumptions.getCell('B2').numFmt = '0.0%'
@@ -148,10 +162,10 @@ async function buildPriceComparisonWorkbook(run) {
   summary.getCell('B8').numFmt = 'yyyy-mm-dd hh:mm'
   summary.getCell('A1').font = { bold: true, color: { argb: COLORS.white }, size: 14 }
 
-  addResultSheet(workbook, 'Green opportunities', opportunities)
-  addResultSheet(workbook, 'Coverage opportunities', coverageOpportunities)
-  addResultSheet(workbook, 'All results', rows)
-  addResultSheet(workbook, 'Needs review', needsReview)
+  addResultSheet(workbook, 'Green opportunities', opportunities, policy)
+  addResultSheet(workbook, 'Coverage opportunities', coverageOpportunities, policy)
+  addResultSheet(workbook, 'All results', rows, policy)
+  addResultSheet(workbook, 'Needs review', needsReview, policy)
   return workbook.xlsx.writeBuffer()
 }
 

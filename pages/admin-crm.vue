@@ -529,7 +529,7 @@ export default {
           routeFrom: row.routeFrom,
           routeTo: row.routeTo,
           status: 'opportunity',
-          detail: `${this.vehicleClassLabel(row.requestedVehicleType)} · Riderra ${this.formatMoney(row.riderraSellPrice, row.riderraCurrency)} · цель ${this.formatMoney(row.result?.targetPrice, row.riderraCurrency)}`,
+          detail: `${this.vehicleClassLabel(row.requestedVehicleType)} · Riderra ${this.formatMoney(row.riderraSellPrice, row.riderraCurrency)} · цена компании после комиссии ${this.formatMoney(row.result?.targetPrice, row.riderraCurrency)}`,
           priceLabel: this.formatMoney(row.clientSellPrice, row.clientCurrency)
         }))
       const coverageRows = this.companyComparisonRoutes
@@ -694,6 +694,7 @@ export default {
     },
     comparisonFormulaLabel(source) {
       const policy = source?.pricingPolicy || {}
+      if (policy.type === 'client_commission') return `${source?.name || 'Компания'} × ${(1 - Number(policy.commissionPercent || 0) / 100).toFixed(2)}`
       if (policy.type === 'percentage_discount') return `Riderra × ${(1 - Number(policy.discountPercent || 0) / 100).toFixed(2)}`
       return source?.formulaVersion || '—'
     },

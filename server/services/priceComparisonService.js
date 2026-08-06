@@ -11,8 +11,8 @@ const SMART_RYDE_DEFAULTS = Object.freeze({
   supportedCurrencies: ['USD', 'CAD', 'EUR', 'GBP', 'TWD', 'THB', 'JPY', 'VND', 'CNY', 'SGD', 'AUD', 'NZD', 'HKD', 'PLN', 'ILS', 'IDR', 'ZAR', 'BGN', 'RON', 'DKK', 'NOK', 'SEK', 'CZK', 'CHF', 'HUF', 'KRW', 'MYR', 'INR'],
   schedule: { weekday: 3, localTime: '12:00', minLeadDays: 7 },
   passengers: { adults: 1, children: 0, returnJourney: false },
-  pricingPolicy: { type: 'percentage_discount', discountPercent: 30 },
-  formulaVersion: 'smart-ryde-v1',
+  pricingPolicy: { type: 'client_commission', commissionPercent: 30 },
+  formulaVersion: 'smart-ryde-v2',
   maxConcurrency: 2,
   requestDelayMs: 1000
 })
@@ -90,6 +90,10 @@ function applyPricingPolicy(riderraSellPrice, policy = {}) {
     const discount = Number(policy.discountPercent)
     if (!Number.isFinite(discount) || discount < 0 || discount >= 100) throw new Error('Invalid discountPercent')
     factor = 1 - (discount / 100)
+  } else if (policy.type === 'client_commission') {
+    const commission = Number(policy.commissionPercent)
+    if (!Number.isFinite(commission) || commission < 0 || commission >= 100) throw new Error('Invalid commissionPercent')
+    factor = 1 - (commission / 100)
   } else if (policy.type === 'sequential_deductions') {
     const deductions = Array.isArray(policy.deductions) ? policy.deductions : []
     if (!deductions.length) throw new Error('Sequential deductions are required')
@@ -106,15 +110,24 @@ function applyPricingPolicy(riderraSellPrice, policy = {}) {
 }
 
 function buildComparison({ riderraSellPrice, clientSellPrice, policy }) {
-  const targetPrice = applyPricingPolicy(riderraSellPrice, policy)
+  const riderraPrice = Number(riderraSellPrice)
+  if (!Number.isFinite(riderraPrice) || riderraPrice < 0) throw new Error('Invalid Riderra sell price')
   const clientPrice = Number(clientSellPrice)
   if (!Number.isFinite(clientPrice) || clientPrice < 0) throw new Error('Invalid client sell price')
-  const opportunityGapAbs = roundMoney(clientPrice - targetPrice)
+  const clientBased = policy?.type === 'client_commission'
+  const targetPrice = applyPricingPolicy(clientBased ? clientPrice : riderraPrice, policy)
+  const opportunityGapAbs = clientBased
+    ? roundMoney(targetPrice - riderraPrice)
+    : roundMoney(clientPrice - targetPrice)
   return {
     targetPrice,
     opportunityGapAbs,
-    opportunityGapPct: clientPrice > 0 ? roundMoney((opportunityGapAbs / clientPrice) * 100) : null,
-    status: targetPrice < clientPrice ? 'opportunity' : 'not_opportunity'
+    opportunityGapPct: (clientBased ? targetPrice : clientPrice) > 0
+      ? roundMoney((opportunityGapAbs / (clientBased ? targetPrice : clientPrice)) * 100)
+      : null,
+    status: clientBased
+      ? (riderraPrice < targetPrice ? 'opportunity' : 'not_opportunity')
+      : (targetPrice < clientPrice ? 'opportunity' : 'not_opportunity')
   }
 }
 
