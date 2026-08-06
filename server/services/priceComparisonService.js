@@ -383,7 +383,11 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
 
   const candidates = await adapter.resolvePlace(inputText, relatedPlaceId)
   const selected = selectPlaceCandidate(inputText, candidates)
-  const autoApprove = !!selected
+  // A previously reviewed ambiguous mapping must stay behind the review gate.
+  // Fresh candidates may change between requests, so only brand-new mappings
+  // are eligible for automatic selection. Existing mappings are approved via
+  // the explicit mapping workflow.
+  const autoApprove = !!selected && !existing
   const mapping = await prisma.priceComparisonPlaceMap.upsert({
     where: { sourceId_normalizedInput: { sourceId: source.id, normalizedInput } },
     update: {
@@ -457,8 +461,8 @@ async function hasFinalComparison(prisma, runId, cityPricingId) {
     where: {
       runId,
       cityPricingId,
-      status: 'compared',
-      externalVehicleKey: { notIn: ['_route_resolution', '_error'] }
+      status: { in: ['compared', 'no_quote'] },
+      externalVehicleKey: { not: '_route_resolution' }
     },
     select: { id: true }
   })
@@ -737,6 +741,7 @@ module.exports = {
   defaultSourceData,
   executePriceComparisonRun,
   externalRouteKey,
+  hasFinalComparison,
   nextScheduledServiceAt,
   normalizeTextKey,
   parseSmartRydeQuotes,

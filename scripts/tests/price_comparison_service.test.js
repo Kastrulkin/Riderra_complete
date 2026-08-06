@@ -6,6 +6,7 @@ const {
   buildComparison,
   comparisonRunScopeWhere,
   externalRouteKey,
+  hasFinalComparison,
   nextScheduledServiceAt,
   parseSmartRydeQuotes,
   placeCandidateMatches,
@@ -54,6 +55,21 @@ test('comparison run scope limits collection to selected route pairs', () => {
     { routeFrom: '', routeTo: 'ignored' }
   ] })), { OR: [{ routeFrom: 'VIE', routeTo: 'Vienna' }] })
   assert.deepEqual(comparisonRunScopeWhere(null), {})
+})
+
+test('resume treats compared and no-quote rows as final evidence', async () => {
+  let receivedWhere
+  const prisma = {
+    priceComparisonQuote: {
+      findFirst: async ({ where }) => {
+        receivedWhere = where
+        return { id: 'quote-1' }
+      }
+    }
+  }
+  const result = await hasFinalComparison(prisma, 'run-1', 'price-1')
+  assert.equal(result.id, 'quote-1')
+  assert.deepEqual(receivedWhere.status, { in: ['compared', 'no_quote'] })
 })
 
 test('place auto-approval rejects semantically wrong single results', () => {
