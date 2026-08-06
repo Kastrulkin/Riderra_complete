@@ -205,11 +205,18 @@ function registerPricingComparisonRoutes(app, dependencies) {
   })
 
   app.get('/api/admin/pricing/comparison-runs/:id/results', ...canRead, async (req, res) => {
+    const resultStatus = ['opportunity', 'not_opportunity'].includes(String(req.query.resultStatus || ''))
+      ? String(req.query.resultStatus)
+      : null
     const run = await prisma.priceComparisonRun.findFirst({
       where: { id: req.params.id, tenantId: req.actorContext.tenantId },
       include: {
         source: true,
-        quotes: { include: { result: true, cityPricing: { select: { country: true, city: true } } }, orderBy: [{ routeFrom: 'asc' }, { routeTo: 'asc' }, { requestedVehicleType: 'asc' }] }
+        quotes: {
+          where: resultStatus ? { result: { is: { status: resultStatus } } } : undefined,
+          include: { result: true, cityPricing: { select: { country: true, city: true } } },
+          orderBy: [{ routeFrom: 'asc' }, { routeTo: 'asc' }, { requestedVehicleType: 'asc' }]
+        }
       }
     })
     if (!run) return res.status(404).json({ error: 'Comparison run not found' })

@@ -193,7 +193,7 @@
               </div>
 
               <div class="comparison-kpis">
-                <div class="summary-chip"><span>Ценовое преимущество</span><strong>{{ companyComparison.run?.opportunitiesCount || 0 }}</strong></div>
+                <div class="summary-chip"><span>Ценовое преимущество</span><strong>{{ companyPriceOpportunityCount }}</strong></div>
                 <div class="summary-chip"><span>Компания не продаёт</span><strong>{{ companyComparison.run?.coverageOpportunityCount || 0 }}</strong></div>
                 <div class="summary-chip"><span>Нужно проверить</span><strong>{{ companyComparison.run?.needsReviewCount || 0 }}</strong></div>
                 <div class="summary-chip"><span>Последний срез</span><strong>{{ formatDateTime(companyComparison.run?.finishedAt || companyComparison.run?.createdAt) }}</strong></div>
@@ -430,7 +430,7 @@ export default {
       detailsMode: 'company',
       detailsId: '',
       form: {},
-      companyComparison: { source: null, run: null, rows: [], externalQuotes: [], activeTab: 'prices', loading: false, busy: false, error: '', pollTimer: null }
+      companyComparison: { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', loading: false, busy: false, error: '', pollTimer: null }
     }
   },
   computed: {
@@ -515,8 +515,15 @@ export default {
       return Array.from(latest.values())
     },
     companyOpportunityRows() {
-      const priceRows = (this.companyComparison.rows || [])
+      const combinedRows = [...(this.companyComparison.rows || []), ...(this.companyComparison.historicalOpportunityRows || [])]
+      const seenQuotes = new Set()
+      const priceRows = combinedRows
         .filter((row) => (row.result?.status || row.status) === 'opportunity')
+        .filter((row) => {
+          if (seenQuotes.has(row.id)) return false
+          seenQuotes.add(row.id)
+          return true
+        })
         .map((row) => ({
           key: `price-${row.id}`,
           routeFrom: row.routeFrom,
@@ -536,6 +543,9 @@ export default {
           priceLabel: 'Нет предложения'
         }))
       return [...priceRows, ...coverageRows]
+    },
+    companyPriceOpportunityCount() {
+      return this.companyOpportunityRows.filter((row) => row.status === 'opportunity').length
     },
     comparisonRouteCount() {
       return this.companyComparisonRoutes.length || this.comparisonScopePairs().length
@@ -691,7 +701,7 @@ export default {
       try { return JSON.parse(this.companyComparison.run?.scopeJson || '{}').routePairs || [] } catch (_) { return [] }
     },
     async loadCompanyComparison(companyId) {
-      this.companyComparison = { source: null, run: null, rows: [], externalQuotes: [], activeTab: 'prices', loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
+      this.companyComparison = { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
       try {
         const sourcesRes = await fetch('/api/admin/pricing/comparison-sources', { headers: this.authHeaders() })
         const sourcesData = await sourcesRes.json()
@@ -701,7 +711,7 @@ export default {
         if (!source) return
         this.companyComparison.source = source
         const [runsRes, quotesRes] = await Promise.all([
-          fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=1`, { headers: this.authHeaders() }),
+          fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=20`, { headers: this.authHeaders() }),
           fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=500`, { headers: this.authHeaders() })
         ])
         const [runsData, quotesData] = await Promise.all([runsRes.json(), quotesRes.json()])
@@ -711,6 +721,8 @@ export default {
         const run = runsData.rows?.[0] || null
         this.companyComparison.run = run
         if (run) await this.loadCompanyComparisonRun(run.id)
+        const opportunityRun = (runsData.rows || []).find((row) => Number(row.opportunitiesCount) > 0)
+        if (opportunityRun && opportunityRun.id !== run?.id) await this.loadCompanyHistoricalOpportunities(opportunityRun.id)
       } catch (error) {
         this.companyComparison.error = error.message
       } finally {
@@ -731,6 +743,12 @@ export default {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Не удалось обновить сохранённый прайс')
       this.companyComparison.externalQuotes = data.rows || []
+    },
+    async loadCompanyHistoricalOpportunities(runId) {
+      const res = await fetch(`/api/admin/pricing/comparison-runs/${runId}/results?resultStatus=opportunity`, { headers: this.authHeaders() })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Не удалось загрузить найденные ранее возможности')
+      this.companyComparison.historicalOpportunityRows = data.rows || []
     },
     async rerunCompanyComparison() {
       const source = this.companyComparison.source
