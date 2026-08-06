@@ -33,7 +33,9 @@ function requestJson(url, options = {}, body = null, timeoutMs = 90000) {
         let payload = {}
         try { payload = text ? JSON.parse(text) : {} } catch (_) {}
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          return reject(new Error(`GigaChat request failed: HTTP ${res.statusCode}`))
+          const error = new Error(`GigaChat request failed: HTTP ${res.statusCode}`)
+          error.statusCode = res.statusCode
+          return reject(error)
         }
         resolve({ payload, headers: res.headers })
       })
@@ -70,18 +72,30 @@ async function embedTexts(texts) {
   const input = (Array.isArray(texts) ? texts : []).map((text) => String(text || '').trim()).filter(Boolean)
   if (!input.length) return { vectors: [], model: model(), requestId: '' }
   if (input.length > 32) throw new Error('Embedding batch is too large')
-  const token = await accessToken()
   const body = JSON.stringify({ model: model(), input })
   const baseUrl = String(process.env.PRICING_EMBEDDINGS_BASE_URL || 'https://api.giga.chat/v1').replace(/\/+$/, '')
-  const { payload, headers } = await requestJson(`${baseUrl}/embeddings`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'Content-Length': Buffer.byteLength(body)
+  let response
+  let lastError
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const token = await accessToken()
+      response = await requestJson(`${baseUrl}/embeddings`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      }, body)
+      break
+    } catch (error) {
+      lastError = error
+      if (error.statusCode === 401 || error.statusCode === 403) {
+        cachedToken = null
+        tokenExpiresAt = 0
+      }
+      if (![401, 403, 429, 503].includes(error.statusCode) || attempt === 2) throw error
+      await new Promise((resolve) => setTimeout(resolve, 750 * (2 ** attempt)))
     }
-  }, body)
+  }
+  if (!response) throw lastError
+  const { payload, headers } = response
   const rows = Array.isArray(payload.data) ? [...payload.data].sort((a, b) => Number(a.index) - Number(b.index)) : []
   const vectors = rows.map((row) => row.embedding)
   if (vectors.length !== input.length || vectors.some((vector) => !Array.isArray(vector) || vector.length !== EMBEDDING_DIMENSIONS)) {
