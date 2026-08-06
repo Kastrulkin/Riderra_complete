@@ -205,14 +205,61 @@
                 <span><strong>Объём:</strong> {{ comparisonRouteCount }} направлений · {{ companyComparison.run.routeCount }} строк прайса</span>
               </div>
 
-              <div v-if="companyComparisonRoutes.length" class="comparison-route-list">
-                <div v-for="route in companyComparisonRoutes" :key="route.key" class="comparison-route-row">
-                  <div><strong>{{ route.routeFrom }} → {{ route.routeTo }}</strong><span>{{ route.vehicleCount }} классов Riderra</span></div>
-                  <div><span class="comparison-status" :class="`comparison-status--${route.status}`">{{ comparisonStatusLabel(route.status) }}</span></div>
-                  <div>{{ route.priceLabel }}</div>
+              <div class="comparison-tabs" role="tablist" aria-label="Данные о ценах компании">
+                <button
+                  type="button"
+                  role="tab"
+                  class="comparison-tab"
+                  :class="{ 'comparison-tab--active': companyComparison.activeTab === 'prices' }"
+                  :aria-selected="companyComparison.activeTab === 'prices'"
+                  @click="companyComparison.activeTab = 'prices'"
+                >
+                  Прайс {{ companyComparison.source.name }} <span>{{ companyExternalQuotes.length }}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  class="comparison-tab"
+                  :class="{ 'comparison-tab--active': companyComparison.activeTab === 'opportunities' }"
+                  :aria-selected="companyComparison.activeTab === 'opportunities'"
+                  @click="companyComparison.activeTab = 'opportunities'"
+                >
+                  Возможности <span>{{ companyOpportunityRows.length }}</span>
+                </button>
+              </div>
+
+              <div v-if="companyComparison.activeTab === 'prices'" class="comparison-panel" role="tabpanel">
+                <div v-if="companyExternalQuotes.length" class="comparison-price-table">
+                  <div class="comparison-price-row comparison-price-row--head">
+                    <div>Направление</div><div>Класс компании</div><div>Пассажиры</div><div>Цена</div><div>Получена</div>
+                  </div>
+                  <div v-for="quote in companyExternalQuotes" :key="quote.id" class="comparison-price-row">
+                    <div><strong>{{ quote.routeFrom }} → {{ quote.routeTo }}</strong></div>
+                    <div>{{ quote.externalVehicleName }}</div>
+                    <div>{{ quote.maxPassengers || '—' }}</div>
+                    <div><strong>{{ formatMoney(quote.publicSellPrice, quote.currency) }}</strong></div>
+                    <div>{{ formatDateTime(quote.quotedAt) }}</div>
+                  </div>
+                </div>
+                <div v-else class="comparison-empty">
+                  <strong>Сохранённых публичных цен пока нет</strong>
+                  <span>Запустите сбор повторно. Маршруты, на которых SmartRyde не предлагает машину, попадут во вкладку «Возможности».</span>
                 </div>
               </div>
-              <div v-else class="hint">Анализ ещё не запускался.</div>
+
+              <div v-else class="comparison-panel" role="tabpanel">
+                <div v-if="companyOpportunityRows.length" class="comparison-route-list">
+                  <div v-for="route in companyOpportunityRows" :key="route.key" class="comparison-route-row">
+                    <div><strong>{{ route.routeFrom }} → {{ route.routeTo }}</strong><span>{{ route.detail }}</span></div>
+                    <div><span class="comparison-status" :class="`comparison-status--${route.status}`">{{ comparisonStatusLabel(route.status) }}</span></div>
+                    <div>{{ route.priceLabel }}</div>
+                  </div>
+                </div>
+                <div v-else class="comparison-empty">
+                  <strong>В последнем анализе возможностей не найдено</strong>
+                  <span>Здесь появятся направления, где целевая цена Riderra ниже цены SmartRyde или SmartRyde не предлагает машину.</span>
+                </div>
+              </div>
 
               <div v-if="companyComparison.error" class="hint hint--error">{{ companyComparison.error }}</div>
               <div class="comparison-card__actions">
@@ -383,7 +430,7 @@ export default {
       detailsMode: 'company',
       detailsId: '',
       form: {},
-      companyComparison: { source: null, run: null, rows: [], loading: false, busy: false, error: '', pollTimer: null }
+      companyComparison: { source: null, run: null, rows: [], externalQuotes: [], activeTab: 'prices', loading: false, busy: false, error: '', pollTimer: null }
     }
   },
   computed: {
@@ -442,7 +489,10 @@ export default {
       }
       return Array.from(grouped.values()).map((route) => {
         const statuses = route.rows.map((row) => row.result?.status || row.status)
-        const prices = route.rows.map((row) => Number(row.clientSellPrice)).filter(Number.isFinite)
+        const prices = route.rows
+          .filter((row) => row.clientSellPrice !== null && row.clientSellPrice !== undefined && row.clientSellPrice !== '')
+          .map((row) => Number(row.clientSellPrice))
+          .filter(Number.isFinite)
         const currency = route.rows.find((row) => row.clientCurrency)?.clientCurrency || ''
         const status = statuses.includes('opportunity') ? 'opportunity'
           : statuses.includes('no_quote') ? 'coverage_opportunity'
@@ -455,6 +505,37 @@ export default {
           priceLabel: prices.length ? `${Math.min(...prices)}–${Math.max(...prices)} ${currency}` : 'Цена отсутствует'
         }
       })
+    },
+    companyExternalQuotes() {
+      const latest = new Map()
+      for (const quote of this.companyComparison.externalQuotes || []) {
+        const key = `${quote.routeKey}\u0000${quote.externalVehicleKey}\u0000${quote.currency}`
+        if (!latest.has(key)) latest.set(key, quote)
+      }
+      return Array.from(latest.values())
+    },
+    companyOpportunityRows() {
+      const priceRows = (this.companyComparison.rows || [])
+        .filter((row) => (row.result?.status || row.status) === 'opportunity')
+        .map((row) => ({
+          key: `price-${row.id}`,
+          routeFrom: row.routeFrom,
+          routeTo: row.routeTo,
+          status: 'opportunity',
+          detail: `${this.vehicleClassLabel(row.requestedVehicleType)} · Riderra ${this.formatMoney(row.riderraSellPrice, row.riderraCurrency)} · цель ${this.formatMoney(row.result?.targetPrice, row.riderraCurrency)}`,
+          priceLabel: this.formatMoney(row.clientSellPrice, row.clientCurrency)
+        }))
+      const coverageRows = this.companyComparisonRoutes
+        .filter((route) => route.status === 'coverage_opportunity')
+        .map((route) => ({
+          key: `coverage-${route.key}`,
+          routeFrom: route.routeFrom,
+          routeTo: route.routeTo,
+          status: route.status,
+          detail: `${route.vehicleCount} классов Riderra доступны для предложения`,
+          priceLabel: 'Нет предложения'
+        }))
+      return [...priceRows, ...coverageRows]
     },
     comparisonRouteCount() {
       return this.companyComparisonRoutes.length || this.comparisonScopePairs().length
@@ -610,7 +691,7 @@ export default {
       try { return JSON.parse(this.companyComparison.run?.scopeJson || '{}').routePairs || [] } catch (_) { return [] }
     },
     async loadCompanyComparison(companyId) {
-      this.companyComparison = { source: null, run: null, rows: [], loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
+      this.companyComparison = { source: null, run: null, rows: [], externalQuotes: [], activeTab: 'prices', loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
       try {
         const sourcesRes = await fetch('/api/admin/pricing/comparison-sources', { headers: this.authHeaders() })
         const sourcesData = await sourcesRes.json()
@@ -619,9 +700,14 @@ export default {
         const source = (sourcesData.rows || []).find((row) => row.customerCompanyId === companyId || row.customerCompany?.id === companyId)
         if (!source) return
         this.companyComparison.source = source
-        const runsRes = await fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=1`, { headers: this.authHeaders() })
-        const runsData = await runsRes.json()
+        const [runsRes, quotesRes] = await Promise.all([
+          fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=1`, { headers: this.authHeaders() }),
+          fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=500`, { headers: this.authHeaders() })
+        ])
+        const [runsData, quotesData] = await Promise.all([runsRes.json(), quotesRes.json()])
         if (!runsRes.ok) throw new Error(runsData.error || 'Не удалось загрузить запуски')
+        if (!quotesRes.ok) throw new Error(quotesData.error || 'Не удалось загрузить сохранённый прайс')
+        this.companyComparison.externalQuotes = quotesData.rows || []
         const run = runsData.rows?.[0] || null
         this.companyComparison.run = run
         if (run) await this.loadCompanyComparisonRun(run.id)
@@ -637,6 +723,14 @@ export default {
       if (!res.ok) throw new Error(data.error || 'Не удалось загрузить результаты анализа')
       this.companyComparison.run = data.run
       this.companyComparison.rows = data.rows || []
+    },
+    async loadCompanyExternalQuotes() {
+      const sourceId = this.companyComparison.source?.id
+      if (!sourceId) return
+      const res = await fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(sourceId)}&limit=500`, { headers: this.authHeaders() })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Не удалось обновить сохранённый прайс')
+      this.companyComparison.externalQuotes = data.rows || []
     },
     async rerunCompanyComparison() {
       const source = this.companyComparison.source
@@ -670,6 +764,7 @@ export default {
         const active = ['configured', 'running'].includes(this.companyComparison.run?.status)
         this.companyComparison.busy = active
         if (active) this.companyComparison.pollTimer = setTimeout(() => this.pollCompanyComparison(runId), 3000)
+        else await this.loadCompanyExternalQuotes()
       } catch (error) {
         this.companyComparison.busy = false
         this.companyComparison.error = error.message
@@ -982,6 +1077,19 @@ export default {
 .comparison-kpis .summary-chip span { color:#64748b; font-size:12px; }
 .comparison-kpis .summary-chip strong { color:#17233d; font-size:18px; }
 .comparison-assumptions { display:flex; flex-wrap:wrap; gap:8px 18px; margin:14px 0; padding:10px 12px; border-radius:10px; background:#f8f3fb; color:#475569; font-size:13px; }
+.comparison-tabs { display:flex; gap:6px; margin:0 0 12px; padding:4px; width:max-content; max-width:100%; border:1px solid #e7ebf2; border-radius:12px; background:#f8fafc; }
+.comparison-tab { display:flex; align-items:center; gap:8px; border:0; border-radius:9px; padding:9px 12px; background:transparent; color:#64748b; font:inherit; font-weight:800; cursor:pointer; }
+.comparison-tab span { min-width:24px; padding:2px 7px; border-radius:999px; background:#e7ebf2; color:#475569; font-size:12px; text-align:center; }
+.comparison-tab--active { background:#fff; color:#17233d; box-shadow:0 2px 8px rgba(23,35,61,.08); }
+.comparison-tab--active span { background:#f3e8f7; color:#702283; }
+.comparison-panel { min-height:120px; }
+.comparison-price-table { max-height:420px; overflow:auto; border:1px solid #e7ebf2; border-radius:12px; background:#fff; }
+.comparison-price-row { display:grid; grid-template-columns:minmax(260px,1.8fr) minmax(150px,1fr) 90px 120px 145px; gap:12px; align-items:center; min-width:850px; padding:10px 12px; border-top:1px solid #eef2f8; color:#334155; font-size:13px; }
+.comparison-price-row:first-child { border-top:0; }
+.comparison-price-row--head { position:sticky; top:0; z-index:1; background:#f8fafc; color:#64748b; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; }
+.comparison-empty { display:grid; gap:6px; padding:22px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff; text-align:center; }
+.comparison-empty strong { color:#17233d; }
+.comparison-empty span { color:#64748b; line-height:1.5; }
 .comparison-route-list { display:grid; border:1px solid #e7ebf2; border-radius:12px; overflow:hidden; }
 .comparison-route-row { display:grid; grid-template-columns:minmax(0,1fr) 180px 150px; gap:12px; align-items:center; padding:10px 12px; background:#fff; border-top:1px solid #eef2f8; }
 .comparison-route-row:first-child { border-top:0; }
@@ -1103,6 +1211,8 @@ export default {
   .crm-focus-card, .detail-sections, .card-grid { grid-template-columns:1fr; }
   .comparison-kpis { grid-template-columns:1fr 1fr; }
   .comparison-route-row { grid-template-columns:1fr; }
+  .comparison-tabs { width:100%; }
+  .comparison-tab { flex:1; justify-content:center; }
   .supplier-driver-grid,
   .supplier-driver-card__head { grid-template-columns:1fr; display:grid; }
   .overview-strip { grid-template-columns:repeat(2,minmax(0,1fr)); }
