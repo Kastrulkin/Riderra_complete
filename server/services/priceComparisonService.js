@@ -365,10 +365,14 @@ function createAdapter(source, dependencies = {}) {
 function smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType) {
   const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
   const internal = normalizeTextKey(riderraVehicleType)
-  if (external === 'standard_5_seat') return /(standard|sedan|class car|saloon)/i.test(internal) && !/(executive|business|first)/i.test(internal)
+  if (external === 'standard_5_seat') {
+    return /(standard class car|standard sedan|sedan|saloon)/i.test(internal)
+      && !/(executive|business|first|mini.?van|mpv|mini.?bus|bus|coach|e-vehicle|electric)/i.test(internal)
+  }
   if (external === 'lengthened_5_seat') return /(executive|business)/i.test(internal)
   if (external === 'standard_7_seat') return /(minivan|mpv|people carrier|6 seat|7 seat)/i.test(internal)
-  if (external === '8_seat_bus') return /(8 seat|large people|van|mini.?bus)/i.test(internal)
+  if (external === '8_seat_bus') return /(standard minivan 8|8 seat|large people|standard mini.?bus)/i.test(internal)
+  if (external === '10_seat_bus') return /(standard mini.?bus 9|9 seat|10 seat)/i.test(internal)
   return external === smartRydeVehicleKey(internal)
 }
 
