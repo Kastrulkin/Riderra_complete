@@ -93,7 +93,8 @@
             <div v-for="mapping in comparisonPlaceMappings" :key="mapping.id" class="review-row">
               <strong>{{ mapping.inputText }}</strong>
               <div class="review-candidates">
-                <button v-for="candidate in mappingCandidates(mapping)" :key="candidate.id" class="btn btn--small" @click="approvePlaceMapping(mapping, candidate)">{{ candidate.label }}</button>
+                <button class="btn btn--small" :disabled="semanticMappingBusyId === mapping.id" @click="suggestPlaceMapping(mapping)">{{ semanticMappingBusyId === mapping.id ? t.semanticSearching : t.semanticSuggest }}</button>
+                <button v-for="candidate in mappingCandidates(mapping)" :key="candidate.id" class="btn btn--small" :class="{ 'btn--recommended': semanticRecommendedId(mapping) === candidate.id }" @click="approvePlaceMapping(mapping, candidate)">{{ candidate.label }}<span v-if="semanticCandidateScore(mapping, candidate.id) !== null"> · {{ semanticCandidateScore(mapping, candidate.id) }}%</span></button>
               </div>
             </div>
           </div>
@@ -432,6 +433,7 @@ export default {
     selectedComparisonSourceId: '',
     selectedComparisonRunId: '',
     comparisonBusy: false,
+    semanticMappingBusyId: '',
     comparisonPollTimer: null,
     selectedCounterparties: [],
     selectedSuppliers: [],
@@ -489,6 +491,8 @@ export default {
             downloadExcel: 'Скачать Excel',
             reviewPlaces: 'Проверьте точки маршрута',
             reviewPlacesHint: 'SmartRyde нашёл несколько вариантов. Выберите точный адрес, прежде чем продолжить.',
+            semanticSuggest: 'Подобрать по смыслу',
+            semanticSearching: 'Сравниваю…',
             reviewVehicles: 'Проверьте классы автомобилей',
             reviewVehiclesHint: 'Подтвердите, как внешний класс соответствует классу в прайсе Riderra.',
             mapTo: 'сопоставить с',
@@ -577,6 +581,8 @@ export default {
             downloadExcel: 'Download Excel',
             reviewPlaces: 'Review route places',
             reviewPlacesHint: 'The provider returned several candidates. Select the exact place before continuing.',
+            semanticSuggest: 'Rank semantically',
+            semanticSearching: 'Comparing…',
             reviewVehicles: 'Review vehicle classes',
             reviewVehiclesHint: 'Confirm how the external vehicle class maps to the Riderra price class.',
             mapTo: 'map to',
@@ -996,6 +1002,16 @@ export default {
     mappingCandidates (mapping) {
       try { return JSON.parse(mapping.candidatesJson || '[]') } catch (_) { return [] }
     },
+    semanticSuggestions (mapping) {
+      try { return JSON.parse(mapping.semanticSuggestionsJson || '{}') } catch (_) { return {} }
+    },
+    semanticRecommendedId (mapping) {
+      return this.semanticSuggestions(mapping).recommended?.id || ''
+    },
+    semanticCandidateScore (mapping, candidateId) {
+      const row = (this.semanticSuggestions(mapping).candidates || []).find((candidate) => candidate.id === candidateId)
+      return row ? Math.round(Number(row.semanticScore || 0) * 100) : null
+    },
     async configureSmartRyde () {
       this.comparisonBusy = true
       try {
@@ -1069,6 +1085,13 @@ export default {
         body: JSON.stringify({ externalPlaceId: candidate.id, externalLabel: candidate.label })
       })
       await this.loadComparisonRun(this.selectedComparisonRunId)
+    },
+    async suggestPlaceMapping (mapping) {
+      this.semanticMappingBusyId = mapping.id
+      try {
+        await this.fetchJson(`/api/admin/pricing/comparison-mappings/places/${mapping.id}/semantic-suggestions`, { method: 'POST', headers: this.headers() })
+        await this.loadComparisonRun(this.selectedComparisonRunId)
+      } finally { this.semanticMappingBusyId = '' }
     },
     async approveVehicleMapping (quote) {
       await this.fetchJson('/api/admin/pricing/comparison-mappings/vehicles', {
@@ -1858,6 +1881,12 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.btn--recommended {
+  border-color: #16a34a;
+  background: #ecfdf3;
+  color: #166534;
 }
 
 .comparison-head,

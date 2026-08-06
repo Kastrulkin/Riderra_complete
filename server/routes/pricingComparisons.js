@@ -6,6 +6,11 @@ const {
   nextScheduledServiceAt
 } = require('../services/priceComparisonService')
 const { buildPriceComparisonWorkbook } = require('../services/priceComparisonExportService')
+const {
+  backfillApprovedPlaceMappings,
+  enabled: semanticMatchingEnabled,
+  suggestPlaceCandidates
+} = require('../services/placeSemanticMatchingService')
 
 function parseJson(value, fallback) {
   try { return value ? JSON.parse(value) : fallback } catch (_) { return fallback }
@@ -284,6 +289,44 @@ function registerPricingComparisonRoutes(app, dependencies) {
       data: { externalPlaceId, externalLabel, status: 'approved', approvedAt: new Date(), approvedByUserId: req.actorContext.actorId || null }
     })
     res.json(row)
+  })
+
+  app.get('/api/admin/pricing/place-embeddings/status', ...canRead, async (req, res) => {
+    try {
+      const [extensionRows, canonicalPlaces, readyEmbeddings] = await Promise.all([
+        prisma.$queryRawUnsafe("SELECT installed_version FROM pg_available_extensions WHERE name = 'vector'"),
+        prisma.canonicalTransferPlace.count({ where: { tenantId: req.actorContext.tenantId } }),
+        prisma.$queryRawUnsafe('SELECT COUNT(*)::int AS count FROM "CanonicalTransferPlaceEmbedding" embedding JOIN "CanonicalTransferPlace" place ON place.id = embedding."canonicalPlaceId" WHERE place."tenantId" = $1 AND embedding.status = \'ready\'', req.actorContext.tenantId)
+      ])
+      res.json({ enabled: semanticMatchingEnabled(), provider: 'gigachat', model: process.env.PRICING_EMBEDDINGS_MODEL || 'EmbeddingsGigaR', vectorExtension: extensionRows[0]?.installed_version || null, canonicalPlaces, readyEmbeddings: readyEmbeddings[0]?.count || 0, mode: 'recommendations_only' })
+    } catch (error) {
+      res.status(503).json({ enabled: semanticMatchingEnabled(), error: error.message || 'Embedding storage is unavailable' })
+    }
+  })
+
+  app.post('/api/admin/pricing/comparison-mappings/places/:id/semantic-suggestions', ...canManage, async (req, res) => {
+    try {
+      const mapping = await prisma.priceComparisonPlaceMap.findFirst({ where: { id: req.params.id, tenantId: req.actorContext.tenantId } })
+      if (!mapping) return res.status(404).json({ error: 'Place mapping not found' })
+      const suggestions = await suggestPlaceCandidates(mapping)
+      const row = await prisma.priceComparisonPlaceMap.update({ where: { id: mapping.id }, data: { semanticSuggestionsJson: JSON.stringify(suggestions), semanticSuggestedAt: new Date(), semanticModel: suggestions.model, semanticStatus: suggestions.recommended ? 'suggested' : 'needs_review' } })
+      await writeAuditLog({ tenantId: req.actorContext.tenantId, actorId: req.actorContext.actorId, actorRole: req.actorContext.actorRole, action: 'pricing.place_mapping.semantic_suggest', resource: 'price_comparison_place_map', resourceId: mapping.id, traceId: req.actorContext.traceId, decision: 'recommendation_only', result: 'ok', context: { model: suggestions.model, candidateCount: suggestions.candidates.length, recommendedExternalPlaceId: suggestions.recommended?.id || null, mappingStatus: row.status } })
+      res.json({ mapping: row, suggestions })
+    } catch (error) {
+      console.error('Error creating semantic place suggestions:', error)
+      res.status(503).json({ error: error.message || 'Semantic suggestions are unavailable' })
+    }
+  })
+
+  app.post('/api/admin/pricing/place-embeddings/backfill', ...canManage, async (req, res) => {
+    try {
+      const result = await backfillApprovedPlaceMappings({ prisma, tenantId: req.actorContext.tenantId, sourceId: req.body?.sourceId || null, limit: req.body?.limit || 100 })
+      await writeAuditLog({ tenantId: req.actorContext.tenantId, actorId: req.actorContext.actorId, actorRole: req.actorContext.actorRole, action: 'pricing.place_embeddings.backfill', resource: 'canonical_transfer_places', traceId: req.actorContext.traceId, decision: 'human_approved', result: 'ok', context: result })
+      res.json(result)
+    } catch (error) {
+      console.error('Error backfilling place embeddings:', error)
+      res.status(503).json({ error: error.message || 'Embedding backfill failed' })
+    }
   })
 
   app.put('/api/admin/pricing/comparison-mappings/vehicles', ...canManage, async (req, res) => {

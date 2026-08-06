@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:0.8.0-pg16-trixie
     ports:
       - "55432:5432"
     environment:
@@ -37,6 +37,12 @@ services:
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
+      - GIGACHAT_CLIENT_ID=${GIGACHAT_CLIENT_ID}
+      - GIGACHAT_CLIENT_SECRET=${GIGACHAT_CLIENT_SECRET}
+      - GIGACHAT_CA_BUNDLE=${GIGACHAT_CA_BUNDLE}
+      - GIGACHAT_SSL_VERIFY=${GIGACHAT_SSL_VERIFY:-true}
+      - PRICING_EMBEDDINGS_ENABLED=${PRICING_EMBEDDINGS_ENABLED:-false}
+      - PRICING_EMBEDDINGS_MODEL=${PRICING_EMBEDDINGS_MODEL:-EmbeddingsGigaR}
     volumes:
       - ./data:/app/data
     restart: unless-stopped

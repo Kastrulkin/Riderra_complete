@@ -8,64 +8,66 @@ datasource db {
 }
 
 model Tenant {
-  id                      String                          @id @default(cuid())
-  createdAt               DateTime                        @default(now())
-  updatedAt               DateTime                        @updatedAt
-  code                    String                          @unique
-  name                    String
-  isActive                Boolean                         @default(true)
-  memberships             TenantMembership[]
-  idempotencyKeys         IdempotencyKey[]
-  auditLogs               AuditLog[]
-  approvals               HumanApproval[]
-  orders                  Order[]
-  orderQualitySignals     OrderQualitySignal[]
-  orderStatusEvents       OrderStatusHistory[]
-  orderChangeLogs         OrderChangeLog[]
-  pricingRows             CityPricing[]
-  counterpartyRules       CounterpartyPriceRule[]
-  drivers                 Driver[]
-  driverRoutes            DriverRoute[]
-  cityRoutes              CityRoute[]
-  driverCityRoutes        DriverCityRoute[]
-  requests                Request[]
-  reviews                 Review[]
-  customerCompanies       CustomerCompany[]
-  customerContacts        CustomerContact[]
-  crmCompanies            CrmCompany[]
-  crmContacts             CrmContact[]
-  opsEventDrafts          OpsEventDraft[]
-  opsEvents               OpsEvent[]
-  driverBlocks            DriverUnavailability[]
-  opsTasks                OpsTask[]
-  orderAdjustments        OrderAdjustment[]
-  telegramLinks           TelegramLink[]
-  fleetVehicles           FleetVehicle[]
-  chatTasks               ChatTask[]
-  chatMessages            ChatMessage[]
-  chatAgentConfigs        ChatAgentConfig[]
-  chatAgentVersions       ChatAgentVersion[]
-  agentRuns               AgentRun[]
-  agentSandboxSessions    AgentSandboxSession[]
-  promptTemplates         PromptTemplate[]
-  aiLearningEvents        AiLearningEvent[]
-  vpnProfiles             VpnProfile[]
-  vpnAccessGrants         VpnAccessGrant[]
-  wikiPages               WikiPage[]
-  complaintCases          ComplaintCase[]
-  complaintMessages       ComplaintMessage[]
-  complaintActivities     ComplaintActivity[]
-  complaintEvidence       ComplaintEvidence[]
-  providerTripEvents      ProviderTripEvent[]
-  complaintRules          CounterpartyComplaintRule[]
-  priceComparisonSources  PriceComparisonSource[]
-  priceComparisonRuns     PriceComparisonRun[]
-  priceComparisonQuotes   PriceComparisonQuote[]
-  priceComparisonResults  PriceComparisonResult[]
-  priceComparisonPlaces   PriceComparisonPlaceMap[]
-  priceComparisonVehicles PriceComparisonVehicleMap[]
-  externalPriceSnapshots  ExternalTransferPriceSnapshot[]
-  geoZoneBenchmarkPoints  GeoZoneBenchmarkPoint[]
+  id                            String                          @id @default(cuid())
+  createdAt                     DateTime                        @default(now())
+  updatedAt                     DateTime                        @updatedAt
+  code                          String                          @unique
+  name                          String
+  isActive                      Boolean                         @default(true)
+  memberships                   TenantMembership[]
+  idempotencyKeys               IdempotencyKey[]
+  auditLogs                     AuditLog[]
+  approvals                     HumanApproval[]
+  orders                        Order[]
+  orderQualitySignals           OrderQualitySignal[]
+  orderStatusEvents             OrderStatusHistory[]
+  orderChangeLogs               OrderChangeLog[]
+  pricingRows                   CityPricing[]
+  counterpartyRules             CounterpartyPriceRule[]
+  drivers                       Driver[]
+  driverRoutes                  DriverRoute[]
+  cityRoutes                    CityRoute[]
+  driverCityRoutes              DriverCityRoute[]
+  requests                      Request[]
+  reviews                       Review[]
+  customerCompanies             CustomerCompany[]
+  customerContacts              CustomerContact[]
+  crmCompanies                  CrmCompany[]
+  crmContacts                   CrmContact[]
+  opsEventDrafts                OpsEventDraft[]
+  opsEvents                     OpsEvent[]
+  driverBlocks                  DriverUnavailability[]
+  opsTasks                      OpsTask[]
+  orderAdjustments              OrderAdjustment[]
+  telegramLinks                 TelegramLink[]
+  fleetVehicles                 FleetVehicle[]
+  chatTasks                     ChatTask[]
+  chatMessages                  ChatMessage[]
+  chatAgentConfigs              ChatAgentConfig[]
+  chatAgentVersions             ChatAgentVersion[]
+  agentRuns                     AgentRun[]
+  agentSandboxSessions          AgentSandboxSession[]
+  promptTemplates               PromptTemplate[]
+  aiLearningEvents              AiLearningEvent[]
+  vpnProfiles                   VpnProfile[]
+  vpnAccessGrants               VpnAccessGrant[]
+  wikiPages                     WikiPage[]
+  complaintCases                ComplaintCase[]
+  complaintMessages             ComplaintMessage[]
+  complaintActivities           ComplaintActivity[]
+  complaintEvidence             ComplaintEvidence[]
+  providerTripEvents            ProviderTripEvent[]
+  complaintRules                CounterpartyComplaintRule[]
+  priceComparisonSources        PriceComparisonSource[]
+  priceComparisonRuns           PriceComparisonRun[]
+  priceComparisonQuotes         PriceComparisonQuote[]
+  priceComparisonResults        PriceComparisonResult[]
+  priceComparisonPlaces         PriceComparisonPlaceMap[]
+  priceComparisonVehicles       PriceComparisonVehicleMap[]
+  externalPriceSnapshots        ExternalTransferPriceSnapshot[]
+  geoZoneBenchmarkPoints        GeoZoneBenchmarkPoint[]
+  canonicalTransferPlaces       CanonicalTransferPlace[]
+  canonicalTransferPlaceAliases CanonicalTransferPlaceAlias[]
 }
 
 model TenantMembership {
@@ -832,6 +834,7 @@ model PriceComparisonSource {
   placeMappings           PriceComparisonPlaceMap[]
   vehicleMappings         PriceComparisonVehicleMap[]
   externalPriceSnapshots  ExternalTransferPriceSnapshot[]
+  canonicalPlaceAliases   CanonicalTransferPlaceAlias[]
 
   @@unique([tenantId, adapterKey])
   @@index([tenantId, isActive, name])
@@ -957,24 +960,76 @@ model PriceComparisonResult {
 }
 
 model PriceComparisonPlaceMap {
-  id               String                @id @default(cuid())
-  tenantId         String
-  sourceId         String
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  inputText        String
-  normalizedInput  String
-  externalPlaceId  String?
-  externalLabel    String?
-  status           String                @default("needs_review")
-  candidatesJson   String?
-  approvedByUserId String?
-  approvedAt       DateTime?
-  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  source           PriceComparisonSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  id                      String                @id @default(cuid())
+  tenantId                String
+  sourceId                String
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  inputText               String
+  normalizedInput         String
+  externalPlaceId         String?
+  externalLabel           String?
+  status                  String                @default("needs_review")
+  candidatesJson          String?
+  approvedByUserId        String?
+  approvedAt              DateTime?
+  semanticSuggestionsJson String?
+  semanticSuggestedAt     DateTime?
+  semanticModel           String?
+  semanticStatus          String                @default("not_indexed")
+  tenant                  Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source                  PriceComparisonSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
 
   @@unique([sourceId, normalizedInput])
   @@index([tenantId, sourceId, status])
+}
+
+model CanonicalTransferPlace {
+  id             String                        @id @default(cuid())
+  tenantId       String
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  canonicalKey   String
+  name           String
+  normalizedName String
+  searchText     String
+  placeType      String                        @default("unknown")
+  country        String?
+  city           String?
+  airportIata    String?
+  latitude       Float?
+  longitude      Float?
+  status         String                        @default("candidate")
+  tenant         Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  aliases        CanonicalTransferPlaceAlias[]
+
+  @@unique([tenantId, canonicalKey])
+  @@index([tenantId, normalizedName])
+  @@index([tenantId, country, city])
+  @@index([tenantId, airportIata])
+}
+
+model CanonicalTransferPlaceAlias {
+  id                 String                 @id @default(cuid())
+  tenantId           String
+  canonicalPlaceId   String
+  sourceId           String
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  externalPlaceId    String
+  label              String
+  normalizedLabel    String
+  description        String?
+  status             String                 @default("verified")
+  confidence         Float?
+  verificationMethod String?
+  tenant             Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  canonicalPlace     CanonicalTransferPlace @relation(fields: [canonicalPlaceId], references: [id], onDelete: Cascade)
+  source             PriceComparisonSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalPlaceId])
+  @@index([tenantId, normalizedLabel])
+  @@index([canonicalPlaceId])
 }
 
 model PriceComparisonVehicleMap {
