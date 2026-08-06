@@ -378,7 +378,15 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
     where: { sourceId_normalizedInput: { sourceId: source.id, normalizedInput } }
   })
   if (existing?.status === 'approved' && existing.externalPlaceId && existing.externalLabel) {
-    return { ok: true, id: existing.externalPlaceId, label: existing.externalLabel, mapping: existing }
+    return { ok: true, id: existing.externalPlaceId, label: existing.externalLabel, mapping: existing, externalRequest: false }
+  }
+  if (existing?.status === 'needs_review') {
+    return {
+      ok: false,
+      mapping: existing,
+      candidates: safeJsonParse(existing.candidatesJson, []),
+      externalRequest: false
+    }
   }
 
   const candidates = await adapter.resolvePlace(inputText, relatedPlaceId)
@@ -411,8 +419,8 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
     }
   })
   return autoApprove
-    ? { ok: true, id: selected.id, label: selected.label, mapping }
-    : { ok: false, mapping, candidates }
+    ? { ok: true, id: selected.id, label: selected.label, mapping, externalRequest: true }
+    : { ok: false, mapping, candidates, externalRequest: true }
 }
 
 async function resolveBenchmarkPlace({ prisma, tenantId, zoneName, endpoint }) {
@@ -561,13 +569,13 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom })
     if (!pickup.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
-      return
+      return !!pickup.externalRequest
     }
     const dropoff = await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' })
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id })
     if (!dropoff.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })))
-      return
+      return !!pickup.externalRequest || !!dropoff.externalRequest
     }
 
     const routeKey = externalRouteKey(representative)
@@ -622,6 +630,7 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
     for (const row of pending) {
       await applyFetchedQuotesToRow({ prisma, run, source, row, policy, pickup, dropoff, fetched, quotedAt })
     }
+    return true
   } catch (error) {
     const status = error instanceof NoQuotesError ? 'no_quote' : 'failed'
     await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status, error: String(error.message || error).slice(0, 1000) })))
@@ -631,6 +640,7 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
         data: { status: 'ignored', error: null }
       })
     }
+    return true
   }
 }
 
@@ -696,9 +706,9 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
     const workers = Array.from({ length: concurrency }, async () => {
       while (cursor < routeGroups.length) {
         const routeRows = routeGroups[cursor++]
-        await processRouteGroup({ prisma, run, source, adapter, rows: routeRows, policy, passengers })
+        const usedExternalRequest = await processRouteGroup({ prisma, run, source, adapter, rows: routeRows, policy, passengers })
         await refreshRunCounters(prisma, run.id)
-        if (source.requestDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, source.requestDelayMs))
+        if (usedExternalRequest && source.requestDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, source.requestDelayMs))
       }
     })
     await Promise.all(workers)
@@ -747,6 +757,7 @@ module.exports = {
   parseSmartRydeQuotes,
   placeCandidateMatches,
   refreshRunCounters,
+  resolveStoredPlace,
   selectPlaceCandidate,
   smartRydeVehicleMatches
 }

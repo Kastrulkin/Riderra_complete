@@ -10,6 +10,7 @@ const {
   nextScheduledServiceAt,
   parseSmartRydeQuotes,
   placeCandidateMatches,
+  resolveStoredPlace,
   selectPlaceCandidate,
   smartRydeVehicleMatches
 } = require('../../server/services/priceComparisonService')
@@ -70,6 +71,32 @@ test('resume treats compared and no-quote rows as final evidence', async () => {
   const result = await hasFinalComparison(prisma, 'run-1', 'price-1')
   assert.equal(result.id, 'quote-1')
   assert.deepEqual(receivedWhere.status, { in: ['compared', 'no_quote'] })
+})
+
+test('resume does not repeat place search for a known ambiguous mapping', async () => {
+  const existing = {
+    id: 'mapping-1',
+    status: 'needs_review',
+    candidatesJson: JSON.stringify([{ id: 'candidate-1', label: 'Ambiguous place' }])
+  }
+  const prisma = {
+    priceComparisonPlaceMap: {
+      findUnique: async () => existing
+    }
+  }
+  const adapter = {
+    resolvePlace: async () => { throw new Error('should not be called') }
+  }
+  const result = await resolveStoredPlace({
+    prisma,
+    source: { id: 'source-1' },
+    adapter,
+    tenantId: 'tenant-1',
+    inputText: 'Ambiguous place'
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.externalRequest, false)
+  assert.equal(result.candidates.length, 1)
 })
 
 test('place auto-approval rejects semantically wrong single results', () => {
