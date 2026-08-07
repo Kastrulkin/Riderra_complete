@@ -272,9 +272,24 @@ class SuntransfersAdapter {
     if (![301, 302, 303, 307, 308].includes(first.status)) throw new Error(`Suntransfers quote search failed: HTTP ${first.status}`)
     const location = first.headers.get('location')
     if (!location) throw new Error('Suntransfers quote search did not return a public result URL')
-    const cookie = extractSetCookies(first.headers).map((raw) => String(raw).split(';')[0]).join('; ')
-    const resultUrl = new URL(location, this.bookingUrl).toString()
-    const result = await this.request(resultUrl, { headers: { ...(cookie ? { Cookie: cookie } : {}), Referer: requestUrl } })
+    const cookies = new Map()
+    const saveCookies = (response) => extractSetCookies(response.headers).forEach((raw) => {
+      const pair = String(raw).split(';')[0]
+      const separator = pair.indexOf('=')
+      if (separator > 0) cookies.set(pair.slice(0, separator), pair.slice(separator + 1))
+    })
+    saveCookies(first)
+    let resultUrl = new URL(location, this.bookingUrl).toString()
+    let result
+    for (let redirect = 0; redirect < 4; redirect++) {
+      const cookie = Array.from(cookies.entries()).map(([key, value]) => `${key}=${value}`).join('; ')
+      result = await this.request(resultUrl, { headers: { ...(cookie ? { Cookie: cookie } : {}), Referer: requestUrl } })
+      saveCookies(result)
+      if (![301, 302, 303, 307, 308].includes(result.status)) break
+      const nextLocation = result.headers.get('location')
+      if (!nextLocation) break
+      resultUrl = new URL(nextLocation, resultUrl).toString()
+    }
     if (!result.ok) throw new Error(`Suntransfers public results failed: HTTP ${result.status}`)
     const html = await result.text()
     const quotes = parseSuntransfersQuotes(html)
