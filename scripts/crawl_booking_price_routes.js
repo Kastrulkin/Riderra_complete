@@ -63,7 +63,7 @@ async function main() {
     .sort((left, right) => Number(right.openCity) - Number(left.openCity))
   const scopeType = onlyOpenCities ? 'booking_file_open_cities' : 'booking_file_all_routes'
   let run = await prisma.priceComparisonRun.findFirst({
-    where: { tenantId, sourceId: source.id, status: { in: ['running', 'needs_review', 'failed'] }, scopeJson: { contains: `"type":"${scopeType}"` } },
+    where: { tenantId, sourceId: source.id, status: { in: ['running', 'needs_review', 'failed'] }, finishedAt: null, scopeJson: { contains: `"type":"${scopeType}"` } },
     orderBy: { createdAt: 'desc' }
   })
   if (!run) {

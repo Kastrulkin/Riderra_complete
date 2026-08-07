@@ -34,7 +34,7 @@ async function main() {
     }
   })
   let run = await prisma.priceComparisonRun.findFirst({
-    where: { tenantId, sourceId: source.id, status: { in: ['running', 'needs_review', 'failed'] }, scopeJson: { contains: '"type":"riderra_active_price_book"' } },
+    where: { tenantId, sourceId: source.id, status: { in: ['running', 'needs_review', 'failed'] }, finishedAt: null, scopeJson: { contains: '"type":"riderra_active_price_book"' } },
     orderBy: { createdAt: 'desc' }
   })
   if (!run) {
