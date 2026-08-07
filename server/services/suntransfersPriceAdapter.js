@@ -1,3 +1,5 @@
+const dns = require('dns')
+
 const SUNTRANSFERS_DEFAULTS = Object.freeze({
   name: 'Suntransfers',
   adapterKey: 'suntransfers',
@@ -257,4 +259,3 @@ module.exports = {
   encodeGateway,
   parseSuntransfersQuotes
 }
-const dns = require('dns')
