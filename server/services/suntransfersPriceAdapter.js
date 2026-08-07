@@ -210,9 +210,25 @@ class SuntransfersAdapter {
     }
     const gateway = decodeGateway(relatedPlaceId)
     if (!gateway) return []
-    const query = new URLSearchParams({ search_term: String(inputText || '').trim(), max_results: '20', cache_version: 'v1.0' })
-    const response = await this.request(`${this.locationApiUrl}/gateways/${gateway.id}/destinations?${query}`)
-    if (!response.ok) throw new Error(`Suntransfers destination search failed: HTTP ${response.status}`)
+    const input = String(inputText || '').trim()
+    const searchTerms = Array.from(new Set([
+      input,
+      input.replace(/\b(?:district|thailand)\b/gi, ' ').replace(/\s+/g, ' ').trim(),
+      input.replace(/[-']/g, ' ').replace(/\s+/g, ' ').trim()
+    ].filter(Boolean)))
+    let response
+    let lastError
+    for (const searchTerm of searchTerms) {
+      const query = new URLSearchParams({ search_term: searchTerm, max_results: '20', cache_version: 'v1.0' })
+      try {
+        response = await this.request(`${this.locationApiUrl}/gateways/${gateway.id}/destinations?${query}`)
+        if (response.ok) break
+        lastError = new Error(`Suntransfers destination search failed: HTTP ${response.status}`)
+      } catch (error) {
+        lastError = error
+      }
+    }
+    if (!response?.ok) throw lastError || new Error('Suntransfers destination search failed')
     const payload = await response.json()
     const matches = [...(payload.locations || []), ...(payload.hotels || [])]
       .filter((row) => candidateMatches(inputText, row))
