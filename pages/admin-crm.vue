@@ -782,6 +782,9 @@ export default {
     comparisonScopePairs() {
       try { return JSON.parse(this.companyComparison.run?.scopeJson || '{}').routePairs || [] } catch (_) { return [] }
     },
+    comparisonRunScopeType(run) {
+      try { return JSON.parse(run?.scopeJson || '{}').type || '' } catch (_) { return '' }
+    },
     async loadCompanyComparison(companyId) {
       this.companyComparison = { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
       try {
@@ -800,7 +803,10 @@ export default {
         if (!runsRes.ok) throw new Error(runsData.error || 'Не удалось загрузить запуски')
         if (!quotesRes.ok) throw new Error(quotesData.error || 'Не удалось загрузить сохранённый прайс')
         this.companyComparison.externalQuotes = quotesData.rows || []
-        const run = runsData.rows?.[0] || null
+        const run = (runsData.rows || []).find((row) => this.comparisonRunScopeType(row) === 'riderra_active_price_book')
+          || (runsData.rows || []).find((row) => this.comparisonRunScopeType(row) !== 'booking_historical_workbook')
+          || runsData.rows?.[0]
+          || null
         this.companyComparison.run = run
         if (run) await this.loadCompanyComparisonRun(run.id)
         const opportunityRun = (runsData.rows || []).find((row) => Number(row.opportunitiesCount) > 0)
