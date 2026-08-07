@@ -127,8 +127,16 @@ class TransferzAdapter {
     url.searchParams.set('size', '20')
     url.searchParams.set('mode', 'FULL')
     const response = await this.request(url)
-    const rows = await response.json()
-    return (Array.isArray(rows) ? rows : []).filter((row) => candidateMatches(query, row)).map((row) => ({
+    const payload = await response.json()
+    const candidates = (Array.isArray(payload) ? payload : []).filter((row) => candidateMatches(query, row))
+    const iata = query.match(/\(([A-Z]{3})\)/)?.[1] || query.match(/\b([A-Z]{3})\b/)?.[1]
+    const exactHubs = candidates.filter((row) => row.hubId && (
+      (iata && new RegExp(`\\b${iata}\\b`, 'i').test(`${row.title} ${row.formattedAddress}`))
+      || (/\b(?:port|station)\b/i.test(query) && normalizeKey(row.title) === normalizeKey(query))
+    ))
+    const uniqueExactHubs = Array.from(new Map(exactHubs.map((row) => [String(row.hubId), row])).values())
+    const selectedRows = uniqueExactHubs.length === 1 ? uniqueExactHubs : candidates
+    return selectedRows.map((row) => ({
       id: encodePlace(row),
       label: row.title || row.formattedAddress,
       description: row.formattedAddress || row.subtitle || row.title,

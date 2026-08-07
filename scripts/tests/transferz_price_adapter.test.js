@@ -32,6 +32,22 @@ test('Transferz place search prefers an exact IATA airport', () => {
   }), false)
 })
 
+test('Transferz adapter chooses the unique bookable hub for an exact IATA', async () => {
+  const adapter = new TransferzAdapter({}, {
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => [
+        { title: 'Los Angeles International Airport (LAX)', formattedAddress: 'LAX, World Way', type: 'AIRPORT', hubId: 36459 },
+        { title: 'LAX airport (LAX)', formattedAddress: 'LAX airport, World Way', type: 'ADDRESS', googlePlaceId: 'address-lax' }
+      ]
+    })
+  })
+  const rows = await adapter.resolvePlace('Los Angeles International Airport (LAX)')
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].hubId, 36459)
+})
+
 test('Transferz public quotes are normalized by category and capacity', () => {
   assert.deepEqual(normalizeQuotes([{ vehicleCategory: 'BUSINESS_SEDAN', passengerCapacity: 3, price: 96.333, currencyCode: 'usd', requestId: 42 }]), [{
     externalVehicleKey: 'business_sedan_3',
