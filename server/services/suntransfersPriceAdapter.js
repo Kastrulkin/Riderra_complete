@@ -1,4 +1,8 @@
 const https = require('https')
+const { SocksProxyAgent } = require('socks-proxy-agent')
+
+const outboundProxyUrl = String(process.env.SUNTRANSFERS_PROXY_URL || process.env.TELEGRAM_PROXY_URL || '').trim()
+const outboundProxyAgent = outboundProxyUrl ? new SocksProxyAgent(outboundProxyUrl) : null
 
 const SUNTRANSFERS_DEFAULTS = Object.freeze({
   name: 'Suntransfers',
@@ -97,7 +101,7 @@ function nativeFetch(url, options = {}) {
     const request = https.request(url, {
       method: options.method || 'GET',
       headers,
-      family: 4
+      ...(outboundProxyAgent ? { agent: outboundProxyAgent } : { family: 4 })
     }, (response) => {
       const chunks = []
       response.on('data', (chunk) => chunks.push(chunk))
