@@ -573,12 +573,13 @@ export default {
     },
     companyOpportunityRows() {
       const combinedRows = [...(this.companyComparison.rows || []), ...(this.companyComparison.historicalOpportunityRows || [])]
-      const seenQuotes = new Set()
+      const seenOpportunities = new Set()
       const priceRows = combinedRows
         .filter((row) => (row.result?.status || row.status) === 'opportunity')
         .filter((row) => {
-          if (seenQuotes.has(row.id)) return false
-          seenQuotes.add(row.id)
+          const key = [row.routeFrom, row.routeTo, row.requestedVehicleType, row.riderraCurrency, row.riderraSellPrice, row.clientSellPrice].join('\u0000')
+          if (seenOpportunities.has(key)) return false
+          seenOpportunities.add(key)
           return true
         })
         .map((row) => ({
