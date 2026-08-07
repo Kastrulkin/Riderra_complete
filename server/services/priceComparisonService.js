@@ -665,6 +665,12 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
 
 async function collectAdapterCatalog({ prisma, run, source, adapter, passengers }) {
   if (typeof adapter.collectCatalog !== 'function') return null
+  const scope = safeJsonParse(run.scopeJson, {})
+  if (scope.catalog?.complete) {
+    const snapshots = await prisma.externalTransferPriceSnapshot.findMany({ where: { runId: run.id } })
+    adapter.loadCatalogSnapshots(snapshots)
+    return scope.catalog
+  }
   const existing = await prisma.externalTransferPriceSnapshot.findMany({
     where: { runId: run.id },
     select: { sourceUrl: true }
@@ -707,11 +713,15 @@ async function collectAdapterCatalog({ prisma, run, source, adapter, passengers 
   })
   const snapshots = await prisma.externalTransferPriceSnapshot.findMany({ where: { runId: run.id } })
   adapter.loadCatalogSnapshots(snapshots)
-  const scope = safeJsonParse(run.scopeJson, {})
+  const catalog = {
+    ...stats,
+    complete: stats.errors.length === 0 && stats.collectedPages + stats.skippedPages === stats.totalPages,
+    errors: stats.errors.slice(0, 200)
+  }
   await prisma.priceComparisonRun.update({
     where: { id: run.id },
     data: {
-      scopeJson: JSON.stringify({ ...scope, catalog: { ...stats, errors: stats.errors.slice(0, 200) } }),
+      scopeJson: JSON.stringify({ ...scope, catalog }),
       error: stats.errors.length ? `Civitatis catalog: ${stats.errors.length} pages failed` : null
     }
   })
