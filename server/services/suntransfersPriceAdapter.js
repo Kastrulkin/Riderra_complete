@@ -1,4 +1,4 @@
-const dns = require('dns')
+const https = require('https')
 
 const SUNTRANSFERS_DEFAULTS = Object.freeze({
   name: 'Suntransfers',
@@ -87,6 +87,52 @@ function extractSetCookies(headers) {
   return combined ? combined.split(/,(?=\s*[^;,]+=)/) : []
 }
 
+function nativeFetch(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const rawBody = options.body == null ? null : String(options.body)
+    const headers = { ...(options.headers || {}) }
+    if (rawBody !== null && !Object.keys(headers).some((key) => key.toLowerCase() === 'content-length')) {
+      headers['Content-Length'] = Buffer.byteLength(rawBody)
+    }
+    const request = https.request(url, {
+      method: options.method || 'GET',
+      headers,
+      family: 4
+    }, (response) => {
+      const chunks = []
+      response.on('data', (chunk) => chunks.push(chunk))
+      response.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8')
+        const responseHeaders = {
+          get(name) {
+            const value = response.headers[String(name || '').toLowerCase()]
+            return Array.isArray(value) ? value.join(', ') : (value == null ? null : String(value))
+          },
+          getSetCookie() {
+            const value = response.headers['set-cookie']
+            return Array.isArray(value) ? value : (value ? [String(value)] : [])
+          }
+        }
+        resolve({
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          status: response.statusCode,
+          headers: responseHeaders,
+          text: async () => body,
+          json: async () => JSON.parse(body)
+        })
+      })
+    })
+    request.on('error', reject)
+    if (options.signal) {
+      const abort = () => request.destroy(new Error('Suntransfers request aborted'))
+      if (options.signal.aborted) abort()
+      else options.signal.addEventListener('abort', abort, { once: true })
+    }
+    if (rawBody !== null) request.write(rawBody)
+    request.end()
+  })
+}
+
 function candidateMatches(inputText, candidate) {
   const iata = String(inputText || '').match(/\(([A-Z]{3})\)/)?.[1]
   if (iata && candidate.iataCode === iata) return true
@@ -102,14 +148,11 @@ function candidateMatches(inputText, candidate) {
 
 class SuntransfersAdapter {
   constructor(config = {}, dependencies = {}) {
-    // The production host has no working IPv6 route to Suntransfers. Prefer a
-    // reachable address before starting the adapter's bounded request retries.
-    if (typeof dns.setDefaultResultOrder === 'function') dns.setDefaultResultOrder('ipv4first')
     this.baseUrl = String(config.baseUrl || SUNTRANSFERS_DEFAULTS.baseUrl).replace(/\/+$/, '')
     this.locationApiUrl = String(config.locationApiUrl || LOCATION_API_URL).replace(/\/+$/, '')
     this.bookingUrl = String(config.bookingUrl || BOOKING_URL).replace(/\/+$/, '')
     this.supportedCurrencies = config.supportedCurrencies || SUNTRANSFERS_DEFAULTS.supportedCurrencies
-    this.fetchImpl = dependencies.fetchImpl || global.fetch
+    this.fetchImpl = dependencies.fetchImpl || nativeFetch
     this.gateways = null
   }
 
@@ -257,5 +300,6 @@ module.exports = {
   decodeGateway,
   encodeDestination,
   encodeGateway,
+  nativeFetch,
   parseSuntransfersQuotes
 }
