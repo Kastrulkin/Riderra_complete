@@ -229,17 +229,31 @@
               </div>
 
               <div v-if="companyComparison.activeTab === 'prices'" class="comparison-panel" role="tabpanel">
+                <div v-if="companyExternalQuotes.length" class="comparison-price-tools">
+                  <input
+                    :value="companyComparison.quoteQuery"
+                    class="input"
+                    placeholder="Найти направление, город или класс"
+                    @input="setCompanyQuoteQuery($event.target.value)"
+                  />
+                  <span>Показано {{ pagedCompanyExternalQuotes.length }} из {{ filteredCompanyExternalQuotes.length }}</span>
+                </div>
                 <div v-if="companyExternalQuotes.length" class="comparison-price-table">
                   <div class="comparison-price-row comparison-price-row--head">
                     <div>Направление</div><div>Класс компании</div><div>Пассажиры</div><div>Цена</div><div>Получена</div>
                   </div>
-                  <div v-for="quote in companyExternalQuotes" :key="quote.id" class="comparison-price-row">
+                  <div v-for="quote in pagedCompanyExternalQuotes" :key="quote.id" class="comparison-price-row">
                     <div><strong>{{ quote.routeFrom }} → {{ quote.routeTo }}</strong></div>
                     <div>{{ quote.externalVehicleName }}</div>
                     <div>{{ quote.maxPassengers || '—' }}</div>
                     <div><strong>{{ formatMoney(quote.publicSellPrice, quote.currency) }}</strong></div>
                     <div>{{ formatDateTime(quote.quotedAt) }}</div>
                   </div>
+                </div>
+                <div v-if="companyExternalQuotes.length" class="comparison-price-pager">
+                  <button class="btn btn--ghost btn--small" :disabled="companyComparison.quotePage <= 1" @click="companyComparison.quotePage--">Назад</button>
+                  <span>Страница {{ companyComparison.quotePage }} из {{ companyQuotePageCount }}</span>
+                  <button class="btn btn--ghost btn--small" :disabled="companyComparison.quotePage >= companyQuotePageCount" @click="companyComparison.quotePage++">Дальше</button>
                 </div>
                 <div v-else class="comparison-empty">
                   <strong>Сохранённых публичных цен пока нет</strong>
@@ -460,7 +474,7 @@ export default {
       managerForm: { fullName: '', position: '', email: '', phone: '', website: '' },
       managerBusy: false,
       managerError: '',
-      companyComparison: { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', loading: false, busy: false, error: '', pollTimer: null }
+      companyComparison: { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, loading: false, busy: false, error: '', pollTimer: null }
     }
   },
   computed: {
@@ -544,6 +558,19 @@ export default {
       }
       return Array.from(latest.values())
     },
+    filteredCompanyExternalQuotes() {
+      const query = String(this.companyComparison.quoteQuery || '').trim().toLowerCase()
+      if (!query) return this.companyExternalQuotes
+      return this.companyExternalQuotes.filter((quote) => [quote.routeFrom, quote.routeTo, quote.externalVehicleName, quote.externalVehicleKey]
+        .some((value) => String(value || '').toLowerCase().includes(query)))
+    },
+    companyQuotePageCount() {
+      return Math.max(1, Math.ceil(this.filteredCompanyExternalQuotes.length / this.companyComparison.quotePageSize))
+    },
+    pagedCompanyExternalQuotes() {
+      const start = (this.companyComparison.quotePage - 1) * this.companyComparison.quotePageSize
+      return this.filteredCompanyExternalQuotes.slice(start, start + this.companyComparison.quotePageSize)
+    },
     companyOpportunityRows() {
       const combinedRows = [...(this.companyComparison.rows || []), ...(this.companyComparison.historicalOpportunityRows || [])]
       const seenQuotes = new Set()
@@ -605,6 +632,10 @@ export default {
       if (this.activeView === view) return
       this.activeView = view
       this.reload()
+    },
+    setCompanyQuoteQuery(value) {
+      this.companyComparison.quoteQuery = value
+      this.companyComparison.quotePage = 1
     },
     serverViewSegments() {
       if (this.activeView === 'clients') return this.mode === 'companies' ? ['client_company'] : ['client_contact']
@@ -741,13 +772,18 @@ export default {
       const policy = source?.pricingPolicy || {}
       if (policy.type === 'client_commission') return `${source?.name || 'Компания'} × ${(1 - Number(policy.commissionPercent || 0) / 100).toFixed(2)}`
       if (policy.type === 'percentage_discount') return `Riderra × ${(1 - Number(policy.discountPercent || 0) / 100).toFixed(2)}`
+      if (policy.type === 'sequential_deductions' && policy.basis === 'client_sell') {
+        const factors = (policy.deductions || []).map((value) => (1 - Number(value || 0) / 100).toFixed(2))
+        const total = (policy.deductions || []).reduce((factor, value) => factor * (1 - Number(value || 0) / 100), 1)
+        return `${source?.name || 'Компания'} × ${factors.join(' × ')} = ×${total.toFixed(2)}`
+      }
       return source?.formulaVersion || '—'
     },
     comparisonScopePairs() {
       try { return JSON.parse(this.companyComparison.run?.scopeJson || '{}').routePairs || [] } catch (_) { return [] }
     },
     async loadCompanyComparison(companyId) {
-      this.companyComparison = { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
+      this.companyComparison = { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
       try {
         const sourcesRes = await fetch('/api/admin/pricing/comparison-sources', { headers: this.authHeaders() })
         const sourcesData = await sourcesRes.json()
@@ -758,7 +794,7 @@ export default {
         this.companyComparison.source = source
         const [runsRes, quotesRes] = await Promise.all([
           fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=20`, { headers: this.authHeaders() }),
-          fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=5000`, { headers: this.authHeaders() })
+          fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=20000&compact=1`, { headers: this.authHeaders() })
         ])
         const [runsData, quotesData] = await Promise.all([runsRes.json(), quotesRes.json()])
         if (!runsRes.ok) throw new Error(runsData.error || 'Не удалось загрузить запуски')
@@ -785,7 +821,7 @@ export default {
     async loadCompanyExternalQuotes() {
       const sourceId = this.companyComparison.source?.id
       if (!sourceId) return
-      const res = await fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(sourceId)}&limit=5000`, { headers: this.authHeaders() })
+      const res = await fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(sourceId)}&limit=20000&compact=1`, { headers: this.authHeaders() })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Не удалось обновить сохранённый прайс')
       this.companyComparison.externalQuotes = data.rows || []
@@ -1199,6 +1235,9 @@ export default {
 .comparison-tab--active { background:#fff; color:#17233d; box-shadow:0 2px 8px rgba(23,35,61,.08); }
 .comparison-tab--active span { background:#f3e8f7; color:#702283; }
 .comparison-panel { min-height:120px; }
+.comparison-price-tools, .comparison-price-pager { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; color:#64748b; font-size:13px; }
+.comparison-price-tools .input { max-width:460px; }
+.comparison-price-pager { justify-content:flex-end; margin:10px 0 0; }
 .comparison-price-table { max-height:420px; overflow:auto; border:1px solid #e7ebf2; border-radius:12px; background:#fff; }
 .comparison-price-row { display:grid; grid-template-columns:minmax(260px,1.8fr) minmax(150px,1fr) 90px 120px 145px; gap:12px; align-items:center; min-width:850px; padding:10px 12px; border-top:1px solid #eef2f8; color:#334155; font-size:13px; }
 .comparison-price-row:first-child { border-top:0; }

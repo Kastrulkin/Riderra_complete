@@ -253,9 +253,17 @@ function registerPricingComparisonRoutes(app, dependencies) {
       }
       const rows = await prisma.externalTransferPriceSnapshot.findMany({
         where,
-        include: { source: { select: { id: true, name: true, adapterKey: true } } },
+        ...(req.query.compact === '1'
+          ? {
+              select: {
+                id: true, routeKey: true, routeFrom: true, routeTo: true, externalVehicleKey: true,
+                externalVehicleName: true, maxPassengers: true, publicSellPrice: true, currency: true,
+                quoteKind: true, quotedAt: true, serviceAt: true, sourceId: true, runId: true
+              }
+            }
+          : { include: { source: { select: { id: true, name: true, adapterKey: true } } } }),
         orderBy: { quotedAt: 'desc' },
-        take: Math.min(Math.max(Number(req.query.limit) || 100, 1), 5000)
+        take: Math.min(Math.max(Number(req.query.limit) || 100, 1), 20000)
       })
       res.json({ rows })
     } catch (error) {
