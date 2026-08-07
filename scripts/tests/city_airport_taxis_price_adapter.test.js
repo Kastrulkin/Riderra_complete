@@ -61,7 +61,7 @@ test('fetches a quote with exact public parameters and never posts a booking', a
     calls.push({ url: String(url), method: options.method || 'GET' })
     if (String(url).endsWith('/sitemap.xml')) return { ok: true, text: async () => '<sitemapindex><loc>https://city-airport-taxis.com/sitemap1.xml</loc></sitemapindex>' }
     if (String(url).endsWith('/sitemap1.xml')) return { ok: true, text: async () => '<urlset><loc>https://city-airport-taxis.com/airporttransfers/reservations/taxi-from-Athens-Airport-to-Athens-City-Centre</loc></urlset>' }
-    return { ok: true, text: async () => routeHtml }
+    return { ok: true, url: String(url), text: async () => routeHtml }
   }
   const adapter = new CityAirportTaxisAdapter({}, { fetchImpl })
   const pickup = (await adapter.resolvePlace('Athens International Airport (ATH)'))[0]
@@ -73,4 +73,19 @@ test('fetches a quote with exact public parameters and never posts a booking', a
   assert.match(calls.at(-1).url, /date1=19%2F08%2F2026/)
   assert.match(calls.at(-1).url, /time1=12%3A00/)
   assert.match(calls.at(-1).url, /pax1=1/)
+})
+
+test('classifies a stale sitemap redirect as unlisted coverage', async () => {
+  const fetchImpl = async (url) => {
+    if (String(url).endsWith('/sitemap.xml')) return { ok: true, url: String(url), text: async () => '<sitemapindex><loc>https://city-airport-taxis.com/sitemap1.xml</loc></sitemapindex>' }
+    if (String(url).endsWith('/sitemap1.xml')) return { ok: true, url: String(url), text: async () => '<urlset><loc>https://city-airport-taxis.com/airporttransfers/reservations/taxi-from-Osaka-Airport-to-Osaka</loc></urlset>' }
+    return { ok: true, url: 'https://city-airport-taxis.com/', text: async () => '<html></html>' }
+  }
+  const adapter = new CityAirportTaxisAdapter({}, { fetchImpl })
+  const pickup = (await adapter.resolvePlace('Osaka Itami Airport (ITM)'))[0]
+  const dropoff = (await adapter.resolvePlace('Osaka', pickup.id))[0]
+  await assert.rejects(
+    adapter.fetchQuotes({ pickup, dropoff, serviceAt: new Date('2026-08-19T12:00:00.000Z'), currency: 'EUR', passengers: { adults: 1 } }),
+    (error) => error.code === 'CATALOG_ROUTE_NOT_LISTED'
+  )
 })

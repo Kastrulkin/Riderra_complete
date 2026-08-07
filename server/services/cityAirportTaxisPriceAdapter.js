@@ -267,7 +267,14 @@ class CityAirportTaxisAdapter {
       error.code = 'CATALOG_ROUTE_NOT_LISTED'
       throw error
     }
-    const landingHtml = await (await this.request(route.sourceUrl)).text()
+    const landingResponse = await this.request(route.sourceUrl)
+    const finalUrl = new URL(landingResponse.url || route.sourceUrl, this.baseUrl)
+    if (!finalUrl.pathname.includes('/airporttransfers/reservations/taxi-from-')) {
+      const error = new Error('City Airport Taxis route page redirects away from the public quote form')
+      error.code = 'CATALOG_ROUTE_NOT_LISTED'
+      throw error
+    }
+    const landingHtml = await landingResponse.text()
     const location = extractLocationIds(landingHtml)
     if (!location.loc1 || !location.loc2) throw new Error('City Airport Taxis location identifiers were not found')
     const service = serviceDateParts(serviceAt)
