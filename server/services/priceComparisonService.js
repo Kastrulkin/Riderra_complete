@@ -2,6 +2,7 @@ const crypto = require('crypto')
 const { CIVITATIS_DEFAULTS, CivitatisAdapter } = require('./civitatisPriceAdapter')
 const { BOOKING_DEFAULTS, BookingAdapter } = require('./bookingPriceAdapter')
 const { JAMTRANSFER_DEFAULTS, JamTransferAdapter } = require('./jamTransferPriceAdapter')
+const { SUNTRANSFERS_DEFAULTS, SuntransfersAdapter } = require('./suntransfersPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -376,6 +377,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'civitatis') return new CivitatisAdapter(config, dependencies)
   if (source.adapterKey === 'booking') return new BookingAdapter(config, dependencies)
   if (source.adapterKey === 'jamtransfer') return new JamTransferAdapter(config, dependencies)
+  if (source.adapterKey === 'suntransfers') return new SuntransfersAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -426,6 +428,15 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (/(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(electric|mini.?van|mpv|bus)/i.test(internal)) return capacity === 3
     if (/standard mpv/i.test(internal)) return capacity === 4
     if (/(mini.?van|mini.?bus|coach)/i.test(internal) && Number.isFinite(internalCapacity)) return capacity === internalCapacity
+    return false
+  }
+  if (adapterKey === 'suntransfers') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    if (external === 'tx4') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'mv6') return /(mini.?van [56]|mpv [56]|people carrier [56])/i.test(internal)
+    if (external === 'premtx4') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external === 'wav6') return /(wheelchair|accessible)/i.test(internal)
     return false
   }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
@@ -624,13 +635,13 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
 
   const representative = pending[0]
   try {
-    const pickup = await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' })
+    const pickup = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom })
     if (!pickup.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
       return !!pickup.externalRequest
     }
-    const dropoff = await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' })
+    const dropoff = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id })
     if (!dropoff.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })))
@@ -860,7 +871,9 @@ function defaultSourceData(overrides = {}) {
     ? CIVITATIS_DEFAULTS
     : (overrides.adapterKey === 'booking'
         ? BOOKING_DEFAULTS
-        : (overrides.adapterKey === 'jamtransfer' ? JAMTRANSFER_DEFAULTS : SMART_RYDE_DEFAULTS))
+        : (overrides.adapterKey === 'jamtransfer'
+            ? JAMTRANSFER_DEFAULTS
+            : (overrides.adapterKey === 'suntransfers' ? SUNTRANSFERS_DEFAULTS : SMART_RYDE_DEFAULTS)))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -881,8 +894,10 @@ module.exports = {
   CIVITATIS_DEFAULTS,
   BOOKING_DEFAULTS,
   JAMTRANSFER_DEFAULTS,
+  SUNTRANSFERS_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
+  SuntransfersAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
