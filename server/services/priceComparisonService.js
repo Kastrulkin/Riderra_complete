@@ -69,9 +69,9 @@ function externalRouteKey({ routeFrom, routeTo, currency }) {
     .digest('hex')
 }
 
-function externalCatalogRouteKey({ sourceUrl, pickupPlaceId, dropoffPlaceId, currency }) {
+function externalCatalogRouteKey({ sourceUrl, routeFrom, routeTo, currency }) {
   return crypto.createHash('sha256')
-    .update([String(sourceUrl || ''), String(pickupPlaceId || ''), String(dropoffPlaceId || ''), String(currency || '').toUpperCase()].join('|'))
+    .update([String(sourceUrl || ''), normalizeTextKey(routeFrom), normalizeTextKey(routeTo), String(currency || '').toUpperCase()].join('|'))
     .digest('hex')
 }
 

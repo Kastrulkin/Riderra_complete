@@ -82,7 +82,7 @@ function locationForLabel(label, options, page, endpoint) {
     const city = normalizeKey(page.city)
     option = options.find((row) => row.type === 'tipo-5' && row.normalized.includes(city) && /downtown|centre|center|city/.test(row.normalized))
   }
-  const id = option?.id || crypto.createHash('sha1').update(`${page.sourceUrl}|${endpoint}|${normalized}`).digest('hex').slice(0, 20)
+  const id = crypto.createHash('sha1').update(`${page.sourceUrl}|${endpoint}|${normalized}`).digest('hex').slice(0, 20)
   const displayLabel = option?.label || label
   return { id: `civitatis:${id}`, label: displayLabel }
 }

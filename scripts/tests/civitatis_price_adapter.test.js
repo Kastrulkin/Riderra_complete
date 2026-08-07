@@ -44,12 +44,13 @@ test('Civitatis transfer parser extracts public airport-to-city price evidence',
     country: 'United Kingdom'
   })
   assert.equal(rows.length, 1)
-  assert.deepEqual(rows[0], {
+  const normalized = { ...rows[0], pickupPlaceId: '<id>', dropoffPlaceId: '<id>' }
+  assert.deepEqual(normalized, {
     routeFrom: 'Heathrow Airport',
     routeTo: 'Centre of London',
-    pickupPlaceId: 'civitatis:37',
+    pickupPlaceId: '<id>',
     pickupLabel: 'Heathrow Airport (LHR)',
-    dropoffPlaceId: 'civitatis:38',
+    dropoffPlaceId: '<id>',
     dropoffLabel: 'Downtown London',
     currency: 'EUR',
     externalVehicleKey: 'private_vehicle_base',
@@ -66,6 +67,8 @@ test('Civitatis transfer parser extracts public airport-to-city price evidence',
       direction: 'published_airport_to_city'
     }
   })
+  assert.match(rows[0].pickupPlaceId, /^civitatis:[a-f0-9]{20}$/)
+  assert.match(rows[0].dropoffPlaceId, /^civitatis:[a-f0-9]{20}$/)
 })
 
 test('Civitatis money parser handles comma and dot decimal formats', () => {
