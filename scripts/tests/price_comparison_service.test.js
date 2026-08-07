@@ -26,6 +26,16 @@ test('Suntransfers vehicle codes map by service family and exact capacity', () =
   assert.equal(externalVehicleMatches('suntransfers', 'sh', 'Standard class car'), false)
 })
 
+test('Transferz public vehicle categories map to Riderra classes by family and capacity', () => {
+  assert.equal(externalVehicleMatches('transferz', 'sedan_3', 'Standard class car'), true)
+  assert.equal(externalVehicleMatches('transferz', 'economy_sedan_2', 'Standard class car'), false)
+  assert.equal(externalVehicleMatches('transferz', 'business_sedan_3', 'Business class car'), true)
+  assert.equal(externalVehicleMatches('transferz', 'minivan_5', 'Standard minivan 5 pax'), true)
+  assert.equal(externalVehicleMatches('transferz', 'minivan_5', 'Standard minivan 7 pax'), false)
+  assert.equal(externalVehicleMatches('transferz', 'exclusive_minivan_5', 'Businessvan 5 pax'), true)
+  assert.equal(externalVehicleMatches('transferz', 'minibus_9', 'Standard Minibus 9pax'), true)
+})
+
 test('SmartRyde policy deducts 30 percent from the client public price', () => {
   assert.equal(applyPricingPolicy(200, { type: 'client_commission', commissionPercent: 30 }), 140)
   assert.deepEqual(buildComparison({ riderraSellPrice: 100, clientSellPrice: 200, policy: { type: 'client_commission', commissionPercent: 30 } }), {

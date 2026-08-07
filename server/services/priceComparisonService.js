@@ -3,6 +3,7 @@ const { CIVITATIS_DEFAULTS, CivitatisAdapter } = require('./civitatisPriceAdapte
 const { BOOKING_DEFAULTS, BookingAdapter } = require('./bookingPriceAdapter')
 const { JAMTRANSFER_DEFAULTS, JamTransferAdapter } = require('./jamTransferPriceAdapter')
 const { SUNTRANSFERS_DEFAULTS, SuntransfersAdapter } = require('./suntransfersPriceAdapter')
+const { TRANSFERZ_DEFAULTS, TransferzAdapter } = require('./transferzPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -378,6 +379,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'booking') return new BookingAdapter(config, dependencies)
   if (source.adapterKey === 'jamtransfer') return new JamTransferAdapter(config, dependencies)
   if (source.adapterKey === 'suntransfers') return new SuntransfersAdapter(config, dependencies)
+  if (source.adapterKey === 'transferz') return new TransferzAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -445,6 +447,23 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (vehicle?.[1] === 'premmv') return /(businessvan|business.*van|executive.*van)/i.test(internal) && Number.isFinite(internalCapacity) && capacity === internalCapacity
     if (['mb', 'mch'].includes(vehicle?.[1])) return /standard mini.?bus/i.test(internal) && Number.isFinite(internalCapacity) && capacity === internalCapacity
     if (external.startsWith('wav')) return /(wheelchair|accessible)/i.test(internal)
+    return false
+  }
+  if (adapterKey === 'transferz') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    if (external === 'sedan_3') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'business_sedan_3') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external === 'luxury_sedan_3') return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external === 'standard_electric_car_3') return /(electric|e-vehicle)/i.test(internal) && /(standard|sedan|car)/i.test(internal)
+    if (external === 'high_end_electric_car_4') return /(electric|e-vehicle)/i.test(internal) && /(first|luxury|business)/i.test(internal)
+    if (external === 'suv_4') return /standard mpv/i.test(internal) && internalCapacity === 4
+    if (external === 'minivan_5') return /standard mini.?van/i.test(internal) && internalCapacity === 5
+    if (external === 'mpv_6') return /standard mini.?van/i.test(internal) && internalCapacity === 6
+    if (external === 'van_7') return /standard mini.?van/i.test(internal) && internalCapacity === 7
+    if (external === 'exclusive_minivan_5') return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === 5
+    if (external === 'minibus_9') return /standard mini.?bus/i.test(internal) && internalCapacity === 9
     return false
   }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
@@ -881,7 +900,9 @@ function defaultSourceData(overrides = {}) {
         ? BOOKING_DEFAULTS
         : (overrides.adapterKey === 'jamtransfer'
             ? JAMTRANSFER_DEFAULTS
-            : (overrides.adapterKey === 'suntransfers' ? SUNTRANSFERS_DEFAULTS : SMART_RYDE_DEFAULTS)))
+            : (overrides.adapterKey === 'suntransfers'
+                ? SUNTRANSFERS_DEFAULTS
+                : (overrides.adapterKey === 'transferz' ? TRANSFERZ_DEFAULTS : SMART_RYDE_DEFAULTS))))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -903,9 +924,11 @@ module.exports = {
   BOOKING_DEFAULTS,
   JAMTRANSFER_DEFAULTS,
   SUNTRANSFERS_DEFAULTS,
+  TRANSFERZ_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
+  TransferzAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

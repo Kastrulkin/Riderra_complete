@@ -4,6 +4,7 @@ const {
   BOOKING_DEFAULTS,
   JAMTRANSFER_DEFAULTS,
   SUNTRANSFERS_DEFAULTS,
+  TRANSFERZ_DEFAULTS,
   applyPricingPolicy,
   defaultSourceData,
   executePriceComparisonRun,
@@ -78,7 +79,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
   app.post('/api/admin/pricing/comparison-sources', ...canManage, async (req, res) => {
     try {
       const adapterKey = String(req.body?.adapterKey || 'smart-ryde').trim()
-      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
+      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers', 'transferz'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
       const data = defaultSourceData({ ...(req.body || {}), adapterKey })
       const sourceUrl = new URL(data.baseUrl)
       const allowedBaseUrl = adapterKey === 'civitatis'
@@ -87,7 +88,9 @@ function registerPricingComparisonRoutes(app, dependencies) {
             ? BOOKING_DEFAULTS.baseUrl
             : (adapterKey === 'jamtransfer'
                 ? JAMTRANSFER_DEFAULTS.baseUrl
-                : (adapterKey === 'suntransfers' ? SUNTRANSFERS_DEFAULTS.baseUrl : SMART_RYDE_DEFAULTS.baseUrl)))
+                : (adapterKey === 'suntransfers'
+                    ? SUNTRANSFERS_DEFAULTS.baseUrl
+                    : (adapterKey === 'transferz' ? TRANSFERZ_DEFAULTS.baseUrl : SMART_RYDE_DEFAULTS.baseUrl))))
       const allowedHostname = new URL(allowedBaseUrl).hostname
       if (sourceUrl.protocol !== 'https:' || sourceUrl.hostname !== allowedHostname) {
         return res.status(400).json({ error: 'Adapter URL is not allowed' })
