@@ -100,6 +100,9 @@ function candidateMatches(inputText, candidate) {
 
 class SuntransfersAdapter {
   constructor(config = {}, dependencies = {}) {
+    // The production host has no working IPv6 route to Suntransfers. Prefer a
+    // reachable address before starting the adapter's bounded request retries.
+    if (typeof dns.setDefaultResultOrder === 'function') dns.setDefaultResultOrder('ipv4first')
     this.baseUrl = String(config.baseUrl || SUNTRANSFERS_DEFAULTS.baseUrl).replace(/\/+$/, '')
     this.locationApiUrl = String(config.locationApiUrl || LOCATION_API_URL).replace(/\/+$/, '')
     this.bookingUrl = String(config.bookingUrl || BOOKING_URL).replace(/\/+$/, '')
@@ -254,3 +257,4 @@ module.exports = {
   encodeGateway,
   parseSuntransfersQuotes
 }
+const dns = require('dns')
