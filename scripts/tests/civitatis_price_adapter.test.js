@@ -71,6 +71,22 @@ test('Civitatis transfer parser extracts public airport-to-city price evidence',
   assert.match(rows[0].dropoffPlaceId, /^civitatis:[a-f0-9]{20}$/)
 })
 
+test('Civitatis repeated regional tables share catalog-wide place identities', () => {
+  const first = parseCivitatisTransferPage(LONDON_FIXTURE, {
+    sourceUrl: 'https://www.civitatis.com/en/london/transfers/',
+    city: 'London',
+    country: 'United Kingdom'
+  })
+  const repeated = parseCivitatisTransferPage(LONDON_FIXTURE, {
+    sourceUrl: 'https://www.civitatis.com/en/windsor/transfers/',
+    city: 'Windsor',
+    country: 'United Kingdom'
+  })
+
+  assert.equal(first[0].pickupPlaceId, repeated[0].pickupPlaceId)
+  assert.equal(first[0].dropoffPlaceId, repeated[0].dropoffPlaceId)
+})
+
 test('Civitatis money parser handles comma and dot decimal formats', () => {
   assert.equal(parseMoney('€ 1.234,56'), 1234.56)
   assert.equal(parseMoney('US$ 1,234.56'), 1234.56)
