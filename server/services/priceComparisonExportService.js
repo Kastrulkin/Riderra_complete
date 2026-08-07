@@ -88,7 +88,7 @@ function addResultSheet(workbook, name, rows, policy, assumptionsSheetName = 'As
       { formula: targetFormula, result: targetResult },
       { formula: gapFormula, result: gapResult },
       { formula: pctFormula, result: pctResult },
-      { formula: `IF(LEN(H${excelRow})=0,IF(P${excelRow}="SmartRyde returned no available vehicles","coverage_opportunity","needs_review"),IF(${opportunityFormula},"opportunity","not_opportunity"))`, result: row.status === 'no_quote' ? 'coverage_opportunity' : row.status },
+      { formula: `IF(LEN(H${excelRow})=0,"${row.status === 'no_quote' ? 'coverage_opportunity' : 'needs_review'}",IF(${opportunityFormula},"opportunity","not_opportunity"))`, result: row.status === 'no_quote' ? 'coverage_opportunity' : row.status },
       row.serviceAt,
       row.quotedAt,
       row.sourceUrl,

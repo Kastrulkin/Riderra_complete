@@ -11,6 +11,11 @@ const ACTIVE_RUNS = new Set()
 
 class NoQuotesError extends Error {}
 
+function comparisonStatusForError(error) {
+  if (error instanceof NoQuotesError || ['NO_QUOTES', 'CATALOG_ROUTE_NOT_LISTED'].includes(error?.code)) return 'no_quote'
+  return 'failed'
+}
+
 const SMART_RYDE_DEFAULTS = Object.freeze({
   name: 'SmartRyde',
   adapterKey: 'smart-ryde',
@@ -806,7 +811,7 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
     }
     return !adapter.quoteLookupIsLocal
   } catch (error) {
-    const status = error instanceof NoQuotesError || error?.code === 'NO_QUOTES' ? 'no_quote' : (error?.code === 'CATALOG_ROUTE_NOT_LISTED' ? 'needs_review' : 'failed')
+    const status = comparisonStatusForError(error)
     await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status, error: String(error.message || error).slice(0, 1000) })))
     if (status === 'no_quote') {
       await prisma.priceComparisonQuote.updateMany({
@@ -1015,6 +1020,7 @@ module.exports = {
   applyPricingPolicy,
   buildComparison,
   comparisonRunScopeWhere,
+  comparisonStatusForError,
   createAdapter,
   defaultSourceData,
   executePriceComparisonRun,

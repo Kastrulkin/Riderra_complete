@@ -50,4 +50,5 @@ test('Excel export contains required sheets and auditable formulas', async () =>
   assert.equal(workbook.getWorksheet('All results').getCell('L2').value.result, 'opportunity')
   assert.equal(workbook.getWorksheet('Green opportunities').rowCount, 2)
   assert.equal(workbook.getWorksheet('Coverage opportunities').getCell('L2').value.result, 'coverage_opportunity')
+  assert.match(workbook.getWorksheet('Coverage opportunities').getCell('L2').value.formula, /coverage_opportunity/)
 })

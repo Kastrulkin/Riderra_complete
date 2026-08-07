@@ -5,6 +5,7 @@ const {
   applyPricingPolicy,
   buildComparison,
   comparisonRunScopeWhere,
+  comparisonStatusForError,
   externalVehicleMatches,
   externalRouteKey,
   hasFinalComparison,
@@ -83,6 +84,16 @@ test('equality is not a green opportunity', () => {
     clientSellPrice: 142.857142857,
     policy: { type: 'client_commission', commissionPercent: 30 }
   }).status, 'not_opportunity')
+})
+
+test('an exact route missing from any client catalog is a coverage opportunity', () => {
+  const catalogError = new Error('Exact route is absent')
+  catalogError.code = 'CATALOG_ROUTE_NOT_LISTED'
+  const noQuoteError = new Error('No vehicles')
+  noQuoteError.code = 'NO_QUOTES'
+  assert.equal(comparisonStatusForError(catalogError), 'no_quote')
+  assert.equal(comparisonStatusForError(noQuoteError), 'no_quote')
+  assert.equal(comparisonStatusForError(new Error('HTTP 500')), 'failed')
 })
 
 test('sequential deductions remain available for future partner formulas', () => {
