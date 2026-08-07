@@ -178,6 +178,7 @@ class SuntransfersAdapter {
           },
           signal: controller.signal
         })
+        if (response.status >= 500) throw new Error(`Suntransfers public source failed: HTTP ${response.status}`)
         return response
       } catch (error) {
         lastError = error
@@ -213,12 +214,14 @@ class SuntransfersAdapter {
     const response = await this.request(`${this.locationApiUrl}/gateways/${gateway.id}/destinations?${query}`)
     if (!response.ok) throw new Error(`Suntransfers destination search failed: HTTP ${response.status}`)
     const payload = await response.json()
-    return [...(payload.locations || []), ...(payload.hotels || [])]
+    const matches = [...(payload.locations || []), ...(payload.hotels || [])]
       .filter((row) => candidateMatches(inputText, row))
+    const exact = matches.filter((row) => normalizeKey(row.name) === normalizeKey(inputText))
+    return (exact.length === 1 ? exact : matches)
       .slice(0, 20)
       .map((row) => ({
         id: encodeDestination(gateway.id, { ...row, code: row.code || row.location?.code }),
-        label: row.name,
+        label: exact.length === 1 ? String(inputText || '').trim() : row.name,
         description: row.address ? `${row.name}, ${row.address}` : row.name
       }))
   }

@@ -42,3 +42,17 @@ test('Suntransfers gateway selection uses exact IATA and destination names', () 
   assert.equal(candidateMatches('Benidorm', { name: 'Benidorm' }), true)
   assert.equal(candidateMatches('Benidorm', { name: 'Calpe' }), false)
 })
+
+test('Suntransfers adapter prefers a single accent-insensitive exact destination', async () => {
+  const adapter = new (require('../../server/services/suntransfersPriceAdapter').SuntransfersAdapter)({}, {
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ locations: [{ id: 1, code: 2, name: 'Bakú' }, { id: 3, code: 4, name: 'Shikh (Baku)' }], hotels: [] })
+    })
+  })
+  const rows = await adapter.resolvePlace('Baku', 'suntransfers:gateway:9:10:GYD')
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].label, 'Baku')
+  assert.equal(rows[0].description, 'Bakú')
+})
