@@ -86,6 +86,6 @@ test('classifies a stale sitemap redirect as unlisted coverage', async () => {
   const dropoff = (await adapter.resolvePlace('Osaka', pickup.id))[0]
   await assert.rejects(
     adapter.fetchQuotes({ pickup, dropoff, serviceAt: new Date('2026-08-19T12:00:00.000Z'), currency: 'EUR', passengers: { adults: 1 } }),
-    (error) => error.code === 'CATALOG_ROUTE_NOT_LISTED'
+    (error) => error.code === 'NO_QUOTES'
   )
 })

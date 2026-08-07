@@ -264,14 +264,14 @@ class CityAirportTaxisAdapter {
     const route = routes.find((row) => row.pickupPlaceId === pickup.id && row.dropoffPlaceId === dropoff.id)
     if (!route) {
       const error = new Error('City Airport Taxis route is not listed in the public sitemap')
-      error.code = 'CATALOG_ROUTE_NOT_LISTED'
+      error.code = 'NO_QUOTES'
       throw error
     }
     const landingResponse = await this.request(route.sourceUrl)
     const finalUrl = new URL(landingResponse.url || route.sourceUrl, this.baseUrl)
     if (!finalUrl.pathname.includes('/airporttransfers/reservations/taxi-from-')) {
       const error = new Error('City Airport Taxis route page redirects away from the public quote form')
-      error.code = 'CATALOG_ROUTE_NOT_LISTED'
+      error.code = 'NO_QUOTES'
       throw error
     }
     const landingHtml = await landingResponse.text()
