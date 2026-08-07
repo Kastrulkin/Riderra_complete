@@ -251,7 +251,7 @@ class SuntransfersAdapter {
     const destination = decodeDestination(dropoff.id)
     if (!gateway || !destination || gateway.id !== destination.gatewayId) {
       const error = new Error('Suntransfers public form requires an airport, port, or station as the pickup point')
-      error.code = 'NO_QUOTES'
+      error.code = 'CATALOG_ROUTE_NOT_LISTED'
       throw error
     }
     const date = serviceAt instanceof Date ? serviceAt : new Date(serviceAt)
