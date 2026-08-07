@@ -5,6 +5,7 @@ const { JAMTRANSFER_DEFAULTS, JamTransferAdapter } = require('./jamTransferPrice
 const { SUNTRANSFERS_DEFAULTS, SuntransfersAdapter } = require('./suntransfersPriceAdapter')
 const { TRANSFERZ_DEFAULTS, TransferzAdapter } = require('./transferzPriceAdapter')
 const { TALIXO_DEFAULTS, TalixoAdapter } = require('./talixoPriceAdapter')
+const { CITY_AIRPORT_TAXIS_DEFAULTS, CityAirportTaxisAdapter } = require('./cityAirportTaxisPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -382,6 +383,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'suntransfers') return new SuntransfersAdapter(config, dependencies)
   if (source.adapterKey === 'transferz') return new TransferzAdapter(config, dependencies)
   if (source.adapterKey === 'talixo') return new TalixoAdapter(config, dependencies)
+  if (source.adapterKey === 'city-airport-taxis') return new CityAirportTaxisAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -478,6 +480,21 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external === 'economy_van') return /(standard mini.?van|standard mpv)/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity <= 7)
     if (external === 'business_van') return /(businessvan|business.*van|executive.*van)/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity <= 7)
     if (external === 'first_class_van') return /(first class|luxury).*van/i.test(internal)
+    return false
+  }
+  if (adapterKey === 'city-airport-taxis') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    if (external === 'sedan_car_3pax') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'premium_sedan_car_3pax') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external === 'mercedes_s_class_3pax') return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    const vehicle = external.match(/^(mpv|minivan|premium_minivan|private_transfer)_(\d+)pax$/)
+    const capacity = Number(vehicle?.[2])
+    if (vehicle?.[1] === 'mpv') return /standard mpv/i.test(internal) && capacity === internalCapacity
+    if (vehicle?.[1] === 'minivan') return /standard mini.?van/i.test(internal) && capacity === internalCapacity
+    if (vehicle?.[1] === 'premium_minivan') return /(businessvan|business.*van|executive.*van)/i.test(internal) && capacity === internalCapacity
+    if (vehicle?.[1] === 'private_transfer') return /standard mini.?bus/i.test(internal) && capacity === internalCapacity
     return false
   }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
@@ -959,7 +976,9 @@ function defaultSourceData(overrides = {}) {
                 ? SUNTRANSFERS_DEFAULTS
                 : (overrides.adapterKey === 'transferz'
                     ? TRANSFERZ_DEFAULTS
-                    : (overrides.adapterKey === 'talixo' ? TALIXO_DEFAULTS : SMART_RYDE_DEFAULTS)))))
+                    : (overrides.adapterKey === 'talixo'
+                        ? TALIXO_DEFAULTS
+                        : (overrides.adapterKey === 'city-airport-taxis' ? CITY_AIRPORT_TAXIS_DEFAULTS : SMART_RYDE_DEFAULTS))))))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -983,11 +1002,13 @@ module.exports = {
   SUNTRANSFERS_DEFAULTS,
   TRANSFERZ_DEFAULTS,
   TALIXO_DEFAULTS,
+  CITY_AIRPORT_TAXIS_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
   TransferzAdapter,
   TalixoAdapter,
+  CityAirportTaxisAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

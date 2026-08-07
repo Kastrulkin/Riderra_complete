@@ -57,6 +57,16 @@ test('Transferz public vehicle categories map to Riderra classes by family and c
   assert.equal(externalVehicleMatches('transferz', 'minibus_9', 'Standard Minibus 9pax'), true)
 })
 
+test('City Airport Taxis vehicles map by service family and exact capacity', () => {
+  assert.equal(externalVehicleMatches('city-airport-taxis', 'sedan_car_3pax', 'Standard class car'), true)
+  assert.equal(externalVehicleMatches('city-airport-taxis', 'sedan_car_2pax', 'Standard class car'), false)
+  assert.equal(externalVehicleMatches('city-airport-taxis', 'premium_sedan_car_3pax', 'Business class car'), true)
+  assert.equal(externalVehicleMatches('city-airport-taxis', 'minivan_7pax', 'Standard minivan 7 pax'), true)
+  assert.equal(externalVehicleMatches('city-airport-taxis', 'minivan_6pax', 'Standard minivan 7 pax'), false)
+  assert.equal(externalVehicleMatches('city-airport-taxis', 'premium_minivan_7pax', 'Businessvan 7 pax'), true)
+  assert.equal(externalVehicleMatches('city-airport-taxis', 'private_transfer_16pax', 'Standard Minibus 16pax'), true)
+})
+
 test('SmartRyde policy deducts 30 percent from the client public price', () => {
   assert.equal(applyPricingPolicy(200, { type: 'client_commission', commissionPercent: 30 }), 140)
   assert.deepEqual(buildComparison({ riderraSellPrice: 100, clientSellPrice: 200, policy: { type: 'client_commission', commissionPercent: 30 } }), {
