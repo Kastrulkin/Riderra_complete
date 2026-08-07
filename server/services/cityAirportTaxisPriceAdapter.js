@@ -257,15 +257,11 @@ class CityAirportTaxisAdapter {
     }
   }
 
-  async fetchQuotes({ pickup, dropoff, serviceAt, currency, passengers = {} }) {
-    const requestedCurrency = String(currency || '').toUpperCase()
-    if (!this.supportedCurrencies.includes(requestedCurrency)) throw new Error(`City Airport Taxis does not support currency ${requestedCurrency}`)
-    const routes = await this.initialize()
-    const route = routes.find((row) => row.pickupPlaceId === pickup.id && row.dropoffPlaceId === dropoff.id)
-    if (!route) {
-      const error = new Error('City Airport Taxis route is not listed in the public sitemap')
-      error.code = 'NO_QUOTES'
-      throw error
+  async fetchCatalogRoute({ route, serviceAt, currencies = this.supportedCurrencies, passengers = {} }) {
+    if (!route?.sourceUrl || !route?.pickupPlaceId || !route?.dropoffPlaceId) throw new Error('City Airport Taxis catalog route is invalid')
+    const requestedCurrencies = [...new Set(currencies.map((value) => String(value || '').toUpperCase()))]
+    if (!requestedCurrencies.length || requestedCurrencies.some((currency) => !this.supportedCurrencies.includes(currency))) {
+      throw new Error('City Airport Taxis catalog currencies are invalid')
     }
     const landingResponse = await this.request(route.sourceUrl)
     const finalUrl = new URL(landingResponse.url || route.sourceUrl, this.baseUrl)
@@ -280,8 +276,8 @@ class CityAirportTaxisAdapter {
     const service = serviceDateParts(serviceAt)
     const url = new URL(route.sourceUrl)
     url.searchParams.set('single', '1')
-    url.searchParams.set('loc1_name', location.loc1Name || pickup.label)
-    url.searchParams.set('loc2_name', location.loc2Name || dropoff.label)
+    url.searchParams.set('loc1_name', location.loc1Name || route.pickupLabel)
+    url.searchParams.set('loc2_name', location.loc2Name || route.dropoffLabel)
     url.searchParams.set('loc1', location.loc1)
     url.searchParams.set('loc2', location.loc2)
     url.searchParams.set('pax1', String(Math.max(1, Number(passengers.adults || 1))))
@@ -289,13 +285,31 @@ class CityAirportTaxisAdapter {
     url.searchParams.set('time1', service.time)
     url.searchParams.set('quote', '1')
     const html = await (await this.request(url)).text()
-    const quotes = parseCityAirportTaxisQuotes(html, requestedCurrency)
-    if (!quotes.length) {
+    const matrices = requestedCurrencies.map((currency) => ({ currency, quotes: parseCityAirportTaxisQuotes(html, currency) }))
+    if (!matrices.some((matrix) => matrix.quotes.length)) {
       const error = new Error('City Airport Taxis returned no available vehicles')
       error.code = 'NO_QUOTES'
       throw error
     }
-    return { quotes, evidence: this.extractEvidence({ route, requestedUrl: url.toString(), quotes, requestedCurrency, serviceAt, passengers }) }
+    const evidenceQuotes = matrices.flatMap((matrix) => matrix.quotes)
+    return {
+      matrices,
+      evidence: this.extractEvidence({ route, requestedUrl: url.toString(), quotes: evidenceQuotes, requestedCurrency: requestedCurrencies.join(','), serviceAt, passengers })
+    }
+  }
+
+  async fetchQuotes({ pickup, dropoff, serviceAt, currency, passengers = {} }) {
+    const requestedCurrency = String(currency || '').toUpperCase()
+    if (!this.supportedCurrencies.includes(requestedCurrency)) throw new Error(`City Airport Taxis does not support currency ${requestedCurrency}`)
+    const routes = await this.initialize()
+    const route = routes.find((row) => row.pickupPlaceId === pickup.id && row.dropoffPlaceId === dropoff.id)
+    if (!route) {
+      const error = new Error('City Airport Taxis route is not listed in the public sitemap')
+      error.code = 'NO_QUOTES'
+      throw error
+    }
+    const result = await this.fetchCatalogRoute({ route, serviceAt, currencies: [requestedCurrency], passengers })
+    return { quotes: result.matrices[0].quotes, evidence: result.evidence }
   }
 }
 

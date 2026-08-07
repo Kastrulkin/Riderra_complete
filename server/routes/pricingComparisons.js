@@ -13,6 +13,7 @@ const {
   nextScheduledServiceAt
 } = require('../services/priceComparisonService')
 const { buildPriceComparisonWorkbook } = require('../services/priceComparisonExportService')
+const { serializeCatalogRoute } = require('../services/externalPriceCatalogService')
 const {
   backfillApprovedPlaceMappings,
   enabled: semanticMatchingEnabled,
@@ -306,6 +307,42 @@ function registerPricingComparisonRoutes(app, dependencies) {
     } catch (error) {
       console.error('Error reading external quote coverage:', error)
       res.status(500).json({ error: 'Failed to read external quote coverage' })
+    }
+  })
+
+  app.get('/api/admin/pricing/external-catalog', ...canRead, async (req, res) => {
+    try {
+      const sourceId = String(req.query.sourceId || '').trim()
+      const source = await prisma.priceComparisonSource.findFirst({ where: { id: sourceId, tenantId: req.actorContext.tenantId } })
+      if (!source) return res.status(404).json({ error: 'Comparison source not found' })
+      const page = Math.max(1, Number(req.query.page) || 1)
+      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20))
+      const query = String(req.query.q || '').trim()
+      const currencies = String(req.query.currency || '').split(',').map((value) => value.trim().toUpperCase()).filter(Boolean)
+      const where = {
+        tenantId: req.actorContext.tenantId,
+        sourceId,
+        ...(query ? { OR: [{ routeFrom: { contains: query, mode: 'insensitive' } }, { routeTo: { contains: query, mode: 'insensitive' } }] } : {})
+      }
+      const [rows, totalRoutes, quoteStats, statusStats, latestCrawl] = await Promise.all([
+        prisma.externalPriceCatalogRoute.findMany({ where, orderBy: [{ routeFrom: 'asc' }, { routeTo: 'asc' }], skip: (page - 1) * limit, take: limit }),
+        prisma.externalPriceCatalogRoute.count({ where }),
+        prisma.externalPriceCatalogRoute.aggregate({ where, _sum: { quoteCount: true } }),
+        prisma.externalPriceCatalogRoute.groupBy({ by: ['status'], where, _count: { _all: true } }),
+        prisma.externalPriceCatalogCrawl.findFirst({ where: { tenantId: req.actorContext.tenantId, sourceId }, orderBy: { createdAt: 'desc' } })
+      ])
+      res.json({
+        routes: rows.map((row) => serializeCatalogRoute(row, currencies)),
+        page,
+        limit,
+        totalRoutes,
+        totalQuotes: quoteStats._sum.quoteCount || 0,
+        statuses: statusStats.map((row) => ({ status: row.status, count: row._count._all })),
+        crawl: latestCrawl
+      })
+    } catch (error) {
+      console.error('Error listing external price catalog:', error)
+      res.status(500).json({ error: 'Failed to list external price catalog' })
     }
   })
 

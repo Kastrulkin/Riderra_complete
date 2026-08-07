@@ -214,7 +214,7 @@
                   :aria-selected="companyComparison.activeTab === 'prices'"
                   @click="companyComparison.activeTab = 'prices'"
                 >
-                  Прайс {{ companyComparison.source.name }} <span>{{ companyExternalQuotes.length }}</span>
+                  Прайс {{ companyComparison.source.name }} <span>{{ companyComparison.catalog.available ? companyComparison.catalog.totalQuotes : companyExternalQuotes.length }}</span>
                 </button>
                 <button
                   type="button"
@@ -236,7 +236,7 @@
                     placeholder="Найти направление, город или класс"
                     @input="setCompanyQuoteQuery($event.target.value)"
                   />
-                  <span>Показано {{ pagedCompanyExternalQuotes.length }} из {{ filteredCompanyExternalQuotes.length }}</span>
+                  <span>Показано {{ pagedCompanyExternalQuotes.length }} цен · {{ companyComparison.catalog.available ? `${companyComparison.catalog.totalRoutes} направлений в каталоге` : `${filteredCompanyExternalQuotes.length} цен в срезе` }}</span>
                 </div>
                 <div v-if="companyExternalQuotes.length" class="comparison-price-table">
                   <div class="comparison-price-row comparison-price-row--head">
@@ -251,11 +251,14 @@
                   </div>
                 </div>
                 <div v-if="companyExternalQuotes.length" class="comparison-price-pager">
-                  <button class="btn btn--ghost btn--small" :disabled="companyComparison.quotePage <= 1" @click="companyComparison.quotePage--">Назад</button>
+                  <button class="btn btn--ghost btn--small" :disabled="companyComparison.quotePage <= 1" @click="changeCompanyQuotePage(-1)">Назад</button>
                   <span>Страница {{ companyComparison.quotePage }} из {{ companyQuotePageCount }}</span>
-                  <button class="btn btn--ghost btn--small" :disabled="companyComparison.quotePage >= companyQuotePageCount" @click="companyComparison.quotePage++">Дальше</button>
+                  <button class="btn btn--ghost btn--small" :disabled="companyComparison.quotePage >= companyQuotePageCount" @click="changeCompanyQuotePage(1)">Дальше</button>
                 </div>
-                <div v-else class="comparison-empty">
+                <div v-if="companyComparison.catalog.crawl" class="hint">
+                  Полный каталог: {{ companyComparison.catalog.crawl.processedRoutes }} из {{ companyComparison.catalog.crawl.totalRoutes }} направлений · {{ comparisonStatusLabel(companyComparison.catalog.crawl.status) }}
+                </div>
+                <div v-if="!companyExternalQuotes.length" class="comparison-empty">
                   <strong>Сохранённых публичных цен пока нет</strong>
                   <span>Запустите сбор повторно. Маршруты без публичного предложения {{ companyComparison.source.name }} попадут во вкладку «Возможности».</span>
                 </div>
@@ -474,7 +477,7 @@ export default {
       managerForm: { fullName: '', position: '', email: '', phone: '', website: '' },
       managerBusy: false,
       managerError: '',
-      companyComparison: { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, loading: false, busy: false, error: '', pollTimer: null }
+      companyComparison: { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], catalog: { available: false, routes: [], totalRoutes: 0, totalQuotes: 0, crawl: null }, activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, catalogPageSize: 20, loading: false, busy: false, error: '', pollTimer: null, quoteSearchTimer: null }
     }
   },
   computed: {
@@ -551,6 +554,20 @@ export default {
       })
     },
     companyExternalQuotes() {
+      if (this.companyComparison.catalog.available) {
+        return this.companyComparison.catalog.routes.flatMap((route) => (route.prices || []).map((quote) => ({
+          id: `${route.id}-${quote.currency}-${quote.externalVehicleKey}`,
+          routeKey: route.routeKey,
+          routeFrom: route.routeFrom,
+          routeTo: route.routeTo,
+          externalVehicleKey: quote.externalVehicleKey,
+          externalVehicleName: quote.externalVehicleName,
+          maxPassengers: quote.maxPassengers,
+          publicSellPrice: quote.publicSellPrice,
+          currency: quote.currency,
+          quotedAt: route.quotedAt
+        })))
+      }
       const latest = new Map()
       for (const quote of this.companyComparison.externalQuotes || []) {
         const key = `${quote.routeKey}\u0000${quote.externalVehicleKey}\u0000${quote.currency}`
@@ -559,15 +576,18 @@ export default {
       return Array.from(latest.values())
     },
     filteredCompanyExternalQuotes() {
+      if (this.companyComparison.catalog.available) return this.companyExternalQuotes
       const query = String(this.companyComparison.quoteQuery || '').trim().toLowerCase()
       if (!query) return this.companyExternalQuotes
       return this.companyExternalQuotes.filter((quote) => [quote.routeFrom, quote.routeTo, quote.externalVehicleName, quote.externalVehicleKey]
         .some((value) => String(value || '').toLowerCase().includes(query)))
     },
     companyQuotePageCount() {
+      if (this.companyComparison.catalog.available) return Math.max(1, Math.ceil(this.companyComparison.catalog.totalRoutes / this.companyComparison.catalogPageSize))
       return Math.max(1, Math.ceil(this.filteredCompanyExternalQuotes.length / this.companyComparison.quotePageSize))
     },
     pagedCompanyExternalQuotes() {
+      if (this.companyComparison.catalog.available) return this.filteredCompanyExternalQuotes
       const start = (this.companyComparison.quotePage - 1) * this.companyComparison.quotePageSize
       return this.filteredCompanyExternalQuotes.slice(start, start + this.companyComparison.quotePageSize)
     },
@@ -614,6 +634,7 @@ export default {
   },
   beforeDestroy() {
     if (this.companyComparison.pollTimer) clearTimeout(this.companyComparison.pollTimer)
+    if (this.companyComparison.quoteSearchTimer) clearTimeout(this.companyComparison.quoteSearchTimer)
   },
   methods: {
     authHeaders() {
@@ -637,6 +658,16 @@ export default {
     setCompanyQuoteQuery(value) {
       this.companyComparison.quoteQuery = value
       this.companyComparison.quotePage = 1
+      if (this.companyComparison.catalog.available) {
+        if (this.companyComparison.quoteSearchTimer) clearTimeout(this.companyComparison.quoteSearchTimer)
+        this.companyComparison.quoteSearchTimer = setTimeout(() => this.loadCompanyCatalog(), 350)
+      }
+    },
+    changeCompanyQuotePage(delta) {
+      const next = Math.min(this.companyQuotePageCount, Math.max(1, this.companyComparison.quotePage + delta))
+      if (next === this.companyComparison.quotePage) return
+      this.companyComparison.quotePage = next
+      if (this.companyComparison.catalog.available) this.loadCompanyCatalog()
     },
     serverViewSegments() {
       if (this.activeView === 'clients') return this.mode === 'companies' ? ['client_company'] : ['client_contact']
@@ -764,7 +795,7 @@ export default {
     },
     comparisonStatusLabel(status) {
       const labels = {
-        configured: 'Готов к запуску', running: 'Собираем цены', needs_review: 'Нужна проверка', ready: 'Готово', failed: 'Ошибка',
+        configured: 'Готов к запуску', running: 'Собираем цены', paused: 'Приостановлено', needs_review: 'Нужна проверка', ready: 'Готово', failed: 'Ошибка',
         opportunity: 'Цена выгоднее', coverage_opportunity: 'Компания не продаёт', no_quote: 'Компания не продаёт', not_opportunity: 'Ценового преимущества нет'
       }
       return labels[status] || status || 'Нет запусков'
@@ -787,7 +818,8 @@ export default {
       try { return JSON.parse(run?.scopeJson || '{}').type || '' } catch (_) { return '' }
     },
     async loadCompanyComparison(companyId) {
-      this.companyComparison = { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer }
+      if (this.companyComparison.quoteSearchTimer) clearTimeout(this.companyComparison.quoteSearchTimer)
+      this.companyComparison = { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], catalog: { available: false, routes: [], totalRoutes: 0, totalQuotes: 0, crawl: null }, activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, catalogPageSize: 20, loading: true, busy: false, error: '', pollTimer: this.companyComparison.pollTimer, quoteSearchTimer: this.companyComparison.quoteSearchTimer }
       try {
         const sourcesRes = await fetch('/api/admin/pricing/comparison-sources', { headers: this.authHeaders() })
         const sourcesData = await sourcesRes.json()
@@ -796,14 +828,16 @@ export default {
         const source = (sourcesData.rows || []).find((row) => row.customerCompanyId === companyId || row.customerCompany?.id === companyId)
         if (!source) return
         this.companyComparison.source = source
-        const [runsRes, quotesRes] = await Promise.all([
+        const [runsRes, quotesRes, catalogRes] = await Promise.all([
           fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=20`, { headers: this.authHeaders() }),
-          fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=20000&compact=1`, { headers: this.authHeaders() })
+          fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=20000&compact=1`, { headers: this.authHeaders() }),
+          fetch(`/api/admin/pricing/external-catalog?sourceId=${encodeURIComponent(source.id)}&page=1&limit=${this.companyComparison.catalogPageSize}`, { headers: this.authHeaders() })
         ])
-        const [runsData, quotesData] = await Promise.all([runsRes.json(), quotesRes.json()])
+        const [runsData, quotesData, catalogData] = await Promise.all([runsRes.json(), quotesRes.json(), catalogRes.json()])
         if (!runsRes.ok) throw new Error(runsData.error || 'Не удалось загрузить запуски')
         if (!quotesRes.ok) throw new Error(quotesData.error || 'Не удалось загрузить сохранённый прайс')
         this.companyComparison.externalQuotes = quotesData.rows || []
+        if (catalogRes.ok && (catalogData.totalRoutes || catalogData.crawl)) this.companyComparison.catalog = { available: true, routes: catalogData.routes || [], totalRoutes: catalogData.totalRoutes || 0, totalQuotes: catalogData.totalQuotes || 0, crawl: catalogData.crawl || null }
         const run = (runsData.rows || []).find((row) => this.comparisonRunScopeType(row) === 'riderra_active_price_book')
           || (runsData.rows || []).find((row) => this.comparisonRunScopeType(row) !== 'booking_historical_workbook')
           || runsData.rows?.[0]
@@ -832,6 +866,17 @@ export default {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Не удалось обновить сохранённый прайс')
       this.companyComparison.externalQuotes = data.rows || []
+      if (this.companyComparison.catalog.available) await this.loadCompanyCatalog()
+    },
+    async loadCompanyCatalog() {
+      const sourceId = this.companyComparison.source?.id
+      if (!sourceId) return
+      const params = new URLSearchParams({ sourceId, page: String(this.companyComparison.quotePage), limit: String(this.companyComparison.catalogPageSize) })
+      if (this.companyComparison.quoteQuery.trim()) params.set('q', this.companyComparison.quoteQuery.trim())
+      const res = await fetch(`/api/admin/pricing/external-catalog?${params.toString()}`, { headers: this.authHeaders() })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Не удалось загрузить полный каталог')
+      this.companyComparison.catalog = { available: true, routes: data.routes || [], totalRoutes: data.totalRoutes || 0, totalQuotes: data.totalQuotes || 0, crawl: data.crawl || null }
     },
     async loadCompanyHistoricalOpportunities(runId) {
       const res = await fetch(`/api/admin/pricing/comparison-runs/${runId}/results?resultStatus=opportunity`, { headers: this.authHeaders() })

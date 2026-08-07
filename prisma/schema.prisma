@@ -65,6 +65,8 @@ model Tenant {
   priceComparisonPlaces         PriceComparisonPlaceMap[]
   priceComparisonVehicles       PriceComparisonVehicleMap[]
   externalPriceSnapshots        ExternalTransferPriceSnapshot[]
+  externalCatalogCrawls         ExternalPriceCatalogCrawl[]
+  externalCatalogRoutes         ExternalPriceCatalogRoute[]
   geoZoneBenchmarkPoints        GeoZoneBenchmarkPoint[]
   canonicalTransferPlaces       CanonicalTransferPlace[]
   canonicalTransferPlaceAliases CanonicalTransferPlaceAlias[]
@@ -834,6 +836,8 @@ model PriceComparisonSource {
   placeMappings           PriceComparisonPlaceMap[]
   vehicleMappings         PriceComparisonVehicleMap[]
   externalPriceSnapshots  ExternalTransferPriceSnapshot[]
+  catalogCrawls           ExternalPriceCatalogCrawl[]
+  catalogRoutes           ExternalPriceCatalogRoute[]
   canonicalPlaceAliases   CanonicalTransferPlaceAlias[]
 
   @@unique([tenantId, adapterKey])
@@ -902,6 +906,65 @@ model ExternalTransferPriceSnapshot {
   @@index([tenantId, sourceId, routeKey, quotedAt])
   @@index([tenantId, routeFrom, routeTo, currency, quotedAt])
   @@index([tenantId, externalVehicleKey, currency, quotedAt])
+}
+
+model ExternalPriceCatalogCrawl {
+  id              String                      @id @default(cuid())
+  tenantId        String
+  sourceId        String
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  status          String                      @default("configured")
+  serviceAt       DateTime
+  currenciesJson  String
+  totalRoutes     Int                         @default(0)
+  cursor          Int                         @default(0)
+  processedRoutes Int                         @default(0)
+  quotedRoutes    Int                         @default(0)
+  noQuoteRoutes   Int                         @default(0)
+  failedRoutes    Int                         @default(0)
+  error           String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdByUserId String?
+  tenant          Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source          PriceComparisonSource       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  routes          ExternalPriceCatalogRoute[]
+
+  @@index([tenantId, sourceId, createdAt])
+  @@index([sourceId, status, updatedAt])
+}
+
+model ExternalPriceCatalogRoute {
+  id              String                     @id @default(cuid())
+  tenantId        String
+  sourceId        String
+  latestCrawlId   String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  routeKey        String
+  sourceUrl       String
+  routeFrom       String
+  routeTo         String
+  pickupPlaceId   String
+  dropoffPlaceId  String
+  serviceAt       DateTime
+  passengers      Int                        @default(1)
+  status          String                     @default("quoted")
+  currenciesJson  String
+  priceMatrixJson String
+  quoteCount      Int                        @default(0)
+  contentHash     String?
+  quotedAt        DateTime?
+  error           String?
+  tenant          Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source          PriceComparisonSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  latestCrawl     ExternalPriceCatalogCrawl? @relation(fields: [latestCrawlId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceId, sourceUrl])
+  @@index([tenantId, sourceId, status, updatedAt])
+  @@index([tenantId, sourceId, routeFrom, routeTo])
+  @@index([latestCrawlId])
 }
 
 model PriceComparisonQuote {
