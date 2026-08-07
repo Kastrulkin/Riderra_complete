@@ -89,62 +89,67 @@ async function main() {
   const errors = []
   let processed = existingKeys.size
   let succeeded = existingKeys.size
-  for (const row of routes) {
-    const key = routeKey(row)
-    if (existingKeys.has(key)) continue
-    try {
-      const pickupCandidates = await adapter.resolvePlace(row.routeFrom)
-      const pickup = selectCandidate(row.routeFrom, pickupCandidates, row.iata)
-      if (!pickup) throw new Error(`Pickup needs review (${pickupCandidates.length} candidates)`)
-      const dropoffCandidates = await adapter.resolvePlace(row.routeTo)
-      const dropoff = selectCandidate(row.routeTo, dropoffCandidates)
-      if (!dropoff) throw new Error(`Drop-off needs review (${dropoffCandidates.length} candidates)`)
-      const fetched = await adapter.fetchQuotes({ pickup, dropoff, serviceAt: run.serviceAt, currency: 'EUR', passengers: BOOKING_DEFAULTS.passengers })
-      const quotedAt = new Date()
-      await prisma.externalTransferPriceSnapshot.createMany({
-        data: fetched.quotes.map((quote) => ({
-          tenantId,
-          sourceId: source.id,
-          runId: run.id,
-          routeKey: key,
-          routeFrom: row.routeFrom,
-          routeTo: row.routeTo,
-          pickupPlaceId: pickup.id,
-          pickupLabel: pickup.label,
-          dropoffPlaceId: dropoff.id,
-          dropoffLabel: dropoff.label,
-          serviceAt: run.serviceAt,
-          passengers: 1,
-          currency: 'EUR',
-          externalVehicleKey: quote.externalVehicleKey,
-          externalVehicleName: quote.externalVehicleName,
-          maxPassengers: quote.maxPassengers,
-          publicSellPrice: quote.price,
-          quoteKind: 'public_sell',
-          quotedAt,
-          sourceUrl: fetched.evidence.sourceUrl,
-          evidenceJson: JSON.stringify({ ...fetched.evidence, dataset: { ...row, origin: undefined } })
-        })),
-        skipDuplicates: true
-      })
-      succeeded++
-    } catch (error) {
-      errors.push({ iata: row.iata, routeFrom: row.routeFrom, routeTo: row.routeTo, error: String(error.message || error).slice(0, 500) })
-    }
-    processed++
-    await prisma.priceComparisonRun.update({
-      where: { id: run.id },
-      data: {
-        status: 'running',
-        processedCount: processed,
-        failedCount: errors.length,
-        needsReviewCount: errors.filter((row) => /needs review/i.test(row.error)).length,
-        error: errors.length ? JSON.stringify(errors.slice(-20)) : null
+  const pending = routes.filter((row) => !existingKeys.has(routeKey(row)))
+  let cursor = 0
+  const workers = Array.from({ length: BOOKING_DEFAULTS.maxConcurrency }, async () => {
+    while (cursor < pending.length) {
+      const row = pending[cursor++]
+      const key = routeKey(row)
+      try {
+        const pickupCandidates = await adapter.resolvePlace(row.routeFrom)
+        const pickup = selectCandidate(row.routeFrom, pickupCandidates, row.iata)
+        if (!pickup) throw new Error(`Pickup needs review (${pickupCandidates.length} candidates)`)
+        const dropoffCandidates = await adapter.resolvePlace(row.routeTo)
+        const dropoff = selectCandidate(row.routeTo, dropoffCandidates)
+        if (!dropoff) throw new Error(`Drop-off needs review (${dropoffCandidates.length} candidates)`)
+        const fetched = await adapter.fetchQuotes({ pickup, dropoff, serviceAt: run.serviceAt, currency: 'EUR', passengers: BOOKING_DEFAULTS.passengers })
+        const quotedAt = new Date()
+        await prisma.externalTransferPriceSnapshot.createMany({
+          data: fetched.quotes.map((quote) => ({
+            tenantId,
+            sourceId: source.id,
+            runId: run.id,
+            routeKey: key,
+            routeFrom: row.routeFrom,
+            routeTo: row.routeTo,
+            pickupPlaceId: pickup.id,
+            pickupLabel: pickup.label,
+            dropoffPlaceId: dropoff.id,
+            dropoffLabel: dropoff.label,
+            serviceAt: run.serviceAt,
+            passengers: 1,
+            currency: 'EUR',
+            externalVehicleKey: quote.externalVehicleKey,
+            externalVehicleName: quote.externalVehicleName,
+            maxPassengers: quote.maxPassengers,
+            publicSellPrice: quote.price,
+            quoteKind: 'public_sell',
+            quotedAt,
+            sourceUrl: fetched.evidence.sourceUrl,
+            evidenceJson: JSON.stringify({ ...fetched.evidence, dataset: { ...row, origin: undefined } })
+          })),
+          skipDuplicates: true
+        })
+        succeeded++
+      } catch (error) {
+        errors.push({ iata: row.iata, routeFrom: row.routeFrom, routeTo: row.routeTo, error: String(error.message || error).slice(0, 500) })
       }
-    })
-    if (processed % 25 === 0) console.log(JSON.stringify({ runId: run.id, processed, total: routes.length, succeeded, errors: errors.length }))
-    await new Promise((resolve) => setTimeout(resolve, BOOKING_DEFAULTS.requestDelayMs))
-  }
+      processed++
+      await prisma.priceComparisonRun.update({
+        where: { id: run.id },
+        data: {
+          status: 'running',
+          processedCount: processed,
+          failedCount: errors.length,
+          needsReviewCount: errors.filter((row) => /needs review/i.test(row.error)).length,
+          error: errors.length ? JSON.stringify(errors.slice(-20)) : null
+        }
+      })
+      if (processed % 25 === 0) console.log(JSON.stringify({ runId: run.id, processed, total: routes.length, succeeded, errors: errors.length }))
+      await new Promise((resolve) => setTimeout(resolve, BOOKING_DEFAULTS.requestDelayMs))
+    }
+  })
+  await Promise.all(workers)
 
   const status = errors.length ? 'needs_review' : 'ready'
   run = await prisma.priceComparisonRun.update({
