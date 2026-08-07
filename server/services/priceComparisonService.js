@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 const { CIVITATIS_DEFAULTS, CivitatisAdapter } = require('./civitatisPriceAdapter')
 const { BOOKING_DEFAULTS, BookingAdapter } = require('./bookingPriceAdapter')
+const { JAMTRANSFER_DEFAULTS, JamTransferAdapter } = require('./jamTransferPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -374,6 +375,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'smart-ryde') return new SmartRydeAdapter(config, dependencies)
   if (source.adapterKey === 'civitatis') return new CivitatisAdapter(config, dependencies)
   if (source.adapterKey === 'booking') return new BookingAdapter(config, dependencies)
+  if (source.adapterKey === 'jamtransfer') return new JamTransferAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -407,6 +409,23 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external === 'large_people_carrier') return /(mini.?van [567]|mpv [567]|people carrier [567]|businessvan 6)/i.test(internal)
     if (external === 'executive_people_carrier') return /(businessvan|executive.*van|executive people)/i.test(internal)
     if (external === 'minibus') return /(mini.?bus|8 seat|9 seat|10 seat|large people)/i.test(internal)
+    return false
+  }
+  if (adapterKey === 'jamtransfer') {
+    const match = String(externalVehicleKey || '').match(/^(standard|premium|first_class)_(\d+)$/)
+    if (!match) return false
+    const category = match[1]
+    const capacity = Number(match[2])
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    if (category === 'first_class') return /(first class|luxury)/i.test(internal) && capacity === 3
+    if (category === 'premium') {
+      if (/(business class car|business sedan)/i.test(internal) && !/(van|people|mpv)/i.test(internal)) return capacity === 3
+      return /(businessvan|executive.*van|business.*van)/i.test(internal) && Number.isFinite(internalCapacity) && capacity === internalCapacity
+    }
+    if (/(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(electric|mini.?van|mpv|bus)/i.test(internal)) return capacity === 3
+    if (/standard mpv/i.test(internal)) return capacity === 4
+    if (/(mini.?van|mini.?bus|coach)/i.test(internal) && Number.isFinite(internalCapacity)) return capacity === internalCapacity
     return false
   }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
@@ -839,7 +858,9 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
 function defaultSourceData(overrides = {}) {
   const defaults = overrides.adapterKey === 'civitatis'
     ? CIVITATIS_DEFAULTS
-    : (overrides.adapterKey === 'booking' ? BOOKING_DEFAULTS : SMART_RYDE_DEFAULTS)
+    : (overrides.adapterKey === 'booking'
+        ? BOOKING_DEFAULTS
+        : (overrides.adapterKey === 'jamtransfer' ? JAMTRANSFER_DEFAULTS : SMART_RYDE_DEFAULTS))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -859,7 +880,9 @@ module.exports = {
   SMART_RYDE_DEFAULTS,
   CIVITATIS_DEFAULTS,
   BOOKING_DEFAULTS,
+  JAMTRANSFER_DEFAULTS,
   BookingAdapter,
+  JamTransferAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
