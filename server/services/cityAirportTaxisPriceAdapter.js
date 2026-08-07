@@ -172,6 +172,8 @@ class CityAirportTaxisAdapter {
     this.supportedCurrencies = config.supportedCurrencies || CITY_AIRPORT_TAXIS_DEFAULTS.supportedCurrencies
     this.fetchImpl = dependencies.fetchImpl || global.fetch
     this.routes = []
+    this.pickupCandidates = []
+    this.routesByPickup = new Map()
     this.initializePromise = null
     this.placeResolutionIsLocal = true
     this.trustUniquePlaceCandidate = true
@@ -209,19 +211,26 @@ class CityAirportTaxisAdapter {
       const routeSets = await Promise.all(sitemapUrls.map(async (url) => parseSitemapRoutes(await (await this.request(url)).text(), this.baseUrl)))
       this.routes = routeSets.flat()
       if (!this.routes.length) throw new Error('City Airport Taxis route sitemap is empty')
+      const pickups = new Map()
+      this.routesByPickup = new Map()
+      for (const route of this.routes) {
+        pickups.set(route.pickupPlaceId, { id: route.pickupPlaceId, label: route.pickupLabel })
+        if (!this.routesByPickup.has(route.pickupPlaceId)) this.routesByPickup.set(route.pickupPlaceId, [])
+        this.routesByPickup.get(route.pickupPlaceId).push(route)
+      }
+      this.pickupCandidates = [...pickups.values()]
       return this.routes
     })()
     try { return await this.initializePromise } finally { this.initializePromise = null }
   }
 
   async resolvePlace(inputText, relatedPlaceId = null) {
-    const routes = await this.initialize()
+    await this.initialize()
     const candidates = new Map()
-    for (const route of routes) {
-      if (relatedPlaceId && route.pickupPlaceId !== relatedPlaceId) continue
-      const candidate = relatedPlaceId
-        ? { id: route.dropoffPlaceId, label: route.dropoffLabel }
-        : { id: route.pickupPlaceId, label: route.pickupLabel }
+    const rows = relatedPlaceId
+      ? (this.routesByPickup.get(relatedPlaceId) || []).map((route) => ({ id: route.dropoffPlaceId, label: route.dropoffLabel }))
+      : this.pickupCandidates
+    for (const candidate of rows) {
       if (routeCandidateMatches(inputText, candidate.label)) candidates.set(candidate.id, candidate)
     }
     const ranked = [...candidates.values()]
