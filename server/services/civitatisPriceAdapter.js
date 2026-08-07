@@ -143,6 +143,12 @@ function candidateMatches(inputText, candidateLabel) {
   const candidate = normalizeKey(candidateLabel)
   if (!input || !candidate) return false
   if (input === candidate) return true
+  const inputIsPort = /\b(port|cruise|harbour|harbor)\b/.test(input)
+  const candidateIsPort = /\b(port|cruise|harbour|harbor)\b/.test(candidate)
+  const inputIsStation = /\b(station|train|railway)\b/.test(input)
+  const candidateIsStation = /\b(station|train|railway)\b/.test(candidate)
+  if ((inputIsPort && !candidateIsPort) || (inputIsStation && !candidateIsStation)) return false
+  if (/\bairport\b/.test(input) && (candidateIsPort || candidateIsStation)) return false
   const inputIata = String(inputText || '').match(/\(([A-Z]{3})\)/)?.[1]
   if (inputIata && new RegExp(`\\b${inputIata}\\b`, 'i').test(String(candidateLabel || ''))) return true
   const stopwords = new Set(['airport', 'international', 'city', 'centre', 'center', 'downtown', 'hotel', 'station', 'terminal', 'of'])

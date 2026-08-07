@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 
 const {
   CivitatisAdapter,
+  candidateMatches,
   parseCivitatisCatalogPages,
   parseCivitatisTransferPage,
   parseMoney
@@ -90,6 +91,11 @@ test('Civitatis repeated regional tables share catalog-wide place identities', (
 test('Civitatis money parser handles comma and dot decimal formats', () => {
   assert.equal(parseMoney('€ 1.234,56'), 1234.56)
   assert.equal(parseMoney('US$ 1,234.56'), 1234.56)
+})
+
+test('Civitatis place matching does not confuse a port with a same-city airport', () => {
+  assert.equal(candidateMatches('Port of Los Angeles', 'Los Angeles International Airport'), false)
+  assert.equal(candidateMatches('Copenhagen Cruise Port', 'Port of Copenhagen'), true)
 })
 
 test('Civitatis adapter resolves a unique catalog location using Riderra label', async () => {
