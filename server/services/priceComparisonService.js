@@ -518,7 +518,9 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
   }
 
   const candidates = await adapter.resolvePlace(inputText, relatedPlaceId)
-  const selected = selectPlaceCandidate(inputText, candidates)
+  const selected = adapter.trustUniquePlaceCandidate && candidates.length === 1
+    ? candidates[0]
+    : selectPlaceCandidate(inputText, candidates)
   // A previously reviewed ambiguous mapping must stay behind the review gate.
   // Fresh candidates may change between requests, so only brand-new mappings
   // are eligible for automatic selection. Existing mappings are approved via

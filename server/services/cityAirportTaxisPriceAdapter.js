@@ -79,7 +79,9 @@ function routeCandidateMatches(inputText, candidateLabel) {
   const iata = String(inputText || '').match(/\(([A-Z]{3})\)/)?.[1]
   const inputTokens = meaningfulTokens(inputText).filter((token) => token !== iata?.toLowerCase())
   const candidateTokens = new Set(meaningfulTokens(candidateLabel))
-  return inputTokens.length > 0 && inputTokens.filter((token) => candidateTokens.has(token)).length / inputTokens.length >= 0.75
+  const overlap = inputTokens.filter((token) => candidateTokens.has(token)).length
+  if (/\bairport\b/i.test(inputText) && /\bairport\b/i.test(candidateLabel)) return overlap >= 1
+  return inputTokens.length > 0 && overlap / inputTokens.length >= 0.75
 }
 
 function candidateScore(inputText, candidateLabel) {
@@ -172,6 +174,7 @@ class CityAirportTaxisAdapter {
     this.routes = []
     this.initializePromise = null
     this.placeResolutionIsLocal = true
+    this.trustUniquePlaceCandidate = true
     this.quoteLookupIsLocal = false
   }
 

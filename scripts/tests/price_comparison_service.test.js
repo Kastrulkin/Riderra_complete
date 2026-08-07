@@ -179,6 +179,25 @@ test('place auto-approval rejects semantically wrong single results', () => {
   ]), null)
 })
 
+test('an adapter may trust its own uniquely ranked local place candidate', async () => {
+  let saved
+  const prisma = {
+    priceComparisonPlaceMap: {
+      findUnique: async () => null,
+      upsert: async (query) => { saved = query; return query.create }
+    }
+  }
+  const result = await resolveStoredPlace({
+    prisma,
+    source: { id: 'cat-source' },
+    adapter: { placeResolutionIsLocal: true, trustUniquePlaceCandidate: true, resolvePlace: async () => [{ id: 'cat:varna', label: 'Varna Airport' }] },
+    tenantId: 'tenant-1',
+    inputText: 'Varna Airport (VAR)'
+  })
+  assert.equal(result.ok, true)
+  assert.equal(saved.create.status, 'approved')
+})
+
 test('SmartRyde quote parser extracts safe vehicle facts', () => {
   const html = '<button data-car="{&quot;name&quot;:&quot;Standard 5 seat&quot;,&quot;price&quot;:130,&quot;format_price&quot;:&quot;$130.00&quot;,&quot;max_passenger&quot;:3,&quot;explain&quot;:&quot;Ford Focus&quot;}"></button>'
   assert.deepEqual(parseSmartRydeQuotes(html), [{

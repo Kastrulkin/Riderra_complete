@@ -31,6 +31,8 @@ test('parses public sitemap route pages without booking URLs', () => {
 
 test('matches Riderra airport and city labels conservatively', () => {
   assert.equal(routeCandidateMatches('Athens International Airport (ATH)', 'Athens Airport'), true)
+  assert.equal(routeCandidateMatches('Vienna Schwechat Airport (VIE)', 'Vienna Airport'), true)
+  assert.equal(routeCandidateMatches('Yerevan Zvartnots Airport (EVN)', 'Zvartnots Airport'), true)
   assert.equal(routeCandidateMatches('Athens', 'Athens City Centre'), true)
   assert.equal(routeCandidateMatches('Vienna', 'Athens City Centre'), false)
 })
