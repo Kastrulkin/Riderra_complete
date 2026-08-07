@@ -166,8 +166,10 @@ class TalixoAdapter {
   async resolvePlace(inputText) {
     const query = String(inputText || '').trim()
     if (!query) return []
+    const requestedIata = query.match(/\(([A-Z]{3})\)/)?.[1] || null
+    const searchQuery = query.replace(/\s*\([A-Z]{3}\)\s*$/i, '').trim()
     const autocompleteUrl = new URL('/api/v1/geoservice/place:autocomplete', this.geoServiceUrl)
-    autocompleteUrl.searchParams.set('input', query)
+    autocompleteUrl.searchParams.set('input', searchQuery)
     const response = await this.request(autocompleteUrl)
     if (!response.ok) throw new Error(`Talixo place search failed: HTTP ${response.status}`)
     const payload = await response.json()
@@ -181,13 +183,15 @@ class TalixoAdapter {
       const details = (await detailsResponse.json())?.result
       const location = details?.geometry?.location
       if (!details?.formatted_address || !location) continue
-      const iataCode = prediction.description?.match(/\(([A-Z]{3})\)/)?.[1] || null
+      const placeTypes = details.types || prediction.types || []
+      const iataCode = prediction.description?.match(/\(([A-Z]{3})\)/)?.[1]
+        || (requestedIata && placeTypes.includes('airport') ? requestedIata : null)
       const place = {
         placeId: prediction.place_id,
         formattedAddress: details.formatted_address,
         latitude: Number(location.lat),
         longitude: Number(location.lng),
-        types: details.types || prediction.types || [],
+        types: placeTypes,
         iataCode
       }
       candidates.push({

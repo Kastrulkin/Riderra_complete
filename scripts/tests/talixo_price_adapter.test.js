@@ -67,6 +67,21 @@ test('Talixo public offer cards are normalized', () => {
   ])
 })
 
+test('Talixo place search removes Riderra IATA suffix and keeps it on an airport', async () => {
+  const requests = []
+  const adapter = new TalixoAdapter({}, {
+    fetchImpl: async (url) => {
+      requests.push(String(url))
+      if (requests.length === 1) return { ok: true, json: async () => ({ predictions: [{ place_id: 'place-ber', description: 'Berlin Brandenburg International Airport, Germany', types: ['airport'] }] }) }
+      return { ok: true, json: async () => ({ result: { name: 'Berlin Brandenburg Airport', formatted_address: berlinAirport.formattedAddress, types: ['airport'], geometry: { location: { lat: berlinAirport.latitude, lng: berlinAirport.longitude } } } }) }
+    }
+  })
+  const rows = await adapter.resolvePlace('Berlin Brandenburg Airport (BER)')
+  assert.match(requests[0], /input=Berlin\+Brandenburg\+Airport/)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].iataCode, 'BER')
+})
+
 test('Talixo adapter reads the public choice page without creating a booking', async () => {
   const requests = []
   const adapter = new TalixoAdapter({}, {
