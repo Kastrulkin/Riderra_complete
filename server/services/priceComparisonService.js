@@ -438,8 +438,8 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
     }
   })
   return autoApprove
-    ? { ok: true, id: selected.id, label: selected.label, mapping, externalRequest: true }
-    : { ok: false, mapping, candidates, externalRequest: true }
+    ? { ok: true, id: selected.id, label: selected.label, mapping, externalRequest: !adapter.placeResolutionIsLocal }
+    : { ok: false, mapping, candidates, externalRequest: !adapter.placeResolutionIsLocal }
 }
 
 async function resolveBenchmarkPlace({ prisma, tenantId, zoneName, endpoint }) {
@@ -649,7 +649,7 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
     for (const row of pending) {
       await applyFetchedQuotesToRow({ prisma, run, source, row, policy, pickup, dropoff, fetched, quotedAt })
     }
-    return true
+    return !adapter.quoteLookupIsLocal
   } catch (error) {
     const status = error instanceof NoQuotesError ? 'no_quote' : (error?.code === 'CATALOG_ROUTE_NOT_LISTED' ? 'needs_review' : 'failed')
     await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status, error: String(error.message || error).slice(0, 1000) })))
@@ -659,7 +659,7 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
         data: { status: 'ignored', error: null }
       })
     }
-    return true
+    return !adapter.quoteLookupIsLocal
   }
 }
 

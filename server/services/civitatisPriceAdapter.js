@@ -166,6 +166,8 @@ class CivitatisAdapter {
     this.cookies = new Map()
     this.catalogRows = []
     this.catalogPages = null
+    this.placeResolutionIsLocal = true
+    this.quoteLookupIsLocal = true
   }
 
   cookieHeader() {
