@@ -439,7 +439,7 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
   if (existing?.status === 'approved' && existing.externalPlaceId && existing.externalLabel) {
     return { ok: true, id: existing.externalPlaceId, label: existing.externalLabel, mapping: existing, externalRequest: false }
   }
-  if (existing?.status === 'needs_review') {
+  if (existing?.status === 'needs_review' && !adapter.placeResolutionIsLocal) {
     return {
       ok: false,
       mapping: existing,
@@ -765,7 +765,7 @@ async function collectAdapterCatalog({ prisma, run, source, adapter, passengers 
     where: { id: run.id },
     data: {
       scopeJson: JSON.stringify({ ...scope, catalog }),
-      error: stats.errors.length ? `Civitatis catalog: ${stats.errors.length} pages failed` : null
+      error: stats.errors.length ? `${source.name} catalog: ${stats.errors.length} pages failed` : null
     }
   })
   return stats
