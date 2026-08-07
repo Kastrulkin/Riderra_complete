@@ -118,3 +118,21 @@ test('Civitatis adapter resolves a unique catalog location using Riderra label',
     description: 'Downtown London'
   }])
 })
+
+test('Civitatis adapter does not mix pickup and drop-off roles during place resolution', async () => {
+  const adapter = new CivitatisAdapter()
+  adapter.loadCatalogSnapshots([{
+    pickupPlaceId: 'civitatis:airport',
+    pickupLabel: 'Larnaca Airport (LCA)',
+    dropoffPlaceId: 'civitatis:city',
+    dropoffLabel: 'Larnaca',
+    currency: 'EUR',
+    externalVehicleKey: 'private_vehicle_base',
+    externalVehicleName: 'Private vehicle',
+    publicSellPrice: 20,
+    evidenceJson: '{}'
+  }])
+
+  assert.deepEqual((await adapter.resolvePlace('Larnaca Airport (LCA)')).map((row) => row.id), ['civitatis:airport'])
+  assert.deepEqual((await adapter.resolvePlace('Larnaca', 'civitatis:airport')).map((row) => row.id), ['civitatis:city'])
+})

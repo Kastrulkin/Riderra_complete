@@ -273,11 +273,13 @@ class CivitatisAdapter {
   async resolvePlace(inputText, relatedPlaceId = null) {
     const candidates = new Map()
     for (const row of this.catalogRows) {
-      if (relatedPlaceId && row.pickupPlaceId !== relatedPlaceId && row.dropoffPlaceId !== relatedPlaceId) continue
-      for (const place of [
-        { id: row.pickupPlaceId, label: row.pickupLabel },
-        { id: row.dropoffPlaceId, label: row.dropoffLabel }
-      ]) {
+      if (relatedPlaceId && row.pickupPlaceId !== relatedPlaceId) continue
+      // Public tables describe pickup -> drop-off. Search pickup locations first,
+      // then restrict the destination search to rows belonging to that pickup.
+      const places = relatedPlaceId
+        ? [{ id: row.dropoffPlaceId, label: row.dropoffLabel }]
+        : [{ id: row.pickupPlaceId, label: row.pickupLabel }]
+      for (const place of places) {
         if (place.id && place.label && candidateMatches(inputText, place.label)) candidates.set(place.id, { ...place, description: place.label })
       }
     }
