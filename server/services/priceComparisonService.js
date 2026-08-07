@@ -69,6 +69,12 @@ function externalRouteKey({ routeFrom, routeTo, currency }) {
     .digest('hex')
 }
 
+function externalCatalogRouteKey({ sourceUrl, pickupPlaceId, dropoffPlaceId, currency }) {
+  return crypto.createHash('sha256')
+    .update([String(sourceUrl || ''), String(pickupPlaceId || ''), String(dropoffPlaceId || ''), String(currency || '').toUpperCase()].join('|'))
+    .digest('hex')
+}
+
 function comparisonRunScopeWhere(scopeJson) {
   const scope = safeJsonParse(scopeJson, null)
   const routePairs = Array.isArray(scope?.routePairs) ? scope.routePairs : []
@@ -688,7 +694,7 @@ async function collectAdapterCatalog({ prisma, run, source, adapter, passengers 
           tenantId: run.tenantId,
           sourceId: source.id,
           runId: run.id,
-          routeKey: externalRouteKey(row),
+          routeKey: externalCatalogRouteKey(row),
           routeFrom: row.routeFrom,
           routeTo: row.routeTo,
           pickupPlaceId: row.pickupPlaceId,
@@ -840,6 +846,7 @@ module.exports = {
   defaultSourceData,
   executePriceComparisonRun,
   externalRouteKey,
+  externalCatalogRouteKey,
   hasFinalComparison,
   nextScheduledServiceAt,
   normalizeTextKey,
