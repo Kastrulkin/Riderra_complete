@@ -1,6 +1,7 @@
 const {
   SMART_RYDE_DEFAULTS,
   CIVITATIS_DEFAULTS,
+  BOOKING_DEFAULTS,
   applyPricingPolicy,
   defaultSourceData,
   executePriceComparisonRun,
@@ -75,10 +76,13 @@ function registerPricingComparisonRoutes(app, dependencies) {
   app.post('/api/admin/pricing/comparison-sources', ...canManage, async (req, res) => {
     try {
       const adapterKey = String(req.body?.adapterKey || 'smart-ryde').trim()
-      if (!['smart-ryde', 'civitatis'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
+      if (!['smart-ryde', 'civitatis', 'booking'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
       const data = defaultSourceData({ ...(req.body || {}), adapterKey })
       const sourceUrl = new URL(data.baseUrl)
-      const allowedHostname = new URL(adapterKey === 'civitatis' ? CIVITATIS_DEFAULTS.baseUrl : SMART_RYDE_DEFAULTS.baseUrl).hostname
+      const allowedBaseUrl = adapterKey === 'civitatis'
+        ? CIVITATIS_DEFAULTS.baseUrl
+        : (adapterKey === 'booking' ? BOOKING_DEFAULTS.baseUrl : SMART_RYDE_DEFAULTS.baseUrl)
+      const allowedHostname = new URL(allowedBaseUrl).hostname
       if (sourceUrl.protocol !== 'https:' || sourceUrl.hostname !== allowedHostname) {
         return res.status(400).json({ error: 'Adapter URL is not allowed' })
       }

@@ -37,6 +37,17 @@ test('sequential deductions remain available for future partner formulas', () =>
   assert.equal(applyPricingPolicy(100, { type: 'sequential_deductions', deductions: [25, 20] }), 60)
 })
 
+test('Booking deductions use the client public price and equality is not an opportunity', () => {
+  const policy = { type: 'sequential_deductions', deductions: [25, 20], basis: 'client_sell' }
+  assert.deepEqual(buildComparison({ riderraSellPrice: 59, clientSellPrice: 100, policy }), {
+    targetPrice: 60,
+    opportunityGapAbs: 1,
+    opportunityGapPct: 1.67,
+    status: 'opportunity'
+  })
+  assert.equal(buildComparison({ riderraSellPrice: 60, clientSellPrice: 100, policy }).status, 'not_opportunity')
+})
+
 test('service date is the first Wednesday at least seven days ahead', () => {
   const result = nextScheduledServiceAt(new Date('2026-08-04T09:00:00Z'), { weekday: 3, localTime: '12:00', minLeadDays: 7 })
   assert.equal(result.toISOString(), '2026-08-12T12:00:00.000Z')

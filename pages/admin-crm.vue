@@ -38,7 +38,7 @@
             type="button"
             class="view-pill"
             :class="{ 'view-pill--active': activeView === view.key }"
-            @click="activeView = view.key"
+            @click="selectView(view.key)"
           >
             <span class="view-pill__label">{{ view.label }}</span>
             <span class="view-pill__count">{{ viewCount(view.key) }}</span>
@@ -601,6 +601,21 @@ export default {
       this.activeView = 'all'
       this.reload()
     },
+    selectView(view) {
+      if (this.activeView === view) return
+      this.activeView = view
+      this.reload()
+    },
+    serverViewSegments() {
+      if (this.activeView === 'clients') return this.mode === 'companies' ? ['client_company'] : ['client_contact']
+      if (this.activeView === 'suppliers') return this.mode === 'companies'
+        ? ['supplier_company', 'potential_supplier']
+        : ['supplier_contact', 'potential_supplier']
+      if (this.activeView === 'potential') return this.mode === 'companies'
+        ? ['potential_client_company', 'potential_supplier']
+        : ['potential_client_contact', 'potential_client_agent', 'potential_supplier']
+      return []
+    },
     normalizedSegments(row) {
       return (row?.segments || []).map((segment) => segment.segment || segment).filter(Boolean)
     },
@@ -940,6 +955,8 @@ export default {
       try {
         const params = new URLSearchParams()
         if (this.query) params.set('q', this.query)
+        const segments = this.serverViewSegments()
+        if (segments.length) params.set('segments', segments.join(','))
         params.set('limit', '500')
 
         const endpoint = this.mode === 'companies' ? '/api/admin/crm/companies' : '/api/admin/crm/contacts'

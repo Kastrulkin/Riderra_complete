@@ -1,5 +1,6 @@
 const crypto = require('crypto')
 const { CIVITATIS_DEFAULTS, CivitatisAdapter } = require('./civitatisPriceAdapter')
+const { BOOKING_DEFAULTS, BookingAdapter } = require('./bookingPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -121,7 +122,7 @@ function buildComparison({ riderraSellPrice, clientSellPrice, policy }) {
   if (!Number.isFinite(riderraPrice) || riderraPrice < 0) throw new Error('Invalid Riderra sell price')
   const clientPrice = Number(clientSellPrice)
   if (!Number.isFinite(clientPrice) || clientPrice < 0) throw new Error('Invalid client sell price')
-  const clientBased = policy?.type === 'client_commission'
+  const clientBased = policy?.type === 'client_commission' || (policy?.type === 'sequential_deductions' && policy?.basis === 'client_sell')
   const targetPrice = applyPricingPolicy(clientBased ? clientPrice : riderraPrice, policy)
   const opportunityGapAbs = clientBased
     ? roundMoney(targetPrice - riderraPrice)
@@ -372,6 +373,7 @@ function createAdapter(source, dependencies = {}) {
   }
   if (source.adapterKey === 'smart-ryde') return new SmartRydeAdapter(config, dependencies)
   if (source.adapterKey === 'civitatis') return new CivitatisAdapter(config, dependencies)
+  if (source.adapterKey === 'booking') return new BookingAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -393,6 +395,19 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
   if (adapterKey === 'civitatis' && externalVehicleKey === 'private_vehicle_base') {
     return /(standard class car|standard sedan|sedan|saloon)/i.test(String(riderraVehicleType || ''))
       && !/(executive|business|first|mini.?van|mpv|mini.?bus|bus|coach|electric)/i.test(String(riderraVehicleType || ''))
+  }
+  if (adapterKey === 'booking') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    if (external === 'standard') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|e-vehicle|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'electric_standard') return /(electric|e-vehicle)/i.test(internal) && /(standard|sedan|car)/i.test(internal)
+    if (external === 'executive') return /(executive|business class car|business sedan)/i.test(internal) && !/(van|people|mpv)/i.test(internal)
+    if (external === 'luxury' || external === 'electric_luxury') return /(first class|luxury)/i.test(internal)
+    if (external === 'people_carrier') return /(mini.?van [34]|mpv 4|people carrier 4)/i.test(internal)
+    if (external === 'large_people_carrier') return /(mini.?van [567]|mpv [567]|people carrier [567]|businessvan 6)/i.test(internal)
+    if (external === 'executive_people_carrier') return /(businessvan|executive.*van|executive people)/i.test(internal)
+    if (external === 'minibus') return /(mini.?bus|8 seat|9 seat|10 seat|large people)/i.test(internal)
+    return false
   }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
 }
@@ -660,7 +675,7 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
     }
     return !adapter.quoteLookupIsLocal
   } catch (error) {
-    const status = error instanceof NoQuotesError ? 'no_quote' : (error?.code === 'CATALOG_ROUTE_NOT_LISTED' ? 'needs_review' : 'failed')
+    const status = error instanceof NoQuotesError || error?.code === 'NO_QUOTES' ? 'no_quote' : (error?.code === 'CATALOG_ROUTE_NOT_LISTED' ? 'needs_review' : 'failed')
     await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status, error: String(error.message || error).slice(0, 1000) })))
     if (status === 'no_quote') {
       await prisma.priceComparisonQuote.updateMany({
@@ -822,7 +837,9 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
 }
 
 function defaultSourceData(overrides = {}) {
-  const defaults = overrides.adapterKey === 'civitatis' ? CIVITATIS_DEFAULTS : SMART_RYDE_DEFAULTS
+  const defaults = overrides.adapterKey === 'civitatis'
+    ? CIVITATIS_DEFAULTS
+    : (overrides.adapterKey === 'booking' ? BOOKING_DEFAULTS : SMART_RYDE_DEFAULTS)
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -841,6 +858,8 @@ function defaultSourceData(overrides = {}) {
 module.exports = {
   SMART_RYDE_DEFAULTS,
   CIVITATIS_DEFAULTS,
+  BOOKING_DEFAULTS,
+  BookingAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

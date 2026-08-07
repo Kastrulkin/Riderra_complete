@@ -14165,7 +14165,7 @@ app.post('/api/admin/crm/promote-from-staging', authenticateToken, resolveActorC
 
 app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
-    const { q = '', segment = '', limit = '100', offset = '0' } = req.query
+    const { q = '', segment = '', segments = '', limit = '100', offset = '0' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
     const skip = Math.max(parseInt(offset, 10) || 0, 0)
 
@@ -14177,9 +14177,10 @@ app.get('/api/admin/crm/companies', authenticateToken, resolveActorContext, requ
         { phone: { contains: String(q) } }
       ]
     }
-    if (segment) {
+    const segmentList = String(segments || segment || '').split(',').map((value) => value.trim()).filter(Boolean)
+    if (segmentList.length) {
       where.segments = {
-        some: { segment: String(segment) }
+        some: { segment: { in: segmentList } }
       }
     }
 
@@ -14259,7 +14260,7 @@ app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorCo
 
 app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
-    const { q = '', segment = '', limit = '100', offset = '0' } = req.query
+    const { q = '', segment = '', segments = '', limit = '100', offset = '0' } = req.query
     const take = Math.min(parseInt(limit, 10) || 100, 500)
     const skip = Math.max(parseInt(offset, 10) || 0, 0)
 
@@ -14271,9 +14272,10 @@ app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requi
         { phone: { contains: String(q) } }
       ]
     }
-    if (segment) {
+    const segmentList = String(segments || segment || '').split(',').map((value) => value.trim()).filter(Boolean)
+    if (segmentList.length) {
       where.segments = {
-        some: { segment: String(segment) }
+        some: { segment: { in: segmentList } }
       }
     }
 
