@@ -532,6 +532,45 @@ async function resolveBenchmarkPlace({ prisma, tenantId, zoneName, endpoint }) {
   return id && label ? { ok: true, id, label, benchmarkPointId: point.id } : null
 }
 
+async function resolveTransferzBenchmarkPlace({ prisma, tenantId, source, adapter, zoneName }) {
+  const point = await prisma.geoZoneBenchmarkPoint.findFirst({
+    where: { tenantId, source: 'riderra_geo_zone', zoneName, status: 'verified' },
+    orderBy: { verifiedAt: 'desc' }
+  })
+  if (!point) return null
+  const benchmarkAddress = point.geocodedAddress || point.destinationAddress || point.pickupAddress
+  if (!benchmarkAddress) return null
+  const candidates = await adapter.resolvePlace(benchmarkAddress)
+  const selected = selectPlaceCandidate(benchmarkAddress, candidates)
+  if (!selected) return null
+  const normalizedInput = normalizeTextKey(zoneName)
+  const mapping = await prisma.priceComparisonPlaceMap.upsert({
+    where: { sourceId_normalizedInput: { sourceId: source.id, normalizedInput } },
+    update: {
+      inputText: zoneName,
+      externalPlaceId: selected.id,
+      externalLabel: selected.label,
+      status: 'approved',
+      candidatesJson: JSON.stringify(candidates),
+      approvedAt: point.verifiedAt || new Date(),
+      approvedByUserId: point.verifiedByUserId || null
+    },
+    create: {
+      tenantId,
+      sourceId: source.id,
+      inputText: zoneName,
+      normalizedInput,
+      externalPlaceId: selected.id,
+      externalLabel: selected.label,
+      status: 'approved',
+      candidatesJson: JSON.stringify(candidates),
+      approvedAt: point.verifiedAt || new Date(),
+      approvedByUserId: point.verifiedByUserId || null
+    }
+  })
+  return { ok: true, id: selected.id, label: selected.label, mapping, benchmarkPointId: point.id, externalRequest: true }
+}
+
 async function upsertQuote(prisma, data) {
   const key = {
     runId_cityPricingId_externalVehicleKey: {
@@ -663,12 +702,14 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
   const representative = pending[0]
   try {
     const pickup = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' }))
+      || (source.adapterKey === 'transferz' && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeFrom }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom })
     if (!pickup.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
       return !!pickup.externalRequest
     }
     const dropoff = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' }))
+      || (source.adapterKey === 'transferz' && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeTo }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id })
     if (!dropoff.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })))
@@ -946,6 +987,7 @@ module.exports = {
   placeCandidateMatches,
   refreshRunCounters,
   resolveStoredPlace,
+  resolveTransferzBenchmarkPlace,
   selectPlaceCandidate,
   smartRydeVehicleMatches
 }

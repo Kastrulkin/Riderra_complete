@@ -12,6 +12,7 @@ const {
   parseSmartRydeQuotes,
   placeCandidateMatches,
   resolveStoredPlace,
+  resolveTransferzBenchmarkPlace,
   selectPlaceCandidate,
   smartRydeVehicleMatches
 } = require('../../server/services/priceComparisonService')
@@ -24,6 +25,26 @@ test('Suntransfers vehicle codes map by service family and exact capacity', () =
   assert.equal(externalVehicleMatches('suntransfers', 'premmv5', 'Businessvan 5 pax'), true)
   assert.equal(externalVehicleMatches('suntransfers', 'mch16', 'Standard Minibus 16pax'), true)
   assert.equal(externalVehicleMatches('suntransfers', 'sh', 'Standard class car'), false)
+})
+
+test('Transferz can reuse a verified Riderra zone point as an exact public address', async () => {
+  let saved
+  const prisma = {
+    geoZoneBenchmarkPoint: {
+      findFirst: async () => ({ id: 'point-1', geocodedAddress: 'Obere Augartenstrasse 1e, Vienna', verifiedAt: new Date('2026-08-01T00:00:00Z'), verifiedByUserId: 'owner-1' })
+    },
+    priceComparisonPlaceMap: {
+      upsert: async (query) => { saved = query; return { id: 'mapping-1', ...query.create } }
+    }
+  }
+  const adapter = {
+    resolvePlace: async () => [{ id: 'transferz:address-1', label: 'Obere Augartenstrasse 1e', description: 'Vienna' }]
+  }
+  const result = await resolveTransferzBenchmarkPlace({ prisma, tenantId: 'tenant-1', source: { id: 'source-1' }, adapter, zoneName: 'Vienna' })
+  assert.equal(result.ok, true)
+  assert.equal(result.benchmarkPointId, 'point-1')
+  assert.equal(saved.create.inputText, 'Vienna')
+  assert.equal(saved.create.status, 'approved')
 })
 
 test('Transferz public vehicle categories map to Riderra classes by family and capacity', () => {
