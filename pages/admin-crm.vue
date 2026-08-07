@@ -377,14 +377,41 @@
             </div>
           </details>
 
-          <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel">
-            <summary class="section-summary">Связанные контакты</summary>
-            <h4>Контакты компании</h4>
-            <div v-if="!(details.links || []).length" class="hint">Пока нет связанных контактов</div>
-            <div class="linked-row" v-for="link in details.links || []" :key="link.id">
-              <div>{{ link.contact.fullName }}</div>
-              <div>{{ link.contact.email || '-' }}</div>
-              <div>{{ link.contact.phone || '-' }}</div>
+          <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel" open>
+            <summary class="section-summary">Менеджеры и контакты</summary>
+            <h4>Люди, связанные с компанией</h4>
+            <div class="hint">Добавляйте менеджеров заказчика или исполнителя. Контакт сохраняется отдельной карточкой и остаётся доступен в CRM.</div>
+            <div v-if="!(details.links || []).length" class="manager-empty">
+              Пока менеджеров нет. Заполните форму ниже, чтобы карточка компании была готова к работе.
+            </div>
+            <div class="manager-list">
+              <div class="manager-row" v-for="link in details.links || []" :key="link.id">
+                <div class="manager-row__main">
+                  <strong>{{ link.contact.fullName }}</strong>
+                  <span>{{ link.contact.position || 'Должность не указана' }}</span>
+                </div>
+                <div class="manager-row__channels">
+                  <a v-if="link.contact.email" :href="`mailto:${link.contact.email}`">{{ link.contact.email }}</a>
+                  <span v-else>Email не указан</span>
+                  <a v-if="link.contact.phone" :href="`tel:${link.contact.phone}`">{{ link.contact.phone }}</a>
+                  <span v-else>Телефон не указан</span>
+                </div>
+                <button type="button" class="btn btn--ghost btn--small" :disabled="managerBusy" @click="unlinkManager(link.contact)">Убрать связь</button>
+              </div>
+            </div>
+            <div class="manager-form">
+              <div class="manager-form__title">Добавить менеджера</div>
+              <input v-model="managerForm.fullName" class="input" placeholder="Имя и фамилия *" />
+              <input v-model="managerForm.position" class="input" placeholder="Должность" />
+              <input v-model="managerForm.email" class="input" type="email" placeholder="Email" />
+              <input v-model="managerForm.phone" class="input" placeholder="Телефон" />
+              <input v-model="managerForm.website" class="input manager-form__wide" placeholder="Сайт или профиль" />
+              <div v-if="managerError" class="hint hint--error manager-form__wide">{{ managerError }}</div>
+              <div class="manager-form__actions manager-form__wide">
+                <button type="button" class="btn btn--primary btn--small" :disabled="managerBusy" @click="addManager">
+                  {{ managerBusy ? 'Сохраняем…' : 'Добавить менеджера' }}
+                </button>
+              </div>
             </div>
           </details>
 
@@ -430,6 +457,9 @@ export default {
       detailsMode: 'company',
       detailsId: '',
       form: {},
+      managerForm: { fullName: '', position: '', email: '', phone: '', website: '' },
+      managerBusy: false,
+      managerError: '',
       companyComparison: { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], activeTab: 'prices', loading: false, busy: false, error: '', pollTimer: null }
     }
   },
@@ -951,6 +981,8 @@ export default {
         comment: this.details.comment || '',
         segments: (this.details.segments || []).map((s) => s.segment)
       }
+      this.managerForm = { fullName: '', position: '', email: '', phone: '', website: '' }
+      this.managerError = ''
       await this.loadCompanyComparison(id)
     },
     async openContact(id) {
@@ -1003,6 +1035,54 @@ export default {
         await this.openContact(this.detailsId)
       }
       await this.reload()
+    },
+    async addManager() {
+      if (this.managerBusy) return
+      this.managerError = ''
+      if (!String(this.managerForm.fullName || '').trim()) {
+        this.managerError = 'Укажите имя менеджера'
+        return
+      }
+      if (!String(this.managerForm.email || '').trim() && !String(this.managerForm.phone || '').trim()) {
+        this.managerError = 'Укажите email или телефон менеджера'
+        return
+      }
+      this.managerBusy = true
+      try {
+        const res = await fetch(`/api/admin/crm/companies/${this.detailsId}/contacts`, {
+          method: 'POST',
+          headers: { ...this.authHeaders(), 'Idempotency-Key': `crm-manager-${this.detailsId}-${Date.now()}` },
+          body: JSON.stringify(this.managerForm)
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось добавить менеджера')
+        await this.openCompany(this.detailsId)
+        await this.reload()
+      } catch (error) {
+        this.managerError = error.message
+      } finally {
+        this.managerBusy = false
+      }
+    },
+    async unlinkManager(contact) {
+      if (this.managerBusy || !contact?.id) return
+      if (!window.confirm(`Убрать связь ${contact.fullName} с этой компанией? Карточка контакта останется в CRM.`)) return
+      this.managerBusy = true
+      this.managerError = ''
+      try {
+        const res = await fetch(`/api/admin/crm/companies/${this.detailsId}/contacts/${contact.id}`, {
+          method: 'DELETE',
+          headers: { ...this.authHeaders(), 'Idempotency-Key': `crm-manager-unlink-${this.detailsId}-${contact.id}-${Date.now()}` }
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось убрать связь')
+        await this.openCompany(this.detailsId)
+        await this.reload()
+      } catch (error) {
+        this.managerError = error.message
+      } finally {
+        this.managerBusy = false
+      }
     },
   }
 }
@@ -1142,6 +1222,16 @@ export default {
 .segment-item { display:flex; align-items:center; gap:8px; font-size:14px; color:#2f3e60; }
 .links-block { margin:0; }
 .linked-row { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:10px; padding:8px 0; border-bottom:1px solid #f1f4f8; }
+.manager-empty { margin-top:12px; padding:12px; border:1px dashed #cbd5e1; border-radius:10px; background:#fff; color:#64748b; line-height:1.5; }
+.manager-list { display:grid; gap:8px; margin-top:12px; }
+.manager-row { display:grid; grid-template-columns:minmax(160px,1fr) minmax(220px,1.3fr) auto; gap:12px; align-items:center; padding:12px; border:1px solid #e7ebf2; border-radius:10px; background:#fff; }
+.manager-row__main, .manager-row__channels { display:grid; gap:4px; min-width:0; }
+.manager-row__main span, .manager-row__channels span { color:#64748b; font-size:13px; }
+.manager-row__channels a { color:#702283; overflow-wrap:anywhere; }
+.manager-form { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; padding-top:16px; border-top:1px solid #e7ebf2; }
+.manager-form__title, .manager-form__wide { grid-column:1 / -1; }
+.manager-form__title { font-weight:800; color:#17233d; }
+.manager-form__actions { display:flex; justify-content:flex-start; }
 .supplier-driver-card {
   display:grid;
   gap:14px;
@@ -1258,6 +1348,12 @@ export default {
   }
   .linked-row {
     grid-template-columns:1fr;
+  }
+  .manager-row, .manager-form {
+    grid-template-columns:1fr;
+  }
+  .manager-form__title, .manager-form__wide {
+    grid-column:auto;
   }
   .comparison-kpis { grid-template-columns:1fr; }
   .comparison-card__head { display:grid; }

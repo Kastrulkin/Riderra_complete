@@ -14322,6 +14322,141 @@ app.get('/api/admin/crm/contacts/:contactId', authenticateToken, resolveActorCon
   }
 })
 
+app.post('/api/admin/crm/companies/:companyId/contacts', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.manage', 'crm'), async (req, res) => {
+  try {
+    const { companyId } = req.params
+    const fullName = String(req.body?.fullName || '').trim()
+    const position = String(req.body?.position || '').trim()
+    const email = String(req.body?.email || '').trim().toLowerCase()
+    const phone = String(req.body?.phone || '').trim()
+    const website = String(req.body?.website || '').trim()
+
+    if (!fullName) return res.status(400).json({ error: 'Имя менеджера обязательно' })
+    if (!email && !phone) return res.status(400).json({ error: 'Укажите email или телефон менеджера' })
+
+    const company = await prisma.customerCompany.findFirst({
+      where: { id: companyId, tenantId: req.actorContext.tenantId },
+      include: { segments: true }
+    })
+    if (!company) return res.status(404).json({ error: 'Company not found' })
+
+    const payload = { companyId, fullName, position, email, phone, website }
+    ensureIdempotencyKey(req, 'crm.company_contact.link', payload)
+    const wrapped = await withIdempotency(req, 'crm.company_contact.link', payload, async () => {
+      const result = await prisma.$transaction(async (tx) => {
+        const identityFilters = []
+        if (email) identityFilters.push({ email: { equals: email, mode: 'insensitive' } })
+        if (phone) identityFilters.push({ phone })
+        let contact = identityFilters.length
+          ? await tx.customerContact.findFirst({
+            where: { tenantId: req.actorContext.tenantId, OR: identityFilters }
+          })
+          : null
+
+        const contactData = {
+          fullName,
+          position: position || null,
+          email: email || null,
+          phone: phone || null,
+          website: website || null
+        }
+        if (contact) {
+          const updateData = { fullName }
+          for (const [field, value] of Object.entries({ position, email, phone, website })) {
+            if (value) updateData[field] = value
+          }
+          contact = await tx.customerContact.update({ where: { id: contact.id }, data: updateData })
+        } else {
+          contact = await tx.customerContact.create({
+            data: {
+              tenantId: req.actorContext.tenantId,
+              sourceSystem: 'manual_crm',
+              externalId: crypto.randomUUID(),
+              ...contactData
+            }
+          })
+        }
+
+        const companySegments = new Set((company.segments || []).map((row) => row.segment))
+        const contactSegments = []
+        if (companySegments.has('client_company') || companySegments.has('potential_client_company')) contactSegments.push('client_contact')
+        if (companySegments.has('supplier_company') || companySegments.has('potential_supplier')) contactSegments.push('supplier_contact')
+        for (const contactSegment of contactSegments) {
+          await tx.customerContactSegment.upsert({
+            where: { contactId_segment: { contactId: contact.id, segment: contactSegment } },
+            create: { contactId: contact.id, segment: contactSegment, sourceFile: 'manual_ui' },
+            update: {}
+          })
+        }
+
+        const link = await tx.customerCompanyContact.upsert({
+          where: { companyId_contactId: { companyId, contactId: contact.id } },
+          create: { companyId, contactId: contact.id, source: 'manual_ui', matchType: 'manager' },
+          update: { source: 'manual_ui', matchType: 'manager' },
+          include: { contact: { include: { segments: true } } }
+        })
+        return { contact, link }
+      })
+
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'crm.company_contact.link',
+        resource: 'customer_company',
+        resourceId: companyId,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { contactId: result.contact.id, fields: ['fullName', 'position', 'email', 'phone', 'website'] }
+      })
+      return result.link
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error linking CRM company contact:', error)
+    res.status(500).json({ error: 'Не удалось добавить менеджера компании' })
+  }
+})
+
+app.delete('/api/admin/crm/companies/:companyId/contacts/:contactId', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.manage', 'crm'), async (req, res) => {
+  try {
+    const { companyId, contactId } = req.params
+    const link = await prisma.customerCompanyContact.findFirst({
+      where: {
+        companyId,
+        contactId,
+        company: { tenantId: req.actorContext.tenantId },
+        contact: { tenantId: req.actorContext.tenantId }
+      }
+    })
+    if (!link) return res.status(404).json({ error: 'Связь не найдена' })
+
+    const payload = { companyId, contactId }
+    ensureIdempotencyKey(req, 'crm.company_contact.unlink', payload)
+    const wrapped = await withIdempotency(req, 'crm.company_contact.unlink', payload, async () => {
+      await prisma.customerCompanyContact.delete({ where: { id: link.id } })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'crm.company_contact.unlink',
+        resource: 'customer_company',
+        resourceId: companyId,
+        traceId: req.actorContext.traceId,
+        decision: 'policy_allowed',
+        result: 'ok',
+        context: { contactId }
+      })
+      return { success: true }
+    })
+    res.json({ ...wrapped.data, idempotent: wrapped.replayed })
+  } catch (error) {
+    console.error('Error unlinking CRM company contact:', error)
+    res.status(500).json({ error: 'Не удалось убрать менеджера из компании' })
+  }
+})
+
 app.put('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.manage', 'crm'), async (req, res) => {
   try {
     const { companyId } = req.params
