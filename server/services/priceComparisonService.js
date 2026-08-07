@@ -805,7 +805,7 @@ async function refreshRunCounters(prisma, runId) {
   })
 }
 
-async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fetch }) {
+async function executePriceComparisonRun({ prisma, runId, fetchImpl }) {
   if (ACTIVE_RUNS.has(runId)) return { alreadyRunning: true }
   ACTIVE_RUNS.add(runId)
   try {
@@ -814,7 +814,7 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
     const source = run.source
     const policy = safeJsonParse(run.pricingPolicyJson, {})
     const passengers = safeJsonParse(source.passengerConfigJson, SMART_RYDE_DEFAULTS.passengers)
-    const adapter = createAdapter(source, { fetchImpl })
+    const adapter = createAdapter(source, fetchImpl ? { fetchImpl } : {})
     const supportedCurrencies = safeJsonParse(source.supportedCurrenciesJson, [])
     const rows = await prisma.cityPricing.findMany({
       where: {
