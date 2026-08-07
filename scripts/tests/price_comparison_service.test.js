@@ -5,6 +5,7 @@ const {
   applyPricingPolicy,
   buildComparison,
   comparisonRunScopeWhere,
+  externalVehicleMatches,
   externalRouteKey,
   hasFinalComparison,
   nextScheduledServiceAt,
@@ -14,6 +15,16 @@ const {
   selectPlaceCandidate,
   smartRydeVehicleMatches
 } = require('../../server/services/priceComparisonService')
+
+test('Suntransfers vehicle codes map by service family and exact capacity', () => {
+  assert.equal(externalVehicleMatches('suntransfers', 'tx3', 'Standard class car'), true)
+  assert.equal(externalVehicleMatches('suntransfers', 'premtx3', 'Business class car'), true)
+  assert.equal(externalVehicleMatches('suntransfers', 'mv7', 'Standard minivan 7 pax'), true)
+  assert.equal(externalVehicleMatches('suntransfers', 'mv6', 'Standard minivan 7 pax'), false)
+  assert.equal(externalVehicleMatches('suntransfers', 'premmv5', 'Businessvan 5 pax'), true)
+  assert.equal(externalVehicleMatches('suntransfers', 'mch16', 'Standard Minibus 16pax'), true)
+  assert.equal(externalVehicleMatches('suntransfers', 'sh', 'Standard class car'), false)
+})
 
 test('SmartRyde policy deducts 30 percent from the client public price', () => {
   assert.equal(applyPricingPolicy(200, { type: 'client_commission', commissionPercent: 30 }), 140)

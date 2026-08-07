@@ -433,10 +433,18 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
   if (adapterKey === 'suntransfers') {
     const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
     const internal = normalizeTextKey(riderraVehicleType)
-    if (external === 'tx4') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
-    if (external === 'mv6') return /(mini.?van [56]|mpv [56]|people carrier [56])/i.test(internal)
-    if (external === 'premtx4') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
-    if (external === 'wav6') return /(wheelchair|accessible)/i.test(internal)
+    const vehicle = external.match(/^(premtx|tx|premmv|mv|mb|mch)(\d+)$/)
+    const capacity = Number(vehicle?.[2])
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    if (vehicle?.[1] === 'tx') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (vehicle?.[1] === 'premtx') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (vehicle?.[1] === 'mv') {
+      if (/standard mpv/i.test(internal)) return capacity === 4
+      return /standard mini.?van/i.test(internal) && Number.isFinite(internalCapacity) && capacity === internalCapacity
+    }
+    if (vehicle?.[1] === 'premmv') return /(businessvan|business.*van|executive.*van)/i.test(internal) && Number.isFinite(internalCapacity) && capacity === internalCapacity
+    if (['mb', 'mch'].includes(vehicle?.[1])) return /standard mini.?bus/i.test(internal) && Number.isFinite(internalCapacity) && capacity === internalCapacity
+    if (external.startsWith('wav')) return /(wheelchair|accessible)/i.test(internal)
     return false
   }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
@@ -905,6 +913,7 @@ module.exports = {
   createAdapter,
   defaultSourceData,
   executePriceComparisonRun,
+  externalVehicleMatches,
   externalRouteKey,
   externalCatalogRouteKey,
   hasFinalComparison,
