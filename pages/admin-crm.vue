@@ -243,7 +243,7 @@
                 </div>
                 <div v-else class="comparison-empty">
                   <strong>Сохранённых публичных цен пока нет</strong>
-                  <span>Запустите сбор повторно. Маршруты, на которых SmartRyde не предлагает машину, попадут во вкладку «Возможности».</span>
+                  <span>Запустите сбор повторно. Маршруты без публичного предложения {{ companyComparison.source.name }} попадут во вкладку «Возможности».</span>
                 </div>
               </div>
 
@@ -257,7 +257,7 @@
                 </div>
                 <div v-else class="comparison-empty">
                   <strong>В последнем анализе возможностей не найдено</strong>
-                  <span>Здесь появятся направления, где целевая цена Riderra ниже цены SmartRyde или SmartRyde не предлагает машину.</span>
+                  <span>Здесь появятся направления, где цена Riderra проходит формулу {{ companyComparison.source.name }} или компания не предлагает машину.</span>
                 </div>
               </div>
 
@@ -743,7 +743,7 @@ export default {
         this.companyComparison.source = source
         const [runsRes, quotesRes] = await Promise.all([
           fetch(`/api/admin/pricing/comparison-runs?sourceId=${encodeURIComponent(source.id)}&limit=20`, { headers: this.authHeaders() }),
-          fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=500`, { headers: this.authHeaders() })
+          fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(source.id)}&limit=5000`, { headers: this.authHeaders() })
         ])
         const [runsData, quotesData] = await Promise.all([runsRes.json(), quotesRes.json()])
         if (!runsRes.ok) throw new Error(runsData.error || 'Не удалось загрузить запуски')
@@ -770,7 +770,7 @@ export default {
     async loadCompanyExternalQuotes() {
       const sourceId = this.companyComparison.source?.id
       if (!sourceId) return
-      const res = await fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(sourceId)}&limit=500`, { headers: this.authHeaders() })
+      const res = await fetch(`/api/admin/pricing/external-quotes?sourceId=${encodeURIComponent(sourceId)}&limit=5000`, { headers: this.authHeaders() })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Не удалось обновить сохранённый прайс')
       this.companyComparison.externalQuotes = data.rows || []

@@ -1,4 +1,5 @@
 const crypto = require('crypto')
+const { CIVITATIS_DEFAULTS, CivitatisAdapter } = require('./civitatisPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -357,8 +358,14 @@ class SmartRydeAdapter {
 
 function createAdapter(source, dependencies = {}) {
   const supportedCurrencies = safeJsonParse(source.supportedCurrenciesJson, SMART_RYDE_DEFAULTS.supportedCurrencies)
-  const config = { baseUrl: source.baseUrl, supportedCurrencies }
+  const config = {
+    baseUrl: source.baseUrl,
+    supportedCurrencies,
+    maxConcurrency: source.maxConcurrency,
+    requestDelayMs: source.requestDelayMs
+  }
   if (source.adapterKey === 'smart-ryde') return new SmartRydeAdapter(config, dependencies)
+  if (source.adapterKey === 'civitatis') return new CivitatisAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -374,6 +381,14 @@ function smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType) {
   if (external === '8_seat_bus') return /(standard minivan 8|8 seat|large people|standard mini.?bus)/i.test(internal)
   if (external === '10_seat_bus') return /(standard mini.?bus 9|9 seat|10 seat)/i.test(internal)
   return external === smartRydeVehicleKey(internal)
+}
+
+function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleType) {
+  if (adapterKey === 'civitatis' && externalVehicleKey === 'private_vehicle_base') {
+    return /(standard class car|standard sedan|sedan|saloon)/i.test(String(riderraVehicleType || ''))
+      && !/(executive|business|first|mini.?van|mpv|mini.?bus|bus|coach|electric)/i.test(String(riderraVehicleType || ''))
+  }
+  return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
 }
 
 async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText, relatedPlaceId }) {
@@ -495,7 +510,7 @@ async function applyFetchedQuotesToRow({ prisma, run, source, row, policy, picku
     where: { sourceId: source.id, riderraVehicleType: row.vehicleType, status: 'approved' }
   })
   let selected = fetched.quotes.find((quote) => approvedMappings.some((mapping) => mapping.externalVehicleKey === quote.externalVehicleKey))
-  const automaticMatches = fetched.quotes.filter((quote) => smartRydeVehicleMatches(quote.externalVehicleKey, row.vehicleType))
+  const automaticMatches = fetched.quotes.filter((quote) => externalVehicleMatches(source.adapterKey, quote.externalVehicleKey, row.vehicleType))
   if (!selected && automaticMatches.length === 1) {
     selected = automaticMatches[0]
     await prisma.priceComparisonVehicleMap.upsert({
@@ -636,7 +651,7 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
     }
     return true
   } catch (error) {
-    const status = error instanceof NoQuotesError ? 'no_quote' : 'failed'
+    const status = error instanceof NoQuotesError ? 'no_quote' : (error?.code === 'CATALOG_ROUTE_NOT_LISTED' ? 'needs_review' : 'failed')
     await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status, error: String(error.message || error).slice(0, 1000) })))
     if (status === 'no_quote') {
       await prisma.priceComparisonQuote.updateMany({
@@ -646,6 +661,61 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
     }
     return true
   }
+}
+
+async function collectAdapterCatalog({ prisma, run, source, adapter, passengers }) {
+  if (typeof adapter.collectCatalog !== 'function') return null
+  const existing = await prisma.externalTransferPriceSnapshot.findMany({
+    where: { runId: run.id },
+    select: { sourceUrl: true }
+  })
+  const skipSourceUrls = new Set(existing.map((row) => row.sourceUrl).filter(Boolean))
+  const currency = safeJsonParse(source.supportedCurrenciesJson, CIVITATIS_DEFAULTS.supportedCurrencies)[0] || 'EUR'
+  const stats = await adapter.collectCatalog({
+    currency,
+    skipSourceUrls,
+    onPage: async (_page, rows) => {
+      const quotedAt = new Date()
+      if (!rows.length) return
+      await prisma.externalTransferPriceSnapshot.createMany({
+        data: rows.map((row) => ({
+          tenantId: run.tenantId,
+          sourceId: source.id,
+          runId: run.id,
+          routeKey: externalRouteKey(row),
+          routeFrom: row.routeFrom,
+          routeTo: row.routeTo,
+          pickupPlaceId: row.pickupPlaceId,
+          pickupLabel: row.pickupLabel,
+          dropoffPlaceId: row.dropoffPlaceId,
+          dropoffLabel: row.dropoffLabel,
+          serviceAt: run.serviceAt,
+          passengers: Number(passengers.adults || 1) + Number(passengers.children || 0),
+          currency: row.currency,
+          externalVehicleKey: row.externalVehicleKey,
+          externalVehicleName: row.externalVehicleName,
+          maxPassengers: row.maxPassengers,
+          publicSellPrice: row.price,
+          quoteKind: 'public_sell',
+          quotedAt,
+          sourceUrl: row.sourceUrl,
+          evidenceJson: JSON.stringify(row.evidence || {})
+        })),
+        skipDuplicates: true
+      })
+    }
+  })
+  const snapshots = await prisma.externalTransferPriceSnapshot.findMany({ where: { runId: run.id } })
+  adapter.loadCatalogSnapshots(snapshots)
+  const scope = safeJsonParse(run.scopeJson, {})
+  await prisma.priceComparisonRun.update({
+    where: { id: run.id },
+    data: {
+      scopeJson: JSON.stringify({ ...scope, catalog: { ...stats, errors: stats.errors.slice(0, 200) } }),
+      error: stats.errors.length ? `Civitatis catalog: ${stats.errors.length} pages failed` : null
+    }
+  })
+  return stats
 }
 
 async function refreshRunCounters(prisma, runId) {
@@ -681,6 +751,7 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
     const policy = safeJsonParse(run.pricingPolicyJson, {})
     const passengers = safeJsonParse(source.passengerConfigJson, SMART_RYDE_DEFAULTS.passengers)
     const adapter = createAdapter(source, { fetchImpl })
+    const supportedCurrencies = safeJsonParse(source.supportedCurrenciesJson, [])
     const rows = await prisma.cityPricing.findMany({
       where: {
         tenantId: run.tenantId,
@@ -689,6 +760,7 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
         routeFrom: { not: null },
         routeTo: { not: null },
         vehicleType: { not: null },
+        ...(supportedCurrencies.length ? { currency: { in: supportedCurrencies } } : {}),
         ...comparisonRunScopeWhere(run.scopeJson)
       },
       orderBy: [{ country: 'asc' }, { city: 'asc' }, { routeFrom: 'asc' }, { routeTo: 'asc' }, { vehicleType: 'asc' }]
@@ -697,6 +769,8 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
       where: { id: run.id },
       data: { status: 'running', routeCount: rows.length, startedAt: run.startedAt || new Date(), error: null }
     })
+
+    await collectAdapterCatalog({ prisma, run, source, adapter, passengers })
 
     const grouped = new Map()
     for (const row of rows) {
@@ -729,7 +803,7 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl = global.fet
 }
 
 function defaultSourceData(overrides = {}) {
-  const defaults = SMART_RYDE_DEFAULTS
+  const defaults = overrides.adapterKey === 'civitatis' ? CIVITATIS_DEFAULTS : SMART_RYDE_DEFAULTS
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -747,6 +821,7 @@ function defaultSourceData(overrides = {}) {
 
 module.exports = {
   SMART_RYDE_DEFAULTS,
+  CIVITATIS_DEFAULTS,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

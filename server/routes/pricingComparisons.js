@@ -1,5 +1,6 @@
 const {
   SMART_RYDE_DEFAULTS,
+  CIVITATIS_DEFAULTS,
   applyPricingPolicy,
   defaultSourceData,
   executePriceComparisonRun,
@@ -74,11 +75,12 @@ function registerPricingComparisonRoutes(app, dependencies) {
   app.post('/api/admin/pricing/comparison-sources', ...canManage, async (req, res) => {
     try {
       const adapterKey = String(req.body?.adapterKey || 'smart-ryde').trim()
-      if (adapterKey !== 'smart-ryde') return res.status(400).json({ error: 'Adapter is not installed' })
-      const data = defaultSourceData(req.body || {})
+      if (!['smart-ryde', 'civitatis'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
+      const data = defaultSourceData({ ...(req.body || {}), adapterKey })
       const sourceUrl = new URL(data.baseUrl)
-      if (sourceUrl.protocol !== 'https:' || sourceUrl.hostname !== new URL(SMART_RYDE_DEFAULTS.baseUrl).hostname) {
-        return res.status(400).json({ error: 'SmartRyde adapter URL is not allowed' })
+      const allowedHostname = new URL(adapterKey === 'civitatis' ? CIVITATIS_DEFAULTS.baseUrl : SMART_RYDE_DEFAULTS.baseUrl).hostname
+      if (sourceUrl.protocol !== 'https:' || sourceUrl.hostname !== allowedHostname) {
+        return res.status(400).json({ error: 'Adapter URL is not allowed' })
       }
       applyPricingPolicy(100, JSON.parse(data.pricingPolicyJson))
       const row = await prisma.priceComparisonSource.upsert({
@@ -132,6 +134,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
       if (!source) return res.status(404).json({ error: 'Comparison source not found' })
       const routePairs = normalizeRoutePairs(req.body?.routePairs)
       const routeScope = routePairs.length ? { OR: routePairs } : {}
+      const supportedCurrencies = parseJson(source.supportedCurrenciesJson, [])
       const routeCount = await prisma.cityPricing.count({
         where: {
           tenantId: req.actorContext.tenantId,
@@ -140,6 +143,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
           routeFrom: { not: null },
           routeTo: { not: null },
           vehicleType: { not: null },
+          ...(supportedCurrencies.length ? { currency: { in: supportedCurrencies } } : {}),
           ...routeScope
         }
       })
@@ -247,7 +251,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
         where,
         include: { source: { select: { id: true, name: true, adapterKey: true } } },
         orderBy: { quotedAt: 'desc' },
-        take: Math.min(Math.max(Number(req.query.limit) || 100, 1), 500)
+        take: Math.min(Math.max(Number(req.query.limit) || 100, 1), 5000)
       })
       res.json({ rows })
     } catch (error) {
