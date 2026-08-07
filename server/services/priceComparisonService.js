@@ -624,7 +624,10 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
     } else {
       fetched = await adapter.fetchQuotes({ pickup, dropoff, serviceAt: run.serviceAt, currency: representative.currency, passengers })
       quotedAt = new Date()
-      await prisma.externalTransferPriceSnapshot.createMany({
+      // Catalog-backed adapters already persisted immutable public evidence in
+      // collectAdapterCatalog. Do not duplicate the same evidence under the
+      // per-route lookup key while comparing Riderra rows.
+      if (!adapter.quoteLookupIsLocal) await prisma.externalTransferPriceSnapshot.createMany({
         data: fetched.quotes.map((quote) => ({
           tenantId: run.tenantId,
           sourceId: source.id,
