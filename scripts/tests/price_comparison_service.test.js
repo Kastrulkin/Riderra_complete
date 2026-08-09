@@ -170,6 +170,27 @@ test('MyTransfers reuses verified benchmark coordinates without another geocoder
   assert.equal(adapter.placeIdIsValid(candidate.id), true)
 })
 
+test('MyTransfers treats its destination-not-operated HTTP 500 as no quote', async () => {
+  const adapter = new MyTransfersAdapter({ minRequestIntervalMs: 0 }, {
+    fetchImpl: async () => ({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ response_server: [{ noAvailability: true, destinationNotOperated: true, noAvailabilityReason: 'destination_not_operated' }] })
+    })
+  })
+  const place = (name, latitude, longitude) => ({
+    id: encodeMyTransfersPlace({ main_text: name, description: name, lat: latitude, lng: longitude, types: [] }),
+    label: name
+  })
+  await assert.rejects(() => adapter.fetchQuotes({
+    pickup: place('Airport', 1, 2),
+    dropoff: place('City', 3, 4),
+    serviceAt: new Date('2026-08-19T12:00:00Z'),
+    currency: 'EUR',
+    passengers: { adults: 1, children: 0 }
+  }), (error) => error.code === 'NO_QUOTES')
+})
+
 test('SmartRyde policy deducts 30 percent from the client public price', () => {
   assert.equal(applyPricingPolicy(200, { type: 'client_commission', commissionPercent: 30 }), 140)
   assert.deepEqual(buildComparison({ riderraSellPrice: 100, clientSellPrice: 200, policy: { type: 'client_commission', commissionPercent: 30 } }), {

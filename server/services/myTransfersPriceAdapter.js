@@ -112,11 +112,29 @@ class MyTransfersAdapter {
     this.baseUrl = String(config.baseUrl || MYTRANSFERS_DEFAULTS.baseUrl).replace(/\/+$/, '')
     this.supportedCurrencies = config.supportedCurrencies || MYTRANSFERS_DEFAULTS.supportedCurrencies
     this.fetchImpl = dependencies.fetchImpl || global.fetch
+    this.minRequestIntervalMs = Math.max(0, Number(config.minRequestIntervalMs ?? 1100))
+    this.nextRequestAt = 0
+    this.requestQueue = Promise.resolve()
+  }
+
+  async waitForRateSlot() {
+    const previous = this.requestQueue
+    let release
+    this.requestQueue = new Promise((resolve) => { release = resolve })
+    await previous
+    try {
+      const waitMs = Math.max(0, this.nextRequestAt - Date.now())
+      if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs))
+      this.nextRequestAt = Date.now() + this.minRequestIntervalMs
+    } finally {
+      release()
+    }
   }
 
   async request(url, options = {}) {
     let lastError
     for (let attempt = 1; attempt <= 3; attempt += 1) {
+      await this.waitForRateSlot()
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 30000)
       try {
@@ -131,7 +149,17 @@ class MyTransfersAdapter {
           },
           signal: controller.signal
         })
-        if (!response.ok) throw new Error(`MyTransfers public source failed: HTTP ${response.status}`)
+        if (!response.ok) {
+          const body = await response.text().catch(() => '')
+          let payload
+          try { payload = JSON.parse(body) } catch (_) {}
+          const unavailable = [payload?.response, ...(Array.isArray(payload?.response_server) ? payload.response_server : [])]
+            .some((row) => row?.noAvailability || row?.destinationNotOperated || row?.noAvailabilityReason === 'destination_not_operated')
+          if (response.status === 500 && unavailable) {
+            return { ok: true, status: response.status, json: async () => payload, text: async () => body }
+          }
+          throw new Error(`MyTransfers public source failed: HTTP ${response.status}${body ? ` ${body.slice(0, 300)}` : ''}`)
+        }
         return response
       } catch (error) {
         lastError = error
