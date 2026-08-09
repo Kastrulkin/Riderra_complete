@@ -112,7 +112,7 @@ class MyTransfersAdapter {
     this.baseUrl = String(config.baseUrl || MYTRANSFERS_DEFAULTS.baseUrl).replace(/\/+$/, '')
     this.supportedCurrencies = config.supportedCurrencies || MYTRANSFERS_DEFAULTS.supportedCurrencies
     this.fetchImpl = dependencies.fetchImpl || global.fetch
-    this.minRequestIntervalMs = Math.max(0, Number(config.minRequestIntervalMs ?? 1100))
+    this.minRequestIntervalMs = Math.max(0, Number(config.minRequestIntervalMs ?? 3000))
     this.nextRequestAt = 0
     this.requestQueue = Promise.resolve()
   }
@@ -158,12 +158,17 @@ class MyTransfersAdapter {
           if (response.status === 500 && unavailable) {
             return { ok: true, status: response.status, json: async () => payload, text: async () => body }
           }
-          throw new Error(`MyTransfers public source failed: HTTP ${response.status}${body ? ` ${body.slice(0, 300)}` : ''}`)
+          const error = new Error(`MyTransfers public source failed: HTTP ${response.status}${body ? ` ${body.slice(0, 300)}` : ''}`)
+          error.status = response.status
+          throw error
         }
         return response
       } catch (error) {
         lastError = error
-        if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 800 * (2 ** (attempt - 1))))
+        if (attempt < 3) {
+          const backoffMs = [405, 429].includes(Number(error.status)) ? 60000 : 800 * (2 ** (attempt - 1))
+          await new Promise((resolve) => setTimeout(resolve, backoffMs))
+        }
       } finally {
         clearTimeout(timer)
       }
