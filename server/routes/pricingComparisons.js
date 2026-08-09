@@ -10,6 +10,7 @@ const {
   MYTRAVELTHRU_DEFAULTS,
   MYTRANSFERS_DEFAULTS,
   AIRPORTS_TAXI_TRANSFERS_DEFAULTS,
+  AIRPORT_TAXIS_DEFAULTS,
   applyPricingPolicy,
   defaultSourceData,
   executePriceComparisonRun,
@@ -85,7 +86,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
   app.post('/api/admin/pricing/comparison-sources', ...canManage, async (req, res) => {
     try {
       const adapterKey = String(req.body?.adapterKey || 'smart-ryde').trim()
-      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers', 'transferz', 'talixo', 'city-airport-taxis', 'mytravelthru', 'mytransfers', 'airports-taxi-transfers'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
+      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers', 'transferz', 'talixo', 'city-airport-taxis', 'mytravelthru', 'mytransfers', 'airports-taxi-transfers', 'airporttaxis-com'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
       const data = defaultSourceData({ ...(req.body || {}), adapterKey })
       const sourceUrl = new URL(data.baseUrl)
       const allowedBaseUrl = adapterKey === 'civitatis'
@@ -106,7 +107,9 @@ function registerPricingComparisonRoutes(app, dependencies) {
                                     ? MYTRAVELTHRU_DEFAULTS.baseUrl
                                     : (adapterKey === 'mytransfers'
                                         ? MYTRANSFERS_DEFAULTS.baseUrl
-                                        : (adapterKey === 'airports-taxi-transfers' ? AIRPORTS_TAXI_TRANSFERS_DEFAULTS.baseUrl : SMART_RYDE_DEFAULTS.baseUrl)))))))))
+                                        : (adapterKey === 'airports-taxi-transfers'
+                                            ? AIRPORTS_TAXI_TRANSFERS_DEFAULTS.baseUrl
+                                            : (adapterKey === 'airporttaxis-com' ? AIRPORT_TAXIS_DEFAULTS.baseUrl : SMART_RYDE_DEFAULTS.baseUrl))))))))))
       const allowedHostname = new URL(allowedBaseUrl).hostname
       if (sourceUrl.protocol !== 'https:' || sourceUrl.hostname !== allowedHostname) {
         return res.status(400).json({ error: 'Adapter URL is not allowed' })
