@@ -30,3 +30,13 @@ test('AirportTaxis.com fetches quotes without creating a booking', async () => {
   assert.equal(result.evidence.bookingCreated, false)
   assert.match(calls[0].url, /booking-process\/vehicles$/)
 })
+
+test('AirportTaxis.com treats an explicitly unsupported area as no quote', async () => {
+  const adapter = new AirportTaxisAdapter({ requestDelayMs: 0 }, { googleMapsApiKey: 'test', fetchImpl: async () => ({
+    ok: false,
+    status: 422,
+    text: async () => JSON.stringify({ message: 'Unfortunately, we do not provide our services in the requested area.' })
+  }) })
+  const point = adapter.createBenchmarkPlace({ zoneName: 'Minsk', latitude: 53.9, longitude: 27.56 })
+  await assert.rejects(() => adapter.fetchQuotes({ pickup: point, dropoff: point, serviceAt: new Date('2026-08-19T12:00:00Z'), currency: 'EUR' }), (error) => error.code === 'NO_QUOTES')
+})

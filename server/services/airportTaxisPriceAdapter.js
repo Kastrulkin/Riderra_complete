@@ -123,6 +123,14 @@ class AirportTaxisAdapter {
           signal: controller.signal
         })
         if (!response.ok) {
+          if (response.status === 422) {
+            const body = await response.text().catch(() => '')
+            let payload = {}
+            try { payload = JSON.parse(body) } catch (_) {}
+            if (/do not provide|requested area|not available|unavailable/i.test(String(payload?.message || body))) {
+              return { ok: true, status: response.status, json: async () => payload, text: async () => body }
+            }
+          }
           const error = new Error(`AirportTaxis.com public source failed: HTTP ${response.status}`)
           error.status = response.status
           throw error
