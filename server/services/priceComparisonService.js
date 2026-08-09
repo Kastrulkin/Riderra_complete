@@ -510,12 +510,12 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
     if (external === 'standard_sedan_3') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
     if (external === 'electric_sedan_3') return /(electric|e-vehicle)/i.test(internal) && /(standard|sedan|car)/i.test(internal)
-    if (external === 'people_carrier_4') return /standard mpv/i.test(internal) && internalCapacity === 4
+    if (external === 'people_carrier_4') return /standard mpv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === 4)
     if (external === 'large_people_carrier_6') return /standard mini.?van/i.test(internal) && internalCapacity === 6
     if (/^(business|premium|executive)_sedan_3$/.test(external)) return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
     if (/^(first_class|luxury)_sedan_3$/.test(external)) return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
     if (external === 'executive_people_carrier_5') return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === 5
-    if (external === 'ford_transit_standard_minibus_8') return /standard mini.?bus/i.test(internal) && internalCapacity === 8
+    if (external === 'ford_transit_standard_minibus_8') return /standard mini.?(?:van|bus)/i.test(internal) && internalCapacity === 8
     return false
   }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
