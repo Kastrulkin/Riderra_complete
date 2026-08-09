@@ -35,7 +35,8 @@ function extractKmlZones(text = '') {
   const zones = []
   for (const match of String(text).matchAll(/<Placemark\b[\s\S]*?<\/Placemark>/gi)) {
     const placemark = match[0]
-    const name = stripXmlTags(placemark.match(/<name\b[^>]*>([\s\S]*?)<\/name>/i)?.[1] || '')
+    const placemarkName = stripXmlTags(placemark.match(/<name\b[^>]*>([\s\S]*?)<\/name>/i)?.[1] || '')
+    const name = extractKmlDataValue(placemark, 'pricingZone') || placemarkName
     const polygons = [...placemark.matchAll(/<Polygon\b[\s\S]*?<\/Polygon>/gi)].map((polygonMatch) => {
       const rings = [...polygonMatch[0].matchAll(/<coordinates\b[^>]*>([\s\S]*?)<\/coordinates>/gi)]
         .map((coordinateMatch) => parseKmlCoordinateList(decodeXmlEntities(coordinateMatch[1] || '')))
@@ -52,6 +53,25 @@ function extractKmlZones(text = '') {
     }
   }
   return zones
+}
+
+function mergeZoneCatalogWithOverlay(baseZones = [], overlayZones = []) {
+  const overlaysByName = new Map()
+  for (const zone of overlayZones) {
+    const key = normalizeKey(zone?.name)
+    if (!key) continue
+    const current = overlaysByName.get(key) || { ...zone, polygons: [] }
+    current.polygons.push(...(zone.polygons || []))
+    overlaysByName.set(key, current)
+  }
+  const baseByName = new Map(baseZones.map((zone) => [normalizeKey(zone?.name), zone]))
+  const retained = baseZones.filter((zone) => !overlaysByName.has(normalizeKey(zone?.name)))
+  const overlays = [...overlaysByName.entries()].map(([key, zone]) => ({
+    ...zone,
+    id: baseByName.get(key)?.id || zone.id || null,
+    description: `${zone.description || ''}${zone.description ? '; ' : ''}overlay replaces broad base geometry`
+  }))
+  return [...retained, ...overlays]
 }
 
 function pointInRing(lon, lat, ring = []) {
@@ -164,6 +184,7 @@ module.exports = {
   extractKmlZones,
   findContainingZone,
   findContainingZones,
+  mergeZoneCatalogWithOverlay,
   normalizeKey,
   pointInPolygon
 }

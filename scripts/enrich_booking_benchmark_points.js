@@ -8,7 +8,8 @@ const { PrismaClient } = require('@prisma/client')
 const {
   buildGeocodingQuery,
   enrichmentData,
-  extractKmlZones
+  extractKmlZones,
+  mergeZoneCatalogWithOverlay
 } = require('../server/services/geoZoneBenchmarkEnrichmentService')
 
 function parseArgs(argv) {
@@ -68,7 +69,10 @@ async function main() {
   const apiKey = String(process.env.GOOGLE_MAPS_API_KEY || process.env.MAPS_API_KEY || '').trim()
   if (!apiKey) throw new Error('Google Maps geocoding key is not configured')
   const kmlPath = path.join(process.cwd(), 'reports', 'eto-sync', 'riderra_master_geozones.kml')
-  const zones = extractKmlZones(await fs.readFile(kmlPath, 'utf8'))
+  const baseZones = extractKmlZones(await fs.readFile(kmlPath, 'utf8'))
+  const londonOverlayPath = path.join(process.cwd(), 'reports', 'eto-sync', 'london_postcode_districts.kml')
+  const londonOverlayZones = await fs.readFile(londonOverlayPath, 'utf8').then(extractKmlZones).catch(() => [])
+  const zones = mergeZoneCatalogWithOverlay(baseZones, londonOverlayZones)
   if (!zones.length) throw new Error('Riderra master geo-zone polygons were not loaded')
   const prisma = new PrismaClient()
   try {
@@ -132,7 +136,7 @@ async function main() {
     const remaining = await prisma.geoZoneBenchmarkPoint.count({
       where: { tenantId: args.tenantId, source: 'booking_workbook', status: 'candidate' }
     })
-    console.log(JSON.stringify({ ...totals, remainingCandidates: remaining, polygonZones: zones.length }, null, 2))
+    console.log(JSON.stringify({ ...totals, remainingCandidates: remaining, polygonZones: zones.length, overlayPolygons: londonOverlayZones.length }, null, 2))
   } finally {
     await prisma.$disconnect()
   }
