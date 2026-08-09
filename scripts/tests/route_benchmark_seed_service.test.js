@@ -6,6 +6,7 @@ const {
   endpointMatchesGeocoding,
   geocodingContextHints,
   isAirportEndpoint,
+  isManualBenchmarkVerification,
   isSpecificGeocodingMatch,
   parseDistanceBandEndpoint,
   radialDistanceBandCoordinates,
@@ -25,6 +26,11 @@ test('non-geographic and distance-band price labels require review', () => {
   assert.equal(routeEndpointKind('Phuket Island to delete'), 'non_geographic')
   assert.equal(routeEndpointKind('San Diego (20-39 miles)'), 'distance_band')
   assert.equal(routeEndpointKind('Los Angeles Downtown'), 'place')
+})
+
+test('manual benchmark confirmations are protected from automatic rechecks', () => {
+  assert.equal(isManualBenchmarkVerification('manual_public_evidence_exact_lodging'), true)
+  assert.equal(isManualBenchmarkVerification('automatic_route_endpoint_geocode'), false)
 })
 
 test('Google country validation accepts common Riderra aliases', () => {

@@ -19,6 +19,7 @@ const {
   endpointMatchesGeocoding,
   geocodedRegion,
   isAirportEndpoint,
+  isManualBenchmarkVerification,
   isSpecificGeocodingMatch,
   parseDistanceBandEndpoint,
   radialDistanceBandCoordinates,
@@ -147,13 +148,16 @@ async function main() {
     }
     const existing = await prisma.geoZoneBenchmarkPoint.findMany({
       where: { tenantId: args.tenantId, source: 'riderra_geo_zone', status: 'verified', zoneName: { not: null } },
-      select: { zoneName: true }
+      select: { zoneName: true, verificationMethod: true }
     })
     const verified = new Set(existing.map((row) => normalizeKey(row.zoneName)))
+    const manuallyVerified = new Set(existing.filter((row) => isManualBenchmarkVerification(row.verificationMethod)).map((row) => normalizeKey(row.zoneName)))
     const pending = [...endpoints.values()].filter((endpoint) => {
+      const key = normalizeKey(endpoint.name)
       const hasPolygon = zoneMap.has(normalizeKey(endpoint.name))
+      if (manuallyVerified.has(key)) return false
       if (args.recheckDirect) return !hasPolygon || routeEndpointKind(endpoint.name) === 'distance_band'
-      return !verified.has(normalizeKey(endpoint.name))
+      return !verified.has(key)
     }).slice(0, args.limit)
     const totals = { selected: pending.length, polygonVerified: 0, directVerified: 0, needsReview: 0, failed: 0 }
     const airportContextCache = new Map()

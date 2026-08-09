@@ -49,6 +49,10 @@ function routeEndpointKind(value) {
   return 'place'
 }
 
+function isManualBenchmarkVerification(value) {
+  return /^manual_/i.test(String(value || ''))
+}
+
 function parseDistanceBandEndpoint(value) {
   const match = String(value || '').match(/^(.*?)\s*\(\s*(\d+)\s*[-–]\s*(\d+)\s*miles?\s*\)\s*$/i)
   return match ? { baseName: match[1].trim(), minMiles: Number(match[2]), maxMiles: Number(match[3]) } : null
@@ -166,6 +170,7 @@ module.exports = {
   geocodedRegion,
   geocodingContextHints,
   isAirportEndpoint,
+  isManualBenchmarkVerification,
   isSpecificGeocodingMatch,
   haversineMiles,
   normalize,
