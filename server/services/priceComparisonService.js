@@ -7,6 +7,7 @@ const { TRANSFERZ_DEFAULTS, TransferzAdapter } = require('./transferzPriceAdapte
 const { TALIXO_DEFAULTS, TalixoAdapter } = require('./talixoPriceAdapter')
 const { CITY_AIRPORT_TAXIS_DEFAULTS, CityAirportTaxisAdapter } = require('./cityAirportTaxisPriceAdapter')
 const { MYTRAVELTHRU_DEFAULTS, MyTravelThruAdapter } = require('./myTravelThruPriceAdapter')
+const { MYTRANSFERS_DEFAULTS, MyTransfersAdapter } = require('./myTransfersPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -391,6 +392,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'talixo') return new TalixoAdapter(config, dependencies)
   if (source.adapterKey === 'city-airport-taxis') return new CityAirportTaxisAdapter(config, dependencies)
   if (source.adapterKey === 'mytravelthru') return new MyTravelThruAdapter(config, dependencies)
+  if (source.adapterKey === 'mytransfers') return new MyTransfersAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -518,6 +520,22 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external === 'ford_transit_standard_minibus_8') return /standard mini.?(?:van|bus)/i.test(internal) && internalCapacity === 8
     return false
   }
+  if (adapterKey === 'mytransfers') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    const match = external.match(/^(.+)_(\d+)$/)
+    const family = match?.[1] || external
+    const capacity = Number(match?.[2])
+    if (external === 'standard_car') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'business_car') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external === 'first_class_car') return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (family === 'standard_mpv') return /standard mpv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === capacity)
+    if (family === 'standard_minivan') return /standard mini.?van/i.test(internal) && internalCapacity === capacity
+    if (family === 'businessvan') return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
+    if (family === 'standard_minibus') return /standard mini.?bus/i.test(internal) && internalCapacity === capacity
+    return false
+  }
   return smartRydeVehicleMatches(externalVehicleKey, riderraVehicleType)
 }
 
@@ -598,8 +616,9 @@ async function resolveTransferzBenchmarkPlace({ prisma, tenantId, source, adapte
   if (!point) return null
   const benchmarkAddress = point.geocodedAddress || point.destinationAddress || point.pickupAddress
   if (!benchmarkAddress) return null
-  const candidates = await adapter.resolvePlace(benchmarkAddress)
-  const selected = selectPlaceCandidate(benchmarkAddress, candidates)
+  const direct = typeof adapter.createBenchmarkPlace === 'function' ? adapter.createBenchmarkPlace(point) : null
+  const candidates = direct ? [direct] : await adapter.resolvePlace(benchmarkAddress)
+  const selected = direct || selectPlaceCandidate(benchmarkAddress, candidates)
   if (!selected) return null
   const normalizedInput = normalizeTextKey(zoneName)
   const mapping = await prisma.priceComparisonPlaceMap.upsert({
@@ -626,7 +645,7 @@ async function resolveTransferzBenchmarkPlace({ prisma, tenantId, source, adapte
       approvedByUserId: point.verifiedByUserId || null
     }
   })
-  return { ok: true, id: selected.id, label: selected.label, mapping, benchmarkPointId: point.id, externalRequest: true }
+  return { ok: true, id: selected.id, label: selected.label, mapping, benchmarkPointId: point.id, externalRequest: !direct }
 }
 
 async function upsertQuote(prisma, data) {
@@ -760,14 +779,14 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
   const representative = pending[0]
   try {
     const pickup = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' }))
-      || (['transferz', 'talixo', 'mytravelthru'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeFrom }))
+      || (['transferz', 'talixo', 'mytravelthru', 'mytransfers'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeFrom }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom, country: representative.country })
     if (!pickup.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
       return !!pickup.externalRequest
     }
     const dropoff = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' }))
-      || (['transferz', 'talixo', 'mytravelthru'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeTo }))
+      || (['transferz', 'talixo', 'mytravelthru', 'mytransfers'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeTo }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id, country: representative.country })
     if (!dropoff.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })))
@@ -1007,7 +1026,9 @@ function defaultSourceData(overrides = {}) {
                         ? TALIXO_DEFAULTS
                         : (overrides.adapterKey === 'city-airport-taxis'
                             ? CITY_AIRPORT_TAXIS_DEFAULTS
-                            : (overrides.adapterKey === 'mytravelthru' ? MYTRAVELTHRU_DEFAULTS : SMART_RYDE_DEFAULTS)))))))
+                            : (overrides.adapterKey === 'mytravelthru'
+                                ? MYTRAVELTHRU_DEFAULTS
+                                : (overrides.adapterKey === 'mytransfers' ? MYTRANSFERS_DEFAULTS : SMART_RYDE_DEFAULTS))))))))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -1033,6 +1054,7 @@ module.exports = {
   TALIXO_DEFAULTS,
   CITY_AIRPORT_TAXIS_DEFAULTS,
   MYTRAVELTHRU_DEFAULTS,
+  MYTRANSFERS_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1040,6 +1062,7 @@ module.exports = {
   TalixoAdapter,
   CityAirportTaxisAdapter,
   MyTravelThruAdapter,
+  MyTransfersAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

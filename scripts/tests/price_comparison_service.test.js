@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
   MyTravelThruAdapter,
+  MyTransfersAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
@@ -19,6 +20,7 @@ const {
   smartRydeVehicleMatches
 } = require('../../server/services/priceComparisonService')
 const { encodePlace } = require('../../server/services/myTravelThruPriceAdapter')
+const { encodePlace: encodeMyTransfersPlace, normalizeQuotes: normalizeMyTransfersQuotes } = require('../../server/services/myTransfersPriceAdapter')
 
 test('Suntransfers vehicle codes map by service family and exact capacity', () => {
   assert.equal(externalVehicleMatches('suntransfers', 'tx3', 'Standard class car'), true)
@@ -110,6 +112,62 @@ test('MyTravelThru public quote request uses the current booking-widget contract
   assert.equal(result.quotes[0].price, 42)
   assert.equal(adapter.placeIdIsValid(place('valid', 'Valid', 5, 6).id), true)
   assert.equal(adapter.placeIdIsValid('browser-capture:legacy'), false)
+})
+
+test('MyTransfers public vehicles map by family and capacity', () => {
+  assert.equal(externalVehicleMatches('mytransfers', 'standard_car', 'Standard class car'), true)
+  assert.equal(externalVehicleMatches('mytransfers', 'business_car', 'Business class car'), true)
+  assert.equal(externalVehicleMatches('mytransfers', 'standard_minivan_8', 'Standard minivan 8 pax'), true)
+  assert.equal(externalVehicleMatches('mytransfers', 'standard_minivan_8', 'Standard minivan 7 pax'), false)
+  assert.equal(externalVehicleMatches('mytransfers', 'standard_minibus_16', 'Standard Minibus 16pax'), true)
+})
+
+test('MyTransfers public quote request uses read-only search endpoint and lowest class price', async () => {
+  let request
+  const adapter = new MyTransfersAdapter({}, {
+    fetchImpl: async (url, options) => {
+      request = { url: String(url), options }
+      return {
+        ok: true,
+        json: async () => ({ response: { sessionId: 'public-session', transferPriceList: [
+          { transportName: 'Private Sedan', maxPassengers: 4, price: 45, currency: 'EUR' },
+          { transportName: 'Private Sedan', maxPassengers: 4, price: 33, currency: 'EUR' }
+        ] } })
+      }
+    }
+  })
+  const place = (name, latitude, longitude, types = []) => ({
+    id: encodeMyTransfersPlace({ place_id: name, main_text: name, description: name, lat: latitude, lng: longitude, types }),
+    label: name
+  })
+  const result = await adapter.fetchQuotes({
+    pickup: place('Airport', 1, 2, ['airport']),
+    dropoff: place('City', 3, 4),
+    serviceAt: new Date('2026-08-19T12:00:00Z'),
+    currency: 'EUR',
+    passengers: { adults: 1, children: 0 }
+  })
+  assert.match(request.url, /\/api\/list\?/)
+  assert.equal(request.options?.method, undefined)
+  assert.equal(result.quotes.length, 1)
+  assert.equal(result.quotes[0].price, 33)
+  assert.equal(result.quotes[0].externalVehicleKey, 'standard_car')
+  assert.equal(result.evidence.bookingCreated, false)
+  assert.equal(adapter.placeIdIsValid(place('Valid', 5, 6).id), true)
+  assert.equal(normalizeMyTransfersQuotes({ response: { transferPriceList: [] } }).length, 0)
+})
+
+test('MyTransfers reuses verified benchmark coordinates without another geocoder', async () => {
+  const adapter = new MyTransfersAdapter()
+  const candidate = adapter.createBenchmarkPlace({
+    zoneName: 'Vienna',
+    geocodedAddress: 'Obere Augartenstrasse 1e, Vienna, Austria',
+    googlePlaceId: 'place-1',
+    latitude: 48.22,
+    longitude: 16.38
+  })
+  assert.equal(candidate.label, 'Obere Augartenstrasse 1e, Vienna, Austria')
+  assert.equal(adapter.placeIdIsValid(candidate.id), true)
 })
 
 test('SmartRyde policy deducts 30 percent from the client public price', () => {
