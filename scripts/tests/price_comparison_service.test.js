@@ -134,8 +134,10 @@ test('Dottransfers public vehicles map by class, family, and capacity', () => {
 
 test('Heycars public vehicles map by class, family, and exact capacity', () => {
   assert.equal(externalVehicleMatches('heycars', 'economy_3', 'Standard class car'), true)
-  assert.equal(externalVehicleMatches('heycars', 'comfort_3', 'Business class car'), true)
-  assert.equal(externalVehicleMatches('heycars', 'premium_3', 'First class car'), true)
+  assert.equal(externalVehicleMatches('heycars', 'comfort_3', 'Business class car'), false)
+  assert.equal(externalVehicleMatches('heycars', 'premium_3', 'Business class car'), true)
+  assert.equal(externalVehicleMatches('heycars', 'standard_mpv_4', 'Standard MPV'), true)
+  assert.equal(externalVehicleMatches('heycars', 'economy_mpv_4', 'Standard MPV'), true)
   assert.equal(externalVehicleMatches('heycars', 'economy_minivan_6', 'Standard minivan 6 pax'), true)
   assert.equal(externalVehicleMatches('heycars', 'economy_minivan_6', 'Standard minivan 7 pax'), false)
 })

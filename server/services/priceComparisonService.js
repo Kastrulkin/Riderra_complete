@@ -556,10 +556,10 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     const internal = normalizeTextKey(riderraVehicleType)
     const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
     const capacity = Number(external.match(/_(\d+)$/)?.[1])
+    if (['standard_mpv_4', 'economy_mpv_4'].includes(external)) return /standard mpv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === 4)
     if (external.startsWith('economy_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('economy_')) return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
-    if (external.startsWith('comfort_')) return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
-    if (external.startsWith('premium_')) return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external.startsWith('premium_')) return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
     if (external.includes('_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
     return false
   }

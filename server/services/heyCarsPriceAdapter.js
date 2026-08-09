@@ -71,6 +71,8 @@ function vehicleKey(vehicle = {}) {
   const category = normalizeKey(vehicle.vehicleCategory || vehicle.vehicleName || 'vehicle').replace(/\s+/g, '_')
   const capacity = Number(vehicle.maxPassengerCount) || 0
   const name = normalizeKey(vehicle.vehicleName)
+  if ((category === 'suv' || /\bsuv\b/.test(name)) && capacity === 4) return 'standard_mpv_4'
+  if (category === 'economy' && /minivan|seater/.test(name) && capacity === 4) return 'economy_mpv_4'
   if (category === 'economy' && capacity >= 4) return `economy_minivan_${capacity}`
   if (category === 'comfort') return `comfort_${capacity}`
   if (category === 'premium') return `premium_${capacity}`

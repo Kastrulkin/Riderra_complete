@@ -30,11 +30,13 @@ test('Heycars keeps the lowest public price per comparable vehicle class', () =>
   const quotes = normalizeQuotes({ success: true, data: [
     quote({ price: 42 }),
     quote({ price: 39.4 }),
-    quote({ price: 54.46, name: 'Economy 7 Seater Minivan', passengers: 6, id: 847 })
+    quote({ price: 54.46, name: 'Economy 7 Seater Minivan', passengers: 6, id: 847 }),
+    quote({ price: 37.08, name: 'SUV', category: 'SUV', passengers: 4, id: 848 })
   ] })
   assert.deepEqual(quotes.map((row) => [row.externalVehicleKey, row.price]), [
     ['economy_3', 39.4],
-    ['economy_minivan_6', 54.46]
+    ['economy_minivan_6', 54.46],
+    ['standard_mpv_4', 37.08]
   ])
 })
 
