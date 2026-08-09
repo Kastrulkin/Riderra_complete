@@ -13,9 +13,10 @@ const {
   normalizeKey
 } = require('../server/services/geoZoneBenchmarkEnrichmentService')
 const {
+  canonicalCountry,
   countryMatches,
   endpointMatchesGeocoding,
-  geocodingContextHints,
+  geocodedRegion,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
   regionMatchesContext,
@@ -180,10 +181,12 @@ async function main() {
             }
             const airportMatch = airportContextCache.get(cacheKey)
             airportMatches.push(airportMatch)
-            contextHints.push(...geocodingContextHints(airportMatch))
+            const regionHint = geocodedRegion(airportMatch)
+            if (regionHint) contextHints.push(regionHint)
           }
           let match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country), apiKey })
-          let valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match) && endpointMatchesGeocoding(endpoint.name, match) && regionMatchesContext(match, airportMatches)
+          const enforceRegion = canonicalCountry(endpoint.country) === 'united states'
+          let valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match) && endpointMatchesGeocoding(endpoint.name, match) && (!enforceRegion || regionMatchesContext(match, airportMatches))
           if (!valid && contextHints.length) {
             const contextualMatch = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country, contextHints), apiKey })
             const contextualValid = contextualMatch && countryMatches(endpoint.country, contextualMatch) && isSpecificGeocodingMatch(contextualMatch) && endpointMatchesGeocoding(endpoint.name, contextualMatch)
