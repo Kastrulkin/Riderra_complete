@@ -15,16 +15,18 @@ const {
 const {
   countryMatches,
   isAirportEndpoint,
+  isSpecificGeocodingMatch,
   routeEndpointKind,
   routeEndpointQuery
 } = require('../server/services/routeBenchmarkSeedService')
 
 function parseArgs(argv) {
-  const args = { tenantId: null, limit: 2000, delayMs: 150 }
+  const args = { tenantId: null, limit: 2000, delayMs: 150, recheckDirect: false }
   for (let index = 2; index < argv.length; index += 1) {
     if (argv[index] === '--tenant-id') args.tenantId = argv[++index]
     else if (argv[index] === '--limit') args.limit = Math.max(1, Math.min(5000, Number(argv[++index]) || 2000))
     else if (argv[index] === '--delay-ms') args.delayMs = Math.max(0, Number(argv[++index]) || 0)
+    else if (argv[index] === '--recheck-direct') args.recheckDirect = true
     else throw new Error(`Unknown argument: ${argv[index]}`)
   }
   if (!args.tenantId) throw new Error('Use --tenant-id <id>')
@@ -58,7 +60,8 @@ async function googleGeocode({ address, latitude, longitude, apiKey }) {
           longName: item.long_name,
           shortName: item.short_name,
           types: item.types || []
-        }))
+        })),
+        types: row.types || []
       } : null
     } catch (error) {
       lastError = error
@@ -121,14 +124,16 @@ async function main() {
   try {
     const priceRows = await prisma.cityPricing.findMany({
       where: { tenantId: args.tenantId, isActive: true, fixedPrice: { not: null }, routeFrom: { not: null }, routeTo: { not: null }, vehicleType: { not: null } },
-      select: { country: true, routeFrom: true, routeTo: true }
+      select: { country: true, city: true, routeFrom: true, routeTo: true }
     })
     const endpoints = new Map()
     for (const row of priceRows) {
       for (const name of [row.routeFrom, row.routeTo]) {
         if (!name || isAirportEndpoint(name)) continue
         const key = normalizeKey(name)
-        if (!endpoints.has(key)) endpoints.set(key, { name, country: row.country || null })
+        if (!endpoints.has(key)) endpoints.set(key, { name, country: row.country || null, context: new Set() })
+        const related = name === row.routeFrom ? row.routeTo : row.routeFrom
+        if (related && related !== name) endpoints.get(key).context.add(related)
       }
     }
     const existing = await prisma.geoZoneBenchmarkPoint.findMany({
@@ -136,7 +141,11 @@ async function main() {
       select: { zoneName: true }
     })
     const verified = new Set(existing.map((row) => normalizeKey(row.zoneName)))
-    const pending = [...endpoints.values()].filter((endpoint) => !verified.has(normalizeKey(endpoint.name))).slice(0, args.limit)
+    const pending = [...endpoints.values()].filter((endpoint) => {
+      const hasPolygon = zoneMap.has(normalizeKey(endpoint.name))
+      if (args.recheckDirect) return !hasPolygon
+      return !verified.has(normalizeKey(endpoint.name))
+    }).slice(0, args.limit)
     const totals = { selected: pending.length, polygonVerified: 0, directVerified: 0, needsReview: 0, failed: 0 }
     for (const endpoint of pending) {
       const zone = zoneMap.get(normalizeKey(endpoint.name)) || null
@@ -158,15 +167,19 @@ async function main() {
           await savePoint(prisma, { tenantId: args.tenantId, endpoint, zone: null, match: null, status: 'needs_review', error: `Route endpoint is ${routeEndpointKind(endpoint.name).replace('_', ' ')}` })
           totals.needsReview += 1
         } else {
-          const match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country), apiKey })
-          const valid = match && countryMatches(endpoint.country, match)
+          const match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country, [...endpoint.context].filter(isAirportEndpoint)), apiKey })
+          const valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match)
           await savePoint(prisma, {
             tenantId: args.tenantId,
             endpoint,
             zone: null,
             match,
             status: valid ? 'verified' : 'needs_review',
-            error: valid ? null : (match ? 'Google result country does not match the Riderra price row' : 'Google geocoding: place not found'),
+            error: valid
+              ? null
+              : (match
+                  ? (countryMatches(endpoint.country, match) ? 'Google result is too broad for automatic verification' : 'Google result country does not match the Riderra price row')
+                  : 'Google geocoding: place not found'),
             method: 'automatic_route_endpoint_geocode'
           })
           if (valid) totals.directVerified += 1
@@ -188,7 +201,7 @@ async function main() {
         traceId: `route-zone-seed-${crypto.randomUUID()}`,
         decision: 'human_approved',
         result: totals.failed ? 'partial' : 'ok',
-        contextJson: JSON.stringify({ ...totals, priceRows: priceRows.length, endpointCount: endpoints.size })
+        contextJson: JSON.stringify({ ...totals, recheckDirect: args.recheckDirect, priceRows: priceRows.length, endpointCount: endpoints.size })
       }
     })
     console.log(JSON.stringify({ ...totals, priceRows: priceRows.length, endpointCount: endpoints.size, polygonCatalog: zones.length }, null, 2))

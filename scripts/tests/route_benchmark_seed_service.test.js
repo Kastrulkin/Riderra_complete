@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const {
   countryMatches,
   isAirportEndpoint,
+  isSpecificGeocodingMatch,
   routeEndpointKind,
   routeEndpointQuery
 } = require('../../server/services/routeBenchmarkSeedService')
@@ -27,4 +28,11 @@ test('Google country validation accepts common Riderra aliases', () => {
 
 test('route endpoint query includes the country', () => {
   assert.equal(routeEndpointQuery('Tokyo City Center', 'Japan'), 'Tokyo City Center, Japan')
+  assert.equal(routeEndpointQuery('Universal City', 'United States of America', ['Los Angeles Airport (LAX)']), 'Universal City, Los Angeles Airport (LAX), United States of America')
+})
+
+test('country-only Google results are too broad for automatic verification', () => {
+  assert.equal(isSpecificGeocodingMatch({ types: ['country', 'political'] }), false)
+  assert.equal(isSpecificGeocodingMatch({ types: ['locality', 'political'] }), true)
+  assert.equal(isSpecificGeocodingMatch({ types: ['lodging', 'establishment'] }), true)
 })
