@@ -49,6 +49,31 @@ function routeEndpointKind(value) {
   return 'place'
 }
 
+function parseDistanceBandEndpoint(value) {
+  const match = String(value || '').match(/^(.*?)\s*\(\s*(\d+)\s*[-–]\s*(\d+)\s*miles?\s*\)\s*$/i)
+  return match ? { baseName: match[1].trim(), minMiles: Number(match[2]), maxMiles: Number(match[3]) } : null
+}
+
+function haversineMiles(left, right) {
+  const lat1 = Number(left?.lat); const lon1 = Number(left?.lon)
+  const lat2 = Number(right?.lat); const lon2 = Number(right?.lon)
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null
+  const radians = (value) => value * Math.PI / 180
+  const latitudeDelta = radians(lat2 - lat1); const longitudeDelta = radians(lon2 - lon1)
+  const value = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(longitudeDelta / 2) ** 2
+  return 3958.8 * 2 * Math.asin(Math.sqrt(value))
+}
+
+function selectDistanceBandPoint(candidates, origin, band) {
+  if (!band) return null
+  const midpoint = (band.minMiles + band.maxMiles) / 2
+  return (Array.isArray(candidates) ? candidates : []).map((candidate) => {
+    const distanceMiles = haversineMiles(origin, { lat: candidate.latitude, lon: candidate.longitude })
+    return Number.isFinite(distanceMiles) ? { candidate, distanceMiles } : null
+  }).filter((item) => item && item.distanceMiles >= band.minMiles && item.distanceMiles <= band.maxMiles)
+    .sort((left, right) => Math.abs(left.distanceMiles - midpoint) - Math.abs(right.distanceMiles - midpoint))[0] || null
+}
+
 function geocodedCountry(match) {
   const component = (match?.addressComponents || []).find((item) => (item.types || []).includes('country'))
   return component?.longName || component?.shortName || null
@@ -119,8 +144,11 @@ module.exports = {
   geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
+  haversineMiles,
   normalize,
+  parseDistanceBandEndpoint,
   regionMatchesContext,
   routeEndpointKind,
-  routeEndpointQuery
+  routeEndpointQuery,
+  selectDistanceBandPoint
 }

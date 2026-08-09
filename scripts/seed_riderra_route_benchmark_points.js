@@ -19,9 +19,11 @@ const {
   geocodedRegion,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
+  parseDistanceBandEndpoint,
   regionMatchesContext,
   routeEndpointKind,
-  routeEndpointQuery
+  routeEndpointQuery,
+  selectDistanceBandPoint
 } = require('../server/services/routeBenchmarkSeedService')
 
 function parseArgs(argv) {
@@ -79,7 +81,7 @@ function normalizedKey(zone, country) {
   return crypto.createHash('sha256').update(`route-zone|${normalizeKey(zone.id || zone.name)}|${normalizeKey(country)}`).digest('hex')
 }
 
-async function savePoint(prisma, { tenantId, endpoint, zone, match, status, error, method }) {
+async function savePoint(prisma, { tenantId, endpoint, zone, match, status, error, method, reviewNote }) {
   const now = new Date()
   const exactAddress = match?.displayName || `Representative point for ${endpoint.name}`
   const data = {
@@ -97,6 +99,7 @@ async function savePoint(prisma, { tenantId, endpoint, zone, match, status, erro
     geocodedAt: match ? now : null,
     source: 'riderra_geo_zone',
     resolutionError: error || null,
+    reviewNote: reviewNote || null,
     resolvedAt: now,
     verificationMethod: status === 'verified' ? method : null,
     status,
@@ -168,6 +171,40 @@ async function main() {
             method: 'automatic_route_zone_polygon'
           })
           totals.polygonVerified += 1
+        } else if (routeEndpointKind(endpoint.name) === 'distance_band') {
+          const band = parseDistanceBandEndpoint(endpoint.name)
+          const relatedAirport = [...endpoint.context].find(isAirportEndpoint)
+          const airportMatch = relatedAirport ? await googleGeocode({ address: routeEndpointQuery(relatedAirport, endpoint.country), apiKey }) : null
+          const candidates = await prisma.geoZoneBenchmarkPoint.findMany({
+            where: {
+              tenantId: args.tenantId,
+              source: 'booking_workbook',
+              latitude: { not: null },
+              longitude: { not: null },
+              OR: [
+                { city: { contains: band.baseName, mode: 'insensitive' } },
+                { destinationAddress: { contains: band.baseName, mode: 'insensitive' } }
+              ]
+            },
+            take: 500
+          })
+          const selected = selectDistanceBandPoint(candidates, airportMatch, band)
+          if (!selected) {
+            await savePoint(prisma, { tenantId: args.tenantId, endpoint, zone: null, match: null, status: 'needs_review', error: 'No verified address falls inside the route distance band' })
+            totals.needsReview += 1
+          } else {
+            const candidate = selected.candidate
+            await savePoint(prisma, {
+              tenantId: args.tenantId,
+              endpoint,
+              zone: null,
+              match: { displayName: candidate.geocodedAddress || candidate.destinationAddress, lat: candidate.latitude, lon: candidate.longitude, placeId: candidate.googlePlaceId },
+              status: 'verified',
+              method: 'automatic_distance_band_booking_point',
+              reviewNote: `Booking benchmark address; straight-line distance ${selected.distanceMiles.toFixed(1)} miles from ${relatedAirport}`
+            })
+            totals.directVerified += 1
+          }
         } else if (routeEndpointKind(endpoint.name) !== 'place') {
           await savePoint(prisma, { tenantId: args.tenantId, endpoint, zone: null, match: null, status: 'needs_review', error: `Route endpoint is ${routeEndpointKind(endpoint.name).replace('_', ' ')}` })
           totals.needsReview += 1

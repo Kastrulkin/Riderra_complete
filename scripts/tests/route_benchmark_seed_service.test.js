@@ -6,9 +6,11 @@ const {
   geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
+  parseDistanceBandEndpoint,
   regionMatchesContext,
   routeEndpointKind,
-  routeEndpointQuery
+  routeEndpointQuery,
+  selectDistanceBandPoint
 } = require('../../server/services/routeBenchmarkSeedService')
 
 test('airport endpoints are left to IATA resolution', () => {
@@ -63,4 +65,15 @@ test('a same-name city in a different airport region is not accepted', () => {
   assert.equal(regionMatchesContext(california, [california]), true)
   assert.equal(regionMatchesContext(texas, [california]), false)
   assert.equal(regionMatchesContext({ addressComponents: [] }, [california]), true)
+})
+
+test('a Booking address can represent a distance-band route', () => {
+  const band = parseDistanceBandEndpoint('San Diego (20-39 miles)')
+  assert.deepEqual(band, { baseName: 'San Diego', minMiles: 20, maxMiles: 39 })
+  const selected = selectDistanceBandPoint([
+    { id: 'near', latitude: 32.8, longitude: -117.1 },
+    { id: 'band', latitude: 33.2212674, longitude: -117.4054265 }
+  ], { lat: 32.7328909, lon: -117.1897127 }, band)
+  assert.equal(selected.candidate.id, 'band')
+  assert.ok(selected.distanceMiles >= 20 && selected.distanceMiles <= 39)
 })
