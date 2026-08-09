@@ -8,6 +8,7 @@ const { TALIXO_DEFAULTS, TalixoAdapter } = require('./talixoPriceAdapter')
 const { CITY_AIRPORT_TAXIS_DEFAULTS, CityAirportTaxisAdapter } = require('./cityAirportTaxisPriceAdapter')
 const { MYTRAVELTHRU_DEFAULTS, MyTravelThruAdapter } = require('./myTravelThruPriceAdapter')
 const { MYTRANSFERS_DEFAULTS, MyTransfersAdapter } = require('./myTransfersPriceAdapter')
+const { AIRPORTS_TAXI_TRANSFERS_DEFAULTS, AirportsTaxiTransfersAdapter } = require('./airportsTaxiTransfersPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -393,6 +394,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'city-airport-taxis') return new CityAirportTaxisAdapter(config, dependencies)
   if (source.adapterKey === 'mytravelthru') return new MyTravelThruAdapter(config, dependencies)
   if (source.adapterKey === 'mytransfers') return new MyTransfersAdapter(config, dependencies)
+  if (source.adapterKey === 'airports-taxi-transfers') return new AirportsTaxiTransfersAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -491,7 +493,7 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external === 'first_class_van') return /(first class|luxury).*van/i.test(internal)
     return false
   }
-  if (adapterKey === 'city-airport-taxis') {
+  if (['city-airport-taxis', 'airports-taxi-transfers'].includes(adapterKey)) {
     const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
     const internal = normalizeTextKey(riderraVehicleType)
     const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
@@ -1028,7 +1030,9 @@ function defaultSourceData(overrides = {}) {
                             ? CITY_AIRPORT_TAXIS_DEFAULTS
                             : (overrides.adapterKey === 'mytravelthru'
                                 ? MYTRAVELTHRU_DEFAULTS
-                                : (overrides.adapterKey === 'mytransfers' ? MYTRANSFERS_DEFAULTS : SMART_RYDE_DEFAULTS))))))))
+                                : (overrides.adapterKey === 'mytransfers'
+                                    ? MYTRANSFERS_DEFAULTS
+                                    : (overrides.adapterKey === 'airports-taxi-transfers' ? AIRPORTS_TAXI_TRANSFERS_DEFAULTS : SMART_RYDE_DEFAULTS)))))))))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -1055,6 +1059,7 @@ module.exports = {
   CITY_AIRPORT_TAXIS_DEFAULTS,
   MYTRAVELTHRU_DEFAULTS,
   MYTRANSFERS_DEFAULTS,
+  AIRPORTS_TAXI_TRANSFERS_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1063,6 +1068,7 @@ module.exports = {
   CityAirportTaxisAdapter,
   MyTravelThruAdapter,
   MyTransfersAdapter,
+  AirportsTaxiTransfersAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
