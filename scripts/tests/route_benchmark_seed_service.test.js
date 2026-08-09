@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
   countryMatches,
+  geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
   routeEndpointKind,
@@ -35,4 +36,13 @@ test('country-only Google results are too broad for automatic verification', () 
   assert.equal(isSpecificGeocodingMatch({ types: ['country', 'political'] }), false)
   assert.equal(isSpecificGeocodingMatch({ types: ['locality', 'political'] }), true)
   assert.equal(isSpecificGeocodingMatch({ types: ['lodging', 'establishment'] }), true)
+  assert.equal(isSpecificGeocodingMatch({ types: ['airport', 'establishment'] }), false)
+})
+
+test('airport geocoding contributes locality and region rather than the airport itself', () => {
+  const match = { addressComponents: [
+    { longName: 'Los Angeles', types: ['locality'] },
+    { longName: 'California', types: ['administrative_area_level_1'] }
+  ] }
+  assert.deepEqual(geocodingContextHints(match), ['Los Angeles', 'California'])
 })

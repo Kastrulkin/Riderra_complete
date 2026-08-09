@@ -14,6 +14,7 @@ const {
 } = require('../server/services/geoZoneBenchmarkEnrichmentService')
 const {
   countryMatches,
+  geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
   routeEndpointKind,
@@ -147,6 +148,7 @@ async function main() {
       return !verified.has(normalizeKey(endpoint.name))
     }).slice(0, args.limit)
     const totals = { selected: pending.length, polygonVerified: 0, directVerified: 0, needsReview: 0, failed: 0 }
+    const airportContextCache = new Map()
     for (const endpoint of pending) {
       const zone = zoneMap.get(normalizeKey(endpoint.name)) || null
       try {
@@ -167,7 +169,15 @@ async function main() {
           await savePoint(prisma, { tenantId: args.tenantId, endpoint, zone: null, match: null, status: 'needs_review', error: `Route endpoint is ${routeEndpointKind(endpoint.name).replace('_', ' ')}` })
           totals.needsReview += 1
         } else {
-          const match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country, [...endpoint.context].filter(isAirportEndpoint)), apiKey })
+          const contextHints = []
+          for (const relatedAirport of [...endpoint.context].filter(isAirportEndpoint)) {
+            const cacheKey = `${relatedAirport}|${endpoint.country}`
+            if (!airportContextCache.has(cacheKey)) {
+              airportContextCache.set(cacheKey, await googleGeocode({ address: routeEndpointQuery(relatedAirport, endpoint.country), apiKey }))
+            }
+            contextHints.push(...geocodingContextHints(airportContextCache.get(cacheKey)))
+          }
+          const match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country, contextHints), apiKey })
           const valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match)
           await savePoint(prisma, {
             tenantId: args.tenantId,
