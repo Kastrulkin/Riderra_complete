@@ -17,6 +17,8 @@ const ENTITIES_API_URL = 'https://eu-entities-api.limolink.net'
 const EXTERNAL_API_URL = 'https://external.limolink.net'
 const COMPANY_CLIENT_ID = 'cea3ed8e-8cfe-4f1e-9666-8e595e83bae2'
 const COMPANY_COMPANY_ID = 'e3f9eca9-c7c1-4717-8a0c-45505f9ecc37'
+// Public widget configuration shipped to every TravelThru booking-page visitor.
+const PUBLIC_WIDGET_API_KEY = '92e017f9-3c31-4045-bb60-d1d0f3615e33'
 // This value and the signing algorithm are shipped to every visitor in the
 // public TravelThru booking widget. It is not an account credential.
 const PUBLIC_SCANNER_KEY = 'lkvHGWjWpmYJMRLV2lkvHGWjWpmYJMRLV27HsuLSxys1FMNqR7HsuLSxys1FMNqR'
@@ -101,6 +103,7 @@ class MyTravelThruAdapter {
     this.externalApiUrl = String(config.externalApiUrl || EXTERNAL_API_URL).replace(/\/+$/, '')
     this.companyClientId = config.companyClientId || COMPANY_CLIENT_ID
     this.companyCompanyId = config.companyCompanyId || COMPANY_COMPANY_ID
+    this.publicWidgetApiKey = config.publicWidgetApiKey || PUBLIC_WIDGET_API_KEY
     this.supportedCurrencies = config.supportedCurrencies || MYTRAVELTHRU_DEFAULTS.supportedCurrencies
     this.fetchImpl = dependencies.fetchImpl || global.fetch
   }
@@ -204,9 +207,11 @@ class MyTravelThruAdapter {
       type: 1,
       companyId: this.companyCompanyId,
       clientId: this.companyClientId,
-      apiKey: '',
+      apiKey: this.publicWidgetApiKey,
       pickupDateTime: formatLocalDateTime(serviceAt),
       language: 'en',
+      promoCode: null,
+      hasMeetAndGreet: false,
       from: { name: from.name, address: from.address, latitude: from.latitude, longitude: from.longitude },
       to: { name: to.name, address: to.address, latitude: to.latitude, longitude: to.longitude },
       passengers: {
@@ -214,6 +219,7 @@ class MyTravelThruAdapter {
         children: Math.max(0, Number(passengers.children || 0)),
         infants: 0
       },
+      features: [],
       currency: normalizedCurrency,
       viaPoints: [],
       version: 'v2'
@@ -236,6 +242,7 @@ class MyTravelThruAdapter {
 
 module.exports = {
   MYTRAVELTHRU_DEFAULTS,
+  PUBLIC_WIDGET_API_KEY,
   MyTravelThruAdapter,
   candidateMatches,
   decodePlace,

@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
+  MyTravelThruAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
@@ -17,6 +18,7 @@ const {
   selectPlaceCandidate,
   smartRydeVehicleMatches
 } = require('../../server/services/priceComparisonService')
+const { encodePlace } = require('../../server/services/myTravelThruPriceAdapter')
 
 test('Suntransfers vehicle codes map by service family and exact capacity', () => {
   assert.equal(externalVehicleMatches('suntransfers', 'tx3', 'Standard class car'), true)
@@ -77,6 +79,35 @@ test('MyTravelThru public vehicle names map by family and exact capacity', () =>
   assert.equal(externalVehicleMatches('mytravelthru', 'executive_people_carrier_5', 'Businessvan 5 pax'), true)
   assert.equal(externalVehicleMatches('mytravelthru', 'ford_transit_standard_minibus_8', 'Standard minivan 8 pax'), true)
   assert.equal(externalVehicleMatches('mytravelthru', 'ford_transit_standard_minibus_8', 'Standard Minibus 9pax'), false)
+})
+
+test('MyTravelThru public quote request uses the current booking-widget contract', async () => {
+  let request
+  const adapter = new MyTravelThruAdapter({}, {
+    fetchImpl: async (url, options) => {
+      request = { url, options, body: JSON.parse(options.body) }
+      return {
+        ok: true,
+        json: async () => ({ data: { outwardTrip: { vehicles: [{ name: 'Standard Sedan', maxNumberOfPassengers: 3, servicePrice: 42, currency: 'EUR' }] } } })
+      }
+    }
+  })
+  const place = (placeId, name, latitude, longitude) => ({
+    id: encodePlace({ placeId, name, address: name, latitude, longitude }),
+    label: name
+  })
+  const result = await adapter.fetchQuotes({
+    pickup: place('from', 'Airport', 1, 2),
+    dropoff: place('to', 'City', 3, 4),
+    serviceAt: new Date('2026-08-19T12:00:00Z'),
+    currency: 'EUR',
+    passengers: { adults: 1, children: 0 }
+  })
+  assert.match(request.url, /\/connect\/getBookingPrice$/)
+  assert.equal(request.body.apiKey, '92e017f9-3c31-4045-bb60-d1d0f3615e33')
+  assert.equal(request.body.hasMeetAndGreet, false)
+  assert.deepEqual(request.body.features, [])
+  assert.equal(result.quotes[0].price, 42)
 })
 
 test('SmartRyde policy deducts 30 percent from the client public price', () => {
