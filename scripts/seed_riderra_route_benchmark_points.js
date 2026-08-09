@@ -150,7 +150,7 @@ async function main() {
     const verified = new Set(existing.map((row) => normalizeKey(row.zoneName)))
     const pending = [...endpoints.values()].filter((endpoint) => {
       const hasPolygon = zoneMap.has(normalizeKey(endpoint.name))
-      if (args.recheckDirect) return !hasPolygon
+      if (args.recheckDirect) return !hasPolygon || routeEndpointKind(endpoint.name) === 'distance_band'
       return !verified.has(normalizeKey(endpoint.name))
     }).slice(0, args.limit)
     const totals = { selected: pending.length, polygonVerified: 0, directVerified: 0, needsReview: 0, failed: 0 }
@@ -158,7 +158,7 @@ async function main() {
     for (const endpoint of pending) {
       const zone = zoneMap.get(normalizeKey(endpoint.name)) || null
       try {
-        if (zone) {
+        if (zone && routeEndpointKind(endpoint.name) !== 'distance_band') {
           const point = representativePointForZone(zone)
           if (!point) throw new Error('KML polygon has no safe representative point')
           const match = await googleGeocode({ latitude: point.lat, longitude: point.lon, apiKey })
@@ -179,6 +179,7 @@ async function main() {
             where: {
               tenantId: args.tenantId,
               source: 'booking_workbook',
+              status: 'verified',
               latitude: { not: null },
               longitude: { not: null },
               OR: [
