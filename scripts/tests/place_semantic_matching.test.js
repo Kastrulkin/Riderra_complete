@@ -1,11 +1,27 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
+  backfillApprovedPlaceMappings,
   cosineSimilarity,
   placeSearchText,
   suggestPlaceCandidates,
   vectorLiteral
 } = require('../../server/services/placeSemanticMatchingService')
+
+test('place embedding backfill supports stable pagination', async () => {
+  let findArgs
+  const prisma = {
+    priceComparisonPlaceMap: {
+      findMany: async (args) => { findArgs = args; return [] }
+    }
+  }
+  const result = await backfillApprovedPlaceMappings({ prisma, tenantId: 'tenant', sourceId: 'source', limit: 50, offset: 100 }, async () => ({ vectors: [] }))
+  assert.equal(findArgs.skip, 100)
+  assert.equal(findArgs.take, 50)
+  assert.deepEqual(findArgs.orderBy, [{ updatedAt: 'asc' }, { id: 'asc' }])
+  assert.equal(result.offset, 100)
+  assert.equal(result.nextOffset, null)
+})
 
 test('semantic candidate ranking recommends only a clear winner', async () => {
   const mapping = {

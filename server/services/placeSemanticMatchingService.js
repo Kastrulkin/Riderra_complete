@@ -40,10 +40,12 @@ async function suggestPlaceCandidates(mapping, embedder = embedTexts) {
   return { model: response.model || model(), requestId: response.requestId || '', recommended, margin: Number(margin.toFixed(6)), candidates: scored }
 }
 
-async function backfillApprovedPlaceMappings({ prisma, tenantId, sourceId = null, limit = 100 }, embedder = embedTexts) {
+async function backfillApprovedPlaceMappings({ prisma, tenantId, sourceId = null, limit = 100, offset = 0 }, embedder = embedTexts) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500)
+  const safeOffset = Math.max(Number(offset) || 0, 0)
   const mappings = await prisma.priceComparisonPlaceMap.findMany({
     where: { tenantId, status: 'approved', externalPlaceId: { not: null }, ...(sourceId ? { sourceId } : {}) },
-    orderBy: { updatedAt: 'asc' }, take: Math.min(Math.max(Number(limit) || 100, 1), 500)
+    orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }], skip: safeOffset, take: safeLimit
   })
   const pending = []
   for (const mapping of mappings) {
@@ -74,7 +76,7 @@ async function backfillApprovedPlaceMappings({ prisma, tenantId, sourceId = null
       embedded++
     }
   }
-  return { examined: mappings.length, embedded, skipped: mappings.length - pending.length, model: model() }
+  return { examined: mappings.length, embedded, skipped: mappings.length - pending.length, offset: safeOffset, nextOffset: mappings.length === safeLimit ? safeOffset + mappings.length : null, model: model() }
 }
 
 module.exports = { backfillApprovedPlaceMappings, cosineSimilarity, enabled, placeSearchText, suggestPlaceCandidates, vectorLiteral }

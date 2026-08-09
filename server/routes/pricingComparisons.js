@@ -397,7 +397,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
 
   app.post('/api/admin/pricing/place-embeddings/backfill', ...canManage, async (req, res) => {
     try {
-      const result = await backfillApprovedPlaceMappings({ prisma, tenantId: req.actorContext.tenantId, sourceId: req.body?.sourceId || null, limit: req.body?.limit || 100 })
+      const result = await backfillApprovedPlaceMappings({ prisma, tenantId: req.actorContext.tenantId, sourceId: req.body?.sourceId || null, limit: req.body?.limit || 100, offset: req.body?.offset || 0 })
       await writeAuditLog({ tenantId: req.actorContext.tenantId, actorId: req.actorContext.actorId, actorRole: req.actorContext.actorRole, action: 'pricing.place_embeddings.backfill', resource: 'canonical_transfer_places', traceId: req.actorContext.traceId, decision: 'human_approved', result: 'ok', context: result })
       res.json(result)
     } catch (error) {
