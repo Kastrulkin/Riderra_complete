@@ -53,6 +53,7 @@ test('Heycars uses only public autocomplete and quote endpoints', async () => {
   })
   const candidates = await adapter.resolvePlace('Barcelona Airport (BCN)')
   assert.equal(candidates.length, 1)
+  assert.equal(JSON.parse(calls[0].options.body).input, 'BCN')
   assert.ok(decodePlace(candidates[0].id))
   const pickup = adapter.createBenchmarkPlace({ zoneName: 'Barcelona Airport', geocodedAddress: 'Barcelona Airport, Spain', latitude: 41.2971, longitude: 2.07846, airportIata: 'BCN' })
   const dropoff = adapter.createBenchmarkPlace({ zoneName: 'Barcelona', geocodedAddress: 'Plaça de Catalunya, Barcelona, Spain', latitude: 41.387, longitude: 2.17 })

@@ -166,9 +166,10 @@ class HeyCarsAdapter {
   async resolvePlace(inputText, relatedPlaceId, context = {}) {
     const query = String(inputText || '').trim()
     if (!query) return []
+    const iata = query.match(/\(([A-Z]{3})\)/)?.[1] || query.match(/\b([A-Z]{3})\b/)?.[1]
     const related = decodePlace(relatedPlaceId)
     const payload = await this.request('/api/rest/common/place/autocomplete', {
-      input: query,
+      input: iata || query,
       language: 'en',
       lat: related?.latitude ?? '',
       lng: related?.longitude ?? '',
@@ -176,7 +177,6 @@ class HeyCarsAdapter {
     })
     if (!payload?.success || !Array.isArray(payload.data)) return []
     let candidates = payload.data.filter((row) => candidateMatches(query, row, context.country)).slice(0, 8)
-    const iata = query.match(/\(([A-Z]{3})\)/)?.[1] || query.match(/\b([A-Z]{3})\b/)?.[1]
     const exactIata = candidates.filter((row) => iata && row.type === 'AIRPORT' && String(row.value).toUpperCase() === iata)
     if (exactIata.length === 1) candidates = exactIata
     return candidates.map((row) => {
