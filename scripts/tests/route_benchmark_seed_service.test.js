@@ -53,6 +53,8 @@ test('a city endpoint must still match the returned place name', () => {
   assert.equal(endpointMatchesGeocoding('Universal City', { displayName: 'Universal City, Los Angeles, CA, USA', types: ['neighborhood', 'political'] }), true)
   assert.equal(endpointMatchesGeocoding('Glendale', { displayName: 'Long Beach, CA, USA', types: ['locality', 'political'] }), false)
   assert.equal(endpointMatchesGeocoding('Grand Rotana Resort', { displayName: 'Sharks Bay, Egypt', types: ['lodging', 'establishment'] }), true)
+  assert.equal(endpointMatchesGeocoding('Hillerod', { displayName: '3400 Hillerød, Denmark', types: ['locality', 'political'] }), true)
+  assert.equal(endpointMatchesGeocoding('Kaunianen', { displayName: 'Kauniainen, Finland', types: ['locality', 'political'] }), true)
 })
 
 test('a same-name city in a different airport region is not accepted', () => {

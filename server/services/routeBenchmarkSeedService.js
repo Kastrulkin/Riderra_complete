@@ -9,10 +9,27 @@ const COUNTRY_ALIASES = new Map([
 ])
 
 function normalize(value) {
-  return String(value || '').toLowerCase().normalize('NFKD')
+  return String(value || '').toLowerCase()
+    .replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/œ/g, 'oe').replace(/ß/g, 'ss')
+    .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
+}
+
+function editDistance(left, right) {
+  const a = String(left || ''); const b = String(right || '')
+  const row = Array.from({ length: b.length + 1 }, (_, index) => index)
+  for (let i = 1; i <= a.length; i += 1) {
+    let previous = row[0]
+    row[0] = i
+    for (let j = 1; j <= b.length; j += 1) {
+      const current = row[j]
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1))
+      previous = current
+    }
+  }
+  return row[b.length]
 }
 
 function canonicalCountry(value) {
@@ -73,7 +90,10 @@ function endpointMatchesGeocoding(endpointName, match) {
   const haystack = normalize(match?.displayName)
   const ignored = new Set(['city', 'center', 'centre', 'downtown', 'district', 'area', 'resort', 'hotel', 'island'])
   const tokens = normalize(endpointName).split(' ').filter((token) => token.length >= 4 && !ignored.has(token))
-  return Boolean(haystack && tokens.length && tokens.some((token) => haystack.includes(token)))
+  const haystackTokens = haystack.split(' ')
+  return Boolean(haystack && tokens.length && tokens.some((token) => (
+    haystack.includes(token) || (token.length >= 6 && haystackTokens.some((candidate) => editDistance(token, candidate) <= 1))
+  )))
 }
 
 function routeEndpointQuery(name, country, context = []) {
@@ -93,6 +113,7 @@ module.exports = {
   canonicalCountry,
   countryMatches,
   endpointMatchesGeocoding,
+  editDistance,
   geocodedCountry,
   geocodedRegion,
   geocodingContextHints,

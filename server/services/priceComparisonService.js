@@ -1,4 +1,5 @@
 const crypto = require('crypto')
+const { routeEndpointKind } = require('./routeBenchmarkSeedService')
 const { CIVITATIS_DEFAULTS, CivitatisAdapter } = require('./civitatisPriceAdapter')
 const { BOOKING_DEFAULTS, BookingAdapter } = require('./bookingPriceAdapter')
 const { JAMTRANSFER_DEFAULTS, JamTransferAdapter } = require('./jamTransferPriceAdapter')
@@ -1022,7 +1023,7 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl }) {
     const passengers = safeJsonParse(source.passengerConfigJson, SMART_RYDE_DEFAULTS.passengers)
     const adapter = createAdapter(source, fetchImpl ? { fetchImpl } : {})
     const supportedCurrencies = safeJsonParse(source.supportedCurrenciesJson, [])
-    const rows = await prisma.cityPricing.findMany({
+    const allRows = await prisma.cityPricing.findMany({
       where: {
         tenantId: run.tenantId,
         isActive: true,
@@ -1035,6 +1036,7 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl }) {
       },
       orderBy: [{ country: 'asc' }, { city: 'asc' }, { routeFrom: 'asc' }, { routeTo: 'asc' }, { vehicleType: 'asc' }]
     })
+    const rows = allRows.filter((row) => routeEndpointKind(row.routeFrom) !== 'non_geographic' && routeEndpointKind(row.routeTo) !== 'non_geographic')
     await prisma.priceComparisonRun.update({
       where: { id: run.id },
       data: { status: 'running', routeCount: rows.length, startedAt: run.startedAt || new Date(), error: null }
