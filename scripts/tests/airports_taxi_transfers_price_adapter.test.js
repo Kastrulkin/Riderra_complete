@@ -53,6 +53,7 @@ test('rejects a business or transport terminal when Riderra requested a geograph
   assert.equal(candidateIsPlausible('Shahdag (Quba, Qusar)', 'Shahdag Restaurant, Qusar, Quba, Azerbaijan'), false)
   assert.equal(candidateIsPlausible('Rovaniemi City', 'Scandic Rovaniemi City'), false)
   assert.equal(candidateIsPlausible('Tufandag (Gabala)', 'Gabala Cable Car Tufandag Resort Station, Azerbaijan'), false)
+  assert.equal(candidateIsPlausible('Shanghai city center', 'Shanghai City Centre - China'), true)
   assert.equal(candidateIsPlausible('Vienna Schwechat Airport (VIE)', 'Vienna International Airport (VIE), Austria'), true)
   assert.equal(candidateIsPlausible('Vienna Schwechat Airport (VIE)', 'Vienna Airport Hotel, Austria'), false)
 })
