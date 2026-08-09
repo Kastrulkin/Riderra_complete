@@ -195,7 +195,7 @@ class MyTransfersAdapter {
     if (exactIata.length === 1) predictions = exactIata
     return predictions.map((row) => ({
       id: encodePlace(row),
-      label: [row.main_text, row.description].filter(Boolean).join(', '),
+      label: row.main_text || row.description,
       description: row.description || row.main_text,
       type: placeType(Array.isArray(row.types) ? row.types : [])
     }))
