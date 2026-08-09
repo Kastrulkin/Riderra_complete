@@ -10,6 +10,7 @@ const { MYTRAVELTHRU_DEFAULTS, MyTravelThruAdapter } = require('./myTravelThruPr
 const { MYTRANSFERS_DEFAULTS, MyTransfersAdapter } = require('./myTransfersPriceAdapter')
 const { AIRPORTS_TAXI_TRANSFERS_DEFAULTS, AirportsTaxiTransfersAdapter } = require('./airportsTaxiTransfersPriceAdapter')
 const { AIRPORT_TAXIS_DEFAULTS, AirportTaxisAdapter } = require('./airportTaxisPriceAdapter')
+const { DOTTRANSFERS_DEFAULTS, DotTransfersAdapter } = require('./dotTransfersPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -397,6 +398,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'mytransfers') return new MyTransfersAdapter(config, dependencies)
   if (source.adapterKey === 'airports-taxi-transfers') return new AirportsTaxiTransfersAdapter(config, dependencies)
   if (source.adapterKey === 'airporttaxis-com') return new AirportTaxisAdapter(config, dependencies)
+  if (source.adapterKey === 'dottransfers') return new DotTransfersAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -523,6 +525,29 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (capacity === 6 || capacity === 8) return /standard mini.?(?:van|bus)/i.test(internal) && internalCapacity === capacity
     if (capacity > 8) return /standard mini.?bus/i.test(internal) && internalCapacity === capacity
     return false
+  }
+  if (adapterKey === 'dottransfers') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    const match = external.match(/^(standard|business|first_class)_(sedan|van|minibus)_(\d+)$/)
+    if (!match) return false
+    const [, category, family, seats] = match
+    const capacity = Number(seats)
+    if (family === 'sedan') {
+      if (category === 'standard') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+      if (category === 'business') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+      return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    }
+    if (family === 'van') {
+      if (category === 'standard') {
+        if (capacity === 4) return /standard mpv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === 4)
+        return /standard mini.?van/i.test(internal) && internalCapacity === capacity
+      }
+      if (category === 'business') return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
+      return /(first class|luxury).*van/i.test(internal) && internalCapacity === capacity
+    }
+    return /standard mini.?bus/i.test(internal) && internalCapacity === capacity
   }
   if (adapterKey === 'mytravelthru') {
     const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
@@ -797,14 +822,14 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
   const representative = pending[0]
   try {
     const pickup = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' }))
-      || (['transferz', 'talixo', 'mytravelthru', 'mytransfers', 'airporttaxis-com'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeFrom }))
+      || (['transferz', 'talixo', 'mytravelthru', 'mytransfers', 'airporttaxis-com', 'dottransfers'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeFrom }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom, country: representative.country })
     if (!pickup.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
       return !!pickup.externalRequest
     }
     const dropoff = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' }))
-      || (['transferz', 'talixo', 'mytravelthru', 'mytransfers', 'airporttaxis-com'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeTo }))
+      || (['transferz', 'talixo', 'mytravelthru', 'mytransfers', 'airporttaxis-com', 'dottransfers'].includes(source.adapterKey) && await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeTo }))
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id, country: representative.country })
     if (!dropoff.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Drop-off place requires review', evidence: { candidates: dropoff.candidates } })))
@@ -1050,7 +1075,9 @@ function defaultSourceData(overrides = {}) {
                                     ? MYTRANSFERS_DEFAULTS
                                     : (overrides.adapterKey === 'airports-taxi-transfers'
                                         ? AIRPORTS_TAXI_TRANSFERS_DEFAULTS
-                                        : (overrides.adapterKey === 'airporttaxis-com' ? AIRPORT_TAXIS_DEFAULTS : SMART_RYDE_DEFAULTS))))))))))
+                                        : (overrides.adapterKey === 'airporttaxis-com'
+                                            ? AIRPORT_TAXIS_DEFAULTS
+                                            : (overrides.adapterKey === 'dottransfers' ? DOTTRANSFERS_DEFAULTS : SMART_RYDE_DEFAULTS)))))))))))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -1079,6 +1106,7 @@ module.exports = {
   MYTRANSFERS_DEFAULTS,
   AIRPORTS_TAXI_TRANSFERS_DEFAULTS,
   AIRPORT_TAXIS_DEFAULTS,
+  DOTTRANSFERS_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1089,6 +1117,7 @@ module.exports = {
   MyTransfersAdapter,
   AirportsTaxiTransfersAdapter,
   AirportTaxisAdapter,
+  DotTransfersAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

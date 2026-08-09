@@ -122,6 +122,16 @@ test('MyTransfers public vehicles map by family and capacity', () => {
   assert.equal(externalVehicleMatches('mytransfers', 'standard_minibus_16', 'Standard Minibus 16pax'), true)
 })
 
+test('Dottransfers public vehicles map by class, family, and capacity', () => {
+  assert.equal(externalVehicleMatches('dottransfers', 'standard_sedan_3', 'Standard class car'), true)
+  assert.equal(externalVehicleMatches('dottransfers', 'business_sedan_3', 'Business class car'), true)
+  assert.equal(externalVehicleMatches('dottransfers', 'first_class_sedan_3', 'First class car'), true)
+  assert.equal(externalVehicleMatches('dottransfers', 'standard_van_7', 'Standard minivan 7 pax'), true)
+  assert.equal(externalVehicleMatches('dottransfers', 'standard_van_6', 'Standard minivan 7 pax'), false)
+  assert.equal(externalVehicleMatches('dottransfers', 'business_van_5', 'Businessvan 5 pax'), true)
+  assert.equal(externalVehicleMatches('dottransfers', 'standard_minibus_14', 'Standard Minibus 14pax'), true)
+})
+
 test('MyTransfers public quote request uses read-only search endpoint and lowest class price', async () => {
   let request
   const adapter = new MyTransfersAdapter({}, {
