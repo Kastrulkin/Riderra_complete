@@ -146,7 +146,7 @@ class MyTravelThruAdapter {
     throw lastError
   }
 
-  async resolvePlace(inputText) {
+  async resolvePlace(inputText, _relatedPlaceId, context = {}) {
     const query = String(inputText || '').trim()
     if (!query) return []
     const url = new URL('/api/Place/fastautocomplete', this.entitiesApiUrl)
@@ -154,7 +154,14 @@ class MyTravelThruAdapter {
     url.searchParams.set('language', 'en')
     const response = await this.request(url)
     const payload = await response.json()
-    const predictions = (payload?.predictions || []).filter((row) => candidateMatches(query, row)).slice(0, 8)
+    let predictions = (payload?.predictions || []).filter((row) => candidateMatches(query, row)).slice(0, 8)
+    const country = normalizeKey(context.country)
+    if (country) {
+      const countryMatches = predictions.filter((row) => normalizeKey(`${row.secondary_text || ''} ${row.main_text || ''}`).includes(country))
+      if (countryMatches.length) predictions = countryMatches
+    }
+    const exactLabels = predictions.filter((row) => normalizeKey(row.main_text) === normalizeKey(query))
+    if (exactLabels.length === 1) predictions = exactLabels
     const candidates = []
     for (const prediction of predictions) {
       const detailsUrl = new URL('/api/Place/details', this.entitiesApiUrl)
