@@ -666,10 +666,14 @@ async function resolveBenchmarkPlace({ prisma, tenantId, zoneName, endpoint }) {
 }
 
 async function resolveTransferzBenchmarkPlace({ prisma, tenantId, source, adapter, zoneName }) {
-  const point = await prisma.geoZoneBenchmarkPoint.findFirst({
-    where: { tenantId, source: 'riderra_geo_zone', zoneName, status: 'verified' },
-    orderBy: { verifiedAt: 'desc' }
+  const points = await prisma.geoZoneBenchmarkPoint.findMany({
+    where: { tenantId, zoneName, status: 'verified', latitude: { not: null }, longitude: { not: null } },
+    orderBy: { verifiedAt: 'desc' },
+    take: 25
   })
+  const point = points.find((row) => row.source === 'riderra_geo_zone')
+    || points.find((row) => row.source === 'booking_workbook')
+    || points[0]
   if (!point) return null
   const benchmarkAddress = point.geocodedAddress || point.destinationAddress || point.pickupAddress
   if (!benchmarkAddress) return null

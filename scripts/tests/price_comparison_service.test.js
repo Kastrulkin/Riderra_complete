@@ -36,7 +36,7 @@ test('Transferz can reuse a verified Riderra zone point as an exact public addre
   let saved
   const prisma = {
     geoZoneBenchmarkPoint: {
-      findFirst: async () => ({ id: 'point-1', geocodedAddress: 'Obere Augartenstrasse 1e, Vienna', verifiedAt: new Date('2026-08-01T00:00:00Z'), verifiedByUserId: 'owner-1' })
+      findMany: async () => [{ id: 'point-1', source: 'booking_workbook', geocodedAddress: 'Obere Augartenstrasse 1e, Vienna', latitude: 48.22, longitude: 16.37, verifiedAt: new Date('2026-08-01T00:00:00Z'), verifiedByUserId: 'owner-1' }]
     },
     priceComparisonPlaceMap: {
       upsert: async (query) => { saved = query; return { id: 'mapping-1', ...query.create } }
