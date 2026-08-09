@@ -183,6 +183,8 @@ class MyTravelThruAdapter {
 
   normalizeVehicle(raw) { return raw }
 
+  placeIdIsValid(value) { return Boolean(decodePlace(value)) }
+
   extractEvidence({ pickup, dropoff, quotes, serviceAt }) {
     return {
       sourceUrl: `${this.baseUrl}/booking`,

@@ -526,7 +526,11 @@ async function resolveStoredPlace({ prisma, source, adapter, tenantId, inputText
   const existing = await prisma.priceComparisonPlaceMap.findUnique({
     where: { sourceId_normalizedInput: { sourceId: source.id, normalizedInput } }
   })
-  if (existing?.status === 'approved' && existing.externalPlaceId && existing.externalLabel) {
+  const reusableApprovedPlace = existing?.status === 'approved'
+    && existing.externalPlaceId
+    && existing.externalLabel
+    && (typeof adapter.placeIdIsValid !== 'function' || adapter.placeIdIsValid(existing.externalPlaceId))
+  if (reusableApprovedPlace) {
     return { ok: true, id: existing.externalPlaceId, label: existing.externalLabel, mapping: existing, externalRequest: false }
   }
   if (existing?.status === 'needs_review' && !adapter.placeResolutionIsLocal) {

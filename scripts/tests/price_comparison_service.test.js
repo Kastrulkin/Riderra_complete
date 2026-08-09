@@ -108,6 +108,8 @@ test('MyTravelThru public quote request uses the current booking-widget contract
   assert.equal(request.body.hasMeetAndGreet, false)
   assert.deepEqual(request.body.features, [])
   assert.equal(result.quotes[0].price, 42)
+  assert.equal(adapter.placeIdIsValid(place('valid', 'Valid', 5, 6).id), true)
+  assert.equal(adapter.placeIdIsValid('browser-capture:legacy'), false)
 })
 
 test('SmartRyde policy deducts 30 percent from the client public price', () => {
