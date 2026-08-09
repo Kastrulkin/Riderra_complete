@@ -6,6 +6,7 @@ const {
   geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
+  regionMatchesContext,
   routeEndpointKind,
   routeEndpointQuery
 } = require('../../server/services/routeBenchmarkSeedService')
@@ -52,4 +53,12 @@ test('a city endpoint must still match the returned place name', () => {
   assert.equal(endpointMatchesGeocoding('Universal City', { displayName: 'Universal City, Los Angeles, CA, USA', types: ['neighborhood', 'political'] }), true)
   assert.equal(endpointMatchesGeocoding('Glendale', { displayName: 'Long Beach, CA, USA', types: ['locality', 'political'] }), false)
   assert.equal(endpointMatchesGeocoding('Grand Rotana Resort', { displayName: 'Sharks Bay, Egypt', types: ['lodging', 'establishment'] }), true)
+})
+
+test('a same-name city in a different airport region is not accepted', () => {
+  const california = { addressComponents: [{ longName: 'California', types: ['administrative_area_level_1'] }] }
+  const texas = { addressComponents: [{ longName: 'Texas', types: ['administrative_area_level_1'] }] }
+  assert.equal(regionMatchesContext(california, [california]), true)
+  assert.equal(regionMatchesContext(texas, [california]), false)
+  assert.equal(regionMatchesContext({ addressComponents: [] }, [california]), true)
 })

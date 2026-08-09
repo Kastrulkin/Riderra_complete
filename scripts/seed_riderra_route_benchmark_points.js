@@ -18,6 +18,7 @@ const {
   geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
+  regionMatchesContext,
   routeEndpointKind,
   routeEndpointQuery
 } = require('../server/services/routeBenchmarkSeedService')
@@ -170,16 +171,25 @@ async function main() {
           await savePoint(prisma, { tenantId: args.tenantId, endpoint, zone: null, match: null, status: 'needs_review', error: `Route endpoint is ${routeEndpointKind(endpoint.name).replace('_', ' ')}` })
           totals.needsReview += 1
         } else {
+          const airportMatches = []
           const contextHints = []
           for (const relatedAirport of [...endpoint.context].filter(isAirportEndpoint)) {
             const cacheKey = `${relatedAirport}|${endpoint.country}`
             if (!airportContextCache.has(cacheKey)) {
               airportContextCache.set(cacheKey, await googleGeocode({ address: routeEndpointQuery(relatedAirport, endpoint.country), apiKey }))
             }
-            contextHints.push(...geocodingContextHints(airportContextCache.get(cacheKey)))
+            const airportMatch = airportContextCache.get(cacheKey)
+            airportMatches.push(airportMatch)
+            contextHints.push(...geocodingContextHints(airportMatch))
           }
-          const match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country, contextHints), apiKey })
-          const valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match) && endpointMatchesGeocoding(endpoint.name, match)
+          let match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country), apiKey })
+          let valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match) && endpointMatchesGeocoding(endpoint.name, match) && regionMatchesContext(match, airportMatches)
+          if (!valid && contextHints.length) {
+            const contextualMatch = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country, contextHints), apiKey })
+            const contextualValid = contextualMatch && countryMatches(endpoint.country, contextualMatch) && isSpecificGeocodingMatch(contextualMatch) && endpointMatchesGeocoding(endpoint.name, contextualMatch)
+            if (contextualValid || !match) match = contextualMatch
+            valid = contextualValid
+          }
           await savePoint(prisma, {
             tenantId: args.tenantId,
             endpoint,
