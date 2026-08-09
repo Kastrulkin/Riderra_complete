@@ -86,6 +86,30 @@ function candidateScore(inputText, candidateLabel) {
   return score
 }
 
+function candidateIsPlausible(inputText, candidateLabel) {
+  const input = normalizeKey(inputText)
+  const candidate = normalizeKey(candidateLabel)
+  if (!input || !candidate) return false
+  const inputIata = String(inputText || '').match(/\(([A-Z]{3})\)/)?.[1]
+  const candidateIata = String(candidateLabel || '').match(/\(([A-Z]{3})\)/)?.[1]
+  const inputAirport = /\bairport\b/i.test(inputText) || Boolean(inputIata)
+  const candidateAirport = /\bairport\b/i.test(candidateLabel)
+  if (inputAirport) {
+    if (!candidateAirport) return false
+    if (inputIata && candidateIata && inputIata !== candidateIata) return false
+  } else if (candidateAirport) {
+    return false
+  } else if (!(candidate === input || candidate.startsWith(`${input} `) || input.startsWith(`${candidate} `))) {
+    return false
+  }
+
+  const entityKinds = ['restaurant', 'hotel', 'resort', 'station', 'terminal', 'rental', 'apartments', 'museum', 'mall', 'hospital', 'school']
+  for (const kind of entityKinds) {
+    if (new RegExp(`\\b${kind}\\b`, 'i').test(candidateLabel) && !new RegExp(`\\b${kind}\\b`, 'i').test(inputText)) return false
+  }
+  return true
+}
+
 function normalizeVehicleKey(name) {
   return normalizeKey(name).replace(/\s+/g, '_')
 }
@@ -211,7 +235,7 @@ class AirportsTaxiTransfersAdapter {
     for (const row of rows) {
       if (row?.id == null || !row?.value) continue
       const score = candidateScore(query, row.value)
-      if (score >= 45) unique.set(String(row.id), { row, score })
+      if (score >= 45 && candidateIsPlausible(query, row.value)) unique.set(String(row.id), { row, score })
     }
     const ranked = [...unique.values()].sort((a, b) => b.score - a.score || String(a.row.value).localeCompare(String(b.row.value)))
     if (!ranked.length) return []
@@ -284,6 +308,7 @@ module.exports = {
   AIRPORTS_TAXI_TRANSFERS_DEFAULTS,
   AirportsTaxiTransfersAdapter,
   candidateScore,
+  candidateIsPlausible,
   decodePlace,
   encodePlace,
   parseQuotes,

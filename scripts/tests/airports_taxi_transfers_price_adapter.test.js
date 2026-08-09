@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
   AirportsTaxiTransfersAdapter,
+  candidateIsPlausible,
   candidateScore,
   decodePlace,
   encodePlace,
@@ -46,6 +47,14 @@ test('ranks airport IATA and city-centre candidates conservatively', () => {
   assert.ok(candidateScore('Barcelona El Prat Airport (BCN)', 'Barcelona Airport (BCN) - Spain') >= 90)
   assert.ok(candidateScore('Barcelona', 'Barcelona City Centre - Spain') > candidateScore('Barcelona', 'Barcelona Airport (BCN) - Spain'))
   assert.ok(candidateScore('Vienna', 'Barcelona City Centre - Spain') < 45)
+})
+
+test('rejects a business or transport terminal when Riderra requested a geographic zone', () => {
+  assert.equal(candidateIsPlausible('Shahdag (Quba, Qusar)', 'Shahdag Restaurant, Qusar, Quba, Azerbaijan'), false)
+  assert.equal(candidateIsPlausible('Rovaniemi City', 'Scandic Rovaniemi City'), false)
+  assert.equal(candidateIsPlausible('Tufandag (Gabala)', 'Gabala Cable Car Tufandag Resort Station, Azerbaijan'), false)
+  assert.equal(candidateIsPlausible('Vienna Schwechat Airport (VIE)', 'Vienna International Airport (VIE), Austria'), true)
+  assert.equal(candidateIsPlausible('Vienna Schwechat Airport (VIE)', 'Vienna Airport Hotel, Austria'), false)
 })
 
 test('parses public vehicle classes, capacities and displayed prices', () => {
