@@ -2,11 +2,13 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
   countryMatches,
+  distanceBandSearchTerm,
   endpointMatchesGeocoding,
   geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
   parseDistanceBandEndpoint,
+  radialDistanceBandCoordinates,
   regionMatchesContext,
   routeEndpointKind,
   routeEndpointQuery,
@@ -76,4 +78,16 @@ test('a Booking address can represent a distance-band route', () => {
   ], { lat: 32.7328909, lon: -117.1897127 }, band)
   assert.equal(selected.candidate.id, 'band')
   assert.ok(selected.distanceMiles >= 20 && selected.distanceMiles <= 39)
+})
+
+test('distance-band lookup strips price-book labels and can generate fallback coordinates', () => {
+  const band = parseDistanceBandEndpoint('Philadelphia City Center, USA (26-30 miles)')
+  assert.equal(distanceBandSearchTerm(band.baseName), 'Philadelphia')
+  const origin = { lat: 39.8729797, lon: -75.2436987 }
+  const candidates = radialDistanceBandCoordinates(origin, band)
+  assert.equal(candidates.length, 8)
+  for (const candidate of candidates) {
+    const selected = selectDistanceBandPoint([{ latitude: candidate.lat, longitude: candidate.lon }], origin, band)
+    assert.ok(selected)
+  }
 })

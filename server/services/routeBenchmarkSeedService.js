@@ -54,6 +54,28 @@ function parseDistanceBandEndpoint(value) {
   return match ? { baseName: match[1].trim(), minMiles: Number(match[2]), maxMiles: Number(match[3]) } : null
 }
 
+function distanceBandSearchTerm(baseName) {
+  return String(baseName || '')
+    .replace(/\bcity\s+cent(?:er|re)\b/ig, ' ')
+    .replace(/\b(?:usa|united states(?: of america)?)\b/ig, ' ')
+    .replace(/\s*,\s*|\s+/g, ' ')
+    .trim()
+}
+
+function radialDistanceBandCoordinates(origin, band) {
+  const lat = Number(origin?.lat); const lon = Number(origin?.lon)
+  if (![lat, lon, band?.minMiles, band?.maxMiles].every(Number.isFinite)) return []
+  const angularDistance = ((band.minMiles + band.maxMiles) / 2) / 3958.8
+  const latitude = lat * Math.PI / 180
+  const longitude = lon * Math.PI / 180
+  return [0, 45, 90, 135, 180, 225, 270, 315].map((bearingDegrees) => {
+    const bearing = bearingDegrees * Math.PI / 180
+    const targetLatitude = Math.asin(Math.sin(latitude) * Math.cos(angularDistance) + Math.cos(latitude) * Math.sin(angularDistance) * Math.cos(bearing))
+    const targetLongitude = longitude + Math.atan2(Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitude), Math.cos(angularDistance) - Math.sin(latitude) * Math.sin(targetLatitude))
+    return { lat: targetLatitude * 180 / Math.PI, lon: targetLongitude * 180 / Math.PI }
+  })
+}
+
 function haversineMiles(left, right) {
   const lat1 = Number(left?.lat); const lon1 = Number(left?.lon)
   const lat2 = Number(right?.lat); const lon2 = Number(right?.lon)
@@ -137,6 +159,7 @@ function routeEndpointQuery(name, country, context = []) {
 module.exports = {
   canonicalCountry,
   countryMatches,
+  distanceBandSearchTerm,
   endpointMatchesGeocoding,
   editDistance,
   geocodedCountry,
@@ -147,6 +170,7 @@ module.exports = {
   haversineMiles,
   normalize,
   parseDistanceBandEndpoint,
+  radialDistanceBandCoordinates,
   regionMatchesContext,
   routeEndpointKind,
   routeEndpointQuery,

@@ -15,11 +15,13 @@ const {
 const {
   canonicalCountry,
   countryMatches,
+  distanceBandSearchTerm,
   endpointMatchesGeocoding,
   geocodedRegion,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
   parseDistanceBandEndpoint,
+  radialDistanceBandCoordinates,
   regionMatchesContext,
   routeEndpointKind,
   routeEndpointQuery,
@@ -173,25 +175,42 @@ async function main() {
           totals.polygonVerified += 1
         } else if (routeEndpointKind(endpoint.name) === 'distance_band') {
           const band = parseDistanceBandEndpoint(endpoint.name)
+          const searchTerm = distanceBandSearchTerm(band.baseName)
           const relatedAirport = [...endpoint.context].find(isAirportEndpoint)
           const airportMatch = relatedAirport ? await googleGeocode({ address: routeEndpointQuery(relatedAirport, endpoint.country), apiKey }) : null
           const candidates = await prisma.geoZoneBenchmarkPoint.findMany({
             where: {
               tenantId: args.tenantId,
               source: 'booking_workbook',
-              status: 'verified',
               latitude: { not: null },
               longitude: { not: null },
+              geocodedAddress: { not: null },
               OR: [
-                { city: { contains: band.baseName, mode: 'insensitive' } },
-                { destinationAddress: { contains: band.baseName, mode: 'insensitive' } }
+                { city: { contains: searchTerm, mode: 'insensitive' } },
+                { destinationAddress: { contains: searchTerm, mode: 'insensitive' } }
               ]
             },
             take: 500
           })
-          const selected = selectDistanceBandPoint(candidates, airportMatch, band)
+          let selected = selectDistanceBandPoint(candidates, airportMatch, band)
+          if (!selected && airportMatch) {
+            const generatedCandidates = []
+            for (const coordinate of radialDistanceBandCoordinates(airportMatch, band)) {
+              const match = await googleGeocode({ latitude: coordinate.lat, longitude: coordinate.lon, apiKey })
+              if (!match || !countryMatches(endpoint.country, match) || !isSpecificGeocodingMatch(match)) continue
+              generatedCandidates.push({
+                geocodedAddress: match.displayName,
+                destinationAddress: match.displayName,
+                latitude: match.lat,
+                longitude: match.lon,
+                googlePlaceId: match.placeId,
+                generatedForDistanceBand: true
+              })
+            }
+            selected = selectDistanceBandPoint(generatedCandidates, airportMatch, band)
+          }
           if (!selected) {
-            await savePoint(prisma, { tenantId: args.tenantId, endpoint, zone: null, match: null, status: 'needs_review', error: 'No verified address falls inside the route distance band' })
+            await savePoint(prisma, { tenantId: args.tenantId, endpoint, zone: null, match: null, status: 'needs_review', error: 'No exact address falls inside the route distance band' })
             totals.needsReview += 1
           } else {
             const candidate = selected.candidate
@@ -201,8 +220,8 @@ async function main() {
               zone: null,
               match: { displayName: candidate.geocodedAddress || candidate.destinationAddress, lat: candidate.latitude, lon: candidate.longitude, placeId: candidate.googlePlaceId },
               status: 'verified',
-              method: 'automatic_distance_band_booking_point',
-              reviewNote: `Booking benchmark address; straight-line distance ${selected.distanceMiles.toFixed(1)} miles from ${relatedAirport}`
+              method: candidate.generatedForDistanceBand ? 'automatic_distance_band_geocoded_point' : 'automatic_distance_band_booking_point',
+              reviewNote: `${candidate.generatedForDistanceBand ? 'Google reverse-geocoded benchmark address' : 'Booking benchmark address'}; straight-line distance ${selected.distanceMiles.toFixed(1)} miles from ${relatedAirport}`
             })
             totals.directVerified += 1
           }
