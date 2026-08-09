@@ -56,6 +56,15 @@ function geocodingContextHints(match) {
   return [value('locality'), value('administrative_area_level_1')].filter(Boolean)
 }
 
+function endpointMatchesGeocoding(endpointName, match) {
+  const types = new Set(match?.types || [])
+  if (['establishment', 'lodging', 'premise', 'tourist_attraction'].some((type) => types.has(type))) return true
+  const haystack = normalize(match?.displayName)
+  const ignored = new Set(['city', 'center', 'centre', 'downtown', 'district', 'area', 'resort', 'hotel', 'island'])
+  const tokens = normalize(endpointName).split(' ').filter((token) => token.length >= 4 && !ignored.has(token))
+  return Boolean(haystack && tokens.length && tokens.some((token) => haystack.includes(token)))
+}
+
 function routeEndpointQuery(name, country, context = []) {
   const seen = new Set()
   return [name, ...(Array.isArray(context) ? context : []), country]
@@ -72,6 +81,7 @@ function routeEndpointQuery(name, country, context = []) {
 module.exports = {
   canonicalCountry,
   countryMatches,
+  endpointMatchesGeocoding,
   geocodedCountry,
   geocodingContextHints,
   isAirportEndpoint,

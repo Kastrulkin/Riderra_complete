@@ -14,6 +14,7 @@ const {
 } = require('../server/services/geoZoneBenchmarkEnrichmentService')
 const {
   countryMatches,
+  endpointMatchesGeocoding,
   geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
@@ -178,7 +179,7 @@ async function main() {
             contextHints.push(...geocodingContextHints(airportContextCache.get(cacheKey)))
           }
           const match = await googleGeocode({ address: routeEndpointQuery(endpoint.name, endpoint.country, contextHints), apiKey })
-          const valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match)
+          const valid = match && countryMatches(endpoint.country, match) && isSpecificGeocodingMatch(match) && endpointMatchesGeocoding(endpoint.name, match)
           await savePoint(prisma, {
             tenantId: args.tenantId,
             endpoint,
@@ -188,7 +189,7 @@ async function main() {
             error: valid
               ? null
               : (match
-                  ? (countryMatches(endpoint.country, match) ? 'Google result is too broad for automatic verification' : 'Google result country does not match the Riderra price row')
+                  ? (countryMatches(endpoint.country, match) ? 'Google result is too broad or does not match the route endpoint name' : 'Google result country does not match the Riderra price row')
                   : 'Google geocoding: place not found'),
             method: 'automatic_route_endpoint_geocode'
           })

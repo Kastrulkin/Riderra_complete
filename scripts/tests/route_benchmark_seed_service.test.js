@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
   countryMatches,
+  endpointMatchesGeocoding,
   geocodingContextHints,
   isAirportEndpoint,
   isSpecificGeocodingMatch,
@@ -45,4 +46,10 @@ test('airport geocoding contributes locality and region rather than the airport 
     { longName: 'California', types: ['administrative_area_level_1'] }
   ] }
   assert.deepEqual(geocodingContextHints(match), ['Los Angeles', 'California'])
+})
+
+test('a city endpoint must still match the returned place name', () => {
+  assert.equal(endpointMatchesGeocoding('Universal City', { displayName: 'Universal City, Los Angeles, CA, USA', types: ['neighborhood', 'political'] }), true)
+  assert.equal(endpointMatchesGeocoding('Glendale', { displayName: 'Long Beach, CA, USA', types: ['locality', 'political'] }), false)
+  assert.equal(endpointMatchesGeocoding('Grand Rotana Resort', { displayName: 'Sharks Bay, Egypt', types: ['lodging', 'establishment'] }), true)
 })
