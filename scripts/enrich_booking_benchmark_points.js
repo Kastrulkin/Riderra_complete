@@ -12,11 +12,12 @@ const {
 } = require('../server/services/geoZoneBenchmarkEnrichmentService')
 
 function parseArgs(argv) {
-  const args = { tenantId: null, limit: 100, delayMs: 250 }
+  const args = { tenantId: null, limit: 100, delayMs: 250, recheckZones: false }
   for (let index = 2; index < argv.length; index += 1) {
     if (argv[index] === '--tenant-id') args.tenantId = argv[++index]
     else if (argv[index] === '--limit') args.limit = Math.max(1, Math.min(5000, Number(argv[++index]) || 100))
     else if (argv[index] === '--delay-ms') args.delayMs = Math.max(0, Number(argv[++index]) || 0)
+    else if (argv[index] === '--recheck-zones') args.recheckZones = true
     else throw new Error(`Unknown argument: ${argv[index]}`)
   }
   if (!args.tenantId) throw new Error('Use --tenant-id <id>')
@@ -75,11 +76,13 @@ async function main() {
       where: {
         tenantId: args.tenantId,
         source: 'booking_workbook',
-        OR: [
-          { status: 'candidate' },
-          { status: 'resolving' },
-          { status: 'needs_review', latitude: null }
-        ]
+        ...(args.recheckZones
+          ? { latitude: { not: null }, longitude: { not: null } }
+          : { OR: [
+              { status: 'candidate' },
+              { status: 'resolving' },
+              { status: 'needs_review', latitude: null }
+            ] })
       },
       orderBy: [{ country: 'asc' }, { city: 'asc' }, { sourceRowNumber: 'asc' }],
       take: args.limit
@@ -88,7 +91,18 @@ async function main() {
     for (const point of rows) {
       await prisma.geoZoneBenchmarkPoint.update({ where: { id: point.id }, data: { status: 'resolving', resolutionError: null } })
       try {
-        const geocoding = await geocodeGoogle(buildGeocodingQuery(point), apiKey)
+        const geocoding = args.recheckZones
+          ? {
+              provider: point.geocodingProvider || 'stored_coordinates',
+              checkedAt: point.geocodedAt || new Date(),
+              bestMatch: {
+                displayName: point.geocodedAddress || point.destinationAddress,
+                lat: point.latitude,
+                lon: point.longitude,
+                placeId: point.googlePlaceId
+              }
+            }
+          : await geocodeGoogle(buildGeocodingQuery(point), apiKey)
         const data = enrichmentData(point, geocoding, zones)
         await prisma.geoZoneBenchmarkPoint.update({ where: { id: point.id }, data })
         if (data.status === 'verified') totals.verified += 1
@@ -112,7 +126,7 @@ async function main() {
         traceId: `booking-zone-enrichment-${crypto.randomUUID()}`,
         decision: 'human_approved',
         result: totals.failed ? 'partial' : 'ok',
-        contextJson: JSON.stringify({ ...totals, rule: 'Google address plus coordinate inside Riderra master polygon' })
+        contextJson: JSON.stringify({ ...totals, recheckZones: args.recheckZones, rule: 'Google address plus unambiguous coordinate match inside Riderra master polygon' })
       }
     })
     const remaining = await prisma.geoZoneBenchmarkPoint.count({

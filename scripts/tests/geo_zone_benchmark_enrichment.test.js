@@ -41,6 +41,21 @@ test('geocoded points outside Riderra polygons remain reviewable', () => {
   assert.equal(data.zoneName, null)
 })
 
+test('equally specific overlapping zones remain reviewable', () => {
+  const overlappingKml = `<?xml version="1.0"?><kml><Placemark><name>London North</name><Polygon><outerBoundaryIs><LinearRing><coordinates>-0.2,51.4 0,51.4 0,51.6 -0.2,51.6 -0.2,51.4</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark><Placemark><name>London West</name><Polygon><outerBoundaryIs><LinearRing><coordinates>-0.2,51.4 0,51.4 0,51.6 -0.2,51.6 -0.2,51.4</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></kml>`
+  const data = enrichmentData({ city: 'London' }, { provider: 'google_maps', bestMatch: { displayName: 'London', lat: 51.51, lon: -0.1 } }, extractKmlZones(overlappingKml))
+  assert.equal(data.status, 'needs_review')
+  assert.equal(data.zoneName, null)
+  assert.match(data.resolutionError, /London North, London West/)
+})
+
+test('a smaller nested zone wins over broad overlapping zones', () => {
+  const nestedKml = `<?xml version="1.0"?><kml><Placemark><name>London</name><Polygon><outerBoundaryIs><LinearRing><coordinates>-1,51 1,51 1,52 -1,52 -1,51</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark><Placemark><name>London City Center</name><Polygon><outerBoundaryIs><LinearRing><coordinates>-0.2,51.4 0,51.4 0,51.6 -0.2,51.6 -0.2,51.4</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></kml>`
+  const data = enrichmentData({ city: 'London centre' }, { provider: 'google_maps', bestMatch: { displayName: 'London', lat: 51.51, lon: -0.1 } }, extractKmlZones(nestedKml))
+  assert.equal(data.status, 'verified')
+  assert.equal(data.zoneName, 'London City Center')
+})
+
 test('geocoding query keeps address, city, and country without duplicates', () => {
   assert.equal(buildGeocodingQuery({ destinationAddress: '1 Main St', city: 'London', country: 'United Kingdom' }), '1 Main St, London, United Kingdom')
 })

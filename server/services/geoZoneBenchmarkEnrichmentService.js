@@ -71,12 +71,29 @@ function pointInPolygon(lon, lat, rings = []) {
   return !rings.slice(1).some((hole) => pointInRing(lon, lat, hole))
 }
 
-function findContainingZone(zones, latitude, longitude) {
+function ringArea(ring = []) {
+  let area = 0
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    area += Number(ring[previous]?.[0]) * Number(ring[index]?.[1]) - Number(ring[index]?.[0]) * Number(ring[previous]?.[1])
+  }
+  return Math.abs(area / 2)
+}
+
+function findContainingZones(zones, latitude, longitude) {
   const lat = Number(latitude); const lon = Number(longitude)
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
-  return (Array.isArray(zones) ? zones : []).find((zone) => (
-    zone.polygons.some((rings) => pointInPolygon(lon, lat, rings))
-  )) || null
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return []
+  return (Array.isArray(zones) ? zones : []).map((zone) => {
+    const matchingAreas = zone.polygons.filter((rings) => pointInPolygon(lon, lat, rings)).map((rings) => ringArea(rings[0]))
+    return matchingAreas.length ? { zone, area: Math.min(...matchingAreas) } : null
+  }).filter(Boolean).sort((left, right) => left.area - right.area)
+}
+
+function findContainingZone(zones, latitude, longitude) {
+  const matches = findContainingZones(zones, latitude, longitude)
+  if (!matches.length) return null
+  if (matches.length === 1) return matches[0].zone
+  const tolerance = Math.max(1e-12, matches[0].area * 1e-9)
+  return matches[1].area - matches[0].area > tolerance ? matches[0].zone : null
 }
 
 function canonicalCityName(city, zoneName = '') {
@@ -113,8 +130,10 @@ function enrichmentData(point, geocoding, zones, now = new Date()) {
       verifiedByUserId: null
     }
   }
+  const containingZones = findContainingZones(zones, match.lat, match.lon)
   const zone = findContainingZone(zones, match.lat, match.lon)
   const verified = Boolean(zone)
+  const ambiguous = !zone && containingZones.length > 1
   return {
     city: canonicalCityName(point.city, zone?.name),
     latitude: Number(match.lat),
@@ -125,7 +144,11 @@ function enrichmentData(point, geocoding, zones, now = new Date()) {
     geocodedAt: geocoding.checkedAt ? new Date(geocoding.checkedAt) : now,
     zoneId: zone?.id || null,
     zoneName: zone?.name || null,
-    resolutionError: verified ? null : 'Riderra: geocoded point is outside imported polygon zones',
+    resolutionError: verified
+      ? null
+      : ambiguous
+        ? `Riderra: coordinate overlaps equally specific zones (${containingZones.map((item) => item.zone.name).join(', ')})`
+        : 'Riderra: geocoded point is outside imported polygon zones',
     resolvedAt: now,
     verificationMethod: verified ? 'automatic_geocode_and_polygon' : null,
     status: verified ? 'verified' : 'needs_review',
@@ -140,6 +163,7 @@ module.exports = {
   enrichmentData,
   extractKmlZones,
   findContainingZone,
+  findContainingZones,
   normalizeKey,
   pointInPolygon
 }
