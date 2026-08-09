@@ -179,8 +179,15 @@
                 <small>{{ point.pickupAddress }}</small>
                 <small v-if="point.sourceDistanceKm != null">{{ point.sourceDistanceKm }} km · {{ point.source }}</small>
               </div>
-              <div class="benchmark-address">{{ point.destinationAddress }}</div>
-              <div><span>{{ point.zoneName || t.zoneNotSelected }}</span><small v-if="point.resolutionError">{{ point.resolutionError }}</small></div>
+              <div class="benchmark-address">
+                <span>{{ point.destinationAddress }}</span>
+                <small v-if="point.geocodedAddress && point.geocodedAddress !== point.destinationAddress">{{ t.confirmedAddress }}: {{ point.geocodedAddress }}</small>
+              </div>
+              <div>
+                <span>{{ point.zoneName || t.zoneNotSelected }}</span>
+                <small v-if="formatCoordinates(point)">{{ formatCoordinates(point) }}</small>
+                <small v-if="point.resolutionError">{{ point.resolutionError }}</small>
+              </div>
               <div><span class="status-badge" :class="`status-badge--${point.status}`">{{ statusLabel(point.status) }}</span></div>
               <div><button class="link-button" type="button" @click="openPointForm(point)">{{ t.review }}</button></div>
             </div>
@@ -349,6 +356,7 @@ export default {
             allStatuses: 'Все статусы',
             route: 'Аэропорт / город',
             controlAddress: 'Контрольный адрес',
+            confirmedAddress: 'Подтверждённый адрес',
             geoZone: 'Геозона Riderra',
             status: 'Статус',
             zoneNotSelected: 'Не выбрана',
@@ -454,6 +462,7 @@ export default {
             allStatuses: 'All statuses',
             route: 'Airport / city',
             controlAddress: 'Control address',
+            confirmedAddress: 'Confirmed address',
             geoZone: 'Riderra zone',
             status: 'Status',
             zoneNotSelected: 'Not selected',
@@ -542,6 +551,12 @@ export default {
     },
     statusLabel (status) {
       return this.t.statuses?.[status] || status
+    },
+    formatCoordinates (point) {
+      const latitude = Number(point?.latitude)
+      const longitude = Number(point?.longitude)
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return ''
+      return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
     },
     async openBenchmarks () {
       this.activeWorkspace = 'benchmarks'
