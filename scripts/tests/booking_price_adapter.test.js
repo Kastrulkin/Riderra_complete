@@ -54,3 +54,25 @@ test('Booking adapter uses autocomplete then the public search session without b
   assert.equal(result.quotes[0].price, 25)
   assert.equal(calls.some((call) => /bookingDetails|checkout|book/i.test(new URL(call.url).pathname)), false)
 })
+
+test('Booking adapter reuses only verified Riderra benchmark place ids', () => {
+  const adapter = new BookingAdapter()
+  assert.deepEqual(adapter.createBenchmarkPlace({
+    source: 'riderra_geo_zone',
+    status: 'verified',
+    googlePlaceId: 'airport-place',
+    airportIata: 'HEL',
+    zoneName: 'Helsinki Airport (HEL)',
+    geocodedAddress: 'Helsinki Airport, Finland'
+  }), {
+    id: 'booking:airport:airport-place',
+    label: 'Helsinki Airport, Finland'
+  })
+  assert.equal(adapter.createBenchmarkPlace({
+    source: 'booking_workbook',
+    status: 'verified',
+    googlePlaceId: 'unreviewed-source',
+    zoneName: 'Hurghada Airport (HRG)',
+    geocodedAddress: 'A hospital near the airport'
+  }), null)
+})

@@ -149,6 +149,13 @@ class BookingAdapter {
     }).filter((row) => row.id && row.label)
   }
 
+  createBenchmarkPlace(point) {
+    if (point?.source !== 'riderra_geo_zone' || !point.googlePlaceId || point.status !== 'verified') return null
+    const isAirport = Boolean(point.airportIata) || /\bairport\b|\([A-Z]{3}\)/i.test(String(point.zoneName || ''))
+    const label = point.geocodedAddress || point.destinationAddress || point.pickupAddress || point.zoneName
+    return label ? { id: encodePlaceId(point.googlePlaceId, isAirport ? 'airport' : 'point_of_interest'), label } : null
+  }
+
   normalizeVehicle(raw) {
     return { ...raw, externalVehicleKey: raw.externalVehicleKey || normalizeVehicleKey(raw.externalVehicleName) }
   }
