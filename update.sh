@@ -156,7 +156,10 @@ if [ "$SKIP_PM2" = false ]; then
       echo -e "${RED}❌ Ошибка при перезапуске PM2${NC}"
       exit 1
     }
-    pm2 startOrReload ecosystem.config.js --only booking-price-monitor --update-env || true
+    # PM2 does not reliably refresh cron_restart on startOrReload for a stopped
+    # one-shot process, so recreate only this scheduler entry from the manifest.
+    pm2 delete booking-price-monitor >/dev/null 2>&1 || true
+    pm2 start ecosystem.config.js --only booking-price-monitor --update-env || true
     pm2 save >/dev/null 2>&1 || true
     echo -e "${GREEN}✓ PM2 перезапущен${NC}"
     
