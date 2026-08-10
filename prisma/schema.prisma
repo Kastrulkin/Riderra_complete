@@ -24,6 +24,7 @@ model Tenant {
   orderChangeLogs               OrderChangeLog[]
   pricingRows                   CityPricing[]
   counterpartyRules             CounterpartyPriceRule[]
+  supplierPriceRules            SupplierPriceRule[]
   drivers                       Driver[]
   driverRoutes                  DriverRoute[]
   cityRoutes                    CityRoute[]
@@ -706,6 +707,7 @@ model CustomerCompany {
   links               CustomerCompanyContact[]
   segments            CustomerCompanySegment[]
   pricingRules        CounterpartyPriceRule[]
+  supplierPriceRules  SupplierPriceRule[]
   orderAdjustments    OrderAdjustment[]
   comparisonSources   PriceComparisonSource[]
   bestSupplierPricingRows CityPricing[]             @relation("CityPricingBestSupplier")
@@ -1188,6 +1190,39 @@ model CounterpartyPriceRule {
   @@index([tenantId, counterpartyName, isActive])
   @@index([counterpartyName, isActive])
   @@index([city, isActive])
+}
+
+model SupplierPriceRule {
+  id                       String           @id @default(cuid())
+  tenantId                 String
+  supplierCompanyId        String
+  sourceKey                String
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  category                 String?
+  routeFrom                String?
+  routeTo                  String?
+  vehicleType              String?
+  passengers               Int?
+  supplierPrice            Float
+  currency                 String           @default("EUR")
+  priceType                String           @default("net")
+  parkingSurcharge         Float?
+  vatPercent               Float?
+  startsAt                 DateTime?
+  endsAt                   DateTime?
+  sourceType               String?
+  sourceLabel              String?
+  sourceQuotedAt           DateTime?
+  sourceStatus             String           @default("approved")
+  notes                    String?
+  isActive                 Boolean          @default(true)
+  tenant                   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplierCompany          CustomerCompany  @relation(fields: [supplierCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierCompanyId, sourceKey])
+  @@index([tenantId, supplierCompanyId, isActive])
+  @@index([tenantId, routeFrom, routeTo, vehicleType])
 }
 
 model PriceConflict {

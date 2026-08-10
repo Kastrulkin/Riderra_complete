@@ -14258,6 +14258,84 @@ app.get('/api/admin/crm/companies/:companyId', authenticateToken, resolveActorCo
   }
 })
 
+app.get('/api/admin/crm/companies/:companyId/prices', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
+  try {
+    const { companyId } = req.params
+    const kind = String(req.query.kind || 'client')
+    const take = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200)
+    const skip = Math.max(parseInt(req.query.offset, 10) || 0, 0)
+    const q = String(req.query.q || '').trim()
+    const company = await prisma.customerCompany.findFirst({
+      where: { id: companyId, tenantId: req.actorContext.tenantId },
+      select: { id: true }
+    })
+    if (!company) return res.status(404).json({ error: 'Company not found' })
+
+    if (kind === 'client') {
+      const where = {
+        tenantId: req.actorContext.tenantId,
+        customerCompanyId: companyId,
+        isActive: true
+      }
+      if (q) where.OR = [
+        { city: { contains: q, mode: 'insensitive' } },
+        { routeFrom: { contains: q, mode: 'insensitive' } },
+        { routeTo: { contains: q, mode: 'insensitive' } },
+        { vehicleType: { contains: q, mode: 'insensitive' } }
+      ]
+      const [rows, total] = await Promise.all([
+        prisma.counterpartyPriceRule.findMany({ where, orderBy: [{ routeFrom: 'asc' }, { routeTo: 'asc' }, { vehicleType: 'asc' }], skip, take }),
+        prisma.counterpartyPriceRule.count({ where })
+      ])
+      return res.json({ kind, rows, total, limit: take, offset: skip })
+    }
+
+    if (kind === 'supplier') {
+      const where = {
+        tenantId: req.actorContext.tenantId,
+        supplierCompanyId: companyId,
+        isActive: true
+      }
+      if (q) where.OR = [
+        { category: { contains: q, mode: 'insensitive' } },
+        { routeFrom: { contains: q, mode: 'insensitive' } },
+        { routeTo: { contains: q, mode: 'insensitive' } },
+        { vehicleType: { contains: q, mode: 'insensitive' } }
+      ]
+      const [rows, total] = await Promise.all([
+        prisma.supplierPriceRule.findMany({ where, orderBy: [{ routeFrom: 'asc' }, { routeTo: 'asc' }, { vehicleType: 'asc' }], skip, take }),
+        prisma.supplierPriceRule.count({ where })
+      ])
+      return res.json({ kind, rows, total, limit: take, offset: skip })
+    }
+
+    if (kind === 'best') {
+      const where = {
+        tenantId: req.actorContext.tenantId,
+        bestSupplierCompanyId: companyId,
+        isActive: true
+      }
+      if (q) where.OR = [
+        { country: { contains: q, mode: 'insensitive' } },
+        { city: { contains: q, mode: 'insensitive' } },
+        { routeFrom: { contains: q, mode: 'insensitive' } },
+        { routeTo: { contains: q, mode: 'insensitive' } },
+        { vehicleType: { contains: q, mode: 'insensitive' } }
+      ]
+      const [rows, total] = await Promise.all([
+        prisma.cityPricing.findMany({ where, orderBy: [{ country: 'asc' }, { routeFrom: 'asc' }, { routeTo: 'asc' }, { vehicleType: 'asc' }], skip, take }),
+        prisma.cityPricing.count({ where })
+      ])
+      return res.json({ kind, rows, total, limit: take, offset: skip })
+    }
+
+    return res.status(400).json({ error: 'Unsupported price kind' })
+  } catch (error) {
+    console.error('Error fetching CRM company prices:', error)
+    res.status(500).json({ error: 'Failed to fetch company prices' })
+  }
+})
+
 app.get('/api/admin/crm/contacts', authenticateToken, resolveActorContext, requireActorContext, requireCan('crm.read', 'crm'), async (req, res) => {
   try {
     const { q = '', segment = '', segments = '', limit = '100', offset = '0' } = req.query

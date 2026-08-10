@@ -180,8 +180,90 @@
         </details>
 
         <div class="detail-sections">
+          <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel" open>
+            <summary class="section-summary">Согласованные цены</summary>
+
+            <div v-if="companyHasSegment('client_company') || companyPricebook.client.total" class="company-pricebook-block">
+              <div class="company-pricebook-head">
+                <div>
+                  <h4>Согласованный прайс клиента</h4>
+                  <div class="hint">Продажные цены, которые Riderra применяет для этой компании.</div>
+                </div>
+                <span class="summary-chip"><span>Строк</span><strong>{{ companyPricebook.client.total }}</strong></span>
+              </div>
+              <div v-if="companyPricebook.client.rows.length" class="comparison-price-table">
+                <div class="comparison-price-row comparison-price-row--head">
+                  <div>Направление</div><div>Класс</div><div>Цена клиента</div><div>Период</div><div>Источник</div>
+                </div>
+                <div v-for="row in companyPricebook.client.rows" :key="`client-price-${row.id}`" class="comparison-price-row">
+                  <div><strong>{{ priceRouteLabel(row) }}</strong></div>
+                  <div>{{ row.vehicleType || 'Все классы' }}</div>
+                  <div><strong>{{ formatMoney(row.sellPrice, row.currency) }}</strong></div>
+                  <div>{{ priceValidityLabel(row) }}</div>
+                  <div>{{ row.notes || 'Согласованный прайс' }}</div>
+                </div>
+              </div>
+              <div v-else-if="!companyPricebook.client.loading" class="comparison-empty">
+                <strong>Согласованный прайс пока не внесён</strong>
+                <span>Публичные цены компании могут быть сохранены отдельно, но они не заменяют согласованный прайс Riderra.</span>
+              </div>
+              <button v-if="companyPricebook.client.rows.length < companyPricebook.client.total" class="btn btn--ghost btn--small" :disabled="companyPricebook.client.loading" @click="loadMoreCompanyPrices('client')">Показать ещё</button>
+            </div>
+
+            <div v-if="companyHasSegment('supplier_company') || companyPricebook.supplier.total || companyPricebook.best.total" class="company-pricebook-block">
+              <div class="company-pricebook-head">
+                <div>
+                  <h4>Закупочный прайс поставщика</h4>
+                  <div class="hint">Согласованные нетто-тарифы, доплаты, налоги и источник подтверждения.</div>
+                </div>
+                <span class="summary-chip"><span>Строк</span><strong>{{ companyPricebook.supplier.total }}</strong></span>
+              </div>
+              <div v-if="companyPricebook.supplier.rows.length" class="comparison-price-table">
+                <div class="comparison-price-row comparison-price-row--head">
+                  <div>Направление</div><div>Класс</div><div>Нетто-цена</div><div>Доплаты</div><div>Источник</div>
+                </div>
+                <div v-for="row in companyPricebook.supplier.rows" :key="`supplier-price-${row.id}`" class="comparison-price-row">
+                  <div><strong>{{ priceRouteLabel(row) }}</strong><span class="price-row-category">{{ supplierCategoryLabel(row.category) }}</span></div>
+                  <div>{{ row.vehicleType || 'Класс не указан' }}<span v-if="row.passengers"> · {{ row.passengers }} pax</span></div>
+                  <div><strong>{{ formatMoney(row.supplierPrice, row.currency) }}</strong></div>
+                  <div>{{ supplierExtrasLabel(row) }}</div>
+                  <div>{{ row.sourceLabel || row.sourceType || 'Источник не указан' }}<span class="price-row-category">{{ priceSourceStatusLabel(row.sourceStatus) }}</span></div>
+                </div>
+              </div>
+              <div v-else-if="!companyPricebook.supplier.loading" class="comparison-empty">
+                <strong>Закупочный прайс пока не внесён</strong>
+                <span>Карточка готова к хранению маршрутов, классов, цен, валюты, срока действия и источника.</span>
+              </div>
+              <button v-if="companyPricebook.supplier.rows.length < companyPricebook.supplier.total" class="btn btn--ghost btn--small" :disabled="companyPricebook.supplier.loading" @click="loadMoreCompanyPrices('supplier')">Показать ещё</button>
+
+              <div class="company-pricebook-head company-pricebook-head--secondary">
+                <div>
+                  <h4>Где поставщик выбран лучшим</h4>
+                  <div class="hint">Активные строки основного прайса Riderra, обеспеченные этим поставщиком.</div>
+                </div>
+                <span class="summary-chip"><span>Строк</span><strong>{{ companyPricebook.best.total }}</strong></span>
+              </div>
+              <div v-if="companyPricebook.best.rows.length" class="comparison-price-table">
+                <div class="comparison-price-row comparison-price-row--head">
+                  <div>Направление</div><div>Класс</div><div>Продажа Riderra</div><div>Город</div><div>Статус</div>
+                </div>
+                <div v-for="row in companyPricebook.best.rows" :key="`best-price-${row.id}`" class="comparison-price-row">
+                  <div><strong>{{ priceRouteLabel(row) }}</strong></div>
+                  <div>{{ row.vehicleType || '—' }}</div>
+                  <div><strong>{{ formatMoney(row.fixedPrice, row.currency) }}</strong></div>
+                  <div>{{ row.country || '' }} {{ row.city || '' }}</div>
+                  <div><span class="comparison-status comparison-status--ready">Лучший поставщик</span></div>
+                </div>
+              </div>
+              <div v-else-if="!companyPricebook.best.loading" class="comparison-empty">
+                <strong>Поставщик пока не выбран лучшим ни для одной строки</strong>
+              </div>
+              <button v-if="companyPricebook.best.rows.length < companyPricebook.best.total" class="btn btn--ghost btn--small" :disabled="companyPricebook.best.loading" @click="loadMoreCompanyPrices('best')">Показать ещё</button>
+            </div>
+          </details>
+
           <details v-if="detailsMode==='company' && (companyComparison.source || companyComparison.loading)" class="links-block detail-card crm-detail-panel comparison-card" open>
-            <summary class="section-summary">Цены и возможности</summary>
+            <summary class="section-summary">Публичные цены и возможности</summary>
             <div v-if="companyComparison.loading" class="hint">Загружаем последний анализ цен…</div>
             <template v-else-if="companyComparison.source">
               <div class="comparison-card__head">
@@ -477,6 +559,11 @@ export default {
       managerForm: { fullName: '', position: '', email: '', phone: '', website: '' },
       managerBusy: false,
       managerError: '',
+      companyPricebook: {
+        client: { rows: [], total: 0, loading: false },
+        supplier: { rows: [], total: 0, loading: false },
+        best: { rows: [], total: 0, loading: false }
+      },
       companyComparison: { source: null, run: null, rows: [], historicalOpportunityRows: [], externalQuotes: [], catalog: { available: false, routes: [], totalRoutes: 0, totalQuotes: 0, crawl: null }, activeTab: 'prices', quoteQuery: '', quotePage: 1, quotePageSize: 100, catalogPageSize: 20, loading: false, busy: false, error: '', pollTimer: null, quoteSearchTimer: null }
     }
   },
@@ -960,6 +1047,39 @@ export default {
       if (!Number.isFinite(numeric)) return '-'
       return `${numeric.toFixed(2)} ${currency || 'EUR'}`
     },
+    companyHasSegment(segment) {
+      return (this.details?.segments || []).some((item) => (item.segment || item) === segment)
+    },
+    priceRouteLabel(row) {
+      const from = row.routeFrom || row.city || 'Все направления'
+      const to = row.routeTo || ''
+      return to ? `${from} → ${to}` : from
+    },
+    priceValidityLabel(row) {
+      if (!row.startsAt && !row.endsAt) return 'Без срока'
+      const from = row.startsAt ? new Date(row.startsAt).toLocaleDateString('ru-RU') : 'сейчас'
+      const to = row.endsAt ? new Date(row.endsAt).toLocaleDateString('ru-RU') : 'без окончания'
+      return `${from} — ${to}`
+    },
+    supplierExtrasLabel(row) {
+      const parts = []
+      if (Number.isFinite(Number(row.parkingSurcharge))) parts.push(`парковка +${row.parkingSurcharge} ${row.currency}`)
+      if (Number.isFinite(Number(row.vatPercent))) parts.push(`VAT +${row.vatPercent}%`)
+      return parts.length ? parts.join(' · ') : 'Нет указанных доплат'
+    },
+    supplierCategoryLabel(value) {
+      const labels = {
+        airport_transfer: 'Аэропортовый трансфер', intercity_transfer: 'Межгород',
+        city_tour_10h: 'Тур 10 часов', city_tour_6h: 'Тур 6 часов', two_way_transfer: 'Трансфер туда-обратно',
+        hourly_4h: 'Пакет 4 часа', hourly_5h: 'Пакет 5 часов', hourly_8h: 'Пакет 8 часов',
+        hourly_10h: 'Пакет 10 часов', hourly_12h: 'Пакет 12 часов', extra_hour: 'Дополнительный час'
+      }
+      return labels[value] || value || ''
+    },
+    priceSourceStatusLabel(value) {
+      const labels = { approved: 'Подтверждено', needs_reconfirmation: 'Нужно переподтвердить', archived: 'Архив' }
+      return labels[value] || value || ''
+    },
     formatDateTime(value) {
       if (!value) return ''
       try {
@@ -1088,7 +1208,34 @@ export default {
       }
       this.managerForm = { fullName: '', position: '', email: '', phone: '', website: '' }
       this.managerError = ''
-      await this.loadCompanyComparison(id)
+      await Promise.all([this.loadCompanyComparison(id), this.loadCompanyPricebook(id)])
+    },
+    async loadCompanyPricebook(id) {
+      this.companyPricebook = {
+        client: { rows: [], total: 0, loading: false },
+        supplier: { rows: [], total: 0, loading: false },
+        best: { rows: [], total: 0, loading: false }
+      }
+      const kinds = ['client', 'supplier', 'best']
+      await Promise.all(kinds.map((kind) => this.fetchCompanyPrices(kind, false)))
+    },
+    async fetchCompanyPrices(kind, append) {
+      const state = this.companyPricebook[kind]
+      if (!state || state.loading) return
+      state.loading = true
+      try {
+        const offset = append ? state.rows.length : 0
+        const res = await fetch(`/api/admin/crm/companies/${this.detailsId}/prices?kind=${encodeURIComponent(kind)}&limit=100&offset=${offset}`, { headers: this.authHeaders() })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Не удалось загрузить цены компании')
+        state.rows = append ? [...state.rows, ...(data.rows || [])] : (data.rows || [])
+        state.total = data.total || 0
+      } finally {
+        state.loading = false
+      }
+    },
+    async loadMoreCompanyPrices(kind) {
+      await this.fetchCompanyPrices(kind, true)
     },
     async openContact(id) {
       const res = await fetch(`/api/admin/crm/contacts/${id}`, { headers: this.authHeaders() })
@@ -1228,6 +1375,12 @@ export default {
 .entity-actions { align-items:flex-start; }
 .hint { margin-top:10px; color:#64748b; }
 .hint--error { color:#9f1239; }
+.company-pricebook-block { display:grid; gap:12px; margin-top:14px; }
+.company-pricebook-block + .company-pricebook-block { padding-top:16px; border-top:1px solid #e5eaf3; }
+.company-pricebook-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.company-pricebook-head h4 { margin:0; }
+.company-pricebook-head--secondary { margin-top:20px; padding-top:18px; border-top:1px solid #e5eaf3; }
+.price-row-category { display:block; margin-top:4px; color:#64748b; font-size:12px; line-height:1.35; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:1200; }
 .modal { width:min(980px,92vw); max-height:85vh; overflow:auto; background:#fff; border-radius:14px; padding:20px; }
 .modal-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:12px; }
