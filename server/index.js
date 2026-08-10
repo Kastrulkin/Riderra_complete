@@ -14851,7 +14851,12 @@ app.get('/api/admin/pricing/cities', authenticateToken, resolveActorContext, req
     const rows = await prisma.cityPricing.findMany({
       where,
       orderBy: [{ country: 'asc' }, { city: 'asc' }, { vehicleType: 'asc' }, { routeFrom: 'asc' }, { updatedAt: 'desc' }],
-      take
+      take,
+      include: {
+        bestSupplierCompany: {
+          select: { id: true, name: true }
+        }
+      }
     })
     res.json({ rows })
   } catch (error) {
@@ -14918,13 +14923,24 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
       hourlyRate,
       childSeatPrice,
       currency,
-      notes
+      notes,
+      bestSupplierCompanyId
     } = req.body
 
     const normalizedCity = String(city || '').trim() || String(routeFrom || '').trim() || String(country || '').trim() || 'General'
     if (!String(vehicleType || '').trim()) return res.status(400).json({ error: 'vehicleType is required' })
 
-    const payload = { country, city, routeFrom, routeTo, vehicleType, fixedPrice, pricePerKm, hourlyRate, childSeatPrice, currency, notes }
+    let normalizedBestSupplierCompanyId = null
+    if (bestSupplierCompanyId) {
+      const supplier = await prisma.customerCompany.findFirst({
+        where: { id: String(bestSupplierCompanyId), tenantId: req.actorContext.tenantId },
+        select: { id: true }
+      })
+      if (!supplier) return res.status(400).json({ error: 'bestSupplierCompanyId is invalid for this tenant' })
+      normalizedBestSupplierCompanyId = supplier.id
+    }
+
+    const payload = { country, city, routeFrom, routeTo, vehicleType, fixedPrice, pricePerKm, hourlyRate, childSeatPrice, currency, notes, bestSupplierCompanyId: normalizedBestSupplierCompanyId }
     const wrapped = await withIdempotency(req, 'pricing.city.create', payload, async () => {
       const row = await prisma.cityPricing.create({
         data: {
@@ -14939,7 +14955,8 @@ app.post('/api/admin/pricing/cities', authenticateToken, resolveActorContext, re
           hourlyRate: hourlyRate !== undefined && hourlyRate !== null ? parseFloat(hourlyRate) : null,
           childSeatPrice: childSeatPrice !== undefined && childSeatPrice !== null ? parseFloat(childSeatPrice) : null,
           currency: currency || 'EUR',
-          notes: notes || null
+          notes: notes || null,
+          bestSupplierCompanyId: normalizedBestSupplierCompanyId
         }
       })
       await writeAuditLog({
@@ -14993,6 +15010,18 @@ app.put('/api/admin/pricing/cities/:id', authenticateToken, resolveActorContext,
     if (req.body.hourlyRate !== undefined) data.hourlyRate = req.body.hourlyRate === null ? null : parseFloat(req.body.hourlyRate)
     if (req.body.childSeatPrice !== undefined) data.childSeatPrice = req.body.childSeatPrice === null ? null : parseFloat(req.body.childSeatPrice)
     if (req.body.isActive !== undefined) data.isActive = !!req.body.isActive
+    if (req.body.bestSupplierCompanyId !== undefined) {
+      if (!req.body.bestSupplierCompanyId) {
+        data.bestSupplierCompanyId = null
+      } else {
+        const supplier = await prisma.customerCompany.findFirst({
+          where: { id: String(req.body.bestSupplierCompanyId), tenantId: req.actorContext.tenantId },
+          select: { id: true }
+        })
+        if (!supplier) return res.status(400).json({ error: 'bestSupplierCompanyId is invalid for this tenant' })
+        data.bestSupplierCompanyId = supplier.id
+      }
+    }
 
     const existing = await prisma.cityPricing.findFirst({
       where: { id: req.params.id, tenantId: req.actorContext.tenantId },

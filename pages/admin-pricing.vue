@@ -148,6 +148,7 @@
               <div>{{ t.pax }}</div>
               <div>{{ t.price }}</div>
               <div>{{ t.currency }}</div>
+              <div>{{ t.bestSupplier }}</div>
             </div>
             <div v-for="r in filteredBaseRows" :key="r.id" class="pricing-row pricing-row--sheet">
               <div>{{ sheetCountryLabel(r) }}</div>
@@ -162,6 +163,9 @@
                   <button class="btn btn--small btn--primary" @click="openBaseForm(r)">{{ t.edit }}</button>
                   <button class="btn btn--small btn--danger" @click="removeBaseRow(r)">{{ t.delete }}</button>
                 </div>
+              </div>
+              <div class="supplier-cell">
+                <strong>{{ r.bestSupplierCompany?.name || '—' }}</strong>
               </div>
             </div>
             <div v-if="!filteredBaseRows.length" class="empty-state">{{ t.empty }}</div>
@@ -527,6 +531,7 @@ export default {
             vehicleClass: 'Класс авто',
             sale: 'Цена',
             currency: 'Валюта',
+            bestSupplier: 'Лучший поставщик',
             counterpartyName: 'Контрагент',
             name: 'Водитель',
             country: 'Страна',
@@ -617,6 +622,7 @@ export default {
             vehicleClass: 'Vehicle class',
             sale: 'Price',
             currency: 'Currency',
+            bestSupplier: 'Best supplier',
             counterpartyName: 'Counterparty',
             name: 'Driver',
             country: 'Country',
@@ -701,7 +707,7 @@ export default {
     filteredBaseRows () {
       const q = this.q.trim().toLowerCase()
       if (!q) return this.baseRows
-      return this.baseRows.filter((row) => `${row.country || ''} ${row.routeFrom || ''} ${row.routeTo || ''} ${row.vehicleType || ''}`.toLowerCase().includes(q))
+      return this.baseRows.filter((row) => `${row.country || ''} ${row.routeFrom || ''} ${row.routeTo || ''} ${row.vehicleType || ''} ${row.bestSupplierCompany?.name || ''}`.toLowerCase().includes(q))
     },
     filteredCpRows () {
       const q = this.q.trim().toLowerCase()
@@ -1604,8 +1610,13 @@ export default {
     minmax(170px, 1fr)
     minmax(64px, .45fr)
     minmax(100px, .6fr)
-    minmax(92px, .55fr);
-  min-width: 1060px;
+    minmax(92px, .55fr)
+    minmax(180px, 1fr);
+  min-width: 1240px;
+}
+
+.supplier-cell {
+  color: #1d2c4a;
 }
 
 .pricing-list__head--base,

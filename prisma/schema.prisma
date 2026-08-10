@@ -708,6 +708,7 @@ model CustomerCompany {
   pricingRules        CounterpartyPriceRule[]
   orderAdjustments    OrderAdjustment[]
   comparisonSources   PriceComparisonSource[]
+  bestSupplierPricingRows CityPricing[]             @relation("CityPricingBestSupplier")
   supplierDrivers     Driver[]                 @relation("SupplierCompanyDriverLink")
   tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
@@ -805,10 +806,13 @@ model CityPricing {
   isActive         Boolean                @default(true)
   notes            String?
   source           String                 @default("manual")
+  bestSupplierCompanyId String?
   tenant           Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  bestSupplierCompany CustomerCompany?    @relation("CityPricingBestSupplier", fields: [bestSupplierCompanyId], references: [id], onDelete: SetNull)
   comparisonQuotes PriceComparisonQuote[]
 
   @@index([tenantId, city, isActive])
+  @@index([bestSupplierCompanyId])
   @@index([city])
   @@index([isActive])
 }
