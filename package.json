@@ -39,6 +39,8 @@
     "test:special-clarifications": "node scripts/tests/special_clarification_service.test.js",
     "test:telegram-pricing": "node scripts/tests/telegram_order_pricing_service.test.js",
     "test:price-comparisons": "node --test scripts/tests/price_comparison_service.test.js scripts/tests/price_comparison_export.test.js scripts/tests/place_semantic_matching.test.js scripts/tests/civitatis_price_adapter.test.js scripts/tests/booking_price_adapter.test.js scripts/tests/jamtransfer_price_adapter.test.js scripts/tests/suntransfers_price_adapter.test.js scripts/tests/transferz_price_adapter.test.js scripts/tests/talixo_price_adapter.test.js scripts/tests/city_airport_taxis_price_adapter.test.js scripts/tests/mytravelthru_price_adapter.test.js scripts/tests/external_price_catalog_service.test.js",
+    "test:booking-partner-rates": "node --test scripts/tests/booking_partner_rate_service.test.js",
+    "pricing:booking-morning": "node scripts/booking_morning_monitor.js",
     "test:geo-zones": "node scripts/tests/master_geo_zones.test.js",
     "test:benchmark-points": "node --test scripts/tests/benchmark_points.test.js",
     "geo-zones:build-master": "node scripts/build_master_geo_zones.js",

@@ -1,0 +1,138 @@
+#!/usr/bin/env node
+require('dotenv').config()
+
+const axios = require('axios')
+const { PrismaClient } = require('@prisma/client')
+const { SocksProxyAgent } = require('socks-proxy-agent')
+const routeDataset = require('../server/data/bookingPriceRoutes.json')
+const {
+  BOOKING_DEFAULTS,
+  defaultSourceData,
+  executePriceComparisonRun,
+  nextScheduledServiceAt
+} = require('../server/services/priceComparisonService')
+
+const prisma = new PrismaClient()
+const LOW_RATIO = Number(process.env.BOOKING_PRICE_LOW_RATIO || 0.9)
+const HIGH_RATIO = Number(process.env.BOOKING_PRICE_HIGH_RATIO || 1.05)
+
+function moscowDateKey(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+}
+
+async function sendTelegram(chatId, text) {
+  const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim()
+  if (!token || !chatId) return false
+  const proxyUrl = String(process.env.TELEGRAM_PROXY_URL || '').trim()
+  const response = await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, { chat_id: chatId, text }, {
+    httpsAgent: proxyUrl ? new SocksProxyAgent(proxyUrl) : undefined,
+    proxy: false,
+    timeout: 15000,
+    validateStatus: () => true
+  })
+  if (response.status < 200 || response.status >= 300 || response.data?.ok === false) throw new Error(`Telegram send failed: ${response.status}`)
+  return true
+}
+
+function describe(row) {
+  return `${row.quote.routeFrom} → ${row.quote.routeTo}, ${row.quote.requestedVehicleType}: Riderra ${row.quote.riderraSellPrice.toFixed(2)} ${row.quote.riderraCurrency}, ориентир ${row.targetPrice.toFixed(2)} ${row.quote.riderraCurrency}`
+}
+
+async function main() {
+  const tenant = process.env.BOOKING_CRAWL_TENANT_ID
+    ? await prisma.tenant.findUnique({ where: { id: process.env.BOOKING_CRAWL_TENANT_ID } })
+    : await prisma.tenant.findUnique({ where: { code: 'riderra' } })
+  if (!tenant) throw new Error('Riderra tenant not found')
+  const company = process.env.BOOKING_CRAWL_COMPANY_ID
+    ? await prisma.customerCompany.findFirst({ where: { id: process.env.BOOKING_CRAWL_COMPANY_ID, tenantId: tenant.id } })
+    : await prisma.customerCompany.findFirst({ where: { tenantId: tenant.id, name: { equals: 'Rideways (Booking.com)', mode: 'insensitive' } } })
+  if (!company) throw new Error('Rideways (Booking.com) company not found')
+
+  const monitorDate = moscowDateKey()
+  const traceId = `booking-morning-${monitorDate}`
+  const existingApproval = await prisma.humanApproval.findFirst({ where: { tenantId: tenant.id, traceId } })
+  if (existingApproval) {
+    console.log(JSON.stringify({ skipped: true, reason: 'already_generated', monitorDate, approvalId: existingApproval.id }))
+    return
+  }
+
+  const openIatas = routeDataset.openCityIata || []
+  const routeWhere = {
+    tenantId: tenant.id,
+    isActive: true,
+    fixedPrice: { not: null },
+    currency: { in: BOOKING_DEFAULTS.supportedCurrencies },
+    OR: openIatas.flatMap((iata) => [
+      { routeFrom: { contains: `(${iata})`, mode: 'insensitive' } },
+      { routeTo: { contains: `(${iata})`, mode: 'insensitive' } }
+    ])
+  }
+  const pricingRows = await prisma.cityPricing.findMany({ where: routeWhere, select: { routeFrom: true, routeTo: true } })
+  const routePairs = Array.from(new Map(pricingRows.map((row) => [`${row.routeFrom}\u0000${row.routeTo}`, row])).values())
+  const sourceDefaults = defaultSourceData({ adapterKey: 'booking' })
+  const source = await prisma.priceComparisonSource.upsert({
+    where: { tenantId_adapterKey: { tenantId: tenant.id, adapterKey: 'booking' } },
+    update: { ...sourceDefaults, customerCompanyId: company.id },
+    create: { tenantId: tenant.id, customerCompanyId: company.id, ...sourceDefaults }
+  })
+  const run = await prisma.priceComparisonRun.create({ data: {
+    tenantId: tenant.id,
+    sourceId: source.id,
+    status: 'configured',
+    serviceAt: nextScheduledServiceAt(new Date(), BOOKING_DEFAULTS.schedule),
+    formulaVersion: BOOKING_DEFAULTS.formulaVersion,
+    pricingPolicyJson: JSON.stringify(BOOKING_DEFAULTS.pricingPolicy),
+    scopeJson: JSON.stringify({ type: 'booking_open_cities_morning', monitorDate, source: '005', routePairs }),
+    routeCount: pricingRows.length
+  } })
+  await executePriceComparisonRun({ prisma, runId: run.id })
+  const finished = await prisma.priceComparisonRun.findUnique({ where: { id: run.id } })
+  const results = await prisma.priceComparisonResult.findMany({
+    where: { runId: run.id },
+    include: { quote: true },
+    orderBy: { opportunityGapAbs: 'asc' }
+  })
+  const low = results.filter((row) => row.quote.riderraSellPrice < row.targetPrice * LOW_RATIO)
+  const high = results.filter((row) => row.quote.riderraSellPrice > row.targetPrice * HIGH_RATIO)
+  const proposals = [...high.map((row) => ({ direction: 'decrease', cityPricingId: row.quote.cityPricingId, currentPrice: row.quote.riderraSellPrice, suggestedPrice: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType })), ...low.map((row) => ({ direction: 'increase', cityPricingId: row.quote.cityPricingId, currentPrice: row.quote.riderraSellPrice, suggestedPrice: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType }))]
+  const approval = await prisma.humanApproval.create({ data: {
+    tenantId: tenant.id,
+    status: 'pending_human',
+    action: 'pricing.booking_monitor.review',
+    resource: 'price_comparison_run',
+    resourceId: run.id,
+    payloadJson: JSON.stringify({ monitorDate, thresholds: { lowRatio: LOW_RATIO, highRatio: HIGH_RATIO }, proposals, automaticPriceChanges: false }),
+    traceId
+  } })
+  await prisma.auditLog.create({ data: {
+    tenantId: tenant.id,
+    actorRole: 'system',
+    action: 'pricing.booking_monitor.complete',
+    resource: 'price_comparison_run',
+    resourceId: run.id,
+    traceId,
+    decision: 'draft_for_human_approval',
+    result: finished.status,
+    contextJson: JSON.stringify({ low: low.length, high: high.length, needsReview: finished.needsReviewCount, failed: finished.failedCount, approvalId: approval.id, automaticPriceChanges: false })
+  } })
+
+  const ownerLink = await prisma.telegramLink.findFirst({
+    where: { tenantId: tenant.id, telegramChatId: { not: null }, user: { email: 'demyanov@riderra.com' } },
+    select: { telegramChatId: true }
+  })
+  const lines = [
+    `Booking — утренняя проверка цен ${monitorDate}`,
+    `Проверено: ${finished.processedCount}/${finished.routeCount}. Выше ориентира: ${high.length}. Ниже ориентира: ${low.length}. На проверку: ${finished.needsReviewCount}. Ошибки: ${finished.failedCount}.`,
+    `Формула ориентира: публичная цена Booking × 0.75 × 0.80. Допуск: ниже 90% или выше 105%.`,
+    ...high.slice(0, 3).map((row) => `Снизить? ${describe(row)}`),
+    ...low.slice(0, 3).map((row) => `Поднять? ${describe(row)}`),
+    `Черновик согласования: ${approval.id}. Основной прайс 005 автоматически не изменён.`
+  ]
+  await sendTelegram(process.env.TELEGRAM_GROUP_CHAT_ID || ownerLink?.telegramChatId, lines.join('\n'))
+  console.log(JSON.stringify({ runId: run.id, approvalId: approval.id, processed: finished.processedCount, high: high.length, low: low.length, needsReview: finished.needsReviewCount, failed: finished.failedCount }))
+}
+
+main().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
+}).finally(async () => prisma.$disconnect())

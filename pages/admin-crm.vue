@@ -208,6 +208,27 @@
                 <span>Публичные цены компании могут быть сохранены отдельно, но они не заменяют согласованный прайс Riderra.</span>
               </div>
               <button v-if="companyPricebook.client.rows.length < companyPricebook.client.total" class="btn btn--ghost btn--small" :disabled="companyPricebook.client.loading" @click="loadMoreCompanyPrices('client')">Показать ещё</button>
+
+              <div v-if="companyPricebook.distance.total" class="company-pricebook-head company-pricebook-head--secondary">
+                <div>
+                  <h4>Дистанционные ставки</h4>
+                  <div class="hint">Начальная цена, километровые ступени и аэропортовая доплата для проверки заказов.</div>
+                </div>
+                <span class="summary-chip"><span>Строк</span><strong>{{ companyPricebook.distance.total }}</strong></span>
+              </div>
+              <div v-if="companyPricebook.distance.rows.length" class="comparison-price-table">
+                <div class="comparison-price-row comparison-price-row--head">
+                  <div>Геозона</div><div>Класс</div><div>Расчёт</div><div>Доплата</div><div>Источник</div>
+                </div>
+                <div v-for="row in companyPricebook.distance.rows" :key="`distance-price-${row.id}`" class="comparison-price-row">
+                  <div><strong>{{ row.locationName }}</strong><span class="price-row-category">{{ row.airportIata || 'без IATA' }}</span></div>
+                  <div>{{ row.vehicleType }}</div>
+                  <div>{{ distanceBandsLabel(row) }}</div>
+                  <div>{{ row.airportPickupFee == null ? 'Нет' : `+${formatMoney(row.airportPickupFee, row.currency)}` }}</div>
+                  <div>{{ row.sourceLabel || 'Кабинет клиента' }}</div>
+                </div>
+              </div>
+              <button v-if="companyPricebook.distance.rows.length < companyPricebook.distance.total" class="btn btn--ghost btn--small" :disabled="companyPricebook.distance.loading" @click="loadMoreCompanyPrices('distance')">Показать ещё</button>
             </div>
 
             <div v-if="companyHasSegment('supplier_company') || companyPricebook.supplier.total || companyPricebook.best.total" class="company-pricebook-block">
@@ -561,6 +582,7 @@ export default {
       managerError: '',
       companyPricebook: {
         client: { rows: [], total: 0, loading: false },
+        distance: { rows: [], total: 0, loading: false },
         supplier: { rows: [], total: 0, loading: false },
         best: { rows: [], total: 0, loading: false }
       },
@@ -1062,6 +1084,18 @@ export default {
       const to = row.endsAt ? new Date(row.endsAt).toLocaleDateString('ru-RU') : 'без окончания'
       return `${from} — ${to}`
     },
+    distanceBandsLabel(row) {
+      try {
+        return JSON.parse(row.bandsJson || '[]').map((band) => {
+          if (band.type === 'initial') return `первые ${band.distanceKm} км — ${band.amount} ${band.currency || row.currency}`
+          if (band.type === 'next') return `следующие ${band.distanceKm} км — ${band.amountPerKm} ${band.currency || row.currency}/км`
+          if (band.type === 'after') return `после ${band.afterKm} км — ${band.amountPerKm} ${band.currency || row.currency}/км`
+          return ''
+        }).filter(Boolean).join(' · ')
+      } catch (_) {
+        return 'Нужно проверить формулу'
+      }
+    },
     supplierExtrasLabel(row) {
       const parts = []
       if (row.parkingSurcharge !== null && row.parkingSurcharge !== undefined && Number.isFinite(Number(row.parkingSurcharge))) parts.push(`парковка +${row.parkingSurcharge} ${row.currency}`)
@@ -1214,10 +1248,11 @@ export default {
     async loadCompanyPricebook(id) {
       this.companyPricebook = {
         client: { rows: [], total: 0, loading: false },
+        distance: { rows: [], total: 0, loading: false },
         supplier: { rows: [], total: 0, loading: false },
         best: { rows: [], total: 0, loading: false }
       }
-      const kinds = ['client', 'supplier', 'best']
+      const kinds = ['client', 'distance', 'supplier', 'best']
       await Promise.all(kinds.map((kind) => this.fetchCompanyPrices(kind, false)))
     },
     async fetchCompanyPrices(kind, append) {

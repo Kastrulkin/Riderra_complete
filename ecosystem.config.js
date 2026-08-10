@@ -23,5 +23,15 @@ module.exports = {
       GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
       DATABASE_URL: process.env.DATABASE_URL
     }
+  }, {
+    name: 'booking-price-monitor',
+    script: 'scripts/booking_morning_monitor.js',
+    cwd: '/opt/riderra',
+    cron_restart: '0 5 * * *',
+    autorestart: false,
+    watch: false,
+    env: {
+      NODE_ENV: 'production'
+    }
   }]
 }

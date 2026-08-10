@@ -24,6 +24,7 @@ model Tenant {
   orderChangeLogs               OrderChangeLog[]
   pricingRows                   CityPricing[]
   counterpartyRules             CounterpartyPriceRule[]
+  counterpartyDistanceRules     CounterpartyDistancePriceRule[]
   supplierPriceRules            SupplierPriceRule[]
   drivers                       Driver[]
   driverRoutes                  DriverRoute[]
@@ -682,37 +683,38 @@ model CrmContactSegment {
 }
 
 model CustomerCompany {
-  id                  String                   @id @default(cuid())
-  tenantId            String?
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  sourceSystem        String                   @default("planfix")
-  externalId          String
-  name                String
-  website             String?
-  phone               String?
-  email               String?
-  telegramUrl         String?
-  registrationCountry String?
-  registrationCity    String?
-  registrationAddress String?
-  presenceCountries   String?
-  presenceCities      String?
-  countryPresence     String?
-  cityPresence        String?
-  comment             String?
-  ownerName           String?
-  companyType         String?
-  extraInfo           String?
-  links               CustomerCompanyContact[]
-  segments            CustomerCompanySegment[]
-  pricingRules        CounterpartyPriceRule[]
-  supplierPriceRules  SupplierPriceRule[]
-  orderAdjustments    OrderAdjustment[]
-  comparisonSources   PriceComparisonSource[]
-  bestSupplierPricingRows CityPricing[]             @relation("CityPricingBestSupplier")
-  supplierDrivers     Driver[]                 @relation("SupplierCompanyDriverLink")
-  tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  id                      String                          @id @default(cuid())
+  tenantId                String?
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  sourceSystem            String                          @default("planfix")
+  externalId              String
+  name                    String
+  website                 String?
+  phone                   String?
+  email                   String?
+  telegramUrl             String?
+  registrationCountry     String?
+  registrationCity        String?
+  registrationAddress     String?
+  presenceCountries       String?
+  presenceCities          String?
+  countryPresence         String?
+  cityPresence            String?
+  comment                 String?
+  ownerName               String?
+  companyType             String?
+  extraInfo               String?
+  links                   CustomerCompanyContact[]
+  segments                CustomerCompanySegment[]
+  pricingRules            CounterpartyPriceRule[]
+  distancePricingRules    CounterpartyDistancePriceRule[]
+  supplierPriceRules      SupplierPriceRule[]
+  orderAdjustments        OrderAdjustment[]
+  comparisonSources       PriceComparisonSource[]
+  bestSupplierPricingRows CityPricing[]                   @relation("CityPricingBestSupplier")
+  supplierDrivers         Driver[]                        @relation("SupplierCompanyDriverLink")
+  tenant                  Tenant?                         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId])
   @@index([name])
@@ -791,27 +793,27 @@ model CustomerContactSegment {
 }
 
 model CityPricing {
-  id               String                 @id @default(cuid())
-  tenantId         String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  country          String?
-  city             String
-  routeFrom        String?
-  routeTo          String?
-  vehicleType      String?
-  fixedPrice       Float?
-  pricePerKm       Float?
-  hourlyRate       Float?
-  childSeatPrice   Float?
-  currency         String                 @default("EUR")
-  isActive         Boolean                @default(true)
-  notes            String?
-  source           String                 @default("manual")
+  id                    String                 @id @default(cuid())
+  tenantId              String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  country               String?
+  city                  String
+  routeFrom             String?
+  routeTo               String?
+  vehicleType           String?
+  fixedPrice            Float?
+  pricePerKm            Float?
+  hourlyRate            Float?
+  childSeatPrice        Float?
+  currency              String                 @default("EUR")
+  isActive              Boolean                @default(true)
+  notes                 String?
+  source                String                 @default("manual")
   bestSupplierCompanyId String?
-  tenant           Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-  bestSupplierCompany CustomerCompany?    @relation("CityPricingBestSupplier", fields: [bestSupplierCompanyId], references: [id], onDelete: SetNull)
-  comparisonQuotes PriceComparisonQuote[]
+  tenant                Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  bestSupplierCompany   CustomerCompany?       @relation("CityPricingBestSupplier", fields: [bestSupplierCompanyId], references: [id], onDelete: SetNull)
+  comparisonQuotes      PriceComparisonQuote[]
 
   @@index([tenantId, city, isActive])
   @@index([bestSupplierCompanyId])
@@ -1185,6 +1187,10 @@ model CounterpartyPriceRule {
   endsAt            DateTime?
   isActive          Boolean          @default(true)
   notes             String?
+  sourceType        String?
+  sourceLabel       String?
+  sourceExternalId  String?
+  capturedAt        DateTime?
   tenant            Tenant?          @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, counterpartyName, isActive])
@@ -1192,33 +1198,63 @@ model CounterpartyPriceRule {
   @@index([city, isActive])
 }
 
+model CounterpartyDistancePriceRule {
+  id                 String          @id @default(cuid())
+  tenantId           String
+  customerCompanyId  String
+  counterpartyName   String
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  locationExternalId String?
+  locationName       String
+  airportIata        String?
+  latitude           Float?
+  longitude          Float?
+  vehicleType        String
+  currency           String          @default("EUR")
+  bandsJson          String
+  airportPickupFee   Float?
+  sourceType         String?
+  sourceLabel        String?
+  capturedAt         DateTime
+  startsAt           DateTime?
+  endsAt             DateTime?
+  isActive           Boolean         @default(true)
+  notes              String?
+  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerCompany    CustomerCompany @relation(fields: [customerCompanyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerCompanyId, isActive])
+  @@index([tenantId, counterpartyName, airportIata, vehicleType, isActive])
+}
+
 model SupplierPriceRule {
-  id                       String           @id @default(cuid())
-  tenantId                 String
-  supplierCompanyId        String
-  sourceKey                String
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
-  category                 String?
-  routeFrom                String?
-  routeTo                  String?
-  vehicleType              String?
-  passengers               Int?
-  supplierPrice            Float
-  currency                 String           @default("EUR")
-  priceType                String           @default("net")
-  parkingSurcharge         Float?
-  vatPercent               Float?
-  startsAt                 DateTime?
-  endsAt                   DateTime?
-  sourceType               String?
-  sourceLabel              String?
-  sourceQuotedAt           DateTime?
-  sourceStatus             String           @default("approved")
-  notes                    String?
-  isActive                 Boolean          @default(true)
-  tenant                   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  supplierCompany          CustomerCompany  @relation(fields: [supplierCompanyId], references: [id], onDelete: Cascade)
+  id                String          @id @default(cuid())
+  tenantId          String
+  supplierCompanyId String
+  sourceKey         String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  category          String?
+  routeFrom         String?
+  routeTo           String?
+  vehicleType       String?
+  passengers        Int?
+  supplierPrice     Float
+  currency          String          @default("EUR")
+  priceType         String          @default("net")
+  parkingSurcharge  Float?
+  vatPercent        Float?
+  startsAt          DateTime?
+  endsAt            DateTime?
+  sourceType        String?
+  sourceLabel       String?
+  sourceQuotedAt    DateTime?
+  sourceStatus      String          @default("approved")
+  notes             String?
+  isActive          Boolean         @default(true)
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplierCompany   CustomerCompany @relation(fields: [supplierCompanyId], references: [id], onDelete: Cascade)
 
   @@unique([supplierCompanyId, sourceKey])
   @@index([tenantId, supplierCompanyId, isActive])

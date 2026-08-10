@@ -40,6 +40,13 @@ const { inquiryInboundIdempotencyKey, nextInquiryState } = require('./utils/chat
 const { staffChatReadWhere } = require('./utils/chatVisibility')
 const { extractOrderDetailsContacts, normalizeReference: normalizeDetailsReference } = require('./utils/orderDetailsContacts')
 const { resolveOrderCurrency } = require('./utils/orderCurrency')
+const {
+  bookingCounterpartyMatches,
+  calculateBookingDistancePrice,
+  extractIata,
+  fetchGoogleDrivingDistanceKm,
+  normalizeBookingVehicle
+} = require('./services/bookingPartnerRateService')
 const { buildDriverCanonicalRegistry, resolveCanonicalDriverName } = require('./utils/orderDriverCanonicalization')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
@@ -14290,6 +14297,24 @@ app.get('/api/admin/crm/companies/:companyId/prices', authenticateToken, resolve
       return res.json({ kind, rows, total, limit: take, offset: skip })
     }
 
+    if (kind === 'distance') {
+      const where = {
+        tenantId: req.actorContext.tenantId,
+        customerCompanyId: companyId,
+        isActive: true
+      }
+      if (q) where.OR = [
+        { locationName: { contains: q, mode: 'insensitive' } },
+        { airportIata: { contains: q, mode: 'insensitive' } },
+        { vehicleType: { contains: q, mode: 'insensitive' } }
+      ]
+      const [rows, total] = await Promise.all([
+        prisma.counterpartyDistancePriceRule.findMany({ where, orderBy: [{ locationName: 'asc' }, { vehicleType: 'asc' }], skip, take }),
+        prisma.counterpartyDistancePriceRule.count({ where })
+      ])
+      return res.json({ kind, rows, total, limit: take, offset: skip })
+    }
+
     if (kind === 'supplier') {
       const where = {
         tenantId: req.actorContext.tenantId,
@@ -16758,7 +16783,9 @@ async function findAuthoritativePriceForDraft({
   toPoint = '',
   vehicleType = '',
   fromZoneName = '',
-  toZoneName = ''
+  toZoneName = '',
+  fromCoordinates = null,
+  toCoordinates = null
 }) {
   const counterpartyNorm = normalizeCounterpartyName(counterpartyName)
   const cityNorm = String(city || '').trim()
@@ -16787,10 +16814,17 @@ async function findAuthoritativePriceForDraft({
       if (endsAt && endsAt < now) return false
       return true
     })
+    const bookingVehicleMatches = (rowVehicle) => {
+      if (!bookingCounterpartyMatches(counterpartyNorm)) return false
+      const requested = normalizeBookingVehicle(vehicleNorm)
+      const stored = normalizeBookingVehicle(rowVehicle)
+      if (requested === stored) return true
+      return vehicleNorm === 'van' && ['people_carrier', 'executive_people_carrier', 'minibus'].includes(stored)
+    }
     const exactCounterpartyRule = activeNow.find((row) =>
       routePointMatches(row.routeFrom, fromNorm) &&
       routePointMatches(row.routeTo, toNorm) &&
-      vehicleTypeMatches(row.vehicleType, vehicleNorm) &&
+      (vehicleTypeMatches(row.vehicleType, vehicleNorm) || bookingVehicleMatches(row.vehicleType)) &&
       row.sellPrice !== null
     )
     if (exactCounterpartyRule) {
@@ -16805,7 +16839,7 @@ async function findAuthoritativePriceForDraft({
       ? activeNow.find((row) =>
           routePointMatches(row.routeFrom, fromZoneNorm || fromNorm) &&
           routePointMatches(row.routeTo, toZoneNorm || toNorm) &&
-          vehicleTypeMatches(row.vehicleType, vehicleNorm) &&
+          (vehicleTypeMatches(row.vehicleType, vehicleNorm) || bookingVehicleMatches(row.vehicleType)) &&
           row.sellPrice !== null
         )
       : null
@@ -16825,7 +16859,7 @@ async function findAuthoritativePriceForDraft({
       (!row.city || !cityNorm || String(row.city).trim().toLowerCase() === cityNorm.toLowerCase()) &&
       !row.routeFrom &&
       !row.routeTo &&
-      vehicleTypeMatches(row.vehicleType, vehicleNorm) &&
+      (vehicleTypeMatches(row.vehicleType, vehicleNorm) || bookingVehicleMatches(row.vehicleType)) &&
       row.sellPrice !== null
     )
     if (cityCounterpartyRule) {
@@ -16834,6 +16868,40 @@ async function findAuthoritativePriceForDraft({
         fixedPrice: cityCounterpartyRule.sellPrice,
         source: 'counterparty_pricing',
         matchMeta: { matchedBy: 'city_fallback' }
+      }
+    }
+    if (bookingCounterpartyMatches(counterpartyNorm)) {
+      const fromIata = extractIata(fromNorm)
+      const toIata = extractIata(toNorm)
+      const airportIata = fromIata || toIata
+      if (airportIata) {
+        const distanceRows = await prisma.counterpartyDistancePriceRule.findMany({
+          where: {
+            tenantId: tenantId || '',
+            isActive: true,
+            airportIata,
+            counterpartyName: { contains: 'Booking', mode: 'insensitive' }
+          },
+          orderBy: [{ capturedAt: 'desc' }]
+        })
+        const distanceRule = distanceRows.find((row) => bookingVehicleMatches(row.vehicleType))
+        if (distanceRule) {
+          const distanceKm = await fetchGoogleDrivingDistanceKm({
+            fromLat: fromCoordinates?.lat,
+            fromLon: fromCoordinates?.lon,
+            toLat: toCoordinates?.lat,
+            toLon: toCoordinates?.lon,
+            apiKey: String(process.env.GOOGLE_MAPS_API_KEY || process.env.MAPS_API_KEY || '').trim()
+          })
+          const bands = parseJsonSafe(distanceRule.bandsJson, [])
+          const calculated = calculateBookingDistancePrice(bands, distanceKm, fromIata === airportIata ? distanceRule.airportPickupFee : 0)
+          if (calculated != null) return {
+            ...distanceRule,
+            fixedPrice: calculated,
+            source: 'counterparty_distance_pricing',
+            matchMeta: { matchedBy: 'booking_distance_rate', airportIata, distanceKm, airportPickupFeeApplied: fromIata === airportIata ? Number(distanceRule.airportPickupFee || 0) : 0 }
+          }
+        }
       }
     }
     return {
@@ -17157,8 +17225,7 @@ function inferEmailCounterpartyName({ fromEmail = '', rawText = '', current = ''
   const explicit = String(current || '').trim()
   const source = `${fromEmail}\n${rawText}`.toLowerCase()
   if (/transferz|transfez/.test(source)) return 'Transferz'
-  if (/rideways/.test(source)) return 'Rideways'
-  if (/booking\.com|bookingcom/.test(source)) return 'Booking.com'
+  if (/rideways|booking\.com|bookingcom/.test(source)) return 'Rideways (Booking.com)'
   if (/gettransfer/.test(source)) return 'GetTransfer'
   if (/kiwitaxi|kiwi taxi/.test(source)) return 'Kiwitaxi'
   if (/intui\.travel|intui/.test(source)) return 'Intui.travel'
@@ -17210,6 +17277,7 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     lang: String(draft.lang || payload.lang || 'ru').trim() || 'ru'
   }
   const geoZones = payload?.geoZones && typeof payload.geoZones === 'object' ? payload.geoZones : null
+  const addressVerification = payload?.addressVerification && typeof payload.addressVerification === 'object' ? payload.addressVerification : null
   const fromZoneName = String(geoZones?.fromPoint?.name || '').trim()
   const toZoneName = String(geoZones?.toPoint?.name || '').trim()
 
@@ -17221,7 +17289,9 @@ async function buildOpenClawDraftPayload(payload, tenantId) {
     toPoint: extracted.toPoint,
     vehicleType: extracted.vehicleType,
     fromZoneName,
-    toZoneName
+    toZoneName,
+    fromCoordinates: addressVerification?.fromPoint?.bestMatch ? { lat: addressVerification.fromPoint.bestMatch.lat, lon: addressVerification.fromPoint.bestMatch.lon } : null,
+    toCoordinates: addressVerification?.toPoint?.bestMatch ? { lat: addressVerification.toPoint.bestMatch.lat, lon: addressVerification.toPoint.bestMatch.lon } : null
   })
   const supplierCost = await findBestSupplierCostForDraft({
     tenantId,
