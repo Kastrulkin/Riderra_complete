@@ -21,6 +21,7 @@
         <div class="subtabs">
           <button class="subtab" :class="{ 'subtab--active': tab==='base' }" @click="tab='base'">{{ t.base }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='opportunities' }" @click="tab='opportunities'">{{ t.opportunities }}</button>
+          <button class="subtab" :class="{ 'subtab--active': tab==='booking' }" @click="tab='booking'">{{ t.bookingCalculation }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='counterparty' }" @click="tab='counterparty'">{{ t.counterparty }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='driver' }" @click="tab='driver'">{{ t.driver }}</button>
           <button class="subtab" :class="{ 'subtab--active': tab==='conflicts' }" @click="tab='conflicts'">{{ t.conflicts }}</button>
@@ -130,6 +131,83 @@
             </div>
           </div>
           <div v-else-if="comparisonSources.length && !comparisonBusy" class="empty-state">{{ t.comparisonEmpty }}</div>
+        </div>
+
+        <div v-if="tab==='booking'" class="panel booking-workspace">
+          <div class="panel-head comparison-head">
+            <div>
+              <h3>{{ t.bookingCalculation }}</h3>
+              <p class="panel-hint">{{ t.bookingCalculationHint }}</p>
+            </div>
+            <div class="comparison-actions">
+              <button class="btn" :disabled="bookingCalculationBusy" @click="loadBookingCalculation(bookingPage)">{{ t.refresh }}</button>
+              <button class="btn btn--primary" :disabled="bookingCalculationBusy || !bookingSource" @click="runBookingCheckNow">{{ t.bookingRunNow }}</button>
+            </div>
+          </div>
+
+          <div v-if="bookingCalculation" class="booking-formula-card">
+            <strong>{{ bookingCalculation.formula.version }}</strong>
+            <span>{{ t.bookingFormulaCopy.replace('{bcom}', bookingCalculation.formula.bookingCommissionPercent).replace('{pmf}', bookingCalculation.formula.pmfPercent) }}</span>
+            <span>{{ t.bookingApprovalNotice }}</span>
+          </div>
+
+          <div v-if="bookingSource" class="booking-schedule-card">
+            <div>
+              <h4>{{ t.bookingScheduleTitle }}</h4>
+              <p class="panel-hint">{{ t.bookingScheduleHint }}</p>
+            </div>
+            <label class="booking-toggle"><input v-model="bookingScheduleForm.priceWatchEnabled" type="checkbox" /> {{ t.bookingScheduleEnabled }}</label>
+            <label class="pricing-field__label">{{ t.bookingFrequency }}
+              <select v-model="bookingScheduleForm.frequency" class="input">
+                <option value="daily">{{ t.bookingDaily }}</option>
+                <option value="weekdays">{{ t.bookingWeekdays }}</option>
+                <option value="weekly">{{ t.bookingWeekly }}</option>
+              </select>
+            </label>
+            <label v-if="bookingScheduleForm.frequency==='weekly'" class="pricing-field__label">{{ t.bookingWeekday }}
+              <select v-model.number="bookingScheduleForm.weekday" class="input">
+                <option v-for="day in bookingWeekdays" :key="day.value" :value="day.value">{{ day.label }}</option>
+              </select>
+            </label>
+            <label class="pricing-field__label">{{ t.bookingTime }}
+              <input v-model="bookingScheduleForm.localTime" class="input" type="time" step="300" />
+            </label>
+            <button class="btn btn--primary" :disabled="bookingCalculationBusy" @click="saveBookingSchedule">{{ t.save }}</button>
+          </div>
+
+          <div v-if="bookingCalculation" class="comparison-kpis">
+            <div class="mini-stat"><span>{{ t.bookingMatrices }}</span><strong>{{ bookingCalculation.total }}</strong></div>
+            <div class="mini-stat"><span>{{ t.bookingPointPrices }}</span><strong>{{ bookingCalculation.pointQuoteCount }}</strong></div>
+            <div class="mini-stat"><span>{{ t.bookingLatestQuote }}</span><strong>{{ formatDateTime(bookingCalculation.latestQuotedAt) }}</strong></div>
+            <div class="mini-stat"><span>{{ t.bookingLatestCheck }}</span><strong>{{ formatDateTime(bookingCalculation.latestMonitorRun && bookingCalculation.latestMonitorRun.finishedAt) }}</strong></div>
+          </div>
+
+          <div v-if="bookingCalculationRows.length" class="booking-table-wrap">
+            <div class="booking-grid booking-grid--head">
+              <div>{{ t.bookingLocationClass }}</div>
+              <div v-for="distance in bookingDistancePoints" :key="distance">{{ distance }} {{ t.bookingKm }}</div>
+            </div>
+            <div v-for="row in bookingCalculationRows" :key="row.key" class="booking-grid booking-grid--row">
+              <div class="booking-route-cell">
+                <strong>{{ row.iata }} · {{ row.city || row.country }}</strong>
+                <span>{{ row.vehicleName }}</span>
+                <small>{{ t.bookingBase }}: {{ priceLabel(row.tariff.basePrice, row.currency) }}</small>
+              </div>
+              <div v-for="point in row.points" :key="point.distanceKm" class="booking-point-cell" :class="{ 'booking-point-cell--missing': !point.publicSellPrice }">
+                <small>{{ point.routeTo || t.bookingNoPrice }}</small>
+                <span>{{ t.bookingPublic }} <strong>{{ priceLabel(point.publicSellPrice || null, row.currency) }}</strong></span>
+                <span>{{ t.bookingAfterBcom }} <strong>{{ priceLabel(point.afterBookingCommission || null, row.currency) }}</strong></span>
+                <span class="booking-driver-target">{{ t.bookingDriver }} <strong>{{ priceLabel(point.driverTargetPrice || null, row.currency) }}</strong></span>
+                <small v-if="point.quotedAt">{{ formatDateTime(point.quotedAt) }}</small>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="!bookingCalculationBusy" class="empty-state">{{ t.bookingEmpty }}</div>
+          <div v-if="bookingCalculation && bookingCalculation.total > bookingCalculation.limit" class="booking-pagination">
+            <button class="btn" :disabled="bookingPage <= 1 || bookingCalculationBusy" @click="loadBookingCalculation(bookingPage - 1)">←</button>
+            <span>{{ bookingPage }} / {{ Math.ceil(bookingCalculation.total / bookingCalculation.limit) }}</span>
+            <button class="btn" :disabled="bookingPage >= Math.ceil(bookingCalculation.total / bookingCalculation.limit) || bookingCalculationBusy" @click="loadBookingCalculation(bookingPage + 1)">→</button>
+          </div>
         </div>
 
         <div v-if="tab==='base'" class="panel">
@@ -439,6 +517,16 @@ export default {
     comparisonBusy: false,
     semanticMappingBusyId: '',
     comparisonPollTimer: null,
+    bookingCalculation: null,
+    bookingCalculationBusy: false,
+    bookingPage: 1,
+    bookingSearchTimer: null,
+    bookingScheduleForm: {
+      priceWatchEnabled: true,
+      frequency: 'daily',
+      weekday: 1,
+      localTime: '08:00'
+    },
     selectedCounterparties: [],
     selectedSuppliers: [],
     counterpartyVisibleLimit: 250,
@@ -458,6 +546,13 @@ export default {
     q () {
       this.resetCounterpartyVisibleLimit()
       this.resetSupplierVisibleLimit()
+      if (this.tab === 'booking') {
+        if (this.bookingSearchTimer) clearTimeout(this.bookingSearchTimer)
+        this.bookingSearchTimer = setTimeout(() => this.loadBookingCalculation(1), 350)
+      }
+    },
+    tab (value) {
+      if (value === 'booking' && !this.bookingCalculation) this.loadBookingCalculation(1)
     },
     selectedCounterparties () {
       this.resetCounterpartyVisibleLimit()
@@ -475,6 +570,32 @@ export default {
             base: 'Базовый прайс',
             opportunities: 'Возможности',
             opportunitiesHint: 'Сравните активные маршруты Riderra с публичными ценами выбранной компании и найдите направления для партнёрского предложения.',
+            bookingCalculation: 'Расчёт Booking',
+            bookingCalculationHint: 'Проверьте публичные цены Booking в контрольных точках и рассчитанную по модели Саймона предельную цену исполнителя.',
+            bookingRunNow: 'Проверить прайс 005 сейчас',
+            bookingFormulaCopy: 'Сначала −{bcom}% BCOM, затем −{pmf}% PMF; интервалы рассчитываются по точкам 5/10/20/40/60 км с округлением вниз.',
+            bookingApprovalNotice: 'Результаты являются рекомендацией. Прайс 005 меняется только после подтверждения.',
+            bookingScheduleTitle: 'График проверки продажных цен',
+            bookingScheduleHint: 'По расписанию Riderra повторно получает публичные цены Booking, сравнивает их с прайсом 005 и создаёт черновик корректировок.',
+            bookingScheduleEnabled: 'Проверка включена',
+            bookingFrequency: 'Частота',
+            bookingDaily: 'Каждый день',
+            bookingWeekdays: 'По будням',
+            bookingWeekly: 'Раз в неделю',
+            bookingWeekday: 'День недели',
+            bookingTime: 'Время по Москве',
+            bookingMatrices: 'Матриц город × класс',
+            bookingPointPrices: 'Заполненных точек',
+            bookingLatestQuote: 'Последняя цена Booking',
+            bookingLatestCheck: 'Последняя сверка 005',
+            bookingLocationClass: 'Город и класс',
+            bookingKm: 'км',
+            bookingBase: 'База водителя до 5 км',
+            bookingPublic: 'Booking',
+            bookingAfterBcom: 'После BCOM',
+            bookingDriver: 'Водителю',
+            bookingNoPrice: 'Цена не найдена',
+            bookingEmpty: 'Расчётных строк пока нет. Сначала загрузите или соберите цены Booking по контрольным точкам.',
             connectSmartRyde: 'Подключить SmartRyde',
             newAnalysis: 'Новый анализ',
             comparisonSource: 'Компания для сравнения',
@@ -566,6 +687,32 @@ export default {
             base: 'Base pricing',
             opportunities: 'Opportunities',
             opportunitiesHint: 'Compare active Riderra routes with public prices from a selected company and find routes for a partnership offer.',
+            bookingCalculation: 'Booking calculation',
+            bookingCalculationHint: 'Review Booking public prices at benchmark points and the maximum supplier price calculated with the Simon model.',
+            bookingRunNow: 'Check 005 pricing now',
+            bookingFormulaCopy: 'First −{bcom}% BCOM, then −{pmf}% PMF; distance bands use 5/10/20/40/60 km points with round-down.',
+            bookingApprovalNotice: 'Results are recommendations. The 005 price book changes only after approval.',
+            bookingScheduleTitle: 'Selling-price monitoring schedule',
+            bookingScheduleHint: 'Riderra fetches Booking public prices, compares them with 005, and creates a draft adjustment report.',
+            bookingScheduleEnabled: 'Monitoring enabled',
+            bookingFrequency: 'Frequency',
+            bookingDaily: 'Every day',
+            bookingWeekdays: 'Weekdays',
+            bookingWeekly: 'Weekly',
+            bookingWeekday: 'Weekday',
+            bookingTime: 'Moscow time',
+            bookingMatrices: 'City × class matrices',
+            bookingPointPrices: 'Filled benchmark points',
+            bookingLatestQuote: 'Latest Booking quote',
+            bookingLatestCheck: 'Latest 005 check',
+            bookingLocationClass: 'City and class',
+            bookingKm: 'km',
+            bookingBase: 'Supplier base up to 5 km',
+            bookingPublic: 'Booking',
+            bookingAfterBcom: 'After BCOM',
+            bookingDriver: 'Supplier',
+            bookingNoPrice: 'No price found',
+            bookingEmpty: 'No calculated rows yet. Import or collect Booking benchmark-point prices first.',
             connectSmartRyde: 'Connect SmartRyde',
             newAnalysis: 'New analysis',
             comparisonSource: 'Comparison company',
@@ -654,6 +801,7 @@ export default {
     },
     searchPlaceholder () {
       if (this.tab === 'opportunities') return this.$store.state.language === 'ru' ? 'Поиск по маршруту, классу или статусу' : 'Search by route, class, or status'
+      if (this.tab === 'booking') return this.$store.state.language === 'ru' ? 'Поиск по стране, городу, IATA или классу' : 'Search by country, city, IATA, or class'
       if (this.tab === 'base') return this.$store.state.language === 'ru' ? 'Поиск по стране, маршруту или классу авто' : 'Search by country, route, or vehicle class'
       if (this.tab === 'counterparty') return this.$store.state.language === 'ru' ? 'Поиск по клиенту, городу или маршруту' : 'Search by customer, city, or route'
       if (this.tab === 'driver') return this.$store.state.language === 'ru' ? 'Поиск по исполнителю, стране или городу' : 'Search by supplier, country, or city'
@@ -679,6 +827,20 @@ export default {
     },
     selectedComparisonSource () {
       return this.comparisonSources.find((source) => source.id === this.selectedComparisonSourceId) || null
+    },
+    bookingSource () {
+      return this.comparisonSources.find((source) => source.adapterKey === 'booking') || this.bookingCalculation?.source || null
+    },
+    bookingCalculationRows () {
+      return this.bookingCalculation?.rows || []
+    },
+    bookingDistancePoints () {
+      return this.bookingCalculation?.formula?.distancePoints || [5, 10, 20, 40, 60]
+    },
+    bookingWeekdays () {
+      const ru = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
+      const en = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+      return (this.$store.state.language === 'ru' ? ru : en).map((label, index) => ({ value: index + 1, label }))
     },
     activeComparisonRun () {
       return this.comparisonData?.run || this.comparisonRuns.find((run) => run.id === this.selectedComparisonRunId) || null
@@ -969,6 +1131,7 @@ export default {
   mounted () { this.reloadAll() },
   beforeDestroy () {
     if (this.comparisonPollTimer) clearTimeout(this.comparisonPollTimer)
+    if (this.bookingSearchTimer) clearTimeout(this.bookingSearchTimer)
   },
   methods: {
     headers () {
@@ -1035,6 +1198,72 @@ export default {
       this.comparisonSources = sources.rows || []
       if (!this.selectedComparisonSourceId && this.comparisonSources.length) this.selectedComparisonSourceId = this.comparisonSources[0].id
       await this.reloadComparisonRuns()
+    },
+    async loadBookingCalculation (page = 1) {
+      this.bookingCalculationBusy = true
+      try {
+        const params = new URLSearchParams({ page: String(page), limit: '25' })
+        if (this.bookingSource?.id) params.set('sourceId', this.bookingSource.id)
+        if (this.q.trim()) params.set('q', this.q.trim())
+        const payload = await this.fetchJson(`/api/admin/pricing/booking-calculation?${params.toString()}`)
+        this.bookingCalculation = payload
+        this.bookingPage = payload.page || page
+        const monitoring = payload.source?.schedule?.monitoring || {}
+        this.bookingScheduleForm = {
+          priceWatchEnabled: monitoring.priceWatchEnabled !== false,
+          frequency: monitoring.frequency || 'daily',
+          weekday: Number((monitoring.weekdays || [1])[0]) || 1,
+          localTime: monitoring.localTime || '08:00'
+        }
+      } catch (error) {
+        this.notice = error.message
+      } finally {
+        this.bookingCalculationBusy = false
+      }
+    },
+    async saveBookingSchedule () {
+      if (!this.bookingSource?.id) return
+      this.bookingCalculationBusy = true
+      try {
+        const weekdays = this.bookingScheduleForm.frequency === 'weekly' ? [Number(this.bookingScheduleForm.weekday)] : []
+        await this.fetchJson(`/api/admin/pricing/comparison-sources/${this.bookingSource.id}/schedule`, {
+          method: 'PUT',
+          headers: { ...this.headers(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            monitoring: {
+              priceWatchEnabled: this.bookingScheduleForm.priceWatchEnabled,
+              frequency: this.bookingScheduleForm.frequency,
+              weekdays,
+              localTime: this.bookingScheduleForm.localTime
+            }
+          })
+        })
+        this.notice = this.$store.state.language === 'ru' ? 'График проверки Booking сохранён.' : 'Booking monitoring schedule saved.'
+        await this.reloadComparisons()
+        await this.loadBookingCalculation(this.bookingPage)
+      } finally {
+        this.bookingCalculationBusy = false
+      }
+    },
+    async runBookingCheckNow () {
+      if (!this.bookingSource?.id) return
+      this.bookingCalculationBusy = true
+      try {
+        const run = await this.fetchJson('/api/admin/pricing/comparison-runs', {
+          method: 'POST',
+          headers: { ...this.headers(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: this.bookingSource.id })
+        })
+        await this.fetchJson(`/api/admin/pricing/comparison-runs/${run.id}/execute`, { method: 'POST', headers: this.headers() })
+        this.selectedComparisonSourceId = this.bookingSource.id
+        this.selectedComparisonRunId = run.id
+        this.notice = this.$store.state.language === 'ru'
+          ? 'Проверка прайса 005 запущена. Результат появится во вкладке «Возможности» и не изменит цены без подтверждения.'
+          : 'The 005 price check has started. Results will appear under Opportunities and will not change prices without approval.'
+        await this.reloadComparisonRuns()
+      } finally {
+        this.bookingCalculationBusy = false
+      }
     },
     async reloadComparisonRuns () {
       if (!this.selectedComparisonSourceId) {
@@ -1883,6 +2112,118 @@ export default {
   gap: 20px;
 }
 
+.booking-workspace {
+  display: grid;
+  gap: 18px;
+}
+
+.booking-formula-card,
+.booking-schedule-card {
+  padding: 18px;
+  border: 1px solid #d7e0ef;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.booking-formula-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  color: #52647f;
+}
+
+.booking-formula-card strong {
+  color: #17233d;
+}
+
+.booking-schedule-card {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.5fr) repeat(3, minmax(150px, .7fr)) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.booking-schedule-card h4 {
+  margin: 0 0 4px;
+}
+
+.booking-schedule-card label {
+  display: grid;
+  gap: 6px;
+}
+
+.booking-toggle {
+  display: flex !important;
+  align-items: center;
+  align-self: center;
+  color: #17233d;
+  font-weight: 700;
+}
+
+.booking-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #d7e0ef;
+  border-radius: 16px;
+}
+
+.booking-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.15fr) repeat(5, minmax(190px, 1fr));
+  min-width: 1220px;
+}
+
+.booking-grid--head {
+  background: #eef2ff;
+  color: #17233d;
+  font-weight: 700;
+}
+
+.booking-grid--head > div,
+.booking-grid--row > div {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.booking-grid--row:last-child > div {
+  border-bottom: 0;
+}
+
+.booking-route-cell,
+.booking-point-cell {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.booking-route-cell span,
+.booking-route-cell small,
+.booking-point-cell small {
+  color: #64748b;
+}
+
+.booking-point-cell span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.booking-driver-target {
+  color: #166534;
+}
+
+.booking-point-cell--missing {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.booking-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
 .comparison-head,
 .comparison-current,
 .comparison-actions,
@@ -2038,6 +2379,7 @@ export default {
   .pricing-row,
   .split-panels,
   .stats-grid,
+  .booking-schedule-card,
   .comparison-kpis,
   .comparison-setup {
     grid-template-columns: 1fr;

@@ -7,7 +7,17 @@ const BOOKING_DEFAULTS = Object.freeze({
     weekday: 3,
     localTime: '12:00',
     minLeadDays: 7,
-    monitoring: { openCitiesHours: 24, allRoutesDays: 7 }
+    monitoring: {
+      priceWatchEnabled: true,
+      frequency: 'daily',
+      weekdays: [1, 2, 3, 4, 5, 6, 7],
+      localTime: '08:00',
+      timeZone: 'Europe/Moscow',
+      lowRatio: 0.9,
+      highRatio: 1.05,
+      openCitiesHours: 24,
+      allRoutesDays: 7
+    }
   },
   passengers: { adults: 1, children: 0, returnJourney: false },
   pricingPolicy: { type: 'sequential_deductions', deductions: [25, 20], basis: 'client_sell' },

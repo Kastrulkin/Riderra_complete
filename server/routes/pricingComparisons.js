@@ -21,6 +21,12 @@ const {
 const { buildPriceComparisonWorkbook } = require('../services/priceComparisonExportService')
 const { serializeCatalogRoute } = require('../services/externalPriceCatalogService')
 const {
+  BOOKING_DISTANCE_POINTS,
+  BOOKING_SIMON_FORMULA_VERSION,
+  buildBookingCalculationRows
+} = require('../services/bookingSimonCalculationService')
+const { normalizeBookingMonitoring } = require('../services/bookingMonitorScheduleService')
+const {
   backfillApprovedPlaceMappings,
   enabled: semanticMatchingEnabled,
   suggestPlaceCandidates
@@ -134,6 +140,109 @@ function registerPricingComparisonRoutes(app, dependencies) {
     } catch (error) {
       console.error('Error configuring price comparison source:', error)
       res.status(500).json({ error: error.message || 'Failed to configure comparison source' })
+    }
+  })
+
+  app.put('/api/admin/pricing/comparison-sources/:id/schedule', ...canManage, async (req, res) => {
+    try {
+      const source = await prisma.priceComparisonSource.findFirst({
+        where: { id: req.params.id, tenantId: req.actorContext.tenantId }
+      })
+      if (!source) return res.status(404).json({ error: 'Comparison source not found' })
+      if (source.adapterKey !== 'booking') return res.status(400).json({ error: 'Schedule editing is currently available for Booking only' })
+      const schedule = parseJson(source.scheduleJson, {})
+      const monitoring = normalizeBookingMonitoring({
+        ...(schedule.monitoring || {}),
+        ...(req.body?.monitoring || {})
+      })
+      const row = await prisma.priceComparisonSource.update({
+        where: { id: source.id },
+        data: { scheduleJson: JSON.stringify({ ...schedule, monitoring }) }
+      })
+      await writeAuditLog({
+        tenantId: req.actorContext.tenantId,
+        actorId: req.actorContext.actorId,
+        actorRole: req.actorContext.actorRole,
+        action: 'pricing.booking_monitor.schedule_update',
+        resource: 'price_comparison_source',
+        resourceId: source.id,
+        traceId: req.actorContext.traceId,
+        decision: 'human_approved',
+        result: 'ok',
+        context: { monitoring }
+      })
+      res.json(serializeSource(row))
+    } catch (error) {
+      console.error('Error updating Booking monitoring schedule:', error)
+      res.status(500).json({ error: error.message || 'Failed to update monitoring schedule' })
+    }
+  })
+
+  app.get('/api/admin/pricing/booking-calculation', ...canRead, async (req, res) => {
+    try {
+      const source = req.query.sourceId
+        ? await prisma.priceComparisonSource.findFirst({ where: { id: String(req.query.sourceId), tenantId: req.actorContext.tenantId, adapterKey: 'booking' } })
+        : await prisma.priceComparisonSource.findFirst({ where: { tenantId: req.actorContext.tenantId, adapterKey: 'booking' } })
+      if (!source) return res.status(404).json({ error: 'Booking comparison source not found' })
+      const snapshots = await prisma.externalTransferPriceSnapshot.findMany({
+        where: { tenantId: req.actorContext.tenantId, sourceId: source.id },
+        select: {
+          externalVehicleKey: true,
+          externalVehicleName: true,
+          currency: true,
+          routeFrom: true,
+          routeTo: true,
+          publicSellPrice: true,
+          quotedAt: true,
+          quoteKind: true,
+          runId: true,
+          sourceUrl: true,
+          evidenceJson: true
+        },
+        orderBy: { quotedAt: 'desc' },
+        take: 30000
+      })
+      const policy = parseJson(source.pricingPolicyJson, {})
+      const deductions = Array.isArray(policy.deductions) ? policy.deductions : [25, 20]
+      let rows = buildBookingCalculationRows(snapshots, {
+        bookingCommissionPercent: Number(deductions[0] ?? 25),
+        pmfPercent: Number(deductions[1] ?? 20)
+      })
+      const q = String(req.query.q || '').trim().toLowerCase()
+      const iata = String(req.query.iata || '').trim().toUpperCase()
+      const vehicle = String(req.query.vehicle || '').trim().toLowerCase()
+      if (q) rows = rows.filter((row) => `${row.country} ${row.city} ${row.iata} ${row.vehicleName} ${row.points.map((point) => point.routeTo || '').join(' ')}`.toLowerCase().includes(q))
+      if (iata) rows = rows.filter((row) => row.iata === iata)
+      if (vehicle) rows = rows.filter((row) => row.vehicleKey === vehicle)
+      if (req.query.openCity === '1') rows = rows.filter((row) => row.openCity)
+      const total = rows.length
+      const page = Math.max(1, Number(req.query.page) || 1)
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 25))
+      const pagedRows = rows.slice((page - 1) * limit, page * limit)
+      const [latestMonitorRun, latestPointRun] = await Promise.all([
+        prisma.priceComparisonRun.findFirst({ where: { tenantId: req.actorContext.tenantId, sourceId: source.id, scopeJson: { contains: 'booking_open_cities_morning' } }, orderBy: { createdAt: 'desc' } }),
+        prisma.priceComparisonRun.findFirst({ where: { tenantId: req.actorContext.tenantId, sourceId: source.id, OR: [{ scopeJson: { contains: 'booking_file_open_cities' } }, { scopeJson: { contains: 'booking_file_all_routes' } }, { scopeJson: { contains: 'booking_historical_workbook' } }] }, orderBy: { createdAt: 'desc' } })
+      ])
+      res.json({
+        source: serializeSource(source),
+        formula: {
+          version: BOOKING_SIMON_FORMULA_VERSION,
+          bookingCommissionPercent: Number(deductions[0] ?? 25),
+          pmfPercent: Number(deductions[1] ?? 20),
+          distancePoints: BOOKING_DISTANCE_POINTS
+        },
+        rows: pagedRows,
+        page,
+        limit,
+        total,
+        pointQuoteCount: rows.reduce((sum, row) => sum + row.points.filter((point) => point.publicSellPrice > 0).length, 0),
+        latestQuotedAt: rows.flatMap((row) => row.points.map((point) => point.quotedAt).filter(Boolean)).sort().at(-1) || null,
+        latestMonitorRun,
+        latestPointRun
+      })
+    } catch (error) {
+      console.error('Error building Booking price calculation:', error)
+      res.status(500).json({ error: error.message || 'Failed to calculate Booking prices' })
     }
   })
 

@@ -11,10 +11,12 @@ const {
   executePriceComparisonRun,
   nextScheduledServiceAt
 } = require('../server/services/priceComparisonService')
+const {
+  isBookingMonitorDue,
+  normalizeBookingMonitoring
+} = require('../server/services/bookingMonitorScheduleService')
 
 const prisma = new PrismaClient()
-const LOW_RATIO = Number(process.env.BOOKING_PRICE_LOW_RATIO || 0.9)
-const HIGH_RATIO = Number(process.env.BOOKING_PRICE_HIGH_RATIO || 1.05)
 
 function moscowDateKey(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
@@ -48,6 +50,27 @@ async function main() {
     : await prisma.customerCompany.findFirst({ where: { tenantId: tenant.id, name: { equals: 'Rideways (Booking.com)', mode: 'insensitive' } } })
   if (!company) throw new Error('Rideways (Booking.com) company not found')
 
+  const sourceDefaults = defaultSourceData({ adapterKey: 'booking' })
+  let source = await prisma.priceComparisonSource.findUnique({
+    where: { tenantId_adapterKey: { tenantId: tenant.id, adapterKey: 'booking' } }
+  })
+  if (!source) {
+    source = await prisma.priceComparisonSource.create({
+      data: { tenantId: tenant.id, customerCompanyId: company.id, ...sourceDefaults }
+    })
+  } else if (source.customerCompanyId !== company.id) {
+    source = await prisma.priceComparisonSource.update({ where: { id: source.id }, data: { customerCompanyId: company.id } })
+  }
+  const sourceSchedule = (() => { try { return JSON.parse(source.scheduleJson || '{}') } catch (_) { return {} } })()
+  const monitoring = normalizeBookingMonitoring(sourceSchedule.monitoring || {})
+  const forced = process.argv.includes('--force')
+  if (!forced && !isBookingMonitorDue(new Date(), monitoring)) {
+    console.log(JSON.stringify({ skipped: true, reason: monitoring.priceWatchEnabled ? 'outside_schedule_window' : 'monitoring_disabled', monitoring }))
+    return
+  }
+  const lowRatio = monitoring.lowRatio
+  const highRatio = monitoring.highRatio
+
   const monitorDate = moscowDateKey()
   const traceId = `booking-morning-${monitorDate}`
   const existingApproval = await prisma.humanApproval.findFirst({ where: { tenantId: tenant.id, traceId } })
@@ -69,12 +92,6 @@ async function main() {
   }
   const pricingRows = await prisma.cityPricing.findMany({ where: routeWhere, select: { routeFrom: true, routeTo: true } })
   const routePairs = Array.from(new Map(pricingRows.map((row) => [`${row.routeFrom}\u0000${row.routeTo}`, row])).values())
-  const sourceDefaults = defaultSourceData({ adapterKey: 'booking' })
-  const source = await prisma.priceComparisonSource.upsert({
-    where: { tenantId_adapterKey: { tenantId: tenant.id, adapterKey: 'booking' } },
-    update: { ...sourceDefaults, customerCompanyId: company.id },
-    create: { tenantId: tenant.id, customerCompanyId: company.id, ...sourceDefaults }
-  })
   const run = await prisma.priceComparisonRun.create({ data: {
     tenantId: tenant.id,
     sourceId: source.id,
@@ -92,8 +109,8 @@ async function main() {
     include: { quote: true },
     orderBy: { opportunityGapAbs: 'asc' }
   })
-  const low = results.filter((row) => row.quote.riderraSellPrice < row.targetPrice * LOW_RATIO)
-  const high = results.filter((row) => row.quote.riderraSellPrice > row.targetPrice * HIGH_RATIO)
+  const low = results.filter((row) => row.quote.riderraSellPrice < row.targetPrice * lowRatio)
+  const high = results.filter((row) => row.quote.riderraSellPrice > row.targetPrice * highRatio)
   const proposals = [...high.map((row) => ({ direction: 'decrease', cityPricingId: row.quote.cityPricingId, currentPrice: row.quote.riderraSellPrice, suggestedPrice: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType })), ...low.map((row) => ({ direction: 'increase', cityPricingId: row.quote.cityPricingId, currentPrice: row.quote.riderraSellPrice, suggestedPrice: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType }))]
   const approval = await prisma.humanApproval.create({ data: {
     tenantId: tenant.id,
@@ -101,7 +118,7 @@ async function main() {
     action: 'pricing.booking_monitor.review',
     resource: 'price_comparison_run',
     resourceId: run.id,
-    payloadJson: JSON.stringify({ monitorDate, thresholds: { lowRatio: LOW_RATIO, highRatio: HIGH_RATIO }, proposals, automaticPriceChanges: false }),
+    payloadJson: JSON.stringify({ monitorDate, thresholds: { lowRatio, highRatio }, formulaVersion: BOOKING_DEFAULTS.formulaVersion, proposals, automaticPriceChanges: false }),
     traceId
   } })
   await prisma.auditLog.create({ data: {
@@ -113,7 +130,7 @@ async function main() {
     traceId,
     decision: 'draft_for_human_approval',
     result: finished.status,
-    contextJson: JSON.stringify({ low: low.length, high: high.length, needsReview: finished.needsReviewCount, failed: finished.failedCount, approvalId: approval.id, automaticPriceChanges: false })
+    contextJson: JSON.stringify({ low: low.length, high: high.length, needsReview: finished.needsReviewCount, failed: finished.failedCount, approvalId: approval.id, monitoring, automaticPriceChanges: false })
   } })
 
   const ownerLink = await prisma.telegramLink.findFirst({
@@ -123,7 +140,7 @@ async function main() {
   const lines = [
     `Booking — утренняя проверка цен ${monitorDate}`,
     `Проверено: ${finished.processedCount}/${finished.routeCount}. Выше ориентира: ${high.length}. Ниже ориентира: ${low.length}. На проверку: ${finished.needsReviewCount}. Ошибки: ${finished.failedCount}.`,
-    `Формула ориентира: публичная цена Booking × 0.75 × 0.80. Допуск: ниже 90% или выше 105%.`,
+    `Формула фиксированного ориентира: цена Booking −25% BCOM −20% PMF. Допуск: ниже ${Math.round(lowRatio * 100)}% или выше ${Math.round(highRatio * 100)}%.`,
     ...high.slice(0, 3).map((row) => `Снизить? ${describe(row)}`),
     ...low.slice(0, 3).map((row) => `Поднять? ${describe(row)}`),
     `Черновик согласования: ${approval.id}. Основной прайс 005 автоматически не изменён.`

@@ -27,7 +27,7 @@ module.exports = {
     name: 'booking-price-monitor',
     script: 'scripts/booking_morning_monitor.js',
     cwd: '/opt/riderra',
-    cron_restart: '0 5 * * *',
+    cron_restart: '*/5 * * * *',
     autorestart: false,
     watch: false,
     env: {
