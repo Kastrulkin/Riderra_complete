@@ -1043,6 +1043,7 @@ export default {
       return Array.from(classes)
     },
     formatMoney(amount, currency) {
+      if (amount === null || amount === undefined || amount === '') return '-'
       const numeric = Number(amount)
       if (!Number.isFinite(numeric)) return '-'
       return `${numeric.toFixed(2)} ${currency || 'EUR'}`
@@ -1063,8 +1064,8 @@ export default {
     },
     supplierExtrasLabel(row) {
       const parts = []
-      if (Number.isFinite(Number(row.parkingSurcharge))) parts.push(`парковка +${row.parkingSurcharge} ${row.currency}`)
-      if (Number.isFinite(Number(row.vatPercent))) parts.push(`VAT +${row.vatPercent}%`)
+      if (row.parkingSurcharge !== null && row.parkingSurcharge !== undefined && Number.isFinite(Number(row.parkingSurcharge))) parts.push(`парковка +${row.parkingSurcharge} ${row.currency}`)
+      if (row.vatPercent !== null && row.vatPercent !== undefined && Number.isFinite(Number(row.vatPercent))) parts.push(`VAT +${row.vatPercent}%`)
       return parts.length ? parts.join(' · ') : 'Нет указанных доплат'
     },
     supplierCategoryLabel(value) {
