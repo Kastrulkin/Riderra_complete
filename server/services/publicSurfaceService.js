@@ -4,6 +4,8 @@ const {
 } = require('../config/constants')
 const { escapeHtml } = require('../utils/helpers')
 
+const YANDEX_METRIKA_ID = 108482177
+
 const RIDERRA_SEO_TRANSFERS = (() => {
   try {
     return require('./seo_transfers.json')
@@ -177,6 +179,34 @@ function riderraAbsoluteUrl(pagePath = '/') {
 
 function jsonLdScript(data) {
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`
+}
+
+function yandexMetrikaHead() {
+  return `<script>
+      window.dataLayer = window.dataLayer || [];
+      window.ym = window.ym || function () { (window.ym.a = window.ym.a || []).push(arguments); };
+      window.ym.l = window.ym.l || Number(new Date());
+      window.ym(${YANDEX_METRIKA_ID}, 'init', {
+        defer: true,
+        webvisor: true,
+        clickmap: true,
+        ecommerce: 'dataLayer',
+        referrer: document.referrer,
+        url: window.location.href,
+        accurateTrackBounce: true,
+        trackLinks: true
+      });
+      (function () {
+        var script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://mc.yandex.ru/metrika/tag.js?id=${YANDEX_METRIKA_ID}';
+        document.head.appendChild(script);
+      })();
+    </script>`
+}
+
+function yandexMetrikaNoScript() {
+  return `<noscript><div><img src="https://mc.yandex.ru/watch/${YANDEX_METRIKA_ID}" style="position:absolute; left:-9999px;" alt="" /></div></noscript>`
 }
 
 function publicPageLanguagePath(pagePath, isRu) {
@@ -580,6 +610,7 @@ function renderPublicSourceHtml(pagePath) {
     <meta property="og:description" content="${escapeHtml(content.description)}">
     <meta property="og:url" content="${canonical}">
     ${jsonLd.map(jsonLdScript).join('\n    ')}
+    ${yandexMetrikaHead()}
     <style>
       :root { color-scheme: light; --ink: #17223f; --muted: #66738d; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --blue: #3152ff; --pink: #d51b7c; --green: #2f7d62; }
       * { box-sizing: border-box; }
@@ -641,6 +672,7 @@ function renderPublicSourceHtml(pagePath) {
     </style>
   </head>
   <body>
+    ${yandexMetrikaNoScript()}
     ${renderStaticSiteHeader(isRu, pagePath)}
     <main class="wrap">
       <section class="hero">
@@ -1080,6 +1112,7 @@ function renderSeoTransferPage(pagePath, isRu = false) {
     <meta property="og:description" content="${escapeHtml(description)}">
     <meta property="og:url" content="${canonical}">
     ${jsonLd.map(jsonLdScript).join('\n    ')}
+    ${yandexMetrikaHead()}
     <style>
       :root { color-scheme: light; --ink: #17223f; --muted: #65728a; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --pink: #d51b7c; --green: #2f7d62; }
       * { box-sizing: border-box; }
@@ -1116,6 +1149,7 @@ function renderSeoTransferPage(pagePath, isRu = false) {
     </style>
   </head>
   <body>
+    ${yandexMetrikaNoScript()}
     ${renderStaticSiteHeader(isRu, localizedTransferPath(normalizedPath, isRu))}
     <main class="wrap">
       <nav class="breadcrumbs" aria-label="Breadcrumb">${crumbs.map((crumb, index) => index === crumbs.length - 1 ? escapeHtml(crumb.name) : `<a href="${escapeHtml(crumb.path)}">${escapeHtml(crumb.name)}</a> / `).join('')}</nav>
