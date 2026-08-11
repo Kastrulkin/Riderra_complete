@@ -22,7 +22,9 @@ const { buildPriceComparisonWorkbook } = require('../services/priceComparisonExp
 const { serializeCatalogRoute } = require('../services/externalPriceCatalogService')
 const {
   BOOKING_DISTANCE_POINTS,
+  BOOKING_PORTAL_FORMULA_VERSION,
   BOOKING_SIMON_FORMULA_VERSION,
+  buildBookingAirportMatrices,
   buildBookingCalculationRows
 } = require('../services/bookingSimonCalculationService')
 const { normalizeBookingMonitoring } = require('../services/bookingMonitorScheduleService')
@@ -204,21 +206,29 @@ function registerPricingComparisonRoutes(app, dependencies) {
       })
       const policy = parseJson(source.pricingPolicyJson, {})
       const deductions = Array.isArray(policy.deductions) ? policy.deductions : [25, 20]
-      let rows = buildBookingCalculationRows(snapshots, {
+      const requestedGeniusPercent = req.query.genius === undefined ? 5 : Number(req.query.genius)
+      const supplierGeniusPercent = Math.min(20, Math.max(0, Number.isFinite(requestedGeniusPercent) ? requestedGeniusPercent : 5))
+      const calculationOptions = {
         bookingCommissionPercent: Number(deductions[0] ?? 25),
-        pmfPercent: Number(deductions[1] ?? 20)
-      })
+        pmfPercent: Number(deductions[1] ?? 20),
+        supplierGeniusPercent,
+        bookingGeniusTopUpPercent: supplierGeniusPercent > 0 ? 5 : 0
+      }
+      let vehicleRows = buildBookingCalculationRows(snapshots, calculationOptions)
       const q = String(req.query.q || '').trim().toLowerCase()
       const iata = String(req.query.iata || '').trim().toUpperCase()
       const vehicle = String(req.query.vehicle || '').trim().toLowerCase()
-      if (q) rows = rows.filter((row) => `${row.country} ${row.city} ${row.iata} ${row.vehicleName} ${row.points.map((point) => point.routeTo || '').join(' ')}`.toLowerCase().includes(q))
-      if (iata) rows = rows.filter((row) => row.iata === iata)
-      if (vehicle) rows = rows.filter((row) => row.vehicleKey === vehicle)
-      if (req.query.openCity === '1') rows = rows.filter((row) => row.openCity)
-      const total = rows.length
+      if (q) vehicleRows = vehicleRows.filter((row) => `${row.country} ${row.city} ${row.iata} ${row.vehicleName} ${row.points.map((point) => `${point.routeFrom || ''} ${point.routeTo || ''}`).join(' ')}`.toLowerCase().includes(q))
+      if (iata) vehicleRows = vehicleRows.filter((row) => row.iata === iata)
+      if (vehicle) vehicleRows = vehicleRows.filter((row) => row.vehicleKey === vehicle)
+      if (req.query.openCity === '1') vehicleRows = vehicleRows.filter((row) => row.openCity)
+      const airports = buildBookingAirportMatrices(vehicleRows)
+      const total = airports.length
       const page = Math.max(1, Number(req.query.page) || 1)
       const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 25))
-      const pagedRows = rows.slice((page - 1) * limit, page * limit)
+      const pagedAirports = airports.slice((page - 1) * limit, page * limit)
+      const pagedAirportKeys = new Set(pagedAirports.map((airport) => airport.key))
+      const pagedVehicleRows = vehicleRows.filter((row) => pagedAirportKeys.has([row.country, row.city, row.iata, row.currency].join('|')))
       const [latestMonitorRun, latestPointRun] = await Promise.all([
         prisma.priceComparisonRun.findFirst({ where: { tenantId: req.actorContext.tenantId, sourceId: source.id, scopeJson: { contains: 'booking_open_cities_morning' } }, orderBy: { createdAt: 'desc' } }),
         prisma.priceComparisonRun.findFirst({ where: { tenantId: req.actorContext.tenantId, sourceId: source.id, OR: [{ scopeJson: { contains: 'booking_file_open_cities' } }, { scopeJson: { contains: 'booking_file_all_routes' } }, { scopeJson: { contains: 'booking_historical_workbook' } }] }, orderBy: { createdAt: 'desc' } })
@@ -227,16 +237,22 @@ function registerPricingComparisonRoutes(app, dependencies) {
         source: serializeSource(source),
         formula: {
           version: BOOKING_SIMON_FORMULA_VERSION,
+          portalVersion: BOOKING_PORTAL_FORMULA_VERSION,
           bookingCommissionPercent: Number(deductions[0] ?? 25),
           pmfPercent: Number(deductions[1] ?? 20),
+          supplierGeniusPercent,
+          bookingGeniusTopUpPercent: calculationOptions.bookingGeniusTopUpPercent,
+          totalGeniusPercent: supplierGeniusPercent + calculationOptions.bookingGeniusTopUpPercent,
           distancePoints: BOOKING_DISTANCE_POINTS
         },
-        rows: pagedRows,
+        airports: pagedAirports,
+        rows: pagedVehicleRows,
         page,
         limit,
         total,
-        pointQuoteCount: rows.reduce((sum, row) => sum + row.points.filter((point) => point.publicSellPrice > 0).length, 0),
-        latestQuotedAt: rows.flatMap((row) => row.points.map((point) => point.quotedAt).filter(Boolean)).sort().at(-1) || null,
+        vehicleMatrixCount: vehicleRows.length,
+        pointQuoteCount: airports.reduce((sum, airport) => sum + airport.points.reduce((pointSum, point) => pointSum + Object.values(point.prices).filter((price) => price.publicSellPrice > 0).length, 0), 0),
+        latestQuotedAt: airports.flatMap((airport) => airport.points.map((point) => point.quotedAt).filter(Boolean)).sort().at(-1) || null,
         latestMonitorRun,
         latestPointRun
       })

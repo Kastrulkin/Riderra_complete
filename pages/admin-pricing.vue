@@ -146,9 +146,14 @@
           </div>
 
           <div v-if="bookingCalculation" class="booking-formula-card">
-            <strong>{{ bookingCalculation.formula.version }}</strong>
+            <strong>{{ bookingCalculation.formula.portalVersion }}</strong>
             <span>{{ t.bookingFormulaCopy.replace('{bcom}', bookingCalculation.formula.bookingCommissionPercent).replace('{pmf}', bookingCalculation.formula.pmfPercent) }}</span>
             <span>{{ t.bookingApprovalNotice }}</span>
+          </div>
+
+          <div v-if="bookingCalculation" class="booking-view-switch" role="tablist" :aria-label="t.bookingCalculation">
+            <button type="button" class="subtab" :class="{ 'subtab--active': bookingView === 'matrix' }" role="tab" :aria-selected="bookingView === 'matrix'" @click="bookingView='matrix'">{{ t.bookingPriceMatrix }}</button>
+            <button type="button" class="subtab" :class="{ 'subtab--active': bookingView === 'portal' }" role="tab" :aria-selected="bookingView === 'portal'" @click="bookingView='portal'">{{ t.bookingPortalSetup }}</button>
           </div>
 
           <div v-if="bookingSource" class="booking-schedule-card">
@@ -176,34 +181,67 @@
           </div>
 
           <div v-if="bookingCalculation" class="comparison-kpis">
-            <div class="mini-stat"><span>{{ t.bookingMatrices }}</span><strong>{{ bookingCalculation.total }}</strong></div>
+            <div class="mini-stat"><span>{{ t.bookingAirports }}</span><strong>{{ bookingCalculation.total }}</strong></div>
+            <div class="mini-stat"><span>{{ t.bookingMatrices }}</span><strong>{{ bookingCalculation.vehicleMatrixCount }}</strong></div>
             <div class="mini-stat"><span>{{ t.bookingPointPrices }}</span><strong>{{ bookingCalculation.pointQuoteCount }}</strong></div>
             <div class="mini-stat"><span>{{ t.bookingLatestQuote }}</span><strong>{{ formatDateTime(bookingCalculation.latestQuotedAt) }}</strong></div>
-            <div class="mini-stat"><span>{{ t.bookingLatestCheck }}</span><strong>{{ formatDateTime(bookingCalculation.latestMonitorRun && bookingCalculation.latestMonitorRun.finishedAt) }}</strong></div>
           </div>
 
-          <div v-if="bookingCalculationRows.length" class="booking-table-wrap">
-            <div class="booking-grid booking-grid--head">
-              <div>{{ t.bookingLocationClass }}</div>
-              <div v-for="distance in bookingDistancePoints" :key="distance">{{ distance }} {{ t.bookingKm }}</div>
-            </div>
-            <div v-for="row in bookingCalculationRows" :key="row.key" class="booking-grid booking-grid--row">
-              <div class="booking-route-cell">
-                <strong>{{ row.iata }} · {{ row.city || row.country }}</strong>
-                <span>{{ row.vehicleName }}</span>
-                <small>{{ t.bookingBase }}: {{ priceLabel(row.tariff.basePrice, row.currency) }}</small>
+          <div v-if="bookingView === 'matrix' && bookingCalculationAirports.length" class="booking-airports">
+            <section v-for="airport in bookingCalculationAirports" :key="airport.key" class="booking-airport-card">
+              <div class="booking-airport-title"><strong>{{ airport.city || airport.country }}</strong><span>{{ airport.iata }} · {{ airport.airportName }}</span></div>
+              <div class="booking-table-wrap">
+                <table class="booking-price-matrix">
+                  <thead><tr><th>{{ t.city }}</th><th>{{ t.bookingAirport }}</th><th>{{ t.bookingPoint }}</th><th v-for="vehicle in airport.vehicles" :key="vehicle.key">{{ vehicle.name }}</th></tr></thead>
+                  <tbody>
+                    <tr v-for="(point, pointIndex) in airport.points" :key="point.distanceKm">
+                      <td v-if="pointIndex === 0" :rowspan="airport.points.length"><strong>{{ airport.city || airport.country }}</strong><small>{{ airport.country }}</small></td>
+                      <td v-if="pointIndex === 0" :rowspan="airport.points.length"><strong>{{ airport.iata }}</strong><small>{{ airport.airportName }}</small></td>
+                      <td><strong>{{ point.distanceKm }} {{ t.bookingKm }}</strong><small>{{ point.destinationAddress || t.bookingNoPrice }}</small></td>
+                      <td v-for="vehicle in airport.vehicles" :key="vehicle.key" :class="{ 'booking-price-matrix__missing': !point.prices[vehicle.key]?.publicSellPrice }"><strong>{{ priceLabel(point.prices[vehicle.key]?.publicSellPrice || null, airport.currency) }}</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div v-for="point in row.points" :key="point.distanceKm" class="booking-point-cell" :class="{ 'booking-point-cell--missing': !point.publicSellPrice }">
-                <small>{{ point.routeTo || t.bookingNoPrice }}</small>
-                <span>{{ t.bookingPublic }} <strong>{{ priceLabel(point.publicSellPrice || null, row.currency) }}</strong></span>
-                <span>{{ t.bookingAfterBcom }} <strong>{{ priceLabel(point.afterBookingCommission || null, row.currency) }}</strong></span>
-                <span class="booking-driver-target">{{ t.bookingDriver }} <strong>{{ priceLabel(point.driverTargetPrice || null, row.currency) }}</strong></span>
-                <small v-if="point.quotedAt">{{ formatDateTime(point.quotedAt) }}</small>
-              </div>
-            </div>
+            </section>
           </div>
+
+          <div v-else-if="bookingView === 'portal' && selectedBookingAirport" class="booking-portal-workspace">
+            <div class="booking-portal-controls">
+              <label class="pricing-field__label">{{ t.bookingChooseAirport }}
+                <select v-model="selectedBookingAirportKey" class="input"><option v-for="airport in bookingCalculationAirports" :key="airport.key" :value="airport.key">{{ airport.city }} · {{ airport.iata }}</option></select>
+              </label>
+              <label class="pricing-field__label">{{ t.bookingGeniusContribution }}
+                <select v-model.number="bookingGeniusPercent" class="input"><option :value="5">5% · Genius</option><option :value="0">{{ t.bookingWithoutGenius }}</option></select>
+              </label>
+              <button class="btn btn--primary" :disabled="bookingCalculationBusy" @click="loadBookingCalculation(bookingPage)">{{ t.bookingRecalculate }}</button>
+              <div class="booking-genius-note"><strong>{{ t.bookingGeniusCustomer.replace('{total}', bookingCalculation.formula.totalGeniusPercent) }}</strong><span>{{ t.bookingGeniusOfficial }}</span></div>
+            </div>
+
+            <section v-for="vehicle in selectedBookingAirport.vehicles" :key="vehicle.key" class="booking-vehicle-plan">
+              <div class="booking-vehicle-plan__head"><div><h4>{{ vehicle.name }}</h4><span>{{ selectedBookingAirport.city }} · {{ selectedBookingAirport.iata }}</span></div><strong>{{ selectedBookingAirport.currency }}</strong></div>
+              <div class="booking-table-wrap">
+                <table class="booking-portal-table">
+                  <thead><tr><th>{{ t.bookingCalculationRow }}</th><th v-for="distance in bookingDistancePoints" :key="distance">{{ distance }} {{ t.bookingKm }}</th></tr></thead>
+                  <tbody>
+                    <tr><th>{{ t.bookingPublic }}</th><td v-for="point in selectedBookingAirport.points" :key="point.distanceKm">{{ priceLabel(point.prices[vehicle.key]?.publicSellPrice || null, selectedBookingAirport.currency) }}</td></tr>
+                    <tr><th>{{ t.bookingPortalGross }}</th><td v-for="point in selectedBookingAirport.points" :key="point.distanceKm">{{ priceLabel(point.prices[vehicle.key]?.portalGrossPrice || null, selectedBookingAirport.currency) }}</td></tr>
+                    <tr><th>{{ t.bookingAfterGenius }}</th><td v-for="point in selectedBookingAirport.points" :key="point.distanceKm">{{ priceLabel(point.prices[vehicle.key]?.geniusCustomerPrice || null, selectedBookingAirport.currency) }}</td></tr>
+                    <tr><th>{{ t.bookingAfterBcom }}</th><td v-for="point in selectedBookingAirport.points" :key="point.distanceKm">{{ priceLabel(point.prices[vehicle.key]?.afterBookingCommission || null, selectedBookingAirport.currency) }}</td></tr>
+                    <tr class="booking-portal-table__internal"><th>{{ t.bookingDriver }}</th><td v-for="point in selectedBookingAirport.points" :key="point.distanceKm">{{ priceLabel(point.prices[vehicle.key]?.driverTargetPrice || null, selectedBookingAirport.currency) }}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="booking-portal-fields">
+                <div><small>{{ t.bookingInitialPrice }}</small><strong>{{ priceLabel(vehicle.portalTariff.initialPrice || null, selectedBookingAirport.currency) }}</strong><span>{{ t.bookingIncludedDistance }}: {{ vehicle.portalTariff.includedDistanceKm }} {{ t.bookingKm }}</span></div>
+                <div v-for="band in vehicle.portalTariff.bands" :key="band.number"><small>{{ t.bookingBand }} {{ band.number }}</small><strong>{{ priceLabel(band.pricePerKm || null, selectedBookingAirport.currency) }} / {{ t.bookingKm }}</strong><span>{{ band.toKm ? `${band.fromKm}–${band.toKm} ${t.bookingKm}` : `${t.bookingFrom} ${band.fromKm} ${t.bookingKm}` }}</span></div>
+              </div>
+              <p class="booking-plan-warning">{{ t.bookingPortalRounding }}</p>
+            </section>
+          </div>
+
           <div v-else-if="!bookingCalculationBusy" class="empty-state">{{ t.bookingEmpty }}</div>
-          <div v-if="bookingCalculation && bookingCalculation.total > bookingCalculation.limit" class="booking-pagination">
+          <div v-if="bookingView === 'matrix' && bookingCalculation && bookingCalculation.total > bookingCalculation.limit" class="booking-pagination">
             <button class="btn" :disabled="bookingPage <= 1 || bookingCalculationBusy" @click="loadBookingCalculation(bookingPage - 1)">←</button>
             <span>{{ bookingPage }} / {{ Math.ceil(bookingCalculation.total / bookingCalculation.limit) }}</span>
             <button class="btn" :disabled="bookingPage >= Math.ceil(bookingCalculation.total / bookingCalculation.limit) || bookingCalculationBusy" @click="loadBookingCalculation(bookingPage + 1)">→</button>
@@ -520,6 +558,9 @@ export default {
     bookingCalculation: null,
     bookingCalculationBusy: false,
     bookingPage: 1,
+    bookingView: 'matrix',
+    bookingGeniusPercent: 5,
+    selectedBookingAirportKey: '',
     bookingSearchTimer: null,
     bookingScheduleForm: {
       priceWatchEnabled: true,
@@ -571,10 +612,12 @@ export default {
             opportunities: 'Возможности',
             opportunitiesHint: 'Сравните активные маршруты Riderra с публичными ценами выбранной компании и найдите направления для партнёрского предложения.',
             bookingCalculation: 'Расчёт Booking',
-            bookingCalculationHint: 'Проверьте публичные цены Booking в контрольных точках и рассчитанную по модели Саймона предельную цену исполнителя.',
+            bookingCalculationHint: 'Сравните публичные цены по аэропортам и классам, затем получите готовые значения для дистанционных ставок в кабинете Booking.',
             bookingRunNow: 'Проверить цены Booking сейчас',
-            bookingFormulaCopy: 'Сначала −{bcom}% BCOM, затем −{pmf}% PMF; интервалы рассчитываются по точкам 5/10/20/40/60 км с округлением вниз.',
+            bookingFormulaCopy: 'Для кабинета: ориентир по розничной цене и Genius, без внутренней наценки. Отдельно для контроля: −{bcom}% BCOM, затем −{pmf}% до предельной цены водителя.',
             bookingApprovalNotice: 'Это отдельный рабочий расчёт Booking. Прайс 005 используется только как справочное сравнение и здесь не изменяется.',
+            bookingPriceMatrix: 'Таблица цен',
+            bookingPortalSetup: 'Настройка цен в Booking',
             bookingScheduleTitle: 'График проверки продажных цен',
             bookingScheduleHint: 'По расписанию Riderra повторно получает публичные цены Booking и формирует отдельный отчёт об отклонениях. Прайс 005 остаётся без изменений.',
             bookingScheduleEnabled: 'Проверка включена',
@@ -584,16 +627,32 @@ export default {
             bookingWeekly: 'Раз в неделю',
             bookingWeekday: 'День недели',
             bookingTime: 'Время по Москве',
-            bookingMatrices: 'Матриц город × класс',
+            bookingAirports: 'Аэропортов',
+            bookingMatrices: 'Классов в расчёте',
             bookingPointPrices: 'Заполненных точек',
             bookingLatestQuote: 'Последняя цена Booking',
             bookingLatestCheck: 'Последняя проверка Booking',
-            bookingLocationClass: 'Город и класс',
+            bookingAirport: 'Аэропорт',
+            bookingPoint: 'Контрольная точка',
             bookingKm: 'км',
             bookingBase: 'База водителя до 5 км',
             bookingPublic: 'Booking',
             bookingAfterBcom: 'После BCOM',
             bookingDriver: 'Водителю',
+            bookingChooseAirport: 'Выберите аэропорт',
+            bookingGeniusContribution: 'Вклад Riderra в Genius',
+            bookingWithoutGenius: 'Без Genius',
+            bookingGeniusCustomer: 'Итоговая скидка клиенту: {total}%',
+            bookingGeniusOfficial: 'При включённом Genius Booking добавляет ещё 5 п.п. к нашим 5%. Расчёт показывает ставку до скидки, чтобы после неё остаться на целевой цене.',
+            bookingRecalculate: 'Пересчитать',
+            bookingCalculationRow: 'Расчёт',
+            bookingPortalGross: 'Поставить в кабинете до Genius',
+            bookingAfterGenius: 'Цена клиенту после Genius',
+            bookingInitialPrice: 'Initial rate · Price',
+            bookingIncludedDistance: 'Included distance',
+            bookingBand: 'Band',
+            bookingFrom: 'от',
+            bookingPortalRounding: 'Значения округлены вниз до шага кабинета. Перед отправкой используйте «Check your rates» в Booking; Riderra ничего не меняет в аккаунте автоматически.',
             bookingNoPrice: 'Цена не найдена',
             bookingEmpty: 'Расчётных строк пока нет. Сначала загрузите или соберите цены Booking по контрольным точкам.',
             connectSmartRyde: 'Подключить SmartRyde',
@@ -688,10 +747,12 @@ export default {
             opportunities: 'Opportunities',
             opportunitiesHint: 'Compare active Riderra routes with public prices from a selected company and find routes for a partnership offer.',
             bookingCalculation: 'Booking calculation',
-            bookingCalculationHint: 'Review Booking public prices at benchmark points and the maximum supplier price calculated with the Simon model.',
+            bookingCalculationHint: 'Compare public prices by airport and vehicle class, then get ready-to-enter distance rates for the Booking portal.',
             bookingRunNow: 'Check Booking prices now',
-            bookingFormulaCopy: 'First −{bcom}% BCOM, then −{pmf}% PMF; distance bands use 5/10/20/40/60 km points with round-down.',
+            bookingFormulaCopy: 'Portal setup uses the retail target and Genius without internal markup. Control values separately deduct {bcom}% BCOM and then {pmf}% to the driver target.',
             bookingApprovalNotice: 'This is a separate Booking working calculation. The 005 price book is reference-only and cannot be changed here.',
+            bookingPriceMatrix: 'Price table',
+            bookingPortalSetup: 'Set Booking rates',
             bookingScheduleTitle: 'Selling-price monitoring schedule',
             bookingScheduleHint: 'Riderra fetches Booking public prices and creates a separate variance report. The 005 price book remains unchanged.',
             bookingScheduleEnabled: 'Monitoring enabled',
@@ -701,16 +762,32 @@ export default {
             bookingWeekly: 'Weekly',
             bookingWeekday: 'Weekday',
             bookingTime: 'Moscow time',
-            bookingMatrices: 'City × class matrices',
+            bookingAirports: 'Airports',
+            bookingMatrices: 'Vehicle calculations',
             bookingPointPrices: 'Filled benchmark points',
             bookingLatestQuote: 'Latest Booking quote',
             bookingLatestCheck: 'Latest Booking check',
-            bookingLocationClass: 'City and class',
+            bookingAirport: 'Airport',
+            bookingPoint: 'Benchmark point',
             bookingKm: 'km',
             bookingBase: 'Supplier base up to 5 km',
             bookingPublic: 'Booking',
             bookingAfterBcom: 'After BCOM',
             bookingDriver: 'Supplier',
+            bookingChooseAirport: 'Choose airport',
+            bookingGeniusContribution: 'Riderra Genius contribution',
+            bookingWithoutGenius: 'Without Genius',
+            bookingGeniusCustomer: 'Total traveller discount: {total}%',
+            bookingGeniusOfficial: 'With Genius enabled, Booking adds another 5 percentage points to our 5%. The calculation shows the pre-discount rate that lands on the target customer price.',
+            bookingRecalculate: 'Recalculate',
+            bookingCalculationRow: 'Calculation',
+            bookingPortalGross: 'Enter in portal before Genius',
+            bookingAfterGenius: 'Customer price after Genius',
+            bookingInitialPrice: 'Initial rate · Price',
+            bookingIncludedDistance: 'Included distance',
+            bookingBand: 'Band',
+            bookingFrom: 'from',
+            bookingPortalRounding: 'Values are rounded down to portal precision. Use “Check your rates” in Booking before submitting; Riderra never changes the account automatically.',
             bookingNoPrice: 'No price found',
             bookingEmpty: 'No calculated rows yet. Import or collect Booking benchmark-point prices first.',
             connectSmartRyde: 'Connect SmartRyde',
@@ -833,6 +910,12 @@ export default {
     },
     bookingCalculationRows () {
       return this.bookingCalculation?.rows || []
+    },
+    bookingCalculationAirports () {
+      return this.bookingCalculation?.airports || []
+    },
+    selectedBookingAirport () {
+      return this.bookingCalculationAirports.find((airport) => airport.key === this.selectedBookingAirportKey) || this.bookingCalculationAirports[0] || null
     },
     bookingDistancePoints () {
       return this.bookingCalculation?.formula?.distancePoints || [5, 10, 20, 40, 60]
@@ -1203,11 +1286,15 @@ export default {
       this.bookingCalculationBusy = true
       try {
         const params = new URLSearchParams({ page: String(page), limit: '25' })
+        params.set('genius', String(Number(this.bookingGeniusPercent) || 0))
         if (this.bookingSource?.id) params.set('sourceId', this.bookingSource.id)
         if (this.q.trim()) params.set('q', this.q.trim())
         const payload = await this.fetchJson(`/api/admin/pricing/booking-calculation?${params.toString()}`)
         this.bookingCalculation = payload
         this.bookingPage = payload.page || page
+        if (!payload.airports?.some((airport) => airport.key === this.selectedBookingAirportKey)) {
+          this.selectedBookingAirportKey = payload.airports?.[0]?.key || ''
+        }
         const monitoring = payload.source?.schedule?.monitoring || {}
         this.bookingScheduleForm = {
           priceWatchEnabled: monitoring.priceWatchEnabled !== false,
@@ -2161,6 +2248,132 @@ export default {
   font-weight: 700;
 }
 
+.booking-view-switch {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.booking-airports,
+.booking-portal-workspace {
+  display: grid;
+  gap: 18px;
+}
+
+.booking-airport-card,
+.booking-vehicle-plan {
+  overflow: hidden;
+  border: 1px solid #d7e0ef;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.booking-airport-title,
+.booking-vehicle-plan__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: #f8fafc;
+}
+
+.booking-airport-title span,
+.booking-vehicle-plan__head span {
+  color: #64748b;
+}
+
+.booking-price-matrix,
+.booking-portal-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #17233d;
+}
+
+.booking-price-matrix th,
+.booking-price-matrix td,
+.booking-portal-table th,
+.booking-portal-table td {
+  padding: 12px 14px;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.booking-price-matrix thead th,
+.booking-portal-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #eef2ff;
+  font-weight: 800;
+}
+
+.booking-price-matrix td:first-child { min-width: 150px; }
+.booking-price-matrix td:nth-child(2) { min-width: 190px; }
+.booking-price-matrix td:nth-child(3) { min-width: 260px; }
+.booking-price-matrix td small,
+.booking-price-matrix th small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.booking-price-matrix__missing { color: #94a3b8; background: #f8fafc; }
+
+.booking-portal-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, .5fr) auto minmax(280px, 1.2fr);
+  align-items: end;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+}
+
+.booking-percent-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.booking-genius-note {
+  display: grid;
+  gap: 4px;
+  color: #1e3a5f;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.booking-vehicle-plan__head h4 { margin: 0 0 4px; }
+.booking-portal-table th:first-child { min-width: 250px; }
+.booking-portal-table__internal { background: #f0fdf4; color: #166534; }
+
+.booking-portal-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
+  gap: 10px;
+  padding: 16px;
+}
+
+.booking-portal-fields > div {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid #d7e0ef;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.booking-portal-fields small,
+.booking-portal-fields span { color: #64748b; }
+.booking-plan-warning { margin: 0; padding: 0 16px 16px; color: #64748b; font-size: 12px; line-height: 1.45; }
+
 .booking-table-wrap {
   overflow-x: auto;
   border: 1px solid #d7e0ef;
@@ -2380,6 +2593,8 @@ export default {
   .split-panels,
   .stats-grid,
   .booking-schedule-card,
+  .booking-portal-controls,
+  .booking-portal-fields,
   .comparison-kpis,
   .comparison-setup {
     grid-template-columns: 1fr;

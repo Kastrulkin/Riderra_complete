@@ -1,4 +1,5 @@
 const BOOKING_SIMON_FORMULA_VERSION = 'booking-simon-v1'
+const BOOKING_PORTAL_FORMULA_VERSION = 'booking-portal-genius-v1'
 const BOOKING_DISTANCE_POINTS = Object.freeze([5, 10, 20, 40, 60])
 
 function numberOrZero(value) {
@@ -70,6 +71,66 @@ function calculateSimonDriverGrid(publicPrices = {}, options = {}) {
   }
 }
 
+function calculateBookingPortalGrid(publicPrices = {}, options = {}) {
+  const bookingCommissionPercent = Number(options.bookingCommissionPercent ?? 25)
+  const pmfPercent = Number(options.pmfPercent ?? 20)
+  const supplierGeniusPercent = Number(options.supplierGeniusPercent ?? 5)
+  const bookingGeniusTopUpPercent = Number(options.bookingGeniusTopUpPercent ?? 5)
+  const totalGeniusPercent = supplierGeniusPercent + bookingGeniusTopUpPercent
+  const geniusFactor = 1 - totalGeniusPercent / 100
+  const commissionFactor = 1 - bookingCommissionPercent / 100
+  const pmfFactor = 1 - pmfPercent / 100
+  const publicPrice = {}
+  const portalGrossPrice = {}
+  const afterBookingCommission = {}
+  const driverTargetPrice = {}
+
+  for (const distance of BOOKING_DISTANCE_POINTS) {
+    publicPrice[distance] = numberOrZero(publicPrices[distance])
+    portalGrossPrice[distance] = publicPrice[distance] > 0 && geniusFactor > 0
+      ? Math.ceil((publicPrice[distance] / geniusFactor) * 100) / 100
+      : 0
+    afterBookingCommission[distance] = publicPrice[distance] * commissionFactor
+    driverTargetPrice[distance] = roundDown(afterBookingCommission[distance] * pmfFactor)
+  }
+
+  // The current Booking Taxi Partner Portal has one initial fare and three
+  // distance bands. Using 10/20/40/60 km as boundaries reproduces four measured
+  // points exactly; the 5 km point remains visible as a control for the minimum fare.
+  const initialPrice = Math.max(portalGrossPrice[5], portalGrossPrice[10])
+  const band1 = portalGrossPrice[20] > 0 && initialPrice > 0
+    ? roundDown(Math.max(0, portalGrossPrice[20] - initialPrice) / 10, 2)
+    : 0
+  const band2 = portalGrossPrice[40] > 0 && portalGrossPrice[20] > 0
+    ? roundDown(Math.max(0, portalGrossPrice[40] - portalGrossPrice[20]) / 20, 2)
+    : 0
+  const band3 = portalGrossPrice[60] > 0 && portalGrossPrice[40] > 0
+    ? roundDown(Math.max(0, portalGrossPrice[60] - portalGrossPrice[40]) / 20, 2)
+    : 0
+
+  return {
+    formulaVersion: BOOKING_PORTAL_FORMULA_VERSION,
+    bookingCommissionPercent,
+    pmfPercent,
+    supplierGeniusPercent,
+    bookingGeniusTopUpPercent,
+    totalGeniusPercent,
+    publicPrice,
+    portalGrossPrice,
+    afterBookingCommission,
+    driverTargetPrice,
+    portalTariff: {
+      initialPrice,
+      includedDistanceKm: 10,
+      bands: [
+        { number: 1, fromKm: 10, toKm: 20, nextDistanceKm: 10, pricePerKm: band1 },
+        { number: 2, fromKm: 20, toKm: 40, nextDistanceKm: 20, pricePerKm: band2 },
+        { number: 3, fromKm: 40, toKm: null, nextDistanceKm: null, pricePerKm: band3 }
+      ]
+    }
+  }
+}
+
 function parseEvidence(value) {
   try { return value ? JSON.parse(value) : {} } catch (_) { return {} }
 }
@@ -130,27 +191,73 @@ function buildBookingCalculationRows(snapshots, options = {}) {
   return Array.from(groups.values()).map((group) => {
     const publicPrices = Object.fromEntries(BOOKING_DISTANCE_POINTS.map((distance) => [distance, group.points[distance]?.publicSellPrice || 0]))
     const calculation = calculateSimonDriverGrid(publicPrices, options)
+    const portalCalculation = calculateBookingPortalGrid(publicPrices, options)
     return {
       ...group,
       formulaVersion: calculation.formulaVersion,
       bookingCommissionPercent: calculation.bookingCommissionPercent,
       pmfPercent: calculation.pmfPercent,
       tariff: calculation.tariff,
+      portalTariff: portalCalculation.portalTariff,
       points: BOOKING_DISTANCE_POINTS.map((distance) => ({
         distanceKm: distance,
         ...(group.points[distance] || {}),
         publicSellPrice: publicPrices[distance],
         afterBookingCommission: calculation.afterCommission[distance],
-        driverTargetPrice: calculation.driverPrices[distance]
+        driverTargetPrice: calculation.driverPrices[distance],
+        portalGrossPrice: portalCalculation.portalGrossPrice[distance],
+        geniusCustomerPrice: portalCalculation.portalGrossPrice[distance] * (1 - portalCalculation.totalGeniusPercent / 100)
       }))
     }
   }).sort((left, right) => `${left.country}|${left.city}|${left.iata}|${left.vehicleName}`.localeCompare(`${right.country}|${right.city}|${right.iata}|${right.vehicleName}`))
 }
 
+function buildBookingAirportMatrices(vehicleRows = []) {
+  const matrices = new Map()
+  for (const row of vehicleRows) {
+    const key = [row.country, row.city, row.iata, row.currency].join('|')
+    if (!matrices.has(key)) {
+      matrices.set(key, {
+        key,
+        country: row.country,
+        city: row.city,
+        iata: row.iata,
+        airportName: row.points.find((point) => point.routeFrom)?.routeFrom || row.iata,
+        currency: row.currency,
+        openCity: row.openCity,
+        vehicles: [],
+        points: BOOKING_DISTANCE_POINTS.map((distanceKm) => ({ distanceKm, destinationAddress: '', quotedAt: null, prices: {} }))
+      })
+    }
+    const matrix = matrices.get(key)
+    matrix.openCity = matrix.openCity || row.openCity
+    matrix.vehicles.push({ key: row.vehicleKey, name: row.vehicleName, portalTariff: row.portalTariff, internalTariff: row.tariff })
+    for (const point of row.points) {
+      const matrixPoint = matrix.points.find((item) => item.distanceKm === point.distanceKm)
+      if (!matrixPoint.destinationAddress && point.routeTo) matrixPoint.destinationAddress = point.routeTo
+      if (point.quotedAt && (!matrixPoint.quotedAt || new Date(point.quotedAt) > new Date(matrixPoint.quotedAt))) matrixPoint.quotedAt = point.quotedAt
+      matrixPoint.prices[row.vehicleKey] = {
+        publicSellPrice: point.publicSellPrice,
+        afterBookingCommission: point.afterBookingCommission,
+        driverTargetPrice: point.driverTargetPrice,
+        portalGrossPrice: point.portalGrossPrice,
+        geniusCustomerPrice: point.geniusCustomerPrice
+      }
+    }
+  }
+  return Array.from(matrices.values()).map((matrix) => ({
+    ...matrix,
+    vehicles: matrix.vehicles.sort((left, right) => left.name.localeCompare(right.name))
+  })).sort((left, right) => `${left.country}|${left.city}|${left.iata}`.localeCompare(`${right.country}|${right.city}|${right.iata}`))
+}
+
 module.exports = {
   BOOKING_DISTANCE_POINTS,
+  BOOKING_PORTAL_FORMULA_VERSION,
   BOOKING_SIMON_FORMULA_VERSION,
+  buildBookingAirportMatrices,
   buildBookingCalculationRows,
+  calculateBookingPortalGrid,
   calculateSimonDriverGrid,
   roundDown,
   snapshotPointMeta
