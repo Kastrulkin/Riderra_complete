@@ -13,6 +13,7 @@ const { AIRPORTS_TAXI_TRANSFERS_DEFAULTS, AirportsTaxiTransfersAdapter } = requi
 const { AIRPORT_TAXIS_DEFAULTS, AirportTaxisAdapter } = require('./airportTaxisPriceAdapter')
 const { DOTTRANSFERS_DEFAULTS, DotTransfersAdapter } = require('./dotTransfersPriceAdapter')
 const { HEYCARS_DEFAULTS, HeyCarsAdapter } = require('./heyCarsPriceAdapter')
+const { WAUG_DEFAULTS, WaugAdapter } = require('./waugPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -402,6 +403,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'airporttaxis-com') return new AirportTaxisAdapter(config, dependencies)
   if (source.adapterKey === 'dottransfers') return new DotTransfersAdapter(config, dependencies)
   if (source.adapterKey === 'heycars') return new HeyCarsAdapter(config, dependencies)
+  if (source.adapterKey === 'waug') return new WaugAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -564,6 +566,7 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external.includes('_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
     return false
   }
+  if (adapterKey === 'waug') return false
   if (adapterKey === 'mytravelthru') {
     const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
     const internal = normalizeTextKey(riderraVehicleType)
@@ -1099,7 +1102,9 @@ function defaultSourceData(overrides = {}) {
                                             ? AIRPORT_TAXIS_DEFAULTS
                                             : (overrides.adapterKey === 'dottransfers'
                                                 ? DOTTRANSFERS_DEFAULTS
-                                                : (overrides.adapterKey === 'heycars' ? HEYCARS_DEFAULTS : SMART_RYDE_DEFAULTS))))))))))))
+                                                : (overrides.adapterKey === 'heycars'
+                                                    ? HEYCARS_DEFAULTS
+                                                    : (overrides.adapterKey === 'waug' ? WAUG_DEFAULTS : SMART_RYDE_DEFAULTS)))))))))))))
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -1130,6 +1135,7 @@ module.exports = {
   AIRPORT_TAXIS_DEFAULTS,
   DOTTRANSFERS_DEFAULTS,
   HEYCARS_DEFAULTS,
+  WAUG_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1142,6 +1148,7 @@ module.exports = {
   AirportTaxisAdapter,
   DotTransfersAdapter,
   HeyCarsAdapter,
+  WaugAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
