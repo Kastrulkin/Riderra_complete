@@ -229,6 +229,17 @@ test('equality is not a green opportunity', () => {
   }).status, 'not_opportunity')
 })
 
+test('competitor policy compares Riderra directly with the public competitor price', () => {
+  const policy = { type: 'competitor_public_price' }
+  assert.deepEqual(buildComparison({ riderraSellPrice: 99, clientSellPrice: 100, policy }), {
+    targetPrice: 100,
+    opportunityGapAbs: 1,
+    opportunityGapPct: 1,
+    status: 'opportunity'
+  })
+  assert.equal(buildComparison({ riderraSellPrice: 100, clientSellPrice: 100, policy }).status, 'not_opportunity')
+})
+
 test('an exact route missing from any client catalog is a coverage opportunity', () => {
   const catalogError = new Error('Exact route is absent')
   catalogError.code = 'CATALOG_ROUTE_NOT_LISTED'

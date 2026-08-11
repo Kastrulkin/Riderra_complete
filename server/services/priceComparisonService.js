@@ -114,7 +114,9 @@ function applyPricingPolicy(riderraSellPrice, policy = {}) {
   if (!Number.isFinite(price) || price < 0) throw new Error('Invalid Riderra sell price')
 
   let factor = 1
-  if (policy.type === 'percentage_discount') {
+  if (policy.type === 'competitor_public_price') {
+    factor = 1
+  } else if (policy.type === 'percentage_discount') {
     const discount = Number(policy.discountPercent)
     if (!Number.isFinite(discount) || discount < 0 || discount >= 100) throw new Error('Invalid discountPercent')
     factor = 1 - (discount / 100)
@@ -142,7 +144,9 @@ function buildComparison({ riderraSellPrice, clientSellPrice, policy }) {
   if (!Number.isFinite(riderraPrice) || riderraPrice < 0) throw new Error('Invalid Riderra sell price')
   const clientPrice = Number(clientSellPrice)
   if (!Number.isFinite(clientPrice) || clientPrice < 0) throw new Error('Invalid client sell price')
-  const clientBased = policy?.type === 'client_commission' || (policy?.type === 'sequential_deductions' && policy?.basis === 'client_sell')
+  const clientBased = policy?.type === 'client_commission'
+    || policy?.type === 'competitor_public_price'
+    || (policy?.type === 'sequential_deductions' && policy?.basis === 'client_sell')
   const targetPrice = applyPricingPolicy(clientBased ? clientPrice : riderraPrice, policy)
   const opportunityGapAbs = clientBased
     ? roundMoney(targetPrice - riderraPrice)

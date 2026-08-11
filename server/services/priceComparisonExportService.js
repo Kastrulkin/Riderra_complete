@@ -65,7 +65,7 @@ function addResultSheet(workbook, name, rows, policy, assumptionsSheetName = 'As
     const targetResult = hasPrices ? Number(row.targetPrice) : null
     const gapResult = hasPrices ? Number(row.gapAbs) : null
     const pctResult = hasPrices && Number(row.clientSellPrice) > 0 ? Number(row.gapPct) / 100 : null
-    const clientBased = policy?.type === 'client_commission'
+    const clientBased = policy?.type === 'client_commission' || policy?.type === 'competitor_public_price'
     const targetFormula = clientBased
       ? `IF(OR(F${excelRow}="",H${excelRow}=""),"",ROUND(H${excelRow}*(1-'${assumptionsSheetName}'!$B$2),2))`
       : `IF(OR(F${excelRow}="",H${excelRow}=""),"",ROUND(F${excelRow}*(1-'${assumptionsSheetName}'!$B$2),2))`
@@ -138,9 +138,11 @@ async function buildPriceComparisonWorkbook(run) {
     ['Adapter', run.source.adapterKey],
     ['Base URL', run.source.baseUrl],
     ['Service date', run.serviceAt],
-    ['Rule', policy.type === 'client_commission'
-      ? 'Price opportunity: Riderra sell < client public sell after commission. Coverage opportunity: partner returned no available vehicles.'
-      : 'Price opportunity: target < client sell. Coverage opportunity: partner returned no available vehicles.']
+    ['Rule', policy.type === 'competitor_public_price'
+      ? 'Competitive advantage: Riderra sell < competitor public sell. Equality is not an advantage.'
+      : policy.type === 'client_commission'
+        ? 'Price opportunity: Riderra sell < client public sell after commission. Coverage opportunity: partner returned no available vehicles.'
+        : 'Price opportunity: target < client sell. Coverage opportunity: partner returned no available vehicles.']
   ])
   configureSheet(assumptions, [28, 88])
   assumptions.getCell('B2').numFmt = '0.0%'

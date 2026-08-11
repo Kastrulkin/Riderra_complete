@@ -5,8 +5,8 @@ const IWAY_DEFAULTS = Object.freeze({
   supportedCurrencies: ['EUR'],
   schedule: { weekday: 3, localTime: '12:00', minLeadDays: 7 },
   passengers: { adults: 1, children: 0, returnJourney: false },
-  pricingPolicy: { type: 'client_commission', commissionPercent: 30 },
-  formulaVersion: 'iway-v1',
+  pricingPolicy: { type: 'competitor_public_price' },
+  formulaVersion: 'iway-competitor-v2',
   maxConcurrency: 2,
   requestDelayMs: 900
 })
