@@ -48,6 +48,7 @@ const {
   normalizeBookingVehicle
 } = require('./services/bookingPartnerRateService')
 const { buildDriverCanonicalRegistry, resolveCanonicalDriverName } = require('./utils/orderDriverCanonicalization')
+const { createOpsNotificationRouter } = require('./services/opsNotificationRouter')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
@@ -4240,6 +4241,19 @@ app.post('/api/admin/orders/:orderId/info-note', authenticateToken, resolveActor
           taskType: 'clarification',
           priority: 50,
           agentConfigId: defaultAgentId
+        })
+        await routeOpsNotification({
+          tenantId,
+          audience: 'operators',
+          title: `Заказ ${publicOrderReference(updated) || updated.id}: нужно уточнить данные`,
+          details: updated.infoReason || 'В заказе не хватает обязательных данных.',
+          type: 'order_needs_info',
+          priority: 'normal',
+          source: 'orders',
+          sourceRef: updated.id,
+          dedupKey: `order-needs-info:${updated.id}:${crypto.createHash('sha256').update(String(updated.infoReason || '')).digest('hex').slice(0, 12)}`,
+          linkUrl: `/admin-orders?orderId=${updated.id}`,
+          payload: { orderId: updated.id, infoReason: updated.infoReason }
         })
       } else {
         await prisma.chatTask.updateMany({
@@ -8989,20 +9003,6 @@ app.post('/api/admin/chats/messages/:id/mark-manual-sent', authenticateToken, re
         }
       })
 
-      await createOpsTask({
-        tenantId,
-        userId: task.assignedToUserId || req.user?.id || null,
-        title: `Получен ответ клиента по заказу ${publicOrderReference(task.order) || task.orderId}`,
-        details: bodyText,
-        type: classification?.requiresHuman || classification?.class === 'unclassified' ? 'customer_reply_review' : 'customer_reply',
-        priority: classification?.requiresHuman ? 'high' : 'normal',
-        source: 'customer_chat',
-        sourceRef: inboundMessage.id,
-        dedupKey: `customer-reply:${inboundMessage.id}`,
-        linkUrl: `/admin-chats?taskId=${task.id}`,
-        payload: { taskId: task.id, orderId: task.orderId, classification: classification?.class || 'unclassified' }
-      })
-
       await writeAuditLog({
         tenantId,
         actorId: req.actorContext.actorId,
@@ -9282,6 +9282,21 @@ app.post('/api/admin/chats/tasks/:id/inbound', authenticateToken, resolveActorCo
           idempotencyKey: null,
           createdByUserId: req.user?.id || null
         }
+      })
+
+      await routeOpsNotification({
+        tenantId,
+        audience: 'responsible_or_operators',
+        responsibleUserId: task.assignedToUserId || null,
+        title: `Получен ответ клиента по заказу ${publicOrderReference(task.order) || task.orderId}`,
+        details: bodyText,
+        type: classification?.requiresHuman || classification?.class === 'unclassified' ? 'customer_reply_review' : 'customer_reply',
+        priority: classification?.requiresHuman ? 'high' : 'normal',
+        source: 'customer_chat',
+        sourceRef: inboundMessage.id,
+        dedupKey: `customer-reply:${inboundMessage.id}`,
+        linkUrl: `/admin-chats?taskId=${task.id}`,
+        payload: { taskId: task.id, orderId: task.orderId, classification: classification?.class || 'unclassified' }
       })
 
       await writeAuditLog({
@@ -9606,9 +9621,10 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
             lastError: isInquiry ? null : mediaReason
           }
         })
-        await createOpsTask({
+        await routeOpsNotification({
           tenantId,
-          userId: updatedTask.assignedToUserId || null,
+          audience: isInquiry ? 'operators' : 'responsible_or_operators',
+          responsibleUserId: updatedTask.assignedToUserId || null,
           title: task.orderId
             ? `Клиент прислал файл по заказу ${publicOrderReference(task.order) || task.orderId}`
             : `Новое сообщение от ${updatedTask.customerDisplayName || updatedTask.customerActorId || 'клиента'}`,
@@ -9660,9 +9676,9 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
               : {})
           }
         })
-        await createOpsTask({
+        await routeOpsNotification({
           tenantId,
-          userId: updatedTask.assignedToUserId || null,
+          audience: 'operators',
           title: `Новое сообщение от ${updatedTask.customerDisplayName || updatedTask.customerActorId || 'клиента'}`,
           details: bodyText.slice(0, 240),
           type: 'inbound_inquiry',
@@ -9952,9 +9968,10 @@ app.post('/api/internal/chats/inbound', resolveActorContext, requireActorContext
         }
       })
 
-      await createOpsTask({
+      await routeOpsNotification({
         tenantId,
-        userId: task.assignedToUserId || null,
+        audience: 'responsible_or_operators',
+        responsibleUserId: task.assignedToUserId || null,
         title: `Получен ответ клиента по заказу ${publicOrderReference(task.order) || task.orderId}`,
         details: bodyText,
         type: classification?.requiresHuman || classification?.class === 'unclassified' ? 'customer_reply_review' : 'customer_reply',
@@ -18213,6 +18230,23 @@ function buildEmailOrderNotificationText({ order, eventType, orderDraft = {}, ta
 
 async function notifyOrderEmailResponsible({ tenantId, order, eventType, orderDraft = {} }) {
   try {
+    if (order.needsInfo && eventType !== 'cancel') {
+      return routeOpsNotification({
+        tenantId,
+        audience: 'operators',
+        title: `Новый заказ ${orderDraft.orderNumber || order.sourceBookingId || order.id}: нужно уточнить данные`,
+        details: order.infoReason || 'В заказе не хватает обязательных данных.',
+        type: 'order_needs_info',
+        priority: 'normal',
+        source: 'email_ingest',
+        sourceRef: order.id,
+        dueAt: order.pickupAt || null,
+        dedupKey: `email-order-needs-info:${order.id}`,
+        linkUrl: `/admin-orders?orderId=${order.id}`,
+        payload: { orderId: order.id, eventType, orderNumber: orderDraft.orderNumber || null }
+      })
+    }
+    if (eventType === 'new') return null
     const user = await pickEmailOrderResponsibleUser(tenantId, order)
     if (!user?.id) return null
 
@@ -18329,7 +18363,8 @@ async function createOpsTask({
   dueAt = null,
   payload = null,
   dedupKey = null,
-  linkUrl = null
+  linkUrl = null,
+  notifyTelegram = null
 }) {
   const data = {
       tenantId,
@@ -18350,7 +18385,8 @@ async function createOpsTask({
     if (existing) return prisma.opsTask.update({ where: { id: existing.id }, data: { title, details, priority, dueAt, assignedUserId: userId, payloadJson: data.payloadJson, linkUrl } })
   }
   const task = await prisma.opsTask.create({ data })
-  if (userId && ['high', 'urgent'].includes(priority) && process.env.TELEGRAM_BOT_TOKEN) {
+  const shouldNotifyTelegram = notifyTelegram == null ? ['high', 'urgent'].includes(priority) : Boolean(notifyTelegram)
+  if (userId && shouldNotifyTelegram && process.env.TELEGRAM_BOT_TOKEN) {
     const link = await prisma.telegramLink.findFirst({ where: { tenantId, userId, telegramChatId: { not: null } }, orderBy: { createdAt: 'desc' } })
     if (link?.telegramChatId) {
       const absoluteLink = linkUrl ? `${String(process.env.PUBLIC_BASE_URL || 'https://riderra.com').replace(/\/$/, '')}${linkUrl}` : null
@@ -18358,6 +18394,21 @@ async function createOpsTask({
     }
   }
   return task
+}
+
+const opsNotificationRouter = createOpsNotificationRouter({
+  prisma,
+  createOpsTask,
+  telegramSendMessage
+})
+
+async function routeOpsNotification(input) {
+  try {
+    return await opsNotificationRouter.notify(input)
+  } catch (error) {
+    console.warn('Operational notification routing skipped:', error.message)
+    return { tasks: [], recipients: [], telegramDelivered: [], telegramMissing: [], error: error.message }
+  }
 }
 
 async function getOpenOpsTasksForUser(userId, tenantId = null, limit = 10) {
@@ -18532,7 +18583,7 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
           rfcMessageId,
           sourceDraftId: existingDraft.id,
           attachments,
-          createOpsTask
+          routeOpsNotification
         })
         if (complaintResult.complaint && existingDraft.sourceClassification !== 'complaint') {
           await prisma.opsEventDraft.update({ where: { id: existingDraft.id }, data: { sourceClassification: 'complaint', queueState: 'complaint' } })
@@ -18588,7 +18639,7 @@ app.post('/api/internal/ops/email-draft', emailIngestBodyParsers, resolveActorCo
         rfcMessageId,
         sourceDraftId: draft.id,
         attachments,
-        createOpsTask
+        routeOpsNotification
       })
       if (complaintResult.complaint) {
         await prisma.opsEventDraft.update({ where: { id: draft.id }, data: { sourceClassification: 'complaint', queueState: 'complaint' } })
@@ -20716,6 +20767,12 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
       )
       return res.json({ ok: true })
     }
+    if (link.telegramChatId !== telegramChatId) {
+      await prisma.telegramLink.update({
+        where: { id: link.id },
+        data: { telegramChatId, tenantId: link.tenantId || tenantId }
+      })
+    }
     const linkTenantId = link.tenantId || tenantId
 
     const acl = await getUserRolesAndPermissions(link.userId)
@@ -21274,6 +21331,7 @@ registerComplaintRoutes(app, {
   requireActorContext,
   requireCan,
   createOpsTask,
+  routeOpsNotification,
   transporter,
   emailFrom: EMAIL_FROM,
   createMediaUrl: createOpenClawMediaUrl,

@@ -125,7 +125,7 @@ async function activeRuleForOrder(prisma, tenantId, order) {
   })
 }
 
-async function ingestComplaintEmail({ prisma, tenantId, rawText, subject, fromEmail, toEmail, externalMessageId, externalThreadId, rfcMessageId, sourceDraftId, attachments = [], createOpsTask }) {
+async function ingestComplaintEmail({ prisma, tenantId, rawText, subject, fromEmail, toEmail, externalMessageId, externalThreadId, rfcMessageId, sourceDraftId, attachments = [], routeOpsNotification }) {
   if (!isComplaintEmail({ subject, rawText })) return { complaint: false }
   if (externalMessageId) {
     const existing = await prisma.complaintMessage.findFirst({ where: { tenantId, externalMessageId }, include: { complaint: true } })
@@ -176,10 +176,10 @@ async function ingestComplaintEmail({ prisma, tenantId, rawText, subject, fromEm
   await prisma.complaintActivity.create({
     data: { tenantId, complaintId: complaint.id, type: existingCase ? 'email_received' : 'created', title: existingCase ? 'Получено новое письмо' : 'Жалоба зарегистрирована', details: subject || fromEmail || null }
   })
-  if (!existingCase && createOpsTask) {
-    await createOpsTask({
+  if (!existingCase && routeOpsNotification) {
+    await routeOpsNotification({
       tenantId,
-      userId: null,
+      audience: 'operators',
       title: `Новая жалоба${matching.order ? ` по заказу ${matching.order.sourceOrderNumber || matching.order.sourceBookingId || ''}` : ''}`.trim(),
       details: summarizeComplaint({ subject, rawText }),
       type: 'complaint_new',
@@ -196,7 +196,7 @@ async function ingestComplaintEmail({ prisma, tenantId, rawText, subject, fromEm
 }
 
 function registerComplaintRoutes(app, dependencies) {
-  const { prisma, authenticateToken, resolveActorContext, requireActorContext, requireCan, createOpsTask, transporter, emailFrom, createMediaUrl, uploadMedia } = dependencies
+  const { prisma, authenticateToken, resolveActorContext, requireActorContext, requireCan, createOpsTask, routeOpsNotification, transporter, emailFrom, createMediaUrl, uploadMedia } = dependencies
   const read = [authenticateToken, resolveActorContext, requireActorContext, requireCan('orders.read', 'order')]
   let slaTimer = null
 
@@ -288,6 +288,20 @@ function registerComplaintRoutes(app, dependencies) {
       contractRuleId: rule?.id || null
     } })
     await activity(req, complaint.id, 'created', 'Жалоба создана сотрудником', complaint.summary)
+    await routeOpsNotification?.({
+      tenantId: req.actorContext.tenantId,
+      audience: 'operators',
+      title: `Новая жалоба${order ? ` по заказу ${order.sourceOrderNumber || order.sourceBookingId || order.id}` : ''}`,
+      details: complaint.summary,
+      type: 'complaint_new',
+      priority: complaint.severity === 'critical' ? 'urgent' : complaint.severity === 'high' ? 'high' : 'normal',
+      source: 'complaints',
+      sourceRef: complaint.id,
+      dueAt: complaint.firstResponseDueAt,
+      dedupKey: `complaint-new:${complaint.id}`,
+      linkUrl: `/admin-complaints?complaintId=${complaint.id}`,
+      payload: { complaintId: complaint.id, orderId: complaint.orderId }
+    })
     res.status(201).json({ complaint })
   })
 
