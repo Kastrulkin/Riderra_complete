@@ -19623,21 +19623,23 @@ app.post('/api/admin/telegram-links', authenticateToken, resolveActorContext, re
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    const payload = { email, telegramUserId: String(telegramUserId), telegramChatId: telegramChatId ? String(telegramChatId) : null }
+    const normalizedTelegramUserId = String(telegramUserId)
+    const effectiveTelegramChatId = telegramChatId ? String(telegramChatId) : normalizedTelegramUserId
+    const payload = { email, telegramUserId: normalizedTelegramUserId, telegramChatId: effectiveTelegramChatId }
     ensureIdempotencyKey(req, 'telegram.link.upsert', payload)
     const wrapped = await withIdempotency(req, 'telegram.link.upsert', payload, async () => {
       const link = await prisma.telegramLink.upsert({
-        where: { telegramUserId: String(telegramUserId) },
+        where: { telegramUserId: normalizedTelegramUserId },
         update: {
           userId: user.id,
           tenantId: req.actorContext.tenantId,
-          telegramChatId: telegramChatId ? String(telegramChatId) : null
+          telegramChatId: effectiveTelegramChatId
         },
         create: {
           tenantId: req.actorContext.tenantId,
           userId: user.id,
-          telegramUserId: String(telegramUserId),
-          telegramChatId: telegramChatId ? String(telegramChatId) : null
+          telegramUserId: normalizedTelegramUserId,
+          telegramChatId: effectiveTelegramChatId
         }
       })
       await writeAuditLog({
