@@ -711,7 +711,7 @@ export default {
       }
       this.savingAccessId = user.id
       try {
-        await this.jsonRequest(`/api/admin/staff-users/${user.id}/abac`, {
+        const result = await this.jsonRequest(`/api/admin/staff-users/${user.id}/abac`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...this.headers() },
           body: JSON.stringify({
@@ -720,7 +720,12 @@ export default {
             teams
           })
         })
-        await this.load()
+        const savedTeams = Array.isArray(result?.user?.abacTeams) && result.user.abacTeams.length
+          ? result.user.abacTeams
+          : teams
+        this.$set(this.abacDrafts, user.id, {
+          teams: savedTeams.includes('all') ? ['all'] : [...new Set(savedTeams)]
+        })
         this.staffNotice = {
           type: 'ok',
           text: this.$store.state.language === 'ru'
