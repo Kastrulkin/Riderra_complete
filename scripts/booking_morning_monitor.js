@@ -111,14 +111,17 @@ async function main() {
   })
   const low = results.filter((row) => row.quote.riderraSellPrice < row.targetPrice * lowRatio)
   const high = results.filter((row) => row.quote.riderraSellPrice > row.targetPrice * highRatio)
-  const proposals = [...high.map((row) => ({ direction: 'decrease', cityPricingId: row.quote.cityPricingId, currentPrice: row.quote.riderraSellPrice, suggestedPrice: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType })), ...low.map((row) => ({ direction: 'increase', cityPricingId: row.quote.cityPricingId, currentPrice: row.quote.riderraSellPrice, suggestedPrice: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType }))]
+  const observations = [
+    ...high.map((row) => ({ signal: 'riderra_reference_above_booking_target', riderraReferencePrice: row.quote.riderraSellPrice, bookingDriverTarget: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType })),
+    ...low.map((row) => ({ signal: 'riderra_reference_below_booking_target', riderraReferencePrice: row.quote.riderraSellPrice, bookingDriverTarget: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType }))
+  ]
   const approval = await prisma.humanApproval.create({ data: {
     tenantId: tenant.id,
     status: 'pending_human',
     action: 'pricing.booking_monitor.review',
     resource: 'price_comparison_run',
     resourceId: run.id,
-    payloadJson: JSON.stringify({ monitorDate, thresholds: { lowRatio, highRatio }, formulaVersion: BOOKING_DEFAULTS.formulaVersion, proposals, automaticPriceChanges: false }),
+    payloadJson: JSON.stringify({ monitorDate, thresholds: { lowRatio, highRatio }, formulaVersion: BOOKING_DEFAULTS.formulaVersion, observations, riderra005IsReferenceOnly: true, priceBookMutationAllowed: false }),
     traceId
   } })
   await prisma.auditLog.create({ data: {
@@ -141,9 +144,9 @@ async function main() {
     `Booking — утренняя проверка цен ${monitorDate}`,
     `Проверено: ${finished.processedCount}/${finished.routeCount}. Выше ориентира: ${high.length}. Ниже ориентира: ${low.length}. На проверку: ${finished.needsReviewCount}. Ошибки: ${finished.failedCount}.`,
     `Формула фиксированного ориентира: цена Booking −25% BCOM −20% PMF. Допуск: ниже ${Math.round(lowRatio * 100)}% или выше ${Math.round(highRatio * 100)}%.`,
-    ...high.slice(0, 3).map((row) => `Снизить? ${describe(row)}`),
-    ...low.slice(0, 3).map((row) => `Поднять? ${describe(row)}`),
-    `Черновик согласования: ${approval.id}. Основной прайс 005 автоматически не изменён.`
+    ...high.slice(0, 3).map((row) => `Выше ориентира Booking: ${describe(row)}`),
+    ...low.slice(0, 3).map((row) => `Ниже ориентира Booking: ${describe(row)}`),
+    `Отчёт на проверку: ${approval.id}. Прайс 005 используется только как справочное сравнение и не изменяется этим процессом.`
   ]
   await sendTelegram(process.env.TELEGRAM_GROUP_CHAT_ID || ownerLink?.telegramChatId, lines.join('\n'))
   console.log(JSON.stringify({ runId: run.id, approvalId: approval.id, processed: finished.processedCount, high: high.length, low: low.length, needsReview: finished.needsReviewCount, failed: finished.failedCount }))

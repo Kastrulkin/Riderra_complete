@@ -572,11 +572,11 @@ export default {
             opportunitiesHint: 'Сравните активные маршруты Riderra с публичными ценами выбранной компании и найдите направления для партнёрского предложения.',
             bookingCalculation: 'Расчёт Booking',
             bookingCalculationHint: 'Проверьте публичные цены Booking в контрольных точках и рассчитанную по модели Саймона предельную цену исполнителя.',
-            bookingRunNow: 'Проверить прайс 005 сейчас',
+            bookingRunNow: 'Проверить цены Booking сейчас',
             bookingFormulaCopy: 'Сначала −{bcom}% BCOM, затем −{pmf}% PMF; интервалы рассчитываются по точкам 5/10/20/40/60 км с округлением вниз.',
-            bookingApprovalNotice: 'Результаты являются рекомендацией. Прайс 005 меняется только после подтверждения.',
+            bookingApprovalNotice: 'Это отдельный рабочий расчёт Booking. Прайс 005 используется только как справочное сравнение и здесь не изменяется.',
             bookingScheduleTitle: 'График проверки продажных цен',
-            bookingScheduleHint: 'По расписанию Riderra повторно получает публичные цены Booking, сравнивает их с прайсом 005 и создаёт черновик корректировок.',
+            bookingScheduleHint: 'По расписанию Riderra повторно получает публичные цены Booking и формирует отдельный отчёт об отклонениях. Прайс 005 остаётся без изменений.',
             bookingScheduleEnabled: 'Проверка включена',
             bookingFrequency: 'Частота',
             bookingDaily: 'Каждый день',
@@ -587,7 +587,7 @@ export default {
             bookingMatrices: 'Матриц город × класс',
             bookingPointPrices: 'Заполненных точек',
             bookingLatestQuote: 'Последняя цена Booking',
-            bookingLatestCheck: 'Последняя сверка 005',
+            bookingLatestCheck: 'Последняя проверка Booking',
             bookingLocationClass: 'Город и класс',
             bookingKm: 'км',
             bookingBase: 'База водителя до 5 км',
@@ -689,11 +689,11 @@ export default {
             opportunitiesHint: 'Compare active Riderra routes with public prices from a selected company and find routes for a partnership offer.',
             bookingCalculation: 'Booking calculation',
             bookingCalculationHint: 'Review Booking public prices at benchmark points and the maximum supplier price calculated with the Simon model.',
-            bookingRunNow: 'Check 005 pricing now',
+            bookingRunNow: 'Check Booking prices now',
             bookingFormulaCopy: 'First −{bcom}% BCOM, then −{pmf}% PMF; distance bands use 5/10/20/40/60 km points with round-down.',
-            bookingApprovalNotice: 'Results are recommendations. The 005 price book changes only after approval.',
+            bookingApprovalNotice: 'This is a separate Booking working calculation. The 005 price book is reference-only and cannot be changed here.',
             bookingScheduleTitle: 'Selling-price monitoring schedule',
-            bookingScheduleHint: 'Riderra fetches Booking public prices, compares them with 005, and creates a draft adjustment report.',
+            bookingScheduleHint: 'Riderra fetches Booking public prices and creates a separate variance report. The 005 price book remains unchanged.',
             bookingScheduleEnabled: 'Monitoring enabled',
             bookingFrequency: 'Frequency',
             bookingDaily: 'Every day',
@@ -704,7 +704,7 @@ export default {
             bookingMatrices: 'City × class matrices',
             bookingPointPrices: 'Filled benchmark points',
             bookingLatestQuote: 'Latest Booking quote',
-            bookingLatestCheck: 'Latest 005 check',
+            bookingLatestCheck: 'Latest Booking check',
             bookingLocationClass: 'City and class',
             bookingKm: 'km',
             bookingBase: 'Supplier base up to 5 km',
@@ -1258,8 +1258,8 @@ export default {
         this.selectedComparisonSourceId = this.bookingSource.id
         this.selectedComparisonRunId = run.id
         this.notice = this.$store.state.language === 'ru'
-          ? 'Проверка прайса 005 запущена. Результат появится во вкладке «Возможности» и не изменит цены без подтверждения.'
-          : 'The 005 price check has started. Results will appear under Opportunities and will not change prices without approval.'
+          ? 'Проверка цен Booking запущена. Результат появится во вкладке «Возможности»; прайс 005 останется без изменений.'
+          : 'The Booking price check has started. Results will appear under Opportunities; the 005 price book will remain unchanged.'
         await this.reloadComparisonRuns()
       } finally {
         this.bookingCalculationBusy = false
