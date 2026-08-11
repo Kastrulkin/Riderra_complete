@@ -194,28 +194,48 @@
           <div v-if="staffNotice.text" class="notice" :class="staffNotice.type === 'error' ? 'notice--error' : 'notice--ok'">
             {{ staffNotice.text }}
           </div>
-          <div class="ops-table">
+          <div class="ops-table ops-table--access">
             <div class="ops-table__head ops-table__head--access">
               <div>{{ t.staffMember }}</div>
-              <div>{{ t.geoScope }}</div>
-              <div>{{ t.abacTeams }}</div>
+              <div>{{ t.accessAreas }}</div>
               <div>{{ t.actions }}</div>
             </div>
             <div v-for="u in staff" :key="`${u.id}-access`" class="ops-table__row ops-table__row--access">
               <div class="staff-identity">
                 <strong>{{ u.displayName || u.email }}</strong>
                 <span class="muted">{{ u.email }}</span>
+                <span class="muted">{{ t.globalScope }}</span>
               </div>
-              <div>
-                <span class="scope-pill">{{ t.globalScope }}</span>
-              </div>
-              <div>
-                <select v-model="abacDrafts[u.id].team" class="input select-input">
-                  <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
+              <div class="access-area-picker">
+                <label
+                  v-for="opt in teamOptions"
+                  :key="`${u.id}-${opt.value}`"
+                  class="access-area-option"
+                  :class="{
+                    'access-area-option--selected': isAccessAreaSelected(u.id, opt.value),
+                    'access-area-option--all': opt.value === 'all'
+                  }"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="isAccessAreaSelected(u.id, opt.value)"
+                    @change="toggleAccessArea(u.id, opt.value, $event.target.checked)"
+                  />
+                  <span class="access-area-option__body">
+                    <strong>{{ opt.label }}</strong>
+                    <small>{{ opt.hint }}</small>
+                  </span>
+                </label>
+                <span class="access-area-summary">{{ accessAreaSummary(u.id) }}</span>
               </div>
               <div class="row-actions row-actions--stack row-actions--stack-tight">
-                <button class="btn btn--small btn--primary" @click="saveStaffAbac(u)">{{ t.saveScopes }}</button>
+                <button
+                  class="btn btn--small btn--primary"
+                  :disabled="savingAccessId === u.id || !hasSelectedAccessAreas(u.id)"
+                  @click="saveStaffAbac(u)"
+                >
+                  {{ savingAccessId === u.id ? t.savingAccess : t.saveScopes }}
+                </button>
               </div>
             </div>
           </div>
@@ -268,6 +288,7 @@ export default {
     sheetForm: { name: '', monthLabel: '', googleSheetId: '', tabName: 'таблица', detailsTabName: 'подробности' },
     staffDrafts: {},
     abacDrafts: {},
+    savingAccessId: null,
     syncingSheetId: null,
     sheetNotice: { type: 'ok', text: '' },
     geoZoneNotice: { type: 'ok', text: '' },
@@ -285,12 +306,12 @@ export default {
         ? [
             { key: 'sources', label: 'Источники', hint: 'Google Sheets и маппинг' },
             { key: 'staff', label: 'Сотрудники и Telegram', hint: 'Привязка людей' },
-            { key: 'access', label: 'Права доступа', hint: 'Команды и scope' }
+            { key: 'access', label: 'Права доступа', hint: 'Области работы' }
           ]
         : [
             { key: 'sources', label: 'Sources', hint: 'Google Sheets and mapping' },
             { key: 'staff', label: 'Staff and Telegram', hint: 'Link people' },
-            { key: 'access', label: 'Access', hint: 'Teams and scope' }
+            { key: 'access', label: 'Access', hint: 'Work areas' }
           ]
       return this.canViewStaffRoles ? list : list.filter((section) => section.key !== 'access')
     },
@@ -300,7 +321,7 @@ export default {
       const telegramLinked = this.staff.filter((user) => String((user.telegramLinks && user.telegramLinks[0] && user.telegramLinks[0].telegramUserId) || '').trim()).length
       const teamScoped = this.staff.filter((user) => {
         const teams = Array.isArray(user.abacTeams) ? user.abacTeams : []
-        return teams.length && teams[0] !== 'all'
+        return teams.length && !teams.includes('all')
       }).length
       const cards = this.$store.state.language === 'ru'
         ? [
@@ -309,7 +330,7 @@ export default {
             { key: 'mapped', value: mappedSheets, label: 'С маппингом', hint: 'Колонки связаны с Riderra', tone: mappedSheets ? 'info' : 'warn' },
             { key: 'staff', value: this.staff.length, label: 'Сотрудников', hint: 'Стартовый roster кабинета', tone: 'neutral' },
             { key: 'telegram', value: telegramLinked, label: 'С Telegram ID', hint: 'Готовы к командам и уведомлениям', tone: telegramLinked ? 'ok' : 'warn' },
-            { key: 'scoped', value: teamScoped, label: 'С особыми scope', hint: 'Не все команды, а точечный доступ', tone: teamScoped ? 'info' : 'neutral' }
+            { key: 'scoped', value: teamScoped, label: 'Ограниченный доступ', hint: 'Выбраны конкретные области работы', tone: teamScoped ? 'info' : 'neutral' }
           ]
         : [
             { key: 'sheets', value: this.sheets.length, label: 'Sources', hint: 'Connected monthly sheets', tone: 'neutral' },
@@ -368,7 +389,7 @@ export default {
             staffTelegram: 'Сотрудники и Telegram',
             staffTelegramHint: 'Привязка Telegram User ID к сотрудникам, чтобы команды и уведомления попадали нужным людям.',
             accessScopes: 'Права доступа',
-            accessScopesHint: 'Уточняем командный доступ. Гео пока глобальный для всех, а команды можно ограничивать точечно.',
+            accessScopesHint: 'Выберите области Riderra, с которыми может работать сотрудник. Доступ задаётся по разделам работы, а не по отдельным командам.',
             name: 'Название',
             month: 'Месяц',
             status: 'Статус',
@@ -378,10 +399,10 @@ export default {
             syncing: 'Синхронизация...',
             save: 'Сохранить',
             roles: 'Роли',
-            geoScope: 'Гео-доступ',
             globalScope: 'Globe - все города',
-            abacTeams: 'Команды доступа',
-            saveScopes: 'Сохранить scope',
+            accessAreas: 'Области работы',
+            saveScopes: 'Сохранить доступ',
+            savingAccess: 'Сохраняем...',
             sheetName: 'Имя источника',
             sheetMonth: 'Метка месяца (например 2025-01)',
             sheetId: 'Google Sheet ID',
@@ -423,7 +444,7 @@ export default {
             staffTelegram: 'Staff and Telegram',
             staffTelegramHint: 'Link Telegram User IDs so commands and alerts reach the right staff members.',
             accessScopes: 'Access scopes',
-            accessScopesHint: 'Team-level access only; geo stays global for now.',
+            accessScopesHint: 'Choose the Riderra work areas this employee can use. Access is assigned by work area, not by individual commands.',
             name: 'Name',
             month: 'Month',
             status: 'Status',
@@ -433,10 +454,10 @@ export default {
             syncing: 'Syncing...',
             save: 'Save',
             roles: 'Roles',
-            geoScope: 'Geo scope',
             globalScope: 'Globe - all cities',
-            abacTeams: 'Allowed teams',
-            saveScopes: 'Save scope',
+            accessAreas: 'Work areas',
+            saveScopes: 'Save access',
+            savingAccess: 'Saving...',
             sheetName: 'Source name',
             sheetMonth: 'Month label (e.g. 2025-01)',
             sheetId: 'Google Sheet ID',
@@ -458,14 +479,14 @@ export default {
     teamOptions () {
       const isRu = this.$store.state.language === 'ru'
       return [
-        { value: 'all', label: isRu ? 'Все команды' : 'All teams' },
-        { value: 'coordination', label: isRu ? 'Координация' : 'Coordination' },
-        { value: 'dispatch', label: isRu ? 'Диспетчеризация' : 'Dispatch' },
-        { value: 'ops_control', label: isRu ? 'Операционный контроль' : 'Ops control' },
-        { value: 'finance', label: isRu ? 'Финансы' : 'Finance' },
-        { value: 'pricing', label: isRu ? 'Прайсинг' : 'Pricing' },
-        { value: 'sales', label: isRu ? 'Продажи' : 'Sales' },
-        { value: 'audit', label: isRu ? 'Аудит' : 'Audit' }
+        { value: 'all', label: isRu ? 'Все области' : 'All areas', hint: isRu ? 'Полный доступ к рабочим разделам' : 'Full access to all work areas' },
+        { value: 'coordination', label: isRu ? 'Заказы и координация' : 'Orders and coordination', hint: isRu ? 'Заказы, уточнения и согласования' : 'Orders, clarifications and coordination' },
+        { value: 'dispatch', label: isRu ? 'Водители и диспетчеризация' : 'Drivers and dispatch', hint: isRu ? 'Назначения и работа с водителями' : 'Assignments and driver operations' },
+        { value: 'ops_control', label: isRu ? 'Операционная работа' : 'Operations', hint: isRu ? 'Чаты, очереди, ошибки и контроль' : 'Chats, queues, errors and control' },
+        { value: 'finance', label: isRu ? 'Финансы' : 'Finance', hint: isRu ? 'Финансовые данные и расчёты' : 'Financial data and settlements' },
+        { value: 'pricing', label: isRu ? 'Цены' : 'Pricing', hint: isRu ? 'Прайс-листы и направления' : 'Price lists and routes' },
+        { value: 'sales', label: isRu ? 'Клиенты и продажи' : 'Customers and sales', hint: isRu ? 'CRM, клиенты и обращения' : 'CRM, customers and inquiries' },
+        { value: 'audit', label: isRu ? 'Аудит и контроль' : 'Audit and control', hint: isRu ? 'Проверки и история действий' : 'Reviews and activity history' }
       ]
     },
     canViewStaffRoles () {
@@ -513,7 +534,7 @@ export default {
       this.abacDrafts = this.staff.reduce((acc, user) => {
         const teams = Array.isArray(user.abacTeams) ? user.abacTeams : []
         acc[user.id] = {
-          team: teams[0] || 'all'
+          teams: teams.length ? (teams.includes('all') ? ['all'] : [...new Set(teams)]) : ['all']
         }
         return acc
       }, {})
@@ -677,7 +698,18 @@ export default {
     },
     async saveStaffAbac (user) {
       this.staffNotice = { type: 'ok', text: '' }
-      const draft = this.abacDrafts[user.id] || { team: 'all' }
+      const draft = this.abacDrafts[user.id] || { teams: ['all'] }
+      const teams = Array.isArray(draft.teams) ? draft.teams.filter(Boolean) : []
+      if (!teams.length) {
+        this.staffNotice = {
+          type: 'error',
+          text: this.$store.state.language === 'ru'
+            ? `Выберите хотя бы одну область для ${user.email}.`
+            : `Choose at least one work area for ${user.email}.`
+        }
+        return
+      }
+      this.savingAccessId = user.id
       try {
         await this.jsonRequest(`/api/admin/staff-users/${user.id}/abac`, {
           method: 'PUT',
@@ -685,14 +717,56 @@ export default {
           body: JSON.stringify({
             countries: 'all',
             cities: 'all',
-            teams: draft.team || 'all'
+            teams
           })
         })
         await this.load()
-        this.staffNotice = { type: 'ok', text: `Scope сохранён для ${user.email}.` }
+        this.staffNotice = {
+          type: 'ok',
+          text: this.$store.state.language === 'ru'
+            ? `Доступ сохранён для ${user.email}.`
+            : `Access saved for ${user.email}.`
+        }
       } catch (error) {
-        this.staffNotice = { type: 'error', text: `Ошибка сохранения scope: ${error.message}` }
+        this.staffNotice = { type: 'error', text: `Ошибка сохранения доступа: ${error.message}` }
+      } finally {
+        this.savingAccessId = null
       }
+    },
+    isAccessAreaSelected (userId, value) {
+      const teams = this.abacDrafts[userId] && Array.isArray(this.abacDrafts[userId].teams)
+        ? this.abacDrafts[userId].teams
+        : ['all']
+      return teams.includes(value)
+    },
+    hasSelectedAccessAreas (userId) {
+      const teams = this.abacDrafts[userId] && Array.isArray(this.abacDrafts[userId].teams)
+        ? this.abacDrafts[userId].teams
+        : []
+      return teams.length > 0
+    },
+    toggleAccessArea (userId, value, checked) {
+      const current = this.abacDrafts[userId] && Array.isArray(this.abacDrafts[userId].teams)
+        ? this.abacDrafts[userId].teams
+        : ['all']
+      let teams
+      if (value === 'all') {
+        teams = checked ? ['all'] : []
+      } else if (checked) {
+        teams = [...new Set(current.filter((team) => team !== 'all').concat(value))]
+      } else {
+        teams = current.filter((team) => team !== value)
+      }
+      this.$set(this.abacDrafts, userId, { teams })
+    },
+    accessAreaSummary (userId) {
+      const draft = this.abacDrafts[userId] || { teams: [] }
+      const teams = Array.isArray(draft.teams) ? draft.teams : []
+      if (teams.includes('all')) return this.$store.state.language === 'ru' ? 'Полный доступ' : 'Full access'
+      if (!teams.length) return this.$store.state.language === 'ru' ? 'Выберите хотя бы одну область' : 'Choose at least one area'
+      return this.$store.state.language === 'ru'
+        ? `Выбрано областей: ${teams.length}`
+        : `${teams.length} areas selected`
     }
   }
 }
@@ -745,14 +819,23 @@ export default {
 .ops-table__head--sources, .ops-table__row--sources { display:grid; grid-template-columns:minmax(180px,1.1fr) minmax(120px,.8fr) minmax(180px,1fr) minmax(110px,.7fr) minmax(140px,.8fr) minmax(180px,1fr) minmax(220px,1.1fr); }
 .ops-table__head--staff, .ops-table__row--staff { display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(180px,1fr) minmax(220px,1fr) minmax(160px,.7fr); }
 .ops-table__head--staff-private, .ops-table__row--staff-private { grid-template-columns:minmax(260px,1.2fr) minmax(260px,1fr) minmax(180px,.7fr); min-width:760px; }
-.ops-table__head--access, .ops-table__row--access { display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(180px,.8fr) minmax(220px,1fr) minmax(160px,.7fr); }
+.ops-table__head--access, .ops-table__row--access { display:grid; grid-template-columns:minmax(220px,.85fr) minmax(520px,2fr) minmax(160px,.6fr); }
 .entity-stack { display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
 .row-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .row-actions--stack { flex-direction:column; align-items:stretch; justify-content:center; }
 .row-actions--stack-tight .btn { width:100%; min-width:130px; }
-.select-input { min-height:44px; }
 .scope-pill { display:inline-block; border:1px solid #b8d1ff; background:#f1f7ff; color:#1f4d96; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:600; }
 .scope-pill--warn { border-color:#fde68a; background:#fff8dc; color:#92400e; }
+.access-area-picker { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.access-area-option { display:flex; align-items:flex-start; gap:9px; min-width:0; padding:9px 10px; border:1px solid #dfe5f0; border-radius:10px; background:#fff; cursor:pointer; transition:border-color .15s ease, background .15s ease, box-shadow .15s ease; }
+.access-area-option:hover { border-color:#aebbd3; background:#fafcff; }
+.access-area-option--selected { border-color:#9ebaf0; background:#f2f7ff; box-shadow:0 0 0 1px rgba(78,118,190,.08); }
+.access-area-option--all { grid-column:1/-1; background:#fafbfe; }
+.access-area-option input { flex:0 0 auto; width:17px; height:17px; margin:2px 0 0; accent-color:#223356; }
+.access-area-option__body { display:grid; gap:2px; min-width:0; }
+.access-area-option__body strong { color:#223356; font-size:13px; line-height:1.3; }
+.access-area-option__body small { color:#6b7280; font-size:11px; line-height:1.35; }
+.access-area-summary { grid-column:1/-1; color:#647191; font-size:12px; font-weight:600; }
 .staff-identity { display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
 .staff-identity strong { color:#1d2c4a; font-size:14px; }
 .cell-wrap { word-break:break-all; }
@@ -776,6 +859,9 @@ export default {
   .geo-zone-card__head { flex-direction:column; align-items:stretch; }
   .geo-zone-upload { grid-template-columns:1fr; }
   .geo-zone-meta { grid-template-columns:1fr 1fr; }
+  .ops-table--access { overflow:visible; border:0; border-radius:0; }
+  .ops-table__head--access { display:none; }
+  .ops-table__row--access { min-width:0; grid-template-columns:1fr; margin-bottom:12px; border:1px solid #e4e8f2; border-radius:12px; padding:14px; }
 }
 @media (max-width: 640px) {
   .settings-overview { grid-template-columns:1fr; }
@@ -788,6 +874,9 @@ export default {
     flex: 0 0 220px;
   }
   .geo-zone-meta { grid-template-columns:1fr; }
+  .access-area-picker { grid-template-columns:1fr; }
+  .access-area-option--all { grid-column:auto; }
+  .access-area-summary { grid-column:auto; }
   .inline-actions,
   .row-actions {
     width: 100%;
