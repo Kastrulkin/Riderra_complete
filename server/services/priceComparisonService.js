@@ -15,6 +15,7 @@ const { DOTTRANSFERS_DEFAULTS, DotTransfersAdapter } = require('./dotTransfersPr
 const { HEYCARS_DEFAULTS, HeyCarsAdapter } = require('./heyCarsPriceAdapter')
 const { WAUG_DEFAULTS, WaugAdapter } = require('./waugPriceAdapter')
 const { IWAY_DEFAULTS, IwayAdapter } = require('./iwayPriceAdapter')
+const { INTUI_DEFAULTS, IntuiAdapter } = require('./intuiPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -406,6 +407,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'heycars') return new HeyCarsAdapter(config, dependencies)
   if (source.adapterKey === 'waug') return new WaugAdapter(config, dependencies)
   if (source.adapterKey === 'iway') return new IwayAdapter(config, dependencies)
+  if (source.adapterKey === 'intui') return new IntuiAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -581,6 +583,19 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external.startsWith('standard_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('standard_suv_')) return /suv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === capacity)
+    if (external.startsWith('standard_minibus_')) return /standard mini.?bus/i.test(internal) && internalCapacity === capacity
+    return false
+  }
+  if (adapterKey === 'intui') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    const capacity = Number(external.match(/_(\d+)$/)?.[1])
+    if (external === 'standard_car') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'business_car') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external.startsWith('standard_suv_')) return /(standard mpv|suv)/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === capacity)
+    if (external.startsWith('standard_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
+    if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('standard_minibus_')) return /standard mini.?bus/i.test(internal) && internalCapacity === capacity
     return false
   }
@@ -1095,35 +1110,25 @@ async function executePriceComparisonRun({ prisma, runId, fetchImpl }) {
 }
 
 function defaultSourceData(overrides = {}) {
-  const defaults = overrides.adapterKey === 'civitatis'
-    ? CIVITATIS_DEFAULTS
-    : (overrides.adapterKey === 'booking'
-        ? BOOKING_DEFAULTS
-        : (overrides.adapterKey === 'jamtransfer'
-            ? JAMTRANSFER_DEFAULTS
-            : (overrides.adapterKey === 'suntransfers'
-                ? SUNTRANSFERS_DEFAULTS
-                : (overrides.adapterKey === 'transferz'
-                    ? TRANSFERZ_DEFAULTS
-                    : (overrides.adapterKey === 'talixo'
-                        ? TALIXO_DEFAULTS
-                        : (overrides.adapterKey === 'city-airport-taxis'
-                            ? CITY_AIRPORT_TAXIS_DEFAULTS
-                            : (overrides.adapterKey === 'mytravelthru'
-                                ? MYTRAVELTHRU_DEFAULTS
-                                : (overrides.adapterKey === 'mytransfers'
-                                    ? MYTRANSFERS_DEFAULTS
-                                    : (overrides.adapterKey === 'airports-taxi-transfers'
-                                        ? AIRPORTS_TAXI_TRANSFERS_DEFAULTS
-                                        : (overrides.adapterKey === 'airporttaxis-com'
-                                            ? AIRPORT_TAXIS_DEFAULTS
-                                            : (overrides.adapterKey === 'dottransfers'
-                                                ? DOTTRANSFERS_DEFAULTS
-                                                : (overrides.adapterKey === 'heycars'
-                                                    ? HEYCARS_DEFAULTS
-                                                    : (overrides.adapterKey === 'waug'
-                                                        ? WAUG_DEFAULTS
-                                                        : (overrides.adapterKey === 'iway' ? IWAY_DEFAULTS : SMART_RYDE_DEFAULTS))))))))))))))
+  const defaults = ({
+    'smart-ryde': SMART_RYDE_DEFAULTS,
+    civitatis: CIVITATIS_DEFAULTS,
+    booking: BOOKING_DEFAULTS,
+    jamtransfer: JAMTRANSFER_DEFAULTS,
+    suntransfers: SUNTRANSFERS_DEFAULTS,
+    transferz: TRANSFERZ_DEFAULTS,
+    talixo: TALIXO_DEFAULTS,
+    'city-airport-taxis': CITY_AIRPORT_TAXIS_DEFAULTS,
+    mytravelthru: MYTRAVELTHRU_DEFAULTS,
+    mytransfers: MYTRANSFERS_DEFAULTS,
+    'airports-taxi-transfers': AIRPORTS_TAXI_TRANSFERS_DEFAULTS,
+    'airporttaxis-com': AIRPORT_TAXIS_DEFAULTS,
+    dottransfers: DOTTRANSFERS_DEFAULTS,
+    heycars: HEYCARS_DEFAULTS,
+    waug: WAUG_DEFAULTS,
+    iway: IWAY_DEFAULTS,
+    intui: INTUI_DEFAULTS
+  })[overrides.adapterKey] || SMART_RYDE_DEFAULTS
   return {
     name: overrides.name || defaults.name,
     adapterKey: overrides.adapterKey || defaults.adapterKey,
@@ -1156,6 +1161,7 @@ module.exports = {
   HEYCARS_DEFAULTS,
   WAUG_DEFAULTS,
   IWAY_DEFAULTS,
+  INTUI_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1170,6 +1176,7 @@ module.exports = {
   HeyCarsAdapter,
   WaugAdapter,
   IwayAdapter,
+  IntuiAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
