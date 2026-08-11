@@ -218,7 +218,7 @@ export default {
   background: rgba(255,255,255,0.1);
   color: #fff;
   font-size: 16px;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   
   &:focus {
     outline: none;
@@ -250,11 +250,15 @@ export default {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   
   &:hover:not(:disabled) {
     background: #0056b3;
     transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.96);
   }
   
   &:disabled {

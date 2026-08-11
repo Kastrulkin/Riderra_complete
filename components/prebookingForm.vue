@@ -417,7 +417,6 @@
     border-radius: 0px 0px 5px 5px;
     padding: 12px 15px 15px 9px;
     max-width: 100%;
-    /*transition: all 150ms;*/
   }
 
   .dropdown-cities {
@@ -610,7 +609,7 @@
       right: 22px;
       z-index: 5;
       transform-origin: center;
-      transition: all 150ms ease;
+      transition: transform 150ms ease;
     }
   }
 

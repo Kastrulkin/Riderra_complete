@@ -281,7 +281,7 @@
     background: linear-gradient(135deg, #1a237e 0%, #0d1421 50%, #000000 100%);
     opacity: 1;
     transform: translate3d(0, 0, 0);
-    transition: 400ms all ease 400ms;
+    transition: opacity 400ms ease 400ms, transform 400ms ease 400ms, background-color 180ms ease;
     will-change: transform, opacity;
 
 
@@ -322,7 +322,7 @@
       padding: 0 16px;
       text-decoration: none;
       font-weight: 800;
-      transition: all 250ms;
+      transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, transform 150ms ease;
 
       &:hover{
         color: #000;
@@ -607,11 +607,15 @@
       padding: 8px 16px;
       border: 1px solid rgba(255,255,255,0.3);
       border-radius: 6px;
-      transition: all 0.2s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 
       &:hover {
         background: rgba(255,255,255,0.1);
         border-color: rgba(255,255,255,0.5);
+      }
+
+      &:active {
+        transform: scale(0.96);
       }
     }
 
@@ -647,11 +651,15 @@
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 
         &:hover {
           background: rgba(255,255,255,0.1);
           border-color: rgba(255,255,255,0.5);
+        }
+
+        &:active {
+          transform: scale(0.96);
         }
       }
     }

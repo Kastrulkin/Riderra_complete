@@ -289,7 +289,7 @@
       top: -10px;
       left: 0;
       transform: translate3d(0, -50%, 0);
-      transition: all 150ms;
+      transition: opacity 150ms ease, transform 150ms ease;
       font-size: 14px;
       color: #7D7D7D;
       font-weight: normal;

@@ -144,13 +144,13 @@
   }
 
   .dropdown {
-    transition: all 150ms ease;
+    transition: opacity 150ms ease, transform 150ms ease;
 
     &__item {
       text-align: center;
       padding: 3px 0;
       background: #fff;
-      transition: all 150ms ease;
+      transition: background-color 150ms ease, color 150ms ease;
       color: #000;
       position: relative;
 

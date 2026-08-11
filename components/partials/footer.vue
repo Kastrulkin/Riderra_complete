@@ -191,7 +191,7 @@
 
       svg{
         fill: rgba(0,0,0,0.7);
-        transition: 150ms all;
+        transition: fill 150ms ease;
       }
 
       &:hover{

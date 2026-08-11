@@ -299,6 +299,14 @@ ul {
   }
 }
 
+h1, h2, h3, .h2, .h3 {
+  text-wrap: balance;
+}
+
+p, li, figcaption, blockquote {
+  text-wrap: pretty;
+}
+
 p {
   font-size: 1em;
   line-height: 1.4375;
@@ -417,7 +425,7 @@ input[type="tel"]{
   display: block;
   border: none;
   outline: none;
-  transition: box-shadow 300ms;
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 150ms ease;
   cursor: pointer;
   height: 60px;
   line-height: 60px;
@@ -429,6 +437,10 @@ input[type="tel"]{
     background: #19253E;
     -webkit-box-shadow: 0px 12px 35px rgba(31, 46, 77, 0.22);
     box-shadow: 0px 12px 35px rgba(31, 46, 77, 0.22);
+  }
+
+  &:active:not(.disabled) {
+    transform: scale(0.96);
   }
 }
 
@@ -537,7 +549,11 @@ input[type="tel"]{
   text-align: center;
   text-decoration: none;
   font-weight: 800;
-  transition: all 250ms ease-in-out;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 150ms ease;
+}
+
+.white-button:active {
+  transform: scale(0.96);
 }
 
 .swiper-arrow {
@@ -545,7 +561,7 @@ input[type="tel"]{
   height: 23px;
   border-radius: 50%;
   background-image: none;
-  transition: 150ms all;
+  transition: background-color 150ms ease, transform 150ms ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -555,7 +571,7 @@ input[type="tel"]{
 
   svg {
     fill: #2F80ED;
-    transition: 150ms all;
+    transition: fill 150ms ease;
 
   }
 
@@ -835,7 +851,10 @@ input::placeholder {
 
 /* === Global Button Styles === */
 .btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
   background: #1F2E4D;
   color: #FFFFFF;
   border: 0;
@@ -846,9 +865,11 @@ input::placeholder {
   font-size: 16px;
   text-decoration: none;
   cursor: pointer;
-  transition: background .2s ease, color .2s ease, border-color .2s ease;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .15s ease;
 }
-.btn:hover { background: #19253E; color: #FFFFFF; }
+.btn:hover { background: #19253E; color: #FFFFFF; box-shadow: 0 8px 22px rgba(31, 46, 77, .16); transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: scale(0.96); }
+.btn:disabled, .button.disabled { box-shadow: none; cursor: not-allowed; transform: none; }
 
 .btn--primary { background: #1F2E4D; color: #FFFFFF; }
 .btn--primary:hover { background: #19253E; }
@@ -878,11 +899,34 @@ input::placeholder {
 .fade-enter-active, .fade-leave-active {
 
 
-    transition: all 250ms ease;
+    transition: opacity 250ms ease, transform 250ms ease;
     opacity: 1;
     visibility: visible;
     transform: translate3d(0, 0, 0);
 
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(47, 128, 237, .24);
+  outline-offset: 2px;
+}
+
+.price, [class*="__price"], [class*="-price"],
+.count, [class*="__count"], [class*="-count"],
+table td, table th {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button, .btn, .white-button, .swiper-arrow,
+  .page-enter-active, .page-leave-active,
+  .fade-enter-active, .fade-leave-active {
+    transition-duration: 0.01ms !important;
+  }
+
+  .button:active, .btn:active, .btn:hover {
+    transform: none;
+  }
 }
 
 .fade-enter, .fade-leave-to {

@@ -2,6 +2,8 @@
 html {
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 body {
   margin: 0;
@@ -56,7 +58,7 @@ audio:not([controls]) {
 a{
   text-decoration: underline;
   color: inherit;
-  transition: all 100ms;
+  transition: color 100ms ease;
 }
 a:hover{
   text-decoration: none;
@@ -950,4 +952,3 @@ input, textarea {
     display: none !important;
   }
 }
-

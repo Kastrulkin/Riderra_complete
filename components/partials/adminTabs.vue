@@ -346,7 +346,11 @@ export default {
   min-width: 0;
   min-height: 54px;
   align-content: center;
-  transition: min-height 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 150ms ease;
+}
+
+.admin-section-pill:active {
+  transform: scale(0.96);
 }
 
 .admin-section-pill__label {
@@ -429,7 +433,11 @@ export default {
   min-height: 50px;
   align-content: center;
   box-sizing: border-box;
-  transition: min-height 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 150ms ease;
+}
+
+.admin-subtab:active {
+  transform: scale(0.96);
 }
 
 .admin-subtab small {
@@ -556,6 +564,14 @@ export default {
     min-width: unset;
     flex: 0 0 180px;
     min-height: 62px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-section-pill,
+  .admin-subtab,
+  .admin-nav-shell--sticky::before {
+    transition: none;
   }
 }
 </style>

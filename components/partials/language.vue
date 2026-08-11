@@ -167,7 +167,7 @@
       align-items: center;
       line-height: 40px;
       white-space: nowrap;
-      transition: 150ms all ease;
+      transition: background-color 150ms ease, color 150ms ease;
       padding: 0 10px;
       border-radius: 5px;
       gap: 8px;
@@ -210,7 +210,7 @@
       stroke: #fff;
       display: inline-block;
       transform-origin: center;
-      transition: all 250ms ease;
+      transition: transform 250ms ease;
 
     }
 
@@ -251,7 +251,7 @@
   }
 
   .list-fade-enter-active {
-    transition: all .3s ease;
+    transition: opacity .3s ease, transform .3s ease;
   }
 
   .list-fade-leave-active {
@@ -300,7 +300,7 @@
           left: 0;
           width: 100%;
           top: calc(100% - 2px);
-          transition: all 100ms;
+          transition: opacity 100ms ease, transform 100ms ease;
         }
 
         &__current {

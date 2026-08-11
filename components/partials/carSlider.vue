@@ -337,7 +337,7 @@
           height: 0;
           position: absolute;
           bottom: 110px;
-          transition: all 250ms;
+          transition: opacity 250ms ease, transform 250ms ease;
         }
 
         &__button{
@@ -383,7 +383,7 @@
 
       &__item{
         width: 80%;
-        transition: all 0s;
+        transition: none;
       }
 
       .swiper-pagination{

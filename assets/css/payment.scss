@@ -1,5 +1,5 @@
 .fade-enter-active, .fade-leave-active {
-  transition: .3s all 150ms;
+  transition: opacity .3s ease 150ms, transform .3s ease 150ms;
   opacity: 1;
   transform: translate3d(0, 0, 0);
 }
@@ -164,7 +164,7 @@ input, textarea {
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    transition: all 150ms;
+    transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
 
     &:before {
       content: '';
@@ -180,7 +180,7 @@ input, textarea {
       border-radius: 5px;
       pointer-events: none;
       opacity: 0;
-      transition: all 150ms;
+      transition: opacity 150ms ease;
 
     }
     &.active {

@@ -212,7 +212,7 @@
       transform: translate3d(-50%, -50%, 0);
       width: 35%;
       border-radius: 50%;
-      transition: 250ms all;
+      transition: background-color 250ms ease, box-shadow 250ms ease, transform 250ms ease;
 
       &:before {
         content: "";

@@ -51,11 +51,20 @@ export default {
 .admin-shell .panel,
 .admin-shell .card,
 .admin-shell .table-wrap { border-color: var(--staff-line); box-shadow: none; }
-.admin-shell .btn { border-radius: 9px; box-shadow: none; transform: none; }
-.admin-shell .btn:hover { transform: none; }
+.admin-shell .btn { border-radius: 9px; }
+.admin-shell .btn:disabled { box-shadow: none; transform: none; }
 .admin-shell input,
 .admin-shell select,
 .admin-shell textarea { border-color: var(--staff-line); }
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea { transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease; }
+.admin-shell button { font: inherit; }
+.admin-shell table td,
+.admin-shell table th,
+.admin-shell [class*="stat"] strong,
+.admin-shell [class*="count"],
+.admin-shell [class*="price"] { font-variant-numeric: tabular-nums; }
 .admin-shell .notice,
 .admin-shell .toast,
 .admin-shell .hint { animation:staffFeedbackIn .2s ease-out; }

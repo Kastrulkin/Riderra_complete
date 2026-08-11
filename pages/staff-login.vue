@@ -217,6 +217,7 @@ export default {
   color: #111827;
   margin-bottom: 8px;
   text-align: left;
+  text-wrap: balance;
 }
 
 .auth-subtitle {
@@ -251,7 +252,7 @@ export default {
   background: #ffffff;
   color: #111827;
   font-size: 16px;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-input:focus {
@@ -284,12 +285,16 @@ export default {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .btn:hover:not(:disabled) {
   background: #243757;
   transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .btn:disabled {

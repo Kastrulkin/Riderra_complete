@@ -150,7 +150,7 @@
     transform: translate3d(0, -100%, 0);
   }
   .list-enter-active, .list-leave-active {
-    transition: all 1s;
+    transition: opacity 300ms ease, transform 300ms ease;
   }
   .list-enter, .list-leave-to /* .list-leave-active до версии 2.1.8 */ {
     opacity: 0;

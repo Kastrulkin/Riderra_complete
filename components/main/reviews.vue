@@ -39,7 +39,7 @@
     .swiper-slide {
       opacity: 0;
       transform: translate3d(10%, 0, 0);
-      transition: 350ms all;
+      transition: opacity 350ms ease, transform 350ms ease;
       height: auto;
       align-self: stretch;
 
@@ -71,7 +71,7 @@
       overflow: hidden;
       box-shadow: 0px 6px 20px rgba(213, 213, 213, 0.6);
       background: #fff;
-      transition: all 250ms;
+      transition: box-shadow 250ms ease, transform 250ms ease;
 
       &:hover {
         box-shadow: 0px 19px 30px rgba(178, 178, 178, 0.6);

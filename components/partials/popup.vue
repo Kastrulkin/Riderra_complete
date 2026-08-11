@@ -152,7 +152,7 @@
 
 
   .fade-enter-active, .fade-leave-active {
-    transition:  all 250ms;
+    transition: opacity 250ms ease, transform 250ms ease;
     opacity: 1;
     transform: translate3d(0, 0, 0);
     visibility: visible;

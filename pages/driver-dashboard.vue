@@ -783,7 +783,7 @@ export default {
     background: rgba(255,255,255,0.1);
     color: #fff;
     font-size: 14px;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
     
     &:focus {
       outline: none;
