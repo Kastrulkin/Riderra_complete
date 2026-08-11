@@ -21,3 +21,20 @@ test('respects disabled and weekday-only monitoring', () => {
   assert.equal(isBookingMonitorDue(new Date('2026-08-09T05:02:00Z'), { frequency: 'weekdays', localTime: '08:00' }), false)
   assert.equal(isBookingMonitorDue(new Date('2026-08-10T05:02:00Z'), { priceWatchEnabled: false, frequency: 'daily', localTime: '08:00' }), false)
 })
+
+test('normalizes the configured Booking priority locations', () => {
+  const monitoring = normalizeBookingMonitoring({
+    focusIatas: [' evn ', 'EVN', 'nqz', 'invalid'],
+    focusCountries: [' Morocco ', 'Morocco', 'Portugal']
+  })
+  assert.deepEqual(monitoring.focusIatas, ['EVN', 'NQZ'])
+  assert.deepEqual(monitoring.focusCountries, ['Morocco', 'Portugal'])
+})
+
+test('uses the agreed Booking priority locations by default', () => {
+  const monitoring = normalizeBookingMonitoring({})
+  assert.ok(monitoring.focusIatas.includes('EVN'))
+  assert.ok(monitoring.focusIatas.includes('TSE'))
+  assert.ok(monitoring.focusIatas.includes('NQZ'))
+  assert.deepEqual(monitoring.focusCountries, ['Morocco'])
+})

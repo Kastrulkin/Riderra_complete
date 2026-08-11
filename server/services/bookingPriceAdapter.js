@@ -15,6 +15,8 @@ const BOOKING_DEFAULTS = Object.freeze({
       timeZone: 'Europe/Moscow',
       lowRatio: 0.9,
       highRatio: 1.05,
+      focusIatas: ['EVN', 'HEL', 'RIX', 'TLL', 'VNO', 'ARN', 'ALA', 'TBS', 'BUS', 'GYD', 'KUN', 'HRG', 'KUT', 'LAX', 'TSE', 'NQZ', 'PLQ', 'ZNZ'],
+      focusCountries: ['Morocco'],
       openCitiesHours: 24,
       allRoutesDays: 7
     }

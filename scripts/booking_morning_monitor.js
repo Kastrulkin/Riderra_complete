@@ -4,7 +4,6 @@ require('dotenv').config()
 const axios = require('axios')
 const { PrismaClient } = require('@prisma/client')
 const { SocksProxyAgent } = require('socks-proxy-agent')
-const routeDataset = require('../server/data/bookingPriceRoutes.json')
 const {
   BOOKING_DEFAULTS,
   defaultSourceData,
@@ -79,16 +78,22 @@ async function main() {
     return
   }
 
-  const openIatas = routeDataset.openCityIata || []
+  const focusIatas = monitoring.focusIatas || []
+  const focusCountries = monitoring.focusCountries || []
+  const focusClauses = [
+    ...focusIatas.flatMap((iata) => [
+      { routeFrom: { contains: `(${iata})`, mode: 'insensitive' } },
+      { routeTo: { contains: `(${iata})`, mode: 'insensitive' } }
+    ]),
+    ...focusCountries.map((country) => ({ country: { contains: country, mode: 'insensitive' } }))
+  ]
+  if (!focusClauses.length) throw new Error('Booking morning monitor has no configured priority locations')
   const routeWhere = {
     tenantId: tenant.id,
     isActive: true,
     fixedPrice: { not: null },
     currency: { in: BOOKING_DEFAULTS.supportedCurrencies },
-    OR: openIatas.flatMap((iata) => [
-      { routeFrom: { contains: `(${iata})`, mode: 'insensitive' } },
-      { routeTo: { contains: `(${iata})`, mode: 'insensitive' } }
-    ])
+    OR: focusClauses
   }
   const pricingRows = await prisma.cityPricing.findMany({ where: routeWhere, select: { routeFrom: true, routeTo: true } })
   const routePairs = Array.from(new Map(pricingRows.map((row) => [`${row.routeFrom}\u0000${row.routeTo}`, row])).values())
@@ -99,7 +104,7 @@ async function main() {
     serviceAt: nextScheduledServiceAt(new Date(), BOOKING_DEFAULTS.schedule),
     formulaVersion: BOOKING_DEFAULTS.formulaVersion,
     pricingPolicyJson: JSON.stringify(BOOKING_DEFAULTS.pricingPolicy),
-    scopeJson: JSON.stringify({ type: 'booking_open_cities_morning', monitorDate, source: '005', routePairs }),
+    scopeJson: JSON.stringify({ type: 'booking_priority_locations_morning', monitorDate, source: '005', focusIatas, focusCountries, routePairs }),
     routeCount: pricingRows.length
   } })
   await executePriceComparisonRun({ prisma, runId: run.id })

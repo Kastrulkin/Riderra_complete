@@ -6,9 +6,18 @@ const DEFAULT_BOOKING_MONITORING = Object.freeze({
   timeZone: 'Europe/Moscow',
   lowRatio: 0.9,
   highRatio: 1.05,
+  focusIatas: ['EVN', 'HEL', 'RIX', 'TLL', 'VNO', 'ARN', 'ALA', 'TBS', 'BUS', 'GYD', 'KUN', 'HRG', 'KUT', 'LAX', 'TSE', 'NQZ', 'PLQ', 'ZNZ'],
+  focusCountries: ['Morocco'],
   openCitiesHours: 24,
   allRoutesDays: 7
 })
+
+function normalizeStringList(value, fallback, transform = (item) => item) {
+  const source = Array.isArray(value) ? value : fallback
+  return Array.from(new Set(source
+    .map((item) => transform(String(item || '').trim()))
+    .filter(Boolean)))
+}
 
 function normalizeWeekdays(value, frequency) {
   const rows = Array.from(new Set((Array.isArray(value) ? value : []).map(Number).filter((day) => day >= 1 && day <= 7))).sort((a, b) => a - b)
@@ -31,6 +40,8 @@ function normalizeBookingMonitoring(value = {}) {
     timeZone: 'Europe/Moscow',
     lowRatio: Number.isFinite(lowRatio) && lowRatio > 0 && lowRatio < 1 ? lowRatio : DEFAULT_BOOKING_MONITORING.lowRatio,
     highRatio: Number.isFinite(highRatio) && highRatio >= 1 && highRatio <= 2 ? highRatio : DEFAULT_BOOKING_MONITORING.highRatio,
+    focusIatas: normalizeStringList(value.focusIatas, DEFAULT_BOOKING_MONITORING.focusIatas, (item) => item.toUpperCase()).filter((item) => /^[A-Z0-9]{3}$/.test(item)),
+    focusCountries: normalizeStringList(value.focusCountries, DEFAULT_BOOKING_MONITORING.focusCountries),
     openCitiesHours: Math.min(168, Math.max(1, Number(value.openCitiesHours) || DEFAULT_BOOKING_MONITORING.openCitiesHours)),
     allRoutesDays: Math.min(90, Math.max(1, Number(value.allRoutesDays) || DEFAULT_BOOKING_MONITORING.allRoutesDays))
   }
