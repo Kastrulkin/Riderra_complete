@@ -214,7 +214,17 @@ function registerPricingComparisonRoutes(app, dependencies) {
         supplierGeniusPercent,
         bookingGeniusTopUpPercent: supplierGeniusPercent > 0 ? 5 : 0
       }
-      let vehicleRows = buildBookingCalculationRows(snapshots, calculationOptions)
+      const allVehicleRows = buildBookingCalculationRows(snapshots, calculationOptions)
+      const allAirports = buildBookingAirportMatrices(allVehicleRows)
+      const airportOptions = allAirports.map((airport) => ({
+        key: airport.key,
+        country: airport.country,
+        city: airport.city,
+        iata: airport.iata,
+        airportName: airport.airportName,
+        currency: airport.currency
+      }))
+      let vehicleRows = allVehicleRows
       const q = String(req.query.q || '').trim().toLowerCase()
       const iata = String(req.query.iata || '').trim().toUpperCase()
       const vehicle = String(req.query.vehicle || '').trim().toLowerCase()
@@ -245,14 +255,15 @@ function registerPricingComparisonRoutes(app, dependencies) {
           totalGeniusPercent: supplierGeniusPercent + calculationOptions.bookingGeniusTopUpPercent,
           distancePoints: BOOKING_DISTANCE_POINTS
         },
+        airportOptions,
         airports: pagedAirports,
         rows: pagedVehicleRows,
         page,
         limit,
         total,
-        vehicleMatrixCount: vehicleRows.length,
-        pointQuoteCount: airports.reduce((sum, airport) => sum + airport.points.reduce((pointSum, point) => pointSum + Object.values(point.prices).filter((price) => price.publicSellPrice > 0).length, 0), 0),
-        latestQuotedAt: airports.flatMap((airport) => airport.points.map((point) => point.quotedAt).filter(Boolean)).sort().at(-1) || null,
+        vehicleMatrixCount: allVehicleRows.length,
+        pointQuoteCount: allAirports.reduce((sum, airport) => sum + airport.points.reduce((pointSum, point) => pointSum + Object.values(point.prices).filter((price) => price.publicSellPrice > 0).length, 0), 0),
+        latestQuotedAt: allAirports.flatMap((airport) => airport.points.map((point) => point.quotedAt).filter(Boolean)).sort().at(-1) || null,
         latestMonitorRun,
         latestPointRun
       })

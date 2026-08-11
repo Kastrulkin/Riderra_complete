@@ -161,7 +161,7 @@
               <h3>{{ t.bookingCalculation }}</h3>
               <p class="panel-hint">{{ t.bookingCalculationHint }}</p>
             </div>
-            <div class="comparison-actions">
+            <div class="comparison-actions booking-head-actions">
               <button class="btn" :disabled="bookingCalculationBusy" @click="loadBookingCalculation(bookingPage)">{{ t.refresh }}</button>
               <button class="btn btn--primary" :disabled="bookingCalculationBusy || !bookingSource" @click="runBookingCheckNow">{{ t.bookingRunNow }}</button>
             </div>
@@ -174,8 +174,8 @@
           </div>
 
           <div v-if="bookingCalculation" class="booking-view-switch" role="tablist" :aria-label="t.bookingCalculation">
-            <button type="button" class="subtab" :class="{ 'subtab--active': bookingView === 'matrix' }" role="tab" :aria-selected="bookingView === 'matrix'" @click="bookingView='matrix'">{{ t.bookingPriceMatrix }}</button>
-            <button type="button" class="subtab" :class="{ 'subtab--active': bookingView === 'portal' }" role="tab" :aria-selected="bookingView === 'portal'" @click="bookingView='portal'">{{ t.bookingPortalSetup }}</button>
+            <button type="button" class="subtab" :class="{ 'subtab--active': bookingView === 'matrix' }" role="tab" :aria-selected="bookingView === 'matrix'" @click="setBookingView('matrix')">{{ t.bookingPriceMatrix }}</button>
+            <button type="button" class="subtab" :class="{ 'subtab--active': bookingView === 'portal' }" role="tab" :aria-selected="bookingView === 'portal'" @click="setBookingView('portal')">{{ t.bookingPortalSetup }}</button>
           </div>
 
           <div v-if="bookingSource" class="booking-schedule-card">
@@ -203,7 +203,7 @@
           </div>
 
           <div v-if="bookingCalculation" class="comparison-kpis">
-            <div class="mini-stat"><span>{{ t.bookingAirports }}</span><strong>{{ bookingCalculation.total }}</strong></div>
+            <div class="mini-stat"><span>{{ t.bookingAirports }}</span><strong>{{ bookingAirportOptions.length }}</strong></div>
             <div class="mini-stat"><span>{{ t.bookingMatrices }}</span><strong>{{ bookingCalculation.vehicleMatrixCount }}</strong></div>
             <div class="mini-stat"><span>{{ t.bookingPointPrices }}</span><strong>{{ bookingCalculation.pointQuoteCount }}</strong></div>
             <div class="mini-stat"><span>{{ t.bookingLatestQuote }}</span><strong>{{ formatDateTime(bookingCalculation.latestQuotedAt) }}</strong></div>
@@ -231,7 +231,7 @@
           <div v-else-if="bookingView === 'portal' && selectedBookingAirport" class="booking-portal-workspace">
             <div class="booking-portal-controls">
               <label class="pricing-field__label">{{ t.bookingChooseAirport }}
-                <select v-model="selectedBookingAirportKey" class="input"><option v-for="airport in bookingCalculationAirports" :key="airport.key" :value="airport.key">{{ airport.city }} · {{ airport.iata }}</option></select>
+                <select v-model="selectedBookingAirportKey" class="input" @change="loadSelectedBookingAirport"><option v-for="airport in bookingAirportOptions" :key="airport.key" :value="airport.key">{{ airport.city || airport.airportName }} · {{ airport.iata }}</option></select>
               </label>
               <label class="pricing-field__label">{{ t.bookingGeniusContribution }}
                 <select v-model.number="bookingGeniusPercent" class="input"><option :value="5">5% · Genius</option><option :value="0">{{ t.bookingWithoutGenius }}</option></select>
@@ -586,6 +586,7 @@ export default {
     bookingView: 'matrix',
     bookingGeniusPercent: 5,
     selectedBookingAirportKey: '',
+    bookingAirportOptions: [],
     bookingSearchTimer: null,
     bookingScheduleForm: {
       priceWatchEnabled: true,
@@ -638,7 +639,7 @@ export default {
             opportunitiesHint: 'Сравните активные маршруты Riderra с публичными ценами выбранной компании и найдите направления для партнёрского предложения.',
             bookingCalculation: 'Расчёт Booking',
             bookingCalculationHint: 'Сравните публичные цены по аэропортам и классам, затем получите готовые значения для дистанционных ставок в кабинете Booking.',
-            bookingRunNow: 'Проверить цены Booking сейчас',
+            bookingRunNow: 'Проверить цены сейчас',
             bookingFormulaCopy: 'Для кабинета: ориентир по розничной цене и Genius, без внутренней наценки. Отдельно для контроля: −{bcom}% BCOM, затем −{pmf}% до предельной цены водителя.',
             bookingApprovalNotice: 'Это отдельный рабочий расчёт Booking. Прайс 005 используется только как справочное сравнение и здесь не изменяется.',
             bookingPriceMatrix: 'Таблица цен',
@@ -1323,15 +1324,17 @@ export default {
       if (!this.selectedComparisonSourceId && this.comparisonSources.length) this.selectedComparisonSourceId = this.comparisonSources[0].id
       await this.reloadComparisonRuns()
     },
-    async loadBookingCalculation (page = 1) {
+    async loadBookingCalculation (page = 1, iata = '') {
       this.bookingCalculationBusy = true
       try {
         const params = new URLSearchParams({ page: String(page), limit: '25' })
         params.set('genius', String(Number(this.bookingGeniusPercent) || 0))
         if (this.bookingSource?.id) params.set('sourceId', this.bookingSource.id)
-        if (this.q.trim()) params.set('q', this.q.trim())
+        if (iata) params.set('iata', iata)
+        if (this.q.trim() && !iata) params.set('q', this.q.trim())
         const payload = await this.fetchJson(`/api/admin/pricing/booking-calculation?${params.toString()}`)
         this.bookingCalculation = payload
+        this.bookingAirportOptions = payload.airportOptions || []
         this.bookingPage = payload.page || page
         if (!payload.airports?.some((airport) => airport.key === this.selectedBookingAirportKey)) {
           this.selectedBookingAirportKey = payload.airports?.[0]?.key || ''
@@ -1347,6 +1350,16 @@ export default {
         this.notice = error.message
       } finally {
         this.bookingCalculationBusy = false
+      }
+    },
+    async loadSelectedBookingAirport () {
+      const option = this.bookingAirportOptions.find((airport) => airport.key === this.selectedBookingAirportKey)
+      if (option?.iata) await this.loadBookingCalculation(1, option.iata)
+    },
+    async setBookingView (view) {
+      this.bookingView = view
+      if (view === 'matrix' && this.bookingCalculation?.total === 1 && this.bookingAirportOptions.length > 1) {
+        await this.loadBookingCalculation(1)
       }
     },
     async saveBookingSchedule () {
@@ -2310,6 +2323,18 @@ export default {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.booking-head-actions {
+  align-self: flex-start;
+  flex-wrap: nowrap;
+}
+
+.booking-head-actions .btn {
+  min-height: 40px;
+  padding: 10px 14px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .booking-airports,
