@@ -91,11 +91,33 @@
           <div v-if="comparisonPlaceMappings.length" class="review-block">
             <h4>{{ t.reviewPlaces }}</h4>
             <p class="panel-hint">{{ t.reviewPlacesHint }}</p>
-            <div v-for="mapping in comparisonPlaceMappings" :key="mapping.id" class="review-row">
-              <strong>{{ mapping.inputText }}</strong>
+            <div
+              v-for="mapping in comparisonPlaceMappings"
+              :key="mapping.id"
+              class="review-row"
+              :class="{
+                'review-row--processing': placeMappingIsBusy(mapping),
+                'review-row--error': semanticMappingError(mapping)
+              }"
+              :aria-busy="placeMappingIsBusy(mapping) ? 'true' : 'false'"
+            >
+              <div class="review-row__main">
+                <strong>{{ mapping.inputText }}</strong>
+                <span v-if="placeMappingIsBusy(mapping)" class="review-row__progress" aria-live="polite">
+                  {{ semanticMappingBusyId === mapping.id ? t.semanticProcessingHint : t.mappingApplyingHint }}
+                  <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+                </span>
+                <span v-else-if="semanticMappingError(mapping)" class="review-row__error" role="alert">{{ semanticMappingError(mapping) }}</span>
+              </div>
               <div class="review-candidates">
-                <button class="btn btn--small" :disabled="semanticMappingBusyId === mapping.id" @click="suggestPlaceMapping(mapping)">{{ semanticMappingBusyId === mapping.id ? t.semanticSearching : t.semanticSuggest }}</button>
-                <button v-for="candidate in mappingCandidates(mapping)" :key="candidate.id" class="btn btn--small" :class="{ 'btn--recommended': semanticRecommendedId(mapping) === candidate.id }" @click="approvePlaceMapping(mapping, candidate)">{{ candidate.label }}<span v-if="semanticCandidateScore(mapping, candidate.id) !== null"> · {{ semanticCandidateScore(mapping, candidate.id) }}%</span></button>
+                <button type="button" class="btn btn--small semantic-suggest-btn" :class="{ 'semantic-suggest-btn--processing': semanticMappingBusyId === mapping.id }" :disabled="placeMappingIsBusy(mapping)" @click="suggestPlaceMapping(mapping)">
+                  <span v-if="semanticMappingBusyId === mapping.id" class="semantic-spinner" aria-hidden="true"></span>
+                  <span>{{ semanticMappingBusyId === mapping.id ? t.semanticSearching : t.semanticSuggest }}</span>
+                </button>
+                <button v-for="candidate in mappingCandidates(mapping)" :key="candidate.id" type="button" class="btn btn--small mapping-choice-btn" :class="{ 'btn--recommended': semanticRecommendedId(mapping) === candidate.id, 'mapping-choice-btn--processing': placeMappingBusyId === mapping.id && placeMappingBusyCandidateId === candidate.id }" :disabled="placeMappingIsBusy(mapping)" @click="approvePlaceMapping(mapping, candidate)">
+                  <span v-if="placeMappingBusyId === mapping.id && placeMappingBusyCandidateId === candidate.id" class="semantic-spinner" aria-hidden="true"></span>
+                  <span>{{ placeMappingBusyId === mapping.id && placeMappingBusyCandidateId === candidate.id ? t.mappingApplying : candidate.label }}</span><span v-if="!(placeMappingBusyId === mapping.id && placeMappingBusyCandidateId === candidate.id) && semanticCandidateScore(mapping, candidate.id) !== null"> · {{ semanticCandidateScore(mapping, candidate.id) }}%</span>
+                </button>
               </div>
             </div>
           </div>
@@ -554,6 +576,9 @@ export default {
     selectedComparisonRunId: '',
     comparisonBusy: false,
     semanticMappingBusyId: '',
+    placeMappingBusyId: '',
+    placeMappingBusyCandidateId: '',
+    semanticMappingErrors: {},
     comparisonPollTimer: null,
     bookingCalculation: null,
     bookingCalculationBusy: false,
@@ -676,7 +701,12 @@ export default {
             reviewPlaces: 'Проверьте точки маршрута',
             reviewPlacesHint: 'SmartRyde нашёл несколько вариантов. Выберите точный адрес, прежде чем продолжить.',
             semanticSuggest: 'Подобрать по смыслу',
-            semanticSearching: 'Сравниваю…',
+            semanticSearching: 'Разбираю маршрут…',
+            semanticProcessingHint: 'Сверяю название с вариантами',
+            semanticFailed: 'Не получилось разобрать маршрут. Попробуйте ещё раз.',
+            mappingApplying: 'Применяю…',
+            mappingApplyingHint: 'Сохраняю выбранную точку',
+            mappingApplyFailed: 'Не получилось применить вариант. Попробуйте ещё раз.',
             reviewVehicles: 'Проверьте классы автомобилей',
             reviewVehiclesHint: 'Подтвердите, как внешний класс соответствует классу в прайсе Riderra.',
             mapTo: 'сопоставить с',
@@ -811,7 +841,12 @@ export default {
             reviewPlaces: 'Review route places',
             reviewPlacesHint: 'The provider returned several candidates. Select the exact place before continuing.',
             semanticSuggest: 'Rank semantically',
-            semanticSearching: 'Comparing…',
+            semanticSearching: 'Matching route…',
+            semanticProcessingHint: 'Comparing the name with available places',
+            semanticFailed: 'Could not match this route. Please try again.',
+            mappingApplying: 'Applying…',
+            mappingApplyingHint: 'Saving the selected place',
+            mappingApplyFailed: 'Could not apply this option. Please try again.',
             reviewVehicles: 'Review vehicle classes',
             reviewVehiclesHint: 'Confirm how the external vehicle class maps to the Riderra price class.',
             mapTo: 'map to',
@@ -1264,6 +1299,12 @@ export default {
       const row = (this.semanticSuggestions(mapping).candidates || []).find((candidate) => candidate.id === candidateId)
       return row ? Math.round(Number(row.semanticScore || 0) * 100) : null
     },
+    semanticMappingError (mapping) {
+      return this.semanticMappingErrors[mapping.id] || ''
+    },
+    placeMappingIsBusy (mapping) {
+      return this.semanticMappingBusyId === mapping.id || this.placeMappingBusyId === mapping.id
+    },
     async configureSmartRyde () {
       this.comparisonBusy = true
       try {
@@ -1401,19 +1442,36 @@ export default {
       } finally { this.comparisonBusy = false }
     },
     async approvePlaceMapping (mapping, candidate) {
-      await this.fetchJson(`/api/admin/pricing/comparison-mappings/places/${mapping.id}`, {
-        method: 'PUT',
-        headers: { ...this.headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ externalPlaceId: candidate.id, externalLabel: candidate.label })
-      })
-      await this.loadComparisonRun(this.selectedComparisonRunId)
+      if (this.placeMappingIsBusy(mapping)) return
+      this.placeMappingBusyId = mapping.id
+      this.placeMappingBusyCandidateId = candidate.id
+      this.$delete(this.semanticMappingErrors, mapping.id)
+      try {
+        await this.fetchJson(`/api/admin/pricing/comparison-mappings/places/${mapping.id}`, {
+          method: 'PUT',
+          headers: { ...this.headers(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ externalPlaceId: candidate.id, externalLabel: candidate.label })
+        })
+        await this.loadComparisonRun(this.selectedComparisonRunId)
+      } catch (_) {
+        this.$set(this.semanticMappingErrors, mapping.id, this.t.mappingApplyFailed)
+      } finally {
+        this.placeMappingBusyId = ''
+        this.placeMappingBusyCandidateId = ''
+      }
     },
     async suggestPlaceMapping (mapping) {
+      if (this.placeMappingIsBusy(mapping)) return
       this.semanticMappingBusyId = mapping.id
+      this.$delete(this.semanticMappingErrors, mapping.id)
       try {
         await this.fetchJson(`/api/admin/pricing/comparison-mappings/places/${mapping.id}/semantic-suggestions`, { method: 'POST', headers: this.headers() })
         await this.loadComparisonRun(this.selectedComparisonRunId)
-      } finally { this.semanticMappingBusyId = '' }
+      } catch (_) {
+        this.$set(this.semanticMappingErrors, mapping.id, this.t.semanticFailed)
+      } finally {
+        this.semanticMappingBusyId = ''
+      }
     },
     async approveVehicleMapping (quote) {
       await this.fetchJson('/api/admin/pricing/comparison-mappings/vehicles', {
@@ -2524,8 +2582,10 @@ export default {
 }
 
 .review-row {
+  position: relative;
   padding: 12px 0;
   border-top: 1px solid #e2e8f0;
+  transition: background-color 180ms ease, box-shadow 180ms ease, margin 180ms ease, padding 180ms ease;
 }
 
 .review-row:first-of-type {
@@ -2537,6 +2597,58 @@ export default {
   gap: 3px;
 }
 
+.review-row__main {
+  display: grid;
+  min-width: 220px;
+  gap: 5px;
+}
+
+.review-row__progress {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #52647f;
+  font-size: 12px;
+}
+
+.review-row__progress i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #1f4fff;
+  animation: semantic-dot 1.1s ease-in-out infinite;
+}
+
+.review-row__progress i:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.review-row__progress i:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+.review-row__error {
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.review-row--processing,
+.review-row--error {
+  margin: 4px -10px;
+  padding: 12px 10px;
+  border-radius: 12px;
+}
+
+.review-row--processing {
+  background: #eef4ff;
+  box-shadow: inset 3px 0 #1f4fff;
+}
+
+.review-row--error {
+  background: #fff7f7;
+  box-shadow: inset 3px 0 #dc2626;
+}
+
 .review-row--vehicle span,
 .route-cell span {
   color: #64748b;
@@ -2546,6 +2658,65 @@ export default {
 .review-candidates {
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.semantic-suggest-btn {
+  display: inline-flex;
+  min-width: 190px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.semantic-suggest-btn--processing.btn:disabled {
+  border-color: #1f2e4d;
+  background: #1f2e4d;
+  color: #fff;
+  cursor: wait;
+  opacity: 1;
+}
+
+.mapping-choice-btn--processing.btn:disabled {
+  display: inline-flex;
+  min-width: 132px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-color: #1f2e4d;
+  background: #1f2e4d;
+  color: #fff;
+  cursor: wait;
+  opacity: 1;
+}
+
+.semantic-spinner {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: semantic-spin 750ms linear infinite;
+}
+
+@keyframes semantic-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes semantic-dot {
+  0%, 70%, 100% { opacity: .25; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-row {
+    transition: none;
+  }
+
+  .semantic-spinner,
+  .review-row__progress i {
+    animation: none;
+  }
 }
 
 .pricing-list__head--opportunities,
