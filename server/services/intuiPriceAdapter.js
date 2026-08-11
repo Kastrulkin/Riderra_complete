@@ -14,6 +14,7 @@ const INTUI_DEFAULTS = Object.freeze({
 })
 
 const FIND_URL = 'https://find.intui.travel/api:find'
+const PLACE_URL = 'https://find.intui.travel/api:place'
 const USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
 
 function normalizeKey(value) {
@@ -160,11 +161,8 @@ class IntuiAdapter {
     this.browserQueue = Promise.resolve()
   }
 
-  async resolvePlace(inputText, relatedPlaceId, context = {}) {
-    const query = String(inputText || '').trim()
-    if (!query) return []
-    const related = decodePlace(relatedPlaceId)
-    const response = await this.fetchImpl(FIND_URL, {
+  async publicPlaceRequest(url, body) {
+    const response = await this.fetchImpl(url, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -173,17 +171,31 @@ class IntuiAdapter {
         Referer: `${this.baseUrl}/`,
         'User-Agent': USER_AGENT
       },
-      body: JSON.stringify({ text: query, doc_id: related?.docId || 0, id: related?.placeId || '', ispast: false })
+      body: JSON.stringify(body)
     })
     if (!response.ok) throw new Error(`Intui place search failed: HTTP ${response.status}`)
-    const payload = await response.json()
+    return response.json()
+  }
+
+  async resolvePlace(inputText, relatedPlaceId, context = {}) {
+    const query = String(inputText || '').trim()
+    if (!query) return []
+    const related = decodePlace(relatedPlaceId)
+    const payload = await this.publicPlaceRequest(FIND_URL, { text: query, doc_id: related?.docId || 0, id: related?.placeId || '', ispast: false })
     let rows = (Array.isArray(payload?.data) ? payload.data : []).filter((row) => candidateMatches(query, row)).slice(0, 12)
     const country = normalizeKey(context.country)
     if (country) {
       const matches = rows.filter((row) => normalizeKey(row.country).includes(country))
       if (matches.length) rows = matches
     }
+    rows = await Promise.all(rows.map(async (row) => {
+      if (Number(row.docId) > 0 || !row.id) return row
+      const place = await this.publicPlaceRequest(`${PLACE_URL}?id=${encodeURIComponent(row.id)}`, { id: row.id })
+      const resolved = Array.isArray(place?.data) ? place.data[0] : null
+      return resolved ? { ...row, ...resolved, names: resolved.names || row.names } : row
+    }))
     return rows.map((row) => ({ id: encodePlace(row), label: row.names?.en || row.name, description: `${row.names?.en || row.name}, ${row.country || ''}`, type: String(row.type || 'address').toLowerCase() }))
+      .filter((row) => Boolean(decodePlace(row.id)))
   }
 
   normalizeVehicle(raw) { return raw }
