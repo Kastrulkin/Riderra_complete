@@ -1,7 +1,7 @@
 # Riderra x OpenClaw / Neighbor Agent Contract Phase 1
 
 Status: recommended contract for supervised agent interoperability.
-Last reviewed: 2026-06-11.
+Last reviewed: 2026-08-11.
 
 ## Goal
 
@@ -84,8 +84,13 @@ Sheets remain the order source of truth in MVP-1. Month archive is owner/financi
 - Write base price book: `riderra.pricing.base_price.write`
 - Read client/supplier price matrices: `riderra.pricing.price_matrix.read`
 - Suggest price correction: `riderra.pricing.correction.suggest`
+- Read external comparison evidence: `riderra.pricing.comparison.read`
+- Run a supervised external comparison: `riderra.pricing.comparison.run`
+- Read Booking calculation: `riderra.pricing.booking_calculation.read`
+- Configure Booking monitor: `riderra.pricing.booking_monitor.configure`
 
 Price writes require pricing admin approval. Internal Riderra price book is final truth.
+Booking observations are maintained separately; Riderra 005 is reference-only and cannot be changed by the Booking monitor.
 
 ### Communication
 

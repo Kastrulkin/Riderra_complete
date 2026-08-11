@@ -47,10 +47,16 @@ Status labels:
 | Read base Riderra price book | available | Internal authenticated read. |
 | Compare client prices in matrix view | available | Read/comparison only unless pricing admin approves edits. |
 | Compare supplier prices in matrix view | available | Read/comparison only unless pricing admin approves edits. |
-| Run external client price comparison | beta | SmartRyde adapter is available; a pricing manager starts collection and approves ambiguous place/class mappings. Results and Excel exports never update the Riderra price book automatically. |
-| Reuse external public transfer quotes | beta | Search historical SmartRyde snapshots by route, class, currency, and freshness. Public sell prices are market evidence and are not treated as confirmed supplier net prices or availability. |
+| Run external client price comparison | beta | Fourteen source profiles/adapters are installed. A pricing manager starts collection and approves ambiguous place/class mappings. Results and Excel exports never update the Riderra price book automatically. |
+| Reuse external public transfer quotes | beta | Search immutable historical snapshots by source, route, class, currency and freshness. Public sell prices are market evidence, not confirmed supplier net rates or availability. |
+| Treat missing external coverage as an opportunity | available | `no_quote` is a coverage signal; it must remain distinct from a zero price and from a technical failure. |
+| Maintain canonical benchmark places | beta | Exact addresses, coordinates, zones, aliases and IATA are stored; uncertain matches remain reviewable. |
+| Suggest place mappings with embeddings | beta | GigaChat similarity may rank candidates but cannot approve an ambiguous mapping on its own. |
+| Review Booking partner rates | available | Fixed and distance-based Booking working rates are separate from Riderra 005. |
+| Calculate Simon Booking targets | available | Public Booking points at 5/10/20/40/60 km apply versioned BCOM/PMF rules with workbook-compatible rounding. |
+| Schedule Booking selling-price monitoring | available | Monitoring creates Booking observations/variance reports. Riderra 005 is reference-only and is not a mutation target. |
 | Edit base price book | available | Pricing admin approval required. |
-| Suggest price corrections | beta | Draft suggestion only; no autonomous write. |
+| Suggest Riderra price corrections | beta | Draft suggestion only; no autonomous write. Booking monitoring does not create 005 mutations. |
 | Import external price files | internal | Treat as comparison/import source, not final truth. |
 | Explain price mismatch | beta | Distinguish no rule, matched, mismatch, currency/class/route ambiguity. |
 

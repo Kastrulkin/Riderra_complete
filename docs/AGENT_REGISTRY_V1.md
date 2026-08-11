@@ -1,7 +1,7 @@
 # Riderra Agent Registry v1
 
 Status: canonical internal model for AI-agent interoperability.
-Last reviewed: 2026-06-11.
+Last reviewed: 2026-08-11.
 
 ## Vocabulary
 
@@ -72,6 +72,9 @@ Required invariants:
 | `riderra.pricing.comparison.read` | available | no | pricing read permission | `GET /api/admin/pricing/comparison-sources`, `GET /api/admin/pricing/comparison-runs/:id/results` |
 | `riderra.pricing.comparison.run` | beta | creates immutable external quote snapshots and comparison results; does not change the price book | pricing manager human starts the run and approves ambiguous mappings | `POST /api/admin/pricing/comparison-runs`, `POST /api/admin/pricing/comparison-runs/:id/execute`, `PUT /api/admin/pricing/comparison-mappings/*` |
 | `riderra.pricing.external_quotes.read` | beta | no | pricing read permission; public sell quotes are evidence, not guaranteed supplier net rates | `GET /api/admin/pricing/external-quotes`, `GET /api/admin/pricing/external-quotes/coverage` |
+| `riderra.pricing.booking_calculation.read` | available | no | pricing read permission; Riderra 005 is reference-only | `GET /api/admin/pricing/booking-calculation` |
+| `riderra.pricing.booking_monitor.configure` | available | changes Booking monitor schedule, not prices | pricing manage permission | `PUT /api/admin/pricing/comparison-sources/:id/schedule` |
+| `riderra.pricing.booking_monitor.review` | available | creates an observation report; cannot target 005 rows for mutation | human review | scheduled worker / `HumanApproval` |
 | `riderra.chat.message.compose` | available | creates draft message | human required before send | `POST /api/admin/chats/tasks/:id/build` |
 | `riderra.chat.message.approve` | available | approves message draft | human required | `POST /api/admin/chats/messages/:id/approve` |
 | `riderra.chat.message.send` | available | sends outbound message | human required | `POST /api/admin/chats/messages/:id/send` |
@@ -95,6 +98,7 @@ Required invariants:
 - AI Inbox drafts never bypass human review.
 - Price truth is the internal Riderra price book.
 - External price files are imports or comparison evidence, not final authority.
+- Booking partner/public prices are a separate working domain; Booking monitoring cannot mutate Riderra 005.
 - Google Maps address checks are validation signals, not autonomous correction authority.
 - Telegram, WhatsApp, email, and customer-facing outbound messages require human approval.
 - Pricing writes, month archive, order cancellation/change, CRM migration, role/VPN/Telegram access changes, and bulk deletes require human approval.

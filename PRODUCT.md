@@ -1,11 +1,11 @@
 # Riderra Product Canon
 
 Status: canonical product context for humans and AI agents.
-Last reviewed: 2026-06-11.
+Last reviewed: 2026-08-11.
 
 ## What Riderra Is
 
-Riderra is an operations system for private passenger transfers. It combines a public transfer booking surface, an internal operator console, Google Sheets based monthly order intake, AI Inbox draft processing, driver and counterparty price books, Telegram-assisted operations, and supervised AI workflows.
+Riderra is an operations system for private passenger transfers. It combines a public transfer-request surface, an internal operator console, Google Sheets based monthly order intake, CRM for customers and suppliers, driver/counterparty price books, immutable external price evidence, Telegram-assisted operations, and supervised AI workflows.
 
 Riderra is not a fully autonomous booking or dispatch agent. It is a supervised operating layer where AI may prepare, validate, compare, classify, draft, and propose actions, while Riderra keeps human approval, pricing truth, order truth, role-based access, and audit boundaries.
 
@@ -22,8 +22,10 @@ Riderra is not a fully autonomous booking or dispatch agent. It is a supervised 
 - Orders, MVP-1: Google Sheets remain the operational source of truth. Riderra reads monthly sheets into the app; humans may continue editing the sheet.
 - Monthly order model: each month has a dedicated Google Sheet source configured in Riderra.
 - Current working table: configured by the month/source UI, not hardcoded.
-- Prices: the internal Riderra price book is the final source of truth.
-- External price files, EasyTaxi, dispatch sheets, and driver sheets are comparison sources only.
+- Riderra selling prices: the internal Riderra price book is the final source of truth.
+- Customer and supplier agreements: versioned client/supplier rules are separate from the base price book.
+- External public prices, price files, EasyTaxi, dispatch sheets, and driver sheets are evidence/comparison sources only.
+- Booking: supplier-portal rates and public selling-price calculations form a separate Booking workspace. Riderra 005 may be used as reference but is not changed by Booking monitoring.
 - AI Inbox: staging area for email-derived order drafts, changes, and cancellations before human approval.
 - Public information: Riderra-owned public pages, `/llms.txt`, `/api/public/*`, and `/api/public/openapi.json`.
 
@@ -34,6 +36,8 @@ Riderra is not a fully autonomous booking or dispatch agent. It is a supervised 
 - Let humans review AI Inbox drafts before creating or changing orders.
 - Compare trip prices against the internal Riderra price book.
 - Show counterparty and supplier price lists in comparable matrix views.
+- Preserve historical external quote snapshots and explain missing coverage or ambiguous mappings.
+- Calculate and monitor Booking public prices and supplier targets separately from the base price book.
 - Draft customer, driver, and operational messages for human review.
 - Keep risky operations under explicit approval.
 - Record enough context for audit, support, and incident investigation.
@@ -43,6 +47,7 @@ Riderra is not a fully autonomous booking or dispatch agent. It is a supervised 
 - No autonomous confirmed bookings from public AI-agent requests.
 - No final public price quote without Riderra review.
 - No autonomous outbound customer or supplier communication without approval.
+- No autonomous mutation of Riderra 005 from Booking or another external price monitor.
 - No destructive order, pricing, CRM, or role changes without a responsible human action.
 - No claim that every internal API is public, stable, or safe for external agents.
 - No public exposure of the full internal price book.
@@ -80,6 +85,7 @@ AI may prepare drafts, checks, recommendations, and structured payloads for thes
 - `pages/admin-order-archive.vue`: closed month archive.
 - `pages/admin-order-analytics.vue`: monthly and operational analytics.
 - `pages/admin-pricing.vue`: base price book, client prices, supplier prices, risks, fines.
+- `pages/admin-directions-matrix.vue`: canonical direction/benchmark coverage and route readiness.
 - `pages/admin-agents.vue`: AI agent configuration and dry-run testing.
 - `pages/admin-ai-requests.vue`: public AI-agent draft transfer requests.
 - `pages/admin-chats.vue`: supervised customer/driver communication workflows.
