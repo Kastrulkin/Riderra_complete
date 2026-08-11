@@ -288,7 +288,7 @@
               <div>{{ t.currency }}</div>
               <div>{{ t.bestSupplier }}</div>
             </div>
-            <div v-for="r in filteredBaseRows" :key="r.id" class="pricing-row pricing-row--sheet">
+            <div v-for="r in visibleBaseRows" :key="r.id" class="pricing-row pricing-row--sheet">
               <div>{{ sheetCountryLabel(r) }}</div>
               <div>{{ sheetPlaceLabel(r.routeFrom, r) }}</div>
               <div>{{ sheetPlaceLabel(r.routeTo, r) }}</div>
@@ -307,6 +307,9 @@
               </div>
             </div>
             <div v-if="!filteredBaseRows.length" class="empty-state">{{ t.empty }}</div>
+            <div v-else-if="baseHiddenRowsCount > 0" class="pricing-list__more">
+              <button class="btn" @click="showMoreBaseRows">{{ t.showMore }} · {{ baseHiddenRowsCount }}</button>
+            </div>
           </div>
         </div>
 
@@ -603,6 +606,7 @@ export default {
     },
     selectedCounterparties: [],
     selectedSuppliers: [],
+    baseVisibleLimit: 250,
     counterpartyVisibleLimit: 250,
     supplierVisibleLimit: 250,
     notice: '',
@@ -618,6 +622,7 @@ export default {
   }),
   watch: {
     q () {
+      this.resetBaseVisibleLimit()
       this.resetCounterpartyVisibleLimit()
       this.resetSupplierVisibleLimit()
       if (this.tab === 'booking') {
@@ -1006,6 +1011,12 @@ export default {
       if (!q) return this.baseRows
       return this.baseRows.filter((row) => `${row.country || ''} ${row.routeFrom || ''} ${row.routeTo || ''} ${row.vehicleType || ''} ${row.bestSupplierCompany?.name || ''}`.toLowerCase().includes(q))
     },
+    visibleBaseRows () {
+      return this.filteredBaseRows.slice(0, this.baseVisibleLimit)
+    },
+    baseHiddenRowsCount () {
+      return Math.max(0, this.filteredBaseRows.length - this.visibleBaseRows.length)
+    },
     filteredCpRows () {
       const q = this.q.trim().toLowerCase()
       if (!q) return this.cpRows
@@ -1366,7 +1377,7 @@ export default {
     async loadBookingCalculation (page = 1, iata = '') {
       this.bookingCalculationBusy = true
       try {
-        const params = new URLSearchParams({ page: String(page), limit: '25' })
+        const params = new URLSearchParams({ page: String(page), limit: '10' })
         params.set('genius', String(Number(this.bookingGeniusPercent) || 0))
         if (this.bookingSource?.id) params.set('sourceId', this.bookingSource.id)
         if (iata) params.set('iata', iata)
@@ -1553,11 +1564,13 @@ export default {
     },
     priceLabel (value, currency = '') {
       if (value === null || value === undefined || value === '') return '-'
-      return `${value}${currency ? ` ${currency}` : ''}`
+      const number = Number(value)
+      const amount = Number.isFinite(number) ? number.toFixed(2) : String(value)
+      return `${amount}${currency ? ` ${currency}` : ''}`
     },
     priceAmountLabel (value) {
       if (value === null || value === undefined || value === '') return '-'
-      return Number.isFinite(Number(value)) ? Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) : String(value)
+      return Number.isFinite(Number(value)) ? Number(value).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(value)
     },
     counterpartyPriceLabel (row, owner) {
       const price = row.counterpartyPrices?.[owner]
@@ -1670,6 +1683,12 @@ export default {
     },
     clearCounterparties () {
       this.selectedCounterparties = []
+    },
+    resetBaseVisibleLimit () {
+      this.baseVisibleLimit = 250
+    },
+    showMoreBaseRows () {
+      this.baseVisibleLimit += 250
     },
     resetCounterpartyVisibleLimit () {
       this.counterpartyVisibleLimit = 250
