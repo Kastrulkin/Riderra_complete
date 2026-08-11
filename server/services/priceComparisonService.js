@@ -16,6 +16,7 @@ const { HEYCARS_DEFAULTS, HeyCarsAdapter } = require('./heyCarsPriceAdapter')
 const { WAUG_DEFAULTS, WaugAdapter } = require('./waugPriceAdapter')
 const { IWAY_DEFAULTS, IwayAdapter } = require('./iwayPriceAdapter')
 const { INTUI_DEFAULTS, IntuiAdapter } = require('./intuiPriceAdapter')
+const { KIWITAXI_DEFAULTS, KiwitaxiAdapter } = require('./kiwitaxiPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -412,6 +413,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'waug') return new WaugAdapter(config, dependencies)
   if (source.adapterKey === 'iway') return new IwayAdapter(config, dependencies)
   if (source.adapterKey === 'intui') return new IntuiAdapter(config, dependencies)
+  if (source.adapterKey === 'kiwitaxi') return new KiwitaxiAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -584,6 +586,22 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external === 'comfort_car') return /comfort/i.test(internal) && !/(van|mpv|bus)/i.test(internal)
     if (['business_light_car', 'business_car'].includes(external)) return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
     if (external === 'first_class_car') return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external.startsWith('standard_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
+    if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
+    if (external.startsWith('standard_suv_')) return /suv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === capacity)
+    if (external.startsWith('standard_minibus_')) return /standard mini.?bus/i.test(internal) && internalCapacity === capacity
+    return false
+  }
+  if (adapterKey === 'kiwitaxi') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    const capacity = Number(external.match(/_(\d+)$/)?.[1])
+    if (external === 'standard_car') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'comfort_car') return /comfort/i.test(internal) && !/(van|mpv|bus)/i.test(internal)
+    if (external === 'business_car') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external === 'first_class_car') return /(first class|luxury)/i.test(internal) && !/(van|mpv|suv)/i.test(internal)
+    if (external === 'standard_mpv_4') return /standard mpv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === 4)
     if (external.startsWith('standard_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('standard_suv_')) return /suv/i.test(internal) && (!Number.isFinite(internalCapacity) || internalCapacity === capacity)
@@ -1131,7 +1149,8 @@ function defaultSourceData(overrides = {}) {
     heycars: HEYCARS_DEFAULTS,
     waug: WAUG_DEFAULTS,
     iway: IWAY_DEFAULTS,
-    intui: INTUI_DEFAULTS
+    intui: INTUI_DEFAULTS,
+    kiwitaxi: KIWITAXI_DEFAULTS
   })[overrides.adapterKey] || SMART_RYDE_DEFAULTS
   return {
     name: overrides.name || defaults.name,
@@ -1166,6 +1185,7 @@ module.exports = {
   WAUG_DEFAULTS,
   IWAY_DEFAULTS,
   INTUI_DEFAULTS,
+  KIWITAXI_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1181,6 +1201,7 @@ module.exports = {
   WaugAdapter,
   IwayAdapter,
   IntuiAdapter,
+  KiwitaxiAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

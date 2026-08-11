@@ -602,6 +602,7 @@ export default {
             { key: 'all', label: 'Все компании' },
             { key: 'clients', label: 'Заказчики' },
             { key: 'suppliers', label: 'Исполнители' },
+            { key: 'competitors', label: 'Конкуренты' },
             { key: 'potential', label: 'Потенциальные' },
             { key: 'coverage_gap', label: 'Нужен разбор' }
           ]
@@ -783,6 +784,7 @@ export default {
       if (this.activeView === 'suppliers') return this.mode === 'companies'
         ? ['supplier_company', 'potential_supplier']
         : ['supplier_contact', 'potential_supplier']
+      if (this.activeView === 'competitors') return this.mode === 'companies' ? ['competitor_company'] : []
       if (this.activeView === 'potential') return this.mode === 'companies'
         ? ['potential_client_company', 'potential_supplier']
         : ['potential_client_contact', 'potential_client_agent', 'potential_supplier']
@@ -799,6 +801,7 @@ export default {
       if (key === 'all') return true
       if (key === 'clients') return this.hasAnySegment(row, ['client_company', 'client_contact'])
       if (key === 'suppliers') return this.hasAnySegment(row, ['supplier_company', 'supplier_contact', 'potential_supplier'])
+      if (key === 'competitors') return this.hasAnySegment(row, ['competitor_company'])
       if (key === 'potential') return this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])
       if (key === 'coverage_gap') return this.needsAttention(row)
       return true
@@ -820,6 +823,7 @@ export default {
         client_contact: 'Заказчик (контакт)',
         supplier_company: 'Исполнитель (компания)',
         supplier_contact: 'Исполнитель (контакт)',
+        competitor_company: 'Конкурент',
         potential_client_company: 'Потенциальный заказчик (компания)',
         potential_client_contact: 'Потенциальный заказчик (контакт)',
         potential_client_agent: 'Потенциальный заказчик (агент)',
@@ -876,6 +880,7 @@ export default {
       const companySegments = [
         'client_company',
         'supplier_company',
+        'competitor_company',
         'potential_client_company',
         'potential_client_agent',
         'potential_supplier'
@@ -911,6 +916,7 @@ export default {
     },
     comparisonFormulaLabel(source) {
       const policy = source?.pricingPolicy || {}
+      if (policy.type === 'competitor_public_price') return `Riderra < ${source?.name || 'конкурент'} (публичная цена)`
       if (policy.type === 'client_commission') return `${source?.name || 'Компания'} × ${(1 - Number(policy.commissionPercent || 0) / 100).toFixed(2)}`
       if (policy.type === 'percentage_discount') return `Riderra × ${(1 - Number(policy.discountPercent || 0) / 100).toFixed(2)}`
       if (policy.type === 'sequential_deductions' && policy.basis === 'client_sell') {

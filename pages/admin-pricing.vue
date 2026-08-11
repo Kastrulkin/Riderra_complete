@@ -1291,6 +1291,7 @@ export default {
     },
     comparisonFormulaLabel (source) {
       const policy = source?.pricingPolicy || {}
+      if (policy.type === 'competitor_public_price') return `Riderra < ${source?.name || 'конкурент'} (публичная цена)`
       if (policy.type === 'client_commission') return `${source?.name || 'Company'} × ${(1 - (Number(policy.commissionPercent || 0) / 100)).toFixed(2)} (${policy.commissionPercent}% комиссия)`
       if (policy.type === 'percentage_discount') return `Riderra × ${(1 - (Number(policy.discountPercent || 0) / 100)).toFixed(2)} (${policy.discountPercent}% ниже)`
       if (policy.type === 'sequential_deductions') return (policy.deductions || []).map((value) => `−${value}%`).join(' → ')
