@@ -323,6 +323,7 @@
               <button v-for="name in counterpartyOptions" :key="name" class="filter-chip" :class="{ 'filter-chip--active': selectedCounterparties.includes(name) }" @click="toggleCounterparty(name)">{{ name }}</button>
             </div>
           </div>
+          <div v-if="externalCpRowsLoading" class="hint" aria-live="polite">{{ t.clientPricesLoading }}</div>
           <div class="pricing-list pricing-list--sheet">
             <div class="pricing-list__head pricing-list__head--comparison" :style="counterpartyGridStyle">
               <div>{{ t.country }}</div>
@@ -332,6 +333,7 @@
               <div>{{ t.pax }}</div>
               <div>{{ t.riderraPrice }}</div>
               <div>{{ t.currency }}</div>
+              <div>{{ t.priceUpdatedAt }}</div>
               <div v-for="name in counterpartyComparisonColumns" :key="`head-${name}`">{{ name }}</div>
             </div>
             <div v-for="r in visibleCounterpartyComparisonRows" :key="r.key" class="pricing-row pricing-row--comparison" :style="counterpartyGridStyle">
@@ -339,11 +341,13 @@
               <div>{{ sheetPlaceLabel(r.routeFrom, r) }}</div>
               <div>{{ sheetPlaceLabel(r.routeTo, r) }}</div>
               <div>{{ r.vehicleType || '-' }}</div>
-              <div>{{ paxLabel(r.vehicleType) }}</div>
+              <div>{{ r.maxPassengers || paxLabel(r.vehicleType) }}</div>
               <div class="price-cell"><strong>{{ priceAmountLabel(r.riderraPrice) }}</strong></div>
               <div>{{ r.currency || '-' }}</div>
+              <div>{{ formatPriceDate(counterpartyRowUpdatedAt(r)) }}</div>
               <div v-for="name in counterpartyComparisonColumns" :key="`${r.key}-${name}`" class="price-cell price-cell--counterparty">
                 <strong>{{ counterpartyPriceLabel(r, name) }}</strong>
+                <small v-if="r.counterpartyPrices[name]?.updatedAt">{{ counterpartyPriceSourceLabel(r.counterpartyPrices[name]) }} · {{ formatPriceDate(r.counterpartyPrices[name].updatedAt) }}</small>
               </div>
             </div>
             <div v-if="!filteredCounterpartyComparisonRows.length" class="empty-state">{{ t.empty }}</div>
@@ -566,6 +570,9 @@ export default {
     q: '',
     baseRows: [],
     cpRows: [],
+    externalCpRows: [],
+    externalCpRowsLoaded: false,
+    externalCpRowsLoading: false,
     conflictRows: [],
     driverRows: [],
     adjustmentSummary: null,
@@ -620,6 +627,7 @@ export default {
     },
     tab (value) {
       if (value === 'booking' && !this.bookingCalculation) this.loadBookingCalculation(1)
+      if (value === 'counterparty' && !this.externalCpRowsLoaded) this.loadExternalClientPrices()
     },
     selectedCounterparties () {
       this.resetCounterpartyVisibleLimit()
@@ -742,6 +750,9 @@ export default {
             vehicleClass: 'Класс авто',
             sale: 'Цена',
             currency: 'Валюта',
+            priceUpdatedAt: 'Цена обновлена',
+            publicSnapshot: 'Сайт',
+            agreedPrice: 'Согласовано',
             bestSupplier: 'Лучший поставщик',
             counterpartyName: 'Контрагент',
             name: 'Водитель',
@@ -761,7 +772,8 @@ export default {
             cancel: 'Отмена',
             empty: 'По текущему фильтру данных пока нет.',
             baseHint: 'Главный источник истины по продажной цене Riderra. Именно отсюда должна браться финальная цена, если нет специально согласованного исключения.',
-            counterpartyHint: 'Актуальный прайс-лист выбранного клиента. Таблица показывает итоговые действующие цены, а не отдельные правки.',
+            counterpartyHint: 'Согласованные цены и последние публичные цены, собранные с сайтов клиентов. Публичные снимки показываются для анализа и не меняют договорной прайс.',
+            clientPricesLoading: 'Загружаю сохранённые публичные прайсы клиентов…',
             driverHint: 'Актуальный прайс-лист выбранного исполнителя: маршруты, классы авто, себестоимость и источник строки.',
             conflictsHint: 'Открытые ситуации, где цена водителя уже конфликтует с продажной ценой или маржа стала опасной.',
             adjustmentsHint: 'Штрафы и удержания из заказов. Здесь видно, на каких водителей и клиентов приходится больше всего потерь, и как это меняет реальный профит.',
@@ -882,6 +894,9 @@ export default {
             vehicleClass: 'Vehicle class',
             sale: 'Price',
             currency: 'Currency',
+            priceUpdatedAt: 'Price updated',
+            publicSnapshot: 'Website',
+            agreedPrice: 'Agreed',
             bestSupplier: 'Best supplier',
             counterpartyName: 'Counterparty',
             name: 'Driver',
@@ -901,7 +916,8 @@ export default {
             cancel: 'Cancel',
             empty: 'No data for the current filter yet.',
             baseHint: 'The main source of truth for Riderra selling price. The team should fall back to this unless there is an explicit exception.',
-            counterpartyHint: 'Current price book for the selected customer. The table shows effective active prices, not separate edits.',
+            counterpartyHint: 'Agreed prices plus the latest public prices collected from client websites. Public snapshots are for analysis and do not alter contractual pricing.',
+            clientPricesLoading: 'Loading saved public client prices…',
             driverHint: 'Current price book for the selected supplier: routes, vehicle classes, supplier cost, and row source.',
             conflictsHint: 'Open situations where driver cost already conflicts with the sell price or margin became risky.',
             adjustmentsHint: 'Penalties and deductions from orders. This shows which drivers and clients create the largest loss and how real profit changes.',
@@ -996,8 +1012,8 @@ export default {
       return this.cpRows.filter((row) => `${row.counterpartyName || ''} ${row.city || ''} ${row.routeFrom || ''} ${row.routeTo || ''} ${row.vehicleType || ''}`.toLowerCase().includes(q))
     },
     counterpartyOptions () {
-      return Array.from(new Set(this.cpRows
-        .filter((row) => row.isActive)
+      return Array.from(new Set([...this.cpRows, ...this.externalCpRows]
+        .filter((row) => row.isActive !== false)
         .map((row) => row.customerCompany?.name || row.counterpartyName)
         .filter(Boolean)))
         .sort((a, b) => a.localeCompare(b))
@@ -1009,12 +1025,13 @@ export default {
         .sort((a, b) => a.localeCompare(b))
     },
     counterpartyPricebookRows () {
-      return this.cpRows
-        .filter((row) => row.isActive)
+      return [...this.cpRows, ...this.externalCpRows]
+        .filter((row) => row.isActive !== false)
         .map((row) => ({
           ...row,
           pricebookOwner: row.customerCompany?.name || row.counterpartyName,
-          pricebookPrice: row.sellPrice
+          pricebookPrice: row.sellPrice,
+          pricebookUpdatedAt: row.capturedAt || row.updatedAt || row.createdAt || null
         }))
     },
     counterpartyComparisonColumns () {
@@ -1023,8 +1040,8 @@ export default {
     counterpartyGridStyle () {
       const priceColumns = this.counterpartyComparisonColumns.map(() => 'minmax(120px, .65fr)').join(' ')
       return {
-        gridTemplateColumns: `minmax(130px, .8fr) minmax(220px, 1.35fr) minmax(220px, 1.35fr) minmax(170px, 1fr) minmax(64px, .45fr) minmax(120px, .7fr) minmax(92px, .55fr) ${priceColumns}`.trim(),
-        minWidth: `${1060 + (this.counterpartyComparisonColumns.length * 136)}px`
+        gridTemplateColumns: `minmax(130px, .8fr) minmax(220px, 1.35fr) minmax(220px, 1.35fr) minmax(170px, 1fr) minmax(64px, .45fr) minmax(120px, .7fr) minmax(92px, .55fr) minmax(112px, .65fr) ${priceColumns}`.trim(),
+        minWidth: `${1180 + (this.counterpartyComparisonColumns.length * 136)}px`
       }
     },
     counterpartyComparisonRows () {
@@ -1039,9 +1056,11 @@ export default {
             routeFrom: row.routeFrom || row.fromPoint || '',
             routeTo: row.routeTo || row.toPoint || '',
             vehicleType: row.vehicleType || '',
+            maxPassengers: row.maxPassengers || null,
             riderraPrice: row.fixedPrice ?? null,
             currency: row.currency || 'EUR',
-            counterpartyPrices: {}
+            counterpartyPrices: {},
+            latestUpdatedAt: null
           })
         }
         return rows.get(key)
@@ -1067,12 +1086,17 @@ export default {
         if (!item.routeFrom) item.routeFrom = row.routeFrom || ''
         if (!item.routeTo) item.routeTo = row.routeTo || ''
         if (!item.vehicleType) item.vehicleType = row.vehicleType || ''
+        if (!item.maxPassengers) item.maxPassengers = row.maxPassengers || null
         if (!item.currency) item.currency = row.currency || 'EUR'
         if (!item.counterpartyPrices[owner]) {
           item.counterpartyPrices[owner] = {
             price: row.pricebookPrice,
-            currency: row.currency || item.currency || 'EUR'
+            currency: row.currency || item.currency || 'EUR',
+            updatedAt: row.pricebookUpdatedAt,
+            sourceType: row.sourceType || 'counterparty_rule',
+            sourceLabel: row.sourceLabel || ''
           }
+          if (row.pricebookUpdatedAt && (!item.latestUpdatedAt || new Date(row.pricebookUpdatedAt) > new Date(item.latestUpdatedAt))) item.latestUpdatedAt = row.pricebookUpdatedAt
         }
       })
 
@@ -1286,6 +1310,20 @@ export default {
     formatDateTime (value) {
       if (!value) return '-'
       return new Date(value).toLocaleString(this.$store.state.language === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    },
+    formatPriceDate (value) {
+      if (!value) return '-'
+      return new Date(value).toLocaleDateString(this.$store.state.language === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium' })
+    },
+    counterpartyRowUpdatedAt (row) {
+      const dates = this.counterpartyComparisonColumns
+        .map((owner) => row.counterpartyPrices?.[owner]?.updatedAt)
+        .filter(Boolean)
+        .sort((left, right) => new Date(right) - new Date(left))
+      return dates[0] || row.latestUpdatedAt || null
+    },
+    counterpartyPriceSourceLabel (price) {
+      return price?.sourceType === 'external_snapshot' ? this.t.publicSnapshot : this.t.agreedPrice
     },
     mappingCandidates (mapping) {
       try { return JSON.parse(mapping.candidatesJson || '[]') } catch (_) { return [] }
@@ -1746,6 +1784,24 @@ export default {
         headers: this.headers()
       })
       await this.reloadAll()
+    },
+    async loadExternalClientPrices () {
+      if (this.externalCpRowsLoading) return
+      this.externalCpRowsLoading = true
+      try {
+        const payload = await this.fetchJson('/api/admin/pricing/client-price-snapshots?limit=60000')
+        this.externalCpRows = payload.rows || []
+        this.externalCpRowsLoaded = true
+        if (payload.truncated) {
+          this.notice = this.$store.state.language === 'ru'
+            ? `Показаны последние ${payload.limit} строк публичных прайсов клиентов. Уточните фильтр для полного просмотра.`
+            : `Showing the latest ${payload.limit} public client-price rows. Narrow the filter for a complete view.`
+        }
+      } catch (error) {
+        this.notice = `${this.notice ? `${this.notice}. ` : ''}${error.message}`
+      } finally {
+        this.externalCpRowsLoading = false
+      }
     },
     async reloadAll () {
       this.notice = ''

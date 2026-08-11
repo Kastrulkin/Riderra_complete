@@ -456,6 +456,77 @@ function registerPricingComparisonRoutes(app, dependencies) {
     }
   })
 
+  app.get('/api/admin/pricing/client-price-snapshots', ...canRead, async (req, res) => {
+    try {
+      const limit = Math.min(100000, Math.max(1, Number(req.query.limit) || 60000))
+      const rows = await prisma.$queryRawUnsafe(`
+        SELECT latest.*
+        FROM (
+          SELECT DISTINCT ON (snapshot."sourceId", snapshot."routeKey", snapshot."externalVehicleKey", snapshot.currency)
+            snapshot.id,
+            snapshot."sourceId",
+            source."customerCompanyId",
+            COALESCE(company.name, source.name) AS "counterpartyName",
+            source.name AS "sourceName",
+            source."adapterKey",
+            snapshot."routeFrom",
+            snapshot."routeTo",
+            snapshot."externalVehicleKey",
+            snapshot."externalVehicleName",
+            snapshot."maxPassengers",
+            snapshot."publicSellPrice",
+            snapshot.currency,
+            snapshot."quoteKind",
+            snapshot."quotedAt",
+            snapshot."sourceUrl",
+            snapshot."evidenceJson"
+          FROM "ExternalTransferPriceSnapshot" snapshot
+          JOIN "PriceComparisonSource" source ON source.id = snapshot."sourceId"
+          LEFT JOIN "CustomerCompany" company ON company.id = source."customerCompanyId"
+          WHERE snapshot."tenantId" = $1
+            AND source."customerCompanyId" IS NOT NULL
+          ORDER BY snapshot."sourceId", snapshot."routeKey", snapshot."externalVehicleKey", snapshot.currency, snapshot."quotedAt" DESC
+        ) latest
+        ORDER BY latest."quotedAt" DESC
+        LIMIT $2
+      `, req.actorContext.tenantId, limit)
+      res.json({
+        rows: rows.map((row) => {
+          const evidence = parseJson(row.evidenceJson, {})
+          const dataset = evidence.dataset || evidence
+          return {
+            id: row.id,
+            sourceId: row.sourceId,
+            customerCompanyId: row.customerCompanyId,
+            counterpartyName: row.counterpartyName,
+            sourceName: row.sourceName,
+            adapterKey: row.adapterKey,
+            country: String(dataset.country || '').trim(),
+            city: String(dataset.city || '').trim(),
+            routeFrom: row.routeFrom,
+            routeTo: row.routeTo,
+            vehicleType: row.externalVehicleName || row.externalVehicleKey,
+            maxPassengers: row.maxPassengers,
+            sellPrice: Number(row.publicSellPrice),
+            currency: row.currency,
+            quoteKind: row.quoteKind,
+            capturedAt: row.quotedAt,
+            updatedAt: row.quotedAt,
+            sourceUrl: row.sourceUrl,
+            sourceType: 'external_snapshot',
+            sourceLabel: row.sourceName,
+            isActive: true
+          }
+        }),
+        limit,
+        truncated: rows.length >= limit
+      })
+    } catch (error) {
+      console.error('Error listing client price snapshots:', error)
+      res.status(500).json({ error: 'Failed to list client price snapshots' })
+    }
+  })
+
   app.get('/api/admin/pricing/external-catalog', ...canRead, async (req, res) => {
     try {
       const sourceId = String(req.query.sourceId || '').trim()
