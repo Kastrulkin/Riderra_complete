@@ -1935,9 +1935,15 @@ export default {
 }
 
 .subtab--active {
-  background: #1f4fff;
+  background: var(--staff-accent, #243b73);
   color: #fff;
-  border-color: transparent;
+  border-color: var(--staff-accent, #243b73);
+  box-shadow: 0 6px 14px rgba(36, 59, 115, 0.16);
+}
+
+.subtab--active:hover {
+  background: var(--staff-ink, #17233d);
+  border-color: var(--staff-ink, #17233d);
 }
 
 .toolbar {
@@ -2301,8 +2307,13 @@ export default {
 }
 
 .btn--primary {
-  background: #1f4fff;
+  background: var(--staff-accent, #243b73);
   color: #fff;
+  box-shadow: 0 6px 14px rgba(36, 59, 115, 0.16);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--staff-ink, #17233d);
 }
 
 .btn--ghost {
