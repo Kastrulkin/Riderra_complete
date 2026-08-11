@@ -9,8 +9,8 @@ const KIWITAXI_DEFAULTS = Object.freeze({
   passengers: { adults: 1, children: 0, returnJourney: false },
   pricingPolicy: { type: 'competitor_public_price' },
   formulaVersion: 'kiwitaxi-competitor-v1',
-  maxConcurrency: 2,
-  requestDelayMs: 1200
+  maxConcurrency: 1,
+  requestDelayMs: 2000
 })
 
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
@@ -175,7 +175,10 @@ class KiwitaxiAdapter {
       } catch (error) {
         lastError = error
         if (Number(error.status) === 404) break
-        if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 800 * (2 ** (attempt - 1))))
+        if (attempt < 3) {
+          const retryDelayMs = Number(error.status) === 429 ? 60000 : 800 * (2 ** (attempt - 1))
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+        }
       } finally {
         clearTimeout(timer)
       }
