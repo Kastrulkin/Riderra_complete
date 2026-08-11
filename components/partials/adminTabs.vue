@@ -273,9 +273,9 @@ export default {
         return
       }
       const scrollY = window.scrollY || 0
-      if (!this.isCondensed && scrollY > 180) {
+      if (!this.isCondensed && scrollY > 96) {
         this.isCondensed = true
-      } else if (this.isCondensed && scrollY < 110) {
+      } else if (this.isCondensed && scrollY < 48) {
         this.isCondensed = false
       }
     },
@@ -289,6 +289,8 @@ export default {
 
 <style scoped>
 .admin-nav-shell {
+  position: relative;
+  isolation: isolate;
   display: grid;
   min-width: 0;
   max-width: 100%;
@@ -301,8 +303,26 @@ export default {
 
 .admin-nav-shell--sticky {
   position: sticky;
-  top: 92px;
+  top: 68px;
   z-index: 70;
+}
+
+.admin-nav-shell--sticky::before {
+  position: absolute;
+  z-index: -1;
+  inset: -10px -12px -12px;
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  border-top-color: rgba(226, 232, 240, 0.45);
+  border-radius: 0 0 16px 16px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .admin-sections {
@@ -451,40 +471,16 @@ export default {
 }
 
 .admin-nav-shell--condensed {
-  gap: 10px;
-  top: 84px;
-  padding: 8px 0 8px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(255,255,255,0.95) 84%, rgba(255,255,255,0) 100%);
+  top: 68px;
 }
 
-.admin-nav-shell--condensed .admin-section-pill {
-  min-height: 78px;
-  padding: 12px 14px;
-  border-radius: 14px;
-}
-
-.admin-nav-shell--condensed .admin-subtabs-shell {
-  min-height: 62px;
-}
-
-.admin-nav-shell--condensed .admin-section-intro {
-  padding: 14px 18px;
-}
-
-.admin-nav-shell--condensed .admin-section-intro__title {
-  font-size: 24px;
-}
-
-.admin-nav-shell--condensed .admin-subtab {
-  min-height: 62px;
-  padding: 9px 12px;
-  border-radius: 12px;
+.admin-nav-shell--condensed::before {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (max-width: 980px) {
-  .admin-nav-shell {
-  }
-  .admin-nav-shell--sticky { top: 88px; }
+  .admin-nav-shell--sticky { top: 68px; }
 
   .admin-sections {
     grid-template-columns: repeat(5, minmax(120px, 1fr));
@@ -502,11 +498,7 @@ export default {
   }
 
   .admin-nav-shell--condensed {
-    top: 82px;
-  }
-
-  .admin-nav-shell--condensed .admin-subtabs-shell {
-    min-height: 134px;
+    top: 68px;
   }
 }
 
@@ -516,7 +508,12 @@ export default {
     top: 0;
     padding: 0;
     background: transparent;
+    isolation: auto;
     backdrop-filter: none;
+  }
+
+  .admin-nav-shell--sticky::before {
+    content: none;
   }
 
   .admin-sections {
