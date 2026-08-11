@@ -14,6 +14,7 @@ const {
   DOTTRANSFERS_DEFAULTS,
   HEYCARS_DEFAULTS,
   WAUG_DEFAULTS,
+  IWAY_DEFAULTS,
   applyPricingPolicy,
   defaultSourceData,
   executePriceComparisonRun,
@@ -97,7 +98,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
   app.post('/api/admin/pricing/comparison-sources', ...canManage, async (req, res) => {
     try {
       const adapterKey = String(req.body?.adapterKey || 'smart-ryde').trim()
-      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers', 'transferz', 'talixo', 'city-airport-taxis', 'mytravelthru', 'mytransfers', 'airports-taxi-transfers', 'airporttaxis-com', 'dottransfers', 'heycars', 'waug'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
+      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers', 'transferz', 'talixo', 'city-airport-taxis', 'mytravelthru', 'mytransfers', 'airports-taxi-transfers', 'airporttaxis-com', 'dottransfers', 'heycars', 'waug', 'iway'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
       const data = defaultSourceData({ ...(req.body || {}), adapterKey })
       const sourceUrl = new URL(data.baseUrl)
       const adapterDefaults = {
@@ -115,7 +116,8 @@ function registerPricingComparisonRoutes(app, dependencies) {
         'airporttaxis-com': AIRPORT_TAXIS_DEFAULTS,
         dottransfers: DOTTRANSFERS_DEFAULTS,
         heycars: HEYCARS_DEFAULTS,
-        waug: WAUG_DEFAULTS
+        waug: WAUG_DEFAULTS,
+        iway: IWAY_DEFAULTS
       }
       const allowedBaseUrl = adapterDefaults[adapterKey].baseUrl
       const allowedHostname = new URL(allowedBaseUrl).hostname
