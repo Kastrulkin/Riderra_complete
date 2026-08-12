@@ -18,6 +18,7 @@ const { IWAY_DEFAULTS, IwayAdapter } = require('./iwayPriceAdapter')
 const { INTUI_DEFAULTS, IntuiAdapter } = require('./intuiPriceAdapter')
 const { KIWITAXI_DEFAULTS, KiwitaxiAdapter } = require('./kiwitaxiPriceAdapter')
 const { JAYRIDE_DEFAULTS, JayrideAdapter } = require('./jayridePriceAdapter')
+const { WORLDTRANSFER_DEFAULTS, WorldTransferAdapter } = require('./worldTransferPriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -416,6 +417,7 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'intui') return new IntuiAdapter(config, dependencies)
   if (source.adapterKey === 'kiwitaxi') return new KiwitaxiAdapter(config, dependencies)
   if (source.adapterKey === 'jayride') return new JayrideAdapter(config, dependencies)
+  if (source.adapterKey === 'worldtransfer') return new WorldTransferAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -622,6 +624,19 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external.startsWith('standard_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('standard_minibus_')) return /standard mini.?bus/i.test(internal) && internalCapacity === capacity
+    return false
+  }
+  if (adapterKey === 'worldtransfer') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    const capacity = Number(external.match(/_(\d+)$/)?.[1])
+    if (external === 'standard_car') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'business_car') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external === 'first_class_car') return /(first class|luxury)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external.startsWith('standard_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
+    if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
+    if (external.startsWith('first_class_van_')) return /(first class|luxury).*van/i.test(internal) && internalCapacity === capacity
     return false
   }
   if (adapterKey === 'intui') {
@@ -1167,7 +1182,8 @@ function defaultSourceData(overrides = {}) {
     iway: IWAY_DEFAULTS,
     intui: INTUI_DEFAULTS,
     kiwitaxi: KIWITAXI_DEFAULTS,
-    jayride: JAYRIDE_DEFAULTS
+    jayride: JAYRIDE_DEFAULTS,
+    worldtransfer: WORLDTRANSFER_DEFAULTS
   })[overrides.adapterKey] || SMART_RYDE_DEFAULTS
   return {
     name: overrides.name || defaults.name,
@@ -1204,6 +1220,7 @@ module.exports = {
   INTUI_DEFAULTS,
   KIWITAXI_DEFAULTS,
   JAYRIDE_DEFAULTS,
+  WORLDTRANSFER_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1221,6 +1238,7 @@ module.exports = {
   IntuiAdapter,
   KiwitaxiAdapter,
   JayrideAdapter,
+  WorldTransferAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,
