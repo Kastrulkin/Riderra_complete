@@ -67,10 +67,39 @@ test('Jayride adapter uses public GET endpoints only', async () => {
   assert.equal(calls[0].method, 'GET')
 })
 
+test('Jayride enriches reusable benchmark coordinates with country data before pricing', async () => {
+  const calls = []
+  const pickupId = encodePlace({ placeId: 'pickup', formattedAddress: 'Helsinki Airport', location: { lat: 60.3179, lng: 24.9496 }, types: ['airport'] })
+  const dropoffId = encodePlace({ placeId: 'dropoff', formattedAddress: 'Helsinki Centre', location: { lat: 60.1701, lng: 24.9418 }, types: ['address'] })
+  const details = (placeId) => ({
+    placeId,
+    formattedAddress: placeId === 'pickup' ? 'Helsinki Airport' : 'Helsinki Centre',
+    geometry: { location: placeId === 'pickup' ? { lat: 60.3179, lng: 24.9496 } : { lat: 60.1701, lng: 24.9418 } },
+    addressComponents: [
+      { longName: placeId === 'pickup' ? 'Vantaa' : 'Helsinki', shortName: placeId === 'pickup' ? 'Vantaa' : 'Helsinki', types: ['locality'] },
+      { longName: 'Finland', shortName: 'FI', types: ['country'] }
+    ],
+    types: placeId === 'pickup' ? ['airport'] : ['address']
+  })
+  const adapter = new JayrideAdapter({ requestDelayMs: 0 }, {
+    fetchImpl: async (url, options) => {
+      const parsed = new URL(url)
+      calls.push({ url: parsed, method: options.method })
+      if (parsed.pathname.includes('/places/details/')) return { ok: true, status: 200, json: async () => ({ data: details(decodeURIComponent(parsed.pathname.split('/').pop())) }) }
+      assert.equal(parsed.searchParams.get('countryCode'), 'FI')
+      assert.equal(parsed.searchParams.get('city'), 'Vantaa')
+      return { ok: true, status: 200, json: async () => tiersPayload }
+    }
+  })
+  const result = await adapter.fetchQuotes({ pickup: { id: pickupId }, dropoff: { id: dropoffId }, currency: 'EUR' })
+  assert.equal(result.quotes.length, 3)
+  assert.deepEqual(calls.map((call) => call.url.pathname), ['/places/details/pickup', '/places/details/dropoff', '/public/portal/bookings/tiers'])
+  assert.equal(calls.every((call) => call.method === 'GET'), true)
+})
+
 test('Jayride classes map only to matching Riderra classes', () => {
   assert.equal(externalVehicleMatches('jayride', 'standard_car', 'Standard class car'), true)
   assert.equal(externalVehicleMatches('jayride', 'business_car', 'Business class car'), true)
   assert.equal(externalVehicleMatches('jayride', 'standard_minibus_10', 'Standard minibus 10 pax'), true)
   assert.equal(externalVehicleMatches('jayride', 'business_car', 'Standard class car'), false)
 })
-

@@ -130,6 +130,7 @@ class JayrideAdapter {
     this.nextRequestAt = 0
     this.requestQueue = Promise.resolve()
     this.trustUniquePlaceCandidate = true
+    this.placeDetailsCache = new Map()
   }
 
   async waitForRateSlot() {
@@ -216,11 +217,22 @@ class JayrideAdapter {
     return id ? { id, label, description: label, type: airport ? 'airport' : 'address' } : null
   }
 
+  async enrichPlace(place) {
+    if (!place || (place.countryCode && place.city) || !place.placeId) return place
+    if (!this.placeDetailsCache.has(place.placeId)) {
+      this.placeDetailsCache.set(place.placeId, this.request(`/places/details/${encodeURIComponent(place.placeId)}`, { sessiontoken: crypto.randomUUID() })
+        .then((payload) => decodePlace(encodePlace(payload?.data || {})))
+        .catch(() => null))
+    }
+    const details = await this.placeDetailsCache.get(place.placeId)
+    return details ? { ...place, ...details } : place
+  }
+
   async fetchQuotes({ pickup, dropoff, currency }) {
     const requestedCurrency = String(currency || '').toUpperCase()
     if (!this.supportedCurrencies.includes(requestedCurrency)) throw new Error(`Jayride does not support Riderra currency ${requestedCurrency}`)
-    const from = decodePlace(pickup.id)
-    const to = decodePlace(dropoff.id)
+    const from = await this.enrichPlace(decodePlace(pickup.id))
+    const to = await this.enrichPlace(decodePlace(dropoff.id))
     if (!from || !to) throw new Error('Jayride place mapping is invalid')
     const payload = await this.request('/public/portal/bookings/tiers', {
       pickupLat: from.latitude,
