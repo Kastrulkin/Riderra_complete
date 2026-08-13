@@ -19,6 +19,9 @@ const { INTUI_DEFAULTS, IntuiAdapter } = require('./intuiPriceAdapter')
 const { KIWITAXI_DEFAULTS, KiwitaxiAdapter } = require('./kiwitaxiPriceAdapter')
 const { JAYRIDE_DEFAULTS, JayrideAdapter } = require('./jayridePriceAdapter')
 const { WORLDTRANSFER_DEFAULTS, WorldTransferAdapter } = require('./worldTransferPriceAdapter')
+const { AIRPORT_TRANSFER_PORTAL_DEFAULTS, AirportTransferPortalAdapter } = require('./airportTransferPortalPriceAdapter')
+const { GLOBAL_AIRPORT_TAXI_DEFAULTS, GlobalAirportTaxiAdapter } = require('./globalAirportTaxiPriceAdapter')
+const { TRANSFERISE_DEFAULTS, TransferiseAdapter } = require('./transferisePriceAdapter')
 
 const ACTIVE_RUNS = new Set()
 
@@ -418,6 +421,9 @@ function createAdapter(source, dependencies = {}) {
   if (source.adapterKey === 'kiwitaxi') return new KiwitaxiAdapter(config, dependencies)
   if (source.adapterKey === 'jayride') return new JayrideAdapter(config, dependencies)
   if (source.adapterKey === 'worldtransfer') return new WorldTransferAdapter(config, dependencies)
+  if (source.adapterKey === 'airport-transfer-portal') return new AirportTransferPortalAdapter(config, dependencies)
+  if (source.adapterKey === 'global-airport-taxi') return new GlobalAirportTaxiAdapter(config, dependencies)
+  if (source.adapterKey === 'transferise') return new TransferiseAdapter(config, dependencies)
   throw new Error(`Unknown price comparison adapter: ${source.adapterKey}`)
 }
 
@@ -637,6 +643,19 @@ function externalVehicleMatches(adapterKey, externalVehicleKey, riderraVehicleTy
     if (external.startsWith('standard_minivan_')) return /standard mini.?van/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && internalCapacity === capacity
     if (external.startsWith('first_class_van_')) return /(first class|luxury).*van/i.test(internal) && internalCapacity === capacity
+    return false
+  }
+  if (adapterKey === 'airport-transfer-portal' || adapterKey === 'global-airport-taxi' || adapterKey === 'transferise') {
+    const external = normalizeTextKey(externalVehicleKey).replace(/\s+/g, '_')
+    const internal = normalizeTextKey(riderraVehicleType)
+    const internalCapacity = Number(internal.match(/(\d+)\s*pax/)?.[1])
+    const capacity = Number(external.match(/_(\d+)$/)?.[1])
+    if (external === 'standard_car') return /(standard class car|standard sedan|sedan|saloon)/i.test(internal) && !/(executive|business|first|electric|mini.?van|mpv|bus)/i.test(internal)
+    if (external === 'business_car') return /(business class car|business sedan|executive)/i.test(internal) && !/(van|mpv)/i.test(internal)
+    if (external.startsWith('standard_suv_')) return /suv/i.test(internal) && (!Number.isFinite(internalCapacity) || !Number.isFinite(capacity) || internalCapacity === capacity)
+    if (external.startsWith('standard_minivan_')) return /(standard mini.?van|standard mpv)/i.test(internal) && (!Number.isFinite(internalCapacity) || !Number.isFinite(capacity) || internalCapacity === capacity)
+    if (external.startsWith('businessvan_')) return /(businessvan|business.*van|executive.*van)/i.test(internal) && (!Number.isFinite(internalCapacity) || !Number.isFinite(capacity) || internalCapacity === capacity)
+    if (external.startsWith('standard_minibus_')) return /standard mini.?bus/i.test(internal) && (!Number.isFinite(internalCapacity) || !Number.isFinite(capacity) || internalCapacity === capacity)
     return false
   }
   if (adapterKey === 'intui') {
@@ -1183,7 +1202,10 @@ function defaultSourceData(overrides = {}) {
     intui: INTUI_DEFAULTS,
     kiwitaxi: KIWITAXI_DEFAULTS,
     jayride: JAYRIDE_DEFAULTS,
-    worldtransfer: WORLDTRANSFER_DEFAULTS
+    worldtransfer: WORLDTRANSFER_DEFAULTS,
+    'airport-transfer-portal': AIRPORT_TRANSFER_PORTAL_DEFAULTS,
+    'global-airport-taxi': GLOBAL_AIRPORT_TAXI_DEFAULTS,
+    transferise: TRANSFERISE_DEFAULTS
   })[overrides.adapterKey] || SMART_RYDE_DEFAULTS
   return {
     name: overrides.name || defaults.name,
@@ -1221,6 +1243,9 @@ module.exports = {
   KIWITAXI_DEFAULTS,
   JAYRIDE_DEFAULTS,
   WORLDTRANSFER_DEFAULTS,
+  AIRPORT_TRANSFER_PORTAL_DEFAULTS,
+  GLOBAL_AIRPORT_TAXI_DEFAULTS,
+  TRANSFERISE_DEFAULTS,
   BookingAdapter,
   JamTransferAdapter,
   SuntransfersAdapter,
@@ -1239,6 +1264,9 @@ module.exports = {
   KiwitaxiAdapter,
   JayrideAdapter,
   WorldTransferAdapter,
+  AirportTransferPortalAdapter,
+  GlobalAirportTaxiAdapter,
+  TransferiseAdapter,
   SmartRydeAdapter,
   applyPricingPolicy,
   buildComparison,

@@ -19,6 +19,9 @@ const {
   KIWITAXI_DEFAULTS,
   JAYRIDE_DEFAULTS,
   WORLDTRANSFER_DEFAULTS,
+  AIRPORT_TRANSFER_PORTAL_DEFAULTS,
+  GLOBAL_AIRPORT_TAXI_DEFAULTS,
+  TRANSFERISE_DEFAULTS,
   applyPricingPolicy,
   defaultSourceData,
   executePriceComparisonRun,
@@ -102,7 +105,7 @@ function registerPricingComparisonRoutes(app, dependencies) {
   app.post('/api/admin/pricing/comparison-sources', ...canManage, async (req, res) => {
     try {
       const adapterKey = String(req.body?.adapterKey || 'smart-ryde').trim()
-      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers', 'transferz', 'talixo', 'city-airport-taxis', 'mytravelthru', 'mytransfers', 'airports-taxi-transfers', 'airporttaxis-com', 'dottransfers', 'heycars', 'waug', 'iway', 'intui', 'kiwitaxi', 'jayride', 'worldtransfer'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
+      if (!['smart-ryde', 'civitatis', 'booking', 'jamtransfer', 'suntransfers', 'transferz', 'talixo', 'city-airport-taxis', 'mytravelthru', 'mytransfers', 'airports-taxi-transfers', 'airporttaxis-com', 'dottransfers', 'heycars', 'waug', 'iway', 'intui', 'kiwitaxi', 'jayride', 'worldtransfer', 'airport-transfer-portal', 'global-airport-taxi', 'transferise'].includes(adapterKey)) return res.status(400).json({ error: 'Adapter is not installed' })
       const data = defaultSourceData({ ...(req.body || {}), adapterKey })
       const sourceUrl = new URL(data.baseUrl)
       const adapterDefaults = {
@@ -125,7 +128,10 @@ function registerPricingComparisonRoutes(app, dependencies) {
         intui: INTUI_DEFAULTS,
         kiwitaxi: KIWITAXI_DEFAULTS,
         jayride: JAYRIDE_DEFAULTS,
-        worldtransfer: WORLDTRANSFER_DEFAULTS
+        worldtransfer: WORLDTRANSFER_DEFAULTS,
+        'airport-transfer-portal': AIRPORT_TRANSFER_PORTAL_DEFAULTS,
+        'global-airport-taxi': GLOBAL_AIRPORT_TAXI_DEFAULTS,
+        transferise: TRANSFERISE_DEFAULTS
       }
       const allowedBaseUrl = adapterDefaults[adapterKey].baseUrl
       const allowedHostname = new URL(allowedBaseUrl).hostname
