@@ -75,6 +75,8 @@ class TransferiseAdapter {
     this.minRequestIntervalMs = Math.max(0, Number(config.requestDelayMs ?? TRANSFERISE_DEFAULTS.requestDelayMs))
     this.nextRequestAt = 0
     this.requestQueue = Promise.resolve()
+    this.preferDirectAirportResolution = true
+    this.geocoderConfig = null
   }
 
   async waitForRateSlot() {
@@ -89,14 +91,19 @@ class TransferiseAdapter {
     } finally { release() }
   }
 
-  async request(url) {
+  async request(url, options = {}) {
     let lastError
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       await this.waitForRateSlot()
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 40000)
       try {
-        const response = await this.fetchImpl(url, { redirect: 'follow', headers: { Accept: 'text/html', 'Accept-Language': 'en-US,en;q=0.8', 'User-Agent': USER_AGENT }, signal: controller.signal })
+        const response = await this.fetchImpl(url, {
+          redirect: 'follow',
+          ...options,
+          headers: { Accept: 'text/html', 'Accept-Language': 'en-US,en;q=0.8', 'User-Agent': USER_AGENT, ...(options.headers || {}) },
+          signal: controller.signal
+        })
         if (!response.ok) { const error = new Error(`Transferise public source failed: HTTP ${response.status}`); error.status = response.status; throw error }
         return response
       } catch (error) {
@@ -107,7 +114,38 @@ class TransferiseAdapter {
     throw lastError
   }
 
-  async resolvePlace() { return [] }
+  async loadGeocoderConfig() {
+    if (this.geocoderConfig) return this.geocoderConfig
+    const html = await (await this.request(`${this.baseUrl}/`)).text()
+    const scriptUrl = html.match(/src=["']([^"']*\/wp-content\/litespeed\/js\/[^"']+\.js[^"']*)["']/i)?.[1]
+    if (!scriptUrl) throw new Error('Transferise public geocoder script was not found')
+    const script = await (await this.request(new URL(scriptUrl, this.baseUrl))).text()
+    const ajaxUrl = script.match(/var ATData=\{[\s\S]*?"ajax_url":"([^"]+)"/i)?.[1]?.replace(/\\\//g, '/')
+    const nonce = script.match(/var ATData=\{[\s\S]*?"nonce":"([^"]+)"/i)?.[1]
+    if (!ajaxUrl || !nonce) throw new Error('Transferise public geocoder configuration was not found')
+    this.geocoderConfig = { ajaxUrl, nonce }
+    return this.geocoderConfig
+  }
+
+  async resolvePlace(inputText) {
+    const query = String(inputText || '').trim()
+    if (!query) return []
+    const { ajaxUrl, nonce } = await this.loadGeocoderConfig()
+    const response = await this.request(ajaxUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', Referer: `${this.baseUrl}/` },
+      body: new URLSearchParams({ action: 'at_osm_geocode', q: query, security: nonce })
+    })
+    const payload = await response.json()
+    const rows = payload?.success && Array.isArray(payload?.data?.results) ? payload.data.results : []
+    return rows.map((row) => {
+      const label = String(row.label || row.name || '').trim()
+      const latitude = Number(row.lat)
+      const longitude = Number(row.lng)
+      const id = encodePlace({ label, latitude, longitude })
+      return id ? { id, label, description: label, type: row.type || 'address' } : null
+    }).filter(Boolean)
+  }
 
   createBenchmarkPlace(point = {}) {
     const label = point.geocodedAddress || point.destinationAddress || point.pickupAddress || point.zoneName

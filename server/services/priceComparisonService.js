@@ -947,14 +947,18 @@ async function processRouteGroup({ prisma, run, source, adapter, rows, policy, p
 
   const representative = pending[0]
   try {
-    const pickup = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' }))
+    const pickupPrefersDirect = adapter.preferDirectAirportResolution && /\bairport\b|\([A-Z]{3}\)|\b[A-Z]{3}\b/.test(representative.routeFrom)
+    const pickup = (pickupPrefersDirect && await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom, country: representative.country }))
+      || (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeFrom, endpoint: 'pickup' }))
       || await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeFrom })
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeFrom, country: representative.country })
     if (!pickup.ok) {
       await Promise.all(pending.map((row) => markRouteIssue({ prisma, run, row, status: 'needs_review', error: 'Pickup place requires review', evidence: { candidates: pickup.candidates } })))
       return !!pickup.externalRequest
     }
-    const dropoff = (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' }))
+    const dropoffPrefersDirect = adapter.preferDirectAirportResolution && /\bairport\b|\([A-Z]{3}\)|\b[A-Z]{3}\b/.test(representative.routeTo)
+    const dropoff = (dropoffPrefersDirect && await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id, country: representative.country }))
+      || (source.adapterKey === 'smart-ryde' && await resolveBenchmarkPlace({ prisma, tenantId: run.tenantId, zoneName: representative.routeTo, endpoint: 'dropoff' }))
       || await resolveTransferzBenchmarkPlace({ prisma, tenantId: run.tenantId, source, adapter, zoneName: representative.routeTo })
       || await resolveStoredPlace({ prisma, source, adapter, tenantId: run.tenantId, inputText: representative.routeTo, relatedPlaceId: pickup.id, country: representative.country })
     if (!dropoff.ok) {
