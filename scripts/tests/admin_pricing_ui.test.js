@@ -58,3 +58,18 @@ test('Booking calculation requests at most ten airports per page', async () => {
   const url = new URL(requestedUrl, 'https://riderra.test')
   assert.ok(Number(url.searchParams.get('limit')) <= 10, `expected limit <= 10, received ${url.searchParams.get('limit')}`)
 })
+
+test('Booking setup shows the exact incremental distances entered in the portal', () => {
+  assert.match(source, /band\.nextDistanceKm/)
+  assert.match(source, /bookingNextDistance/)
+  assert.match(source, /bookingAfterDistance/)
+  assert.doesNotMatch(source, /`\$\{band\.fromKm\}–\$\{band\.toKm\}/)
+})
+
+test('pricing links can open the requested tab and Booking view directly', () => {
+  assert.match(source, /applyRouteState \(\)/)
+  assert.match(source, /this\.\$route\.query\.tab/)
+  assert.match(source, /this\.\$route\.query\.bookingView/)
+  assert.match(source, /\['matrix', 'portal'\]\.includes\(requestedBookingView\)/)
+  assert.match(source, /mounted \(\) \{[\s\S]*?this\.applyRouteState\(\)[\s\S]*?this\.reloadAll\(\)/)
+})

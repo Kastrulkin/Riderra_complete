@@ -42,6 +42,22 @@ test('grosses up portal prices for the traveller Genius discount without applyin
   })
 })
 
+test('portal tariff boundaries are cumulative across initial and next-distance bands', () => {
+  const result = calculateBookingPortalGrid({ 5: 90, 10: 90, 20: 108, 40: 144, 60: 180 })
+  const tariff = result.portalTariff
+  const finiteBands = tariff.bands.filter((band) => Number.isFinite(band.nextDistanceKm))
+  let boundary = tariff.includedDistanceKm
+
+  for (const band of finiteBands) {
+    assert.equal(band.fromKm, boundary)
+    boundary += band.nextDistanceKm
+    assert.equal(band.toKm, boundary)
+  }
+
+  const tail = tariff.bands.find((band) => band.nextDistanceKm === null)
+  assert.equal(tail.fromKm, boundary)
+})
+
 test('uses the newest snapshot for every point and exposes evidence', () => {
   const snapshots = [
     { externalVehicleKey: 'standard', externalVehicleName: 'Standard', currency: 'EUR', routeFrom: 'AAA Airport', routeTo: 'Point 5', publicSellPrice: 30, quotedAt: new Date('2026-08-01'), quoteKind: 'historical_file', runId: 'old', sourceUrl: 'workbook:test', evidenceJson: JSON.stringify({ iata: 'AAA', country: 'Test', city: 'City', distanceKm: 5 }) },

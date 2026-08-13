@@ -255,8 +255,8 @@
                 </table>
               </div>
               <div class="booking-portal-fields">
-                <div><small>{{ t.bookingInitialPrice }}</small><strong>{{ priceLabel(vehicle.portalTariff.initialPrice || null, selectedBookingAirport.currency) }}</strong><span>{{ t.bookingIncludedDistance }}: {{ vehicle.portalTariff.includedDistanceKm }} {{ t.bookingKm }}</span></div>
-                <div v-for="band in vehicle.portalTariff.bands" :key="band.number"><small>{{ t.bookingBand }} {{ band.number }}</small><strong>{{ priceLabel(band.pricePerKm || null, selectedBookingAirport.currency) }} / {{ t.bookingKm }}</strong><span>{{ band.toKm ? `${band.fromKm}–${band.toKm} ${t.bookingKm}` : `${t.bookingFrom} ${band.fromKm} ${t.bookingKm}` }}</span></div>
+                <div><small>{{ t.bookingInitialPrice }}</small><strong>{{ priceLabel(vehicle.portalTariff.initialPrice || null, selectedBookingAirport.currency) }}</strong><span>{{ t.bookingFirstDistance }} {{ vehicle.portalTariff.includedDistanceKm }} {{ t.bookingKm }}</span></div>
+                <div v-for="band in vehicle.portalTariff.bands" :key="band.number"><small>{{ t.bookingBand }} {{ band.number }}</small><strong>{{ priceLabel(band.pricePerKm || null, selectedBookingAirport.currency) }} / {{ t.bookingKm }}</strong><span>{{ band.nextDistanceKm ? `${t.bookingNextDistance} ${band.nextDistanceKm} ${t.bookingKm}` : `${t.bookingAfterDistance} ${band.fromKm} ${t.bookingKm}` }}</span></div>
               </div>
               <p class="booking-plan-warning">{{ t.bookingPortalRounding }}</p>
             </section>
@@ -689,6 +689,9 @@ export default {
             bookingAfterGenius: 'Цена клиенту после Genius',
             bookingInitialPrice: 'Initial rate · Price',
             bookingIncludedDistance: 'Included distance',
+            bookingFirstDistance: 'Первые',
+            bookingNextDistance: 'Следующие',
+            bookingAfterDistance: 'После',
             bookingBand: 'Band',
             bookingFrom: 'от',
             bookingPortalRounding: 'Значения округлены вниз до шага кабинета. Перед отправкой используйте «Check your rates» в Booking; Riderra ничего не меняет в аккаунте автоматически.',
@@ -833,6 +836,9 @@ export default {
             bookingAfterGenius: 'Customer price after Genius',
             bookingInitialPrice: 'Initial rate · Price',
             bookingIncludedDistance: 'Included distance',
+            bookingFirstDistance: 'First',
+            bookingNextDistance: 'Next',
+            bookingAfterDistance: 'After',
             bookingBand: 'Band',
             bookingFrom: 'from',
             bookingPortalRounding: 'Values are rounded down to portal precision. Use “Check your rates” in Booking before submitting; Riderra never changes the account automatically.',
@@ -1282,12 +1288,26 @@ export default {
       return rows.filter((row) => `${row.name || ''}`.toLowerCase().includes(q))
     }
   },
-  mounted () { this.reloadAll() },
+  mounted () {
+    this.applyRouteState()
+    this.reloadAll()
+  },
   beforeDestroy () {
     if (this.comparisonPollTimer) clearTimeout(this.comparisonPollTimer)
     if (this.bookingSearchTimer) clearTimeout(this.bookingSearchTimer)
   },
   methods: {
+    applyRouteState () {
+      const allowedTabs = ['base', 'opportunities', 'booking', 'counterparty', 'driver', 'conflicts', 'adjustments']
+      const requestedTab = String(this.$route.query.tab || '').trim()
+      if (allowedTabs.includes(requestedTab)) this.tab = requestedTab
+
+      const requestedBookingView = String(this.$route.query.bookingView || '').trim()
+      if (['matrix', 'portal'].includes(requestedBookingView)) this.bookingView = requestedBookingView
+
+      const requestedSearch = String(this.$route.query.q || '').trim()
+      if (requestedSearch) this.q = requestedSearch
+    },
     headers () {
       const token = localStorage.getItem('authToken')
       return { Authorization: token ? `Bearer ${token}` : '' }
