@@ -35,7 +35,6 @@ function loadYandexMetrika () {
   window.ym.l = window.ym.l || Number(new Date())
 
   window.ym(METRIKA_ID, 'init', {
-    defer: true,
     webvisor: true,
     clickmap: true,
     ecommerce: 'dataLayer',

@@ -187,7 +187,6 @@ function yandexMetrikaHead() {
       window.ym = window.ym || function () { (window.ym.a = window.ym.a || []).push(arguments); };
       window.ym.l = window.ym.l || Number(new Date());
       window.ym(${YANDEX_METRIKA_ID}, 'init', {
-        defer: true,
         webvisor: true,
         clickmap: true,
         ecommerce: 'dataLayer',
