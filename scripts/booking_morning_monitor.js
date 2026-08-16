@@ -15,6 +15,7 @@ const {
   normalizeBookingMonitoring
 } = require('../server/services/bookingMonitorScheduleService')
 const {
+  buildBookingMorningMessage,
   summarizeBookingPriceMovements
 } = require('../server/services/bookingPriceMovementService')
 
@@ -36,13 +37,6 @@ async function sendTelegram(chatId, text) {
   })
   if (response.status < 200 || response.status >= 300 || response.data?.ok === false) throw new Error(`Telegram send failed: ${response.status}`)
   return true
-}
-
-function describeMovement(row) {
-  const currency = row.quote.clientCurrency || row.quote.riderraCurrency
-  const sign = row.delta > 0 ? '+' : ''
-  const percent = row.deltaPct === null ? '' : ` (${sign}${row.deltaPct.toFixed(2)}%)`
-  return `${row.quote.routeFrom} → ${row.quote.routeTo}, ${row.quote.requestedVehicleType}: ${row.previousPrice.toFixed(2)} → ${row.currentPrice.toFixed(2)} ${currency}${percent}`
 }
 
 async function main() {
@@ -171,15 +165,8 @@ async function main() {
     where: { tenantId: tenant.id, telegramChatId: { not: null }, user: { email: 'demyanov@riderra.com' } },
     select: { telegramChatId: true }
   })
-  const lines = [
-    `Booking — утренняя проверка цен ${monitorDate}`,
-    `Проверено: ${finished.processedCount}/${finished.routeCount}. Подорожали: ${increased.length}. Подешевели: ${decreased.length}. Без изменений: ${summary.unchanged.length}. Первая фиксация: ${summary.firstSnapshot.length}. На проверку: ${finished.needsReviewCount}. Ошибки: ${finished.failedCount}.`,
-    'Сравнение: текущая публичная цена Booking против последней успешной утренней фиксации того же маршрута и класса автомобиля.',
-    ...increased.slice(0, 3).map((row) => `Цена Booking выросла: ${describeMovement(row)}`),
-    ...decreased.slice(0, 3).map((row) => `Цена Booking снизилась: ${describeMovement(row)}`),
-    `Отчёт на проверку: ${approval.id}. Прайс 005 задаёт список маршрутов и остаётся только справочником; в расчёте движения цены не участвует и автоматически не изменяется.`
-  ]
-  await sendTelegram(process.env.TELEGRAM_GROUP_CHAT_ID || ownerLink?.telegramChatId, lines.join('\n'))
+  const message = buildBookingMorningMessage({ monitorDate, finished, summary, increased, decreased, approvalId: approval.id })
+  await sendTelegram(process.env.TELEGRAM_GROUP_CHAT_ID || ownerLink?.telegramChatId, message)
   console.log(JSON.stringify({ runId: run.id, approvalId: approval.id, processed: finished.processedCount, increased: increased.length, decreased: decreased.length, unchanged: summary.unchanged.length, firstSnapshot: summary.firstSnapshot.length, needsReview: finished.needsReviewCount, failed: finished.failedCount }))
 }
 

@@ -88,9 +88,66 @@ function summarizeBookingPriceMovements(currentQuotes = [], previousQuotes = [])
   }
 }
 
+function formatMonitorDate(monitorDate) {
+  const value = new Date(`${monitorDate}T12:00:00Z`)
+  if (Number.isNaN(value.getTime())) return String(monitorDate || '')
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(value)
+}
+
+function formatMovementLine(row, icon) {
+  const currency = row.quote.clientCurrency || row.quote.riderraCurrency
+  const sign = row.delta > 0 ? '+' : ''
+  const percent = row.deltaPct === null ? '' : ` · ${sign}${row.deltaPct.toFixed(2)}%`
+  return [
+    `${icon} ${row.quote.routeFrom} → ${row.quote.routeTo}`,
+    `   ${row.quote.requestedVehicleType}: ${row.previousPrice.toFixed(2)} → ${row.currentPrice.toFixed(2)} ${currency}${percent}`
+  ].join('\n')
+}
+
+function buildBookingMorningMessage({ monitorDate, finished, summary, increased, decreased, approvalId }) {
+  const changes = []
+  if (increased.length) {
+    changes.push('🔺 ПОДОРОЖАЛО', ...increased.slice(0, 3).map((row) => formatMovementLine(row, '•')))
+  }
+  if (decreased.length) {
+    if (changes.length) changes.push('')
+    changes.push('🔻 ПОДЕШЕВЕЛО', ...decreased.slice(0, 3).map((row) => formatMovementLine(row, '•')))
+  }
+  if (!changes.length) changes.push('Изменений цен Booking не найдено.')
+
+  return [
+    'BOOKING · УТРЕННЯЯ ПРОВЕРКА',
+    formatMonitorDate(monitorDate),
+    '',
+    'СВОДКА',
+    `✅ Проверено: ${finished.processedCount}/${finished.routeCount}`,
+    `🔺 Подорожало: ${increased.length}`,
+    `🔻 Подешевело: ${decreased.length}`,
+    `➖ Без изменений: ${summary.unchanged.length}`,
+    `🆕 Первая фиксация: ${summary.firstSnapshot.length}`,
+    `⚠️ Требуют проверки: ${finished.needsReviewCount}`,
+    `❌ Ошибки: ${finished.failedCount}`,
+    '',
+    ...changes,
+    '',
+    'КАК СЧИТАЕМ',
+    'Текущая публичная цена Booking сравнивается с последней успешной утренней фиксацией того же маршрута и класса автомобиля.',
+    'Прайс 005 используется только как перечень маршрутов и автоматически не изменяется.',
+    '',
+    `Отчёт на проверку: ${approvalId}`
+  ].join('\n')
+}
+
 module.exports = {
+  buildBookingMorningMessage,
   buildBookingPriceMovement,
   exactQuoteKey,
+  formatMovementLine,
   indexPreviousBookingQuotes,
   routeQuoteKey,
   summarizeBookingPriceMovements
