@@ -14,6 +14,9 @@ const {
   isBookingMonitorDue,
   normalizeBookingMonitoring
 } = require('../server/services/bookingMonitorScheduleService')
+const {
+  summarizeBookingPriceMovements
+} = require('../server/services/bookingPriceMovementService')
 
 const prisma = new PrismaClient()
 
@@ -35,8 +38,11 @@ async function sendTelegram(chatId, text) {
   return true
 }
 
-function describe(row) {
-  return `${row.quote.routeFrom} → ${row.quote.routeTo}, ${row.quote.requestedVehicleType}: Riderra ${row.quote.riderraSellPrice.toFixed(2)} ${row.quote.riderraCurrency}, ориентир ${row.targetPrice.toFixed(2)} ${row.quote.riderraCurrency}`
+function describeMovement(row) {
+  const currency = row.quote.clientCurrency || row.quote.riderraCurrency
+  const sign = row.delta > 0 ? '+' : ''
+  const percent = row.deltaPct === null ? '' : ` (${sign}${row.deltaPct.toFixed(2)}%)`
+  return `${row.quote.routeFrom} → ${row.quote.routeTo}, ${row.quote.requestedVehicleType}: ${row.previousPrice.toFixed(2)} → ${row.currentPrice.toFixed(2)} ${currency}${percent}`
 }
 
 async function main() {
@@ -67,9 +73,6 @@ async function main() {
     console.log(JSON.stringify({ skipped: true, reason: monitoring.priceWatchEnabled ? 'outside_schedule_window' : 'monitoring_disabled', monitoring }))
     return
   }
-  const lowRatio = monitoring.lowRatio
-  const highRatio = monitoring.highRatio
-
   const monitorDate = moscowDateKey()
   const traceId = `booking-morning-${monitorDate}`
   const existingApproval = await prisma.humanApproval.findFirst({ where: { tenantId: tenant.id, traceId } })
@@ -104,21 +107,44 @@ async function main() {
     serviceAt: nextScheduledServiceAt(new Date(), BOOKING_DEFAULTS.schedule),
     formulaVersion: BOOKING_DEFAULTS.formulaVersion,
     pricingPolicyJson: JSON.stringify(BOOKING_DEFAULTS.pricingPolicy),
-    scopeJson: JSON.stringify({ type: 'booking_priority_locations_morning', monitorDate, source: '005', focusIatas, focusCountries, routePairs }),
+    scopeJson: JSON.stringify({ type: 'booking_priority_locations_morning', monitorDate, comparisonBasis: 'previous_booking_snapshot', routeSource: '005', focusIatas, focusCountries, routePairs }),
     routeCount: pricingRows.length
   } })
   await executePriceComparisonRun({ prisma, runId: run.id })
   const finished = await prisma.priceComparisonRun.findUnique({ where: { id: run.id } })
-  const results = await prisma.priceComparisonResult.findMany({
+  const currentQuotes = await prisma.priceComparisonQuote.findMany({
     where: { runId: run.id },
-    include: { quote: true },
-    orderBy: { opportunityGapAbs: 'asc' }
+    orderBy: { quotedAt: 'desc' }
   })
-  const low = results.filter((row) => row.quote.riderraSellPrice < row.targetPrice * lowRatio)
-  const high = results.filter((row) => row.quote.riderraSellPrice > row.targetPrice * highRatio)
+  const currentComparedQuotes = currentQuotes.filter((quote) => quote.status === 'compared' && Number.isFinite(Number(quote.clientSellPrice)))
+  const previousRuns = await prisma.priceComparisonRun.findMany({
+    where: {
+      tenantId: tenant.id,
+      sourceId: source.id,
+      id: { not: run.id },
+      createdAt: { lt: run.createdAt },
+      scopeJson: { contains: 'booking_priority_locations_morning' }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+    select: { id: true }
+  })
+  const previousQuotes = previousRuns.length
+    ? await prisma.priceComparisonQuote.findMany({
+      where: {
+        runId: { in: previousRuns.map((row) => row.id) },
+        status: 'compared',
+        clientSellPrice: { not: null }
+      },
+      orderBy: { quotedAt: 'desc' }
+    })
+    : []
+  const summary = summarizeBookingPriceMovements(currentComparedQuotes, previousQuotes)
+  const increased = [...summary.increased].sort((a, b) => Math.abs(b.deltaPct || 0) - Math.abs(a.deltaPct || 0))
+  const decreased = [...summary.decreased].sort((a, b) => Math.abs(b.deltaPct || 0) - Math.abs(a.deltaPct || 0))
   const observations = [
-    ...high.map((row) => ({ signal: 'riderra_reference_above_booking_target', riderraReferencePrice: row.quote.riderraSellPrice, bookingDriverTarget: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType })),
-    ...low.map((row) => ({ signal: 'riderra_reference_below_booking_target', riderraReferencePrice: row.quote.riderraSellPrice, bookingDriverTarget: row.targetPrice, currency: row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType }))
+    ...increased.map((row) => ({ signal: 'booking_public_price_increased', previousBookingPrice: row.previousPrice, currentBookingPrice: row.currentPrice, delta: row.delta, deltaPct: row.deltaPct, currency: row.quote.clientCurrency || row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType })),
+    ...decreased.map((row) => ({ signal: 'booking_public_price_decreased', previousBookingPrice: row.previousPrice, currentBookingPrice: row.currentPrice, delta: row.delta, deltaPct: row.deltaPct, currency: row.quote.clientCurrency || row.quote.riderraCurrency, routeFrom: row.quote.routeFrom, routeTo: row.quote.routeTo, vehicleType: row.quote.requestedVehicleType }))
   ]
   const approval = await prisma.humanApproval.create({ data: {
     tenantId: tenant.id,
@@ -126,7 +152,7 @@ async function main() {
     action: 'pricing.booking_monitor.review',
     resource: 'price_comparison_run',
     resourceId: run.id,
-    payloadJson: JSON.stringify({ monitorDate, thresholds: { lowRatio, highRatio }, formulaVersion: BOOKING_DEFAULTS.formulaVersion, observations, riderra005IsReferenceOnly: true, priceBookMutationAllowed: false }),
+    payloadJson: JSON.stringify({ monitorDate, comparisonBasis: 'previous_booking_snapshot', baselineRunIds: previousRuns.map((row) => row.id), observations, counts: { increased: increased.length, decreased: decreased.length, unchanged: summary.unchanged.length, firstSnapshot: summary.firstSnapshot.length }, riderra005IsReferenceOnly: true, priceBookMutationAllowed: false }),
     traceId
   } })
   await prisma.auditLog.create({ data: {
@@ -138,7 +164,7 @@ async function main() {
     traceId,
     decision: 'draft_for_human_approval',
     result: finished.status,
-    contextJson: JSON.stringify({ low: low.length, high: high.length, needsReview: finished.needsReviewCount, failed: finished.failedCount, approvalId: approval.id, monitoring, automaticPriceChanges: false })
+    contextJson: JSON.stringify({ increased: increased.length, decreased: decreased.length, unchanged: summary.unchanged.length, firstSnapshot: summary.firstSnapshot.length, needsReview: finished.needsReviewCount, failed: finished.failedCount, approvalId: approval.id, monitoring, comparisonBasis: 'previous_booking_snapshot', automaticPriceChanges: false })
   } })
 
   const ownerLink = await prisma.telegramLink.findFirst({
@@ -147,14 +173,14 @@ async function main() {
   })
   const lines = [
     `Booking — утренняя проверка цен ${monitorDate}`,
-    `Проверено: ${finished.processedCount}/${finished.routeCount}. Выше ориентира: ${high.length}. Ниже ориентира: ${low.length}. На проверку: ${finished.needsReviewCount}. Ошибки: ${finished.failedCount}.`,
-    `Формула фиксированного ориентира: цена Booking −25% BCOM −20% PMF. Допуск: ниже ${Math.round(lowRatio * 100)}% или выше ${Math.round(highRatio * 100)}%.`,
-    ...high.slice(0, 3).map((row) => `Выше ориентира Booking: ${describe(row)}`),
-    ...low.slice(0, 3).map((row) => `Ниже ориентира Booking: ${describe(row)}`),
-    `Отчёт на проверку: ${approval.id}. Прайс 005 используется только как справочное сравнение и не изменяется этим процессом.`
+    `Проверено: ${finished.processedCount}/${finished.routeCount}. Подорожали: ${increased.length}. Подешевели: ${decreased.length}. Без изменений: ${summary.unchanged.length}. Первая фиксация: ${summary.firstSnapshot.length}. На проверку: ${finished.needsReviewCount}. Ошибки: ${finished.failedCount}.`,
+    'Сравнение: текущая публичная цена Booking против последней успешной утренней фиксации того же маршрута и класса автомобиля.',
+    ...increased.slice(0, 3).map((row) => `Цена Booking выросла: ${describeMovement(row)}`),
+    ...decreased.slice(0, 3).map((row) => `Цена Booking снизилась: ${describeMovement(row)}`),
+    `Отчёт на проверку: ${approval.id}. Прайс 005 задаёт список маршрутов и остаётся только справочником; в расчёте движения цены не участвует и автоматически не изменяется.`
   ]
   await sendTelegram(process.env.TELEGRAM_GROUP_CHAT_ID || ownerLink?.telegramChatId, lines.join('\n'))
-  console.log(JSON.stringify({ runId: run.id, approvalId: approval.id, processed: finished.processedCount, high: high.length, low: low.length, needsReview: finished.needsReviewCount, failed: finished.failedCount }))
+  console.log(JSON.stringify({ runId: run.id, approvalId: approval.id, processed: finished.processedCount, increased: increased.length, decreased: decreased.length, unchanged: summary.unchanged.length, firstSnapshot: summary.firstSnapshot.length, needsReview: finished.needsReviewCount, failed: finished.failedCount }))
 }
 
 main().catch((error) => {
