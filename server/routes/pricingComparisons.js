@@ -281,7 +281,10 @@ function registerPricingComparisonRoutes(app, dependencies) {
         total,
         vehicleMatrixCount: allVehicleRows.length,
         pointQuoteCount: allAirports.reduce((sum, airport) => sum + airport.points.reduce((pointSum, point) => pointSum + Object.values(point.prices).filter((price) => price.publicSellPrice > 0).length, 0), 0),
-        latestQuotedAt: allAirports.flatMap((airport) => airport.points.map((point) => point.quotedAt).filter(Boolean)).sort().at(-1) || null,
+        latestQuotedAt: allAirports
+          .flatMap((airport) => airport.points.map((point) => point.quotedAt).filter(Boolean))
+          .sort((left, right) => new Date(left) - new Date(right))
+          .at(-1) || null,
         latestMonitorRun,
         latestPointRun
       })

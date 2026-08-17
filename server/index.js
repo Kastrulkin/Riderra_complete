@@ -11942,7 +11942,7 @@ app.get('/api/admin/orders-sheet-view', authenticateToken, resolveActorContext, 
         }
       },
       orderBy: [{ sourceRow: 'asc' }, { createdAt: 'desc' }],
-      take: 10000
+      distinct: ['sourceRow']
     })
 
     const seenRows = new Set()
