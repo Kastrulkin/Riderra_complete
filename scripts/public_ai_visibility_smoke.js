@@ -73,6 +73,8 @@ async function main() {
       const partnerPage = await readText(`/${lang}/partners`)
       const wikiPage = await readText(`/${lang}/vendor-wiki`)
       assertOk(partnerPage.response.status === 200 && partnerPage.text.includes(partnerText), `${lang} partner hub is missing localized content`)
+      assertOk(partnerPage.text.includes('/img/logo.svg'), `${lang} partner hub is missing the Riderra logo`)
+      assertOk(partnerPage.text.includes("font-family:'Montserrat'"), `${lang} partner hub is missing the Riderra typeface`)
       assertOk(wikiPage.response.status === 200 && wikiPage.text.includes(wikiText), `${lang} vendor wiki is missing localized content`)
       assertOk(wikiPage.text.includes(`lang="${lang}"`), `${lang} vendor wiki has the wrong document language`)
     }
