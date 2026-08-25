@@ -12,16 +12,30 @@
           <div class="layer-block">
             <h3 class="layer-block__title">{{ layersData.typicalTitle }}</h3>
             <div class="layer-chain">
-              <span class="layer-step" v-for="(step, index) in layersData.typicalSteps" :key="index">{{ step }}</span>
-              <span class="layer-arrow" v-for="i in layersData.typicalSteps.length - 1" :key="`arrow-${i}`">→</span>
+              <span class="layer-step">{{ layersData.typicalSteps[0] }}</span>
+              <span
+                v-for="(step, index) in layersData.typicalSteps.slice(1)"
+                :key="`typical-${index}`"
+                class="layer-segment"
+              >
+                <span class="layer-arrow" aria-hidden="true">→</span>
+                <span class="layer-step">{{ step }}</span>
+              </span>
             </div>
           </div>
 
           <div class="layer-block">
             <h3 class="layer-block__title">{{ layersData.riderraTitle }}</h3>
             <div class="layer-chain">
-              <span class="layer-step" v-for="(step, index) in layersData.riderraSteps" :key="index">{{ step }}</span>
-              <span class="layer-arrow" v-for="i in layersData.riderraSteps.length - 1" :key="`riderra-arrow-${i}`">→</span>
+              <span class="layer-step">{{ layersData.riderraSteps[0] }}</span>
+              <span
+                v-for="(step, index) in layersData.riderraSteps.slice(1)"
+                :key="`riderra-${index}`"
+                class="layer-segment"
+              >
+                <span class="layer-arrow" aria-hidden="true">→</span>
+                <span class="layer-step">{{ step }}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -100,8 +114,8 @@ export default {
 
     .layers-comparison {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 32px;
+      grid-template-columns: 1fr;
+      gap: 24px;
 
       .layer-block {
         background: #fff;
@@ -125,6 +139,13 @@ export default {
           font-size: 13px;
           color: #4a5568;
 
+          .layer-segment {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+          }
+
           .layer-step {
             background: #e2e8f0;
             padding: 8px 16px;
@@ -136,6 +157,7 @@ export default {
 
           .layer-arrow {
             color: #94a3b8;
+            flex: 0 0 auto;
           }
         }
       }
@@ -167,6 +189,11 @@ export default {
         .layer-chain {
           align-items: stretch;
           flex-direction: column;
+
+          .layer-segment {
+            align-items: stretch;
+            flex-direction: column;
+          }
 
           .layer-step {
             text-align: center;
