@@ -13,7 +13,7 @@
             <p class="auth-subtitle">{{ t.authSubtitle }}</p>
             <div class="auth-actions">
               <nuxt-link to="/driver-login" class="btn btn--primary">{{ t.loginButton }}</nuxt-link>
-              <a href="/vendor-wiki" class="btn btn--ghost">{{ t.wikiButton }}</a>
+              <a :href="wikiPath" class="btn btn--ghost">{{ t.wikiButton }}</a>
             </div>
           </div>
         </div>
@@ -121,7 +121,10 @@ export default {
           note: 'Thank you! Your application has been sent. We will contact you soon.'
         }
       }
-      return dict[this.lang]
+      return dict[this.lang] || dict.en
+    },
+    wikiPath(){
+      return this.lang === 'en' ? '/vendor-wiki' : `/${this.lang}/vendor-wiki`
     }
   },
   data(){
@@ -440,4 +443,3 @@ export default {
   z-index: 3;
 }
 </style>
-

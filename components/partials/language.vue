@@ -126,7 +126,9 @@
 			const path = window.location.pathname || '/'
 			const requested = new URLSearchParams(window.location.search || '').get('lang')
 			const saved = localStorage.getItem('riderra_language')
-			const nextLang = path.startsWith('/ru') ? 'ru' : (requested || saved || this.$store.state.language)
+			const pathLanguage = path.split('/').filter(Boolean)[0]
+			const supported = this.languages.some((item) => item.shortcut === pathLanguage)
+			const nextLang = supported ? pathLanguage : (requested || saved || this.$store.state.language)
 			if (nextLang && nextLang !== this.$store.state.language) {
 				this.$store.commit('setLang', nextLang)
 			}

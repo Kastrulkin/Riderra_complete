@@ -5,15 +5,15 @@
         <language :data="langData"></language>
         <a class="mobile-menu__tel" href="tel:88009543212">8-800-954-32-12</a>
         <nav class="nav">
-          <nuxt-link
+          <a
             v-for="(item,i) in navList"
             :key="i"
             class="nav__link"
-            :to="item.link"
-            @click.native="closeMenu"
+            :href="item.link"
+            @click="closeMenu"
           >
             {{item.title}}
-          </nuxt-link>
+          </a>
         </nav>
         <nuxt-link to="/account" class="mobile-menu__signin">{{$store.getters.textData.enter || 'Sign in'}}</nuxt-link>
       </div>
@@ -36,7 +36,19 @@
         return this.$store.getters.textData || {};
       },
       navList() {
+        const lang = this.$store.state.language;
+        const labels = {
+          ru: ['Партнёрам', 'Стать перевозчиком'], en: ['Partners', 'Become a fleet partner'], es: ['Socios', 'Ser socio de flota'],
+          de: ['Partner', 'Flottenpartner werden'], fr: ['Partenaires', 'Devenir partenaire de flotte'], el: ['Συνεργάτες', 'Γίνετε συνεργάτης στόλου'],
+          th: ['พันธมิตร', 'สมัครเป็นพันธมิตรรถ'], ar: ['الشركاء', 'التسجيل كشريك أسطول'], ha: ['Abokan hulɗa', 'Kasance abokin hulɗar motoci']
+        };
+        const current = labels[lang] || labels.en;
+        const partnersPath = lang === 'en' ? '/partners' : `/${lang}/partners`;
+        const wikiPath = lang === 'en' ? '/vendor-wiki' : `/${lang}/vendor-wiki`;
         return [
+          { title: current[0], link: partnersPath },
+          { title: current[1], link: `/drivers?lang=${lang}` },
+          { title: 'Vendor Wiki', link: wikiPath },
           {
             title: this.textData.travelPlanners || 'Tour Agencies',
             link: '/for-travel-planners'

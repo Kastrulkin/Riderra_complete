@@ -39,7 +39,7 @@ async function main() {
     const { response, text } = await readText('/sitemap.xml')
     assertOk(response.status === 200, `sitemap.xml status ${response.status}`)
     assertOk(text.includes('<urlset'), 'sitemap.xml missing urlset')
-    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/vendor-wiki', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq']) {
+    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/partners', '/vendor-wiki', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq', '/ru/partners', '/ru/vendor-wiki', '/de/partners', '/de/vendor-wiki', '/ar/partners', '/ar/vendor-wiki']) {
       assertOk(text.includes(`${CANONICAL_URL}${path}`), `sitemap.xml missing ${path}`)
     }
   })
@@ -55,6 +55,26 @@ async function main() {
     assertOk(text.includes('En Route'), 'vendor wiki missing ETO driver status guidance')
     assertOk(!/ivcardo/i.test(text), 'vendor wiki still mentions iVcardo')
     assertOk(!text.includes('notion.site'), 'vendor wiki still points to Notion')
+  })
+
+  await check('localized vendor discovery', async () => {
+    const expectations = {
+      ru: ['Сотрудничайте с Riderra', 'Начало работы'],
+      es: ['Colabore con Riderra', 'Primeros pasos'],
+      de: ['Partner von Riderra werden', 'Erste Schritte'],
+      fr: ['Devenez partenaire de Riderra', 'Premiers pas'],
+      el: ['Συνεργαστείτε με τη Riderra', 'Έναρξη'],
+      th: ['ร่วมงานกับ Riderra', 'เริ่มต้น'],
+      ar: ['تعاون مع Riderra', 'البدء'],
+      ha: ['Yi hulɗa da Riderra', 'Fara aiki']
+    }
+    for (const [lang, [partnerText, wikiText]] of Object.entries(expectations)) {
+      const partnerPage = await readText(`/${lang}/partners`)
+      const wikiPage = await readText(`/${lang}/vendor-wiki`)
+      assertOk(partnerPage.response.status === 200 && partnerPage.text.includes(partnerText), `${lang} partner hub is missing localized content`)
+      assertOk(wikiPage.response.status === 200 && wikiPage.text.includes(wikiText), `${lang} vendor wiki is missing localized content`)
+      assertOk(wikiPage.text.includes(`lang="${lang}"`), `${lang} vendor wiki has the wrong document language`)
+    }
   })
 
   await check('llms.txt', async () => {

@@ -358,6 +358,7 @@ registerPublicRoutes(app, {
   orderRequestMiddleware: [publicFormLimiter, resolveActorContext, requireActorContext],
   orderRequestSchema: publicSurfaceController.orderRequestSchema,
   orderRequestStatus: publicIntakeController.orderRequestStatus,
+  partnerHub: publicSurfaceController.partnerHub,
   pricingHints: publicSurfaceController.pricingHints,
   privacyPolicy: publicSurfaceController.privacyPolicy,
   privacyPolicyRedirect: publicSurfaceController.privacyPolicyRedirect,

@@ -20,10 +20,11 @@
     </div>
       <language :data="langData"></language>
     <nav class="nav-list">
-      <nuxt-link to="/for-travel-planners" class="nav-list__item">{{ textData.travelPlanners || 'Tour Agencies' }}</nuxt-link>
-      <nuxt-link to="/ai" class="nav-list__item">{{ textData.aiAgents || 'AI Agents' }}</nuxt-link>
-      <nuxt-link to="/business-travel" class="nav-list__item">{{ textData.businessTravel || 'Business Travel' }}</nuxt-link>
-      <nuxt-link to="/how-it-works" class="nav-list__item">{{ textData.howItWorks || 'How it works' }}</nuxt-link>
+      <a :href="partnersPath" class="nav-list__item">{{ partnerNavLabel }}</a>
+      <nuxt-link to="/for-travel-planners" class="nav-list__item">{{ publicNavLabels[1] }}</nuxt-link>
+      <nuxt-link to="/ai" class="nav-list__item">{{ publicNavLabels[2] }}</nuxt-link>
+      <nuxt-link to="/business-travel" class="nav-list__item">{{ publicNavLabels[3] }}</nuxt-link>
+      <nuxt-link to="/how-it-works" class="nav-list__item">{{ publicNavLabels[4] }}</nuxt-link>
     </nav>
     <tabs-nav></tabs-nav>
     <div class="header__right">
@@ -97,6 +98,24 @@
       },
       publicLinks(){
         return this.textData.publicLinks || {};
+      },
+      partnersPath(){
+        const lang = this.$store.state.language;
+        return lang === 'en' ? '/partners' : `/${lang}/partners`;
+      },
+      partnerNavLabel(){
+        return this.publicNavLabels[0];
+      },
+      publicNavLabels(){
+        const labels = {
+          ru: ['Партнёрам', 'Турагентам', 'AI-агентам', 'Бизнес-поездки', 'Как это работает'],
+          en: ['Partners', 'Tour Agencies', 'AI Agents', 'Business Travel', 'How it works'], es: ['Socios', 'Agencias', 'Agentes de IA', 'Viajes de negocios', 'Cómo funciona'],
+          de: ['Partner', 'Reiseagenturen', 'KI-Agenten', 'Geschäftsreisen', 'So funktioniert es'], fr: ['Partenaires', 'Agences', 'Agents IA', 'Voyages d’affaires', 'Comment ça marche'],
+          el: ['Συνεργάτες', 'Πρακτορεία', 'AI Agents', 'Επαγγελματικά ταξίδια', 'Πώς λειτουργεί'],
+          th: ['พันธมิตร', 'บริษัทท่องเที่ยว', 'AI Agents', 'การเดินทางธุรกิจ', 'วิธีการทำงาน'],
+          ar: ['الشركاء', 'وكالات السفر', 'وكلاء AI', 'سفر الأعمال', 'كيف يعمل'], ha: ['Abokan hulɗa', 'Hukumomin tafiye-tafiye', 'Wakilan AI', 'Tafiyar kasuwanci', 'Yadda yake aiki']
+        };
+        return labels[this.$store.state.language] || labels.en;
       }
 
     },

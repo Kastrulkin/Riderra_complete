@@ -16,6 +16,7 @@ Riderra is not a fully autonomous booking or dispatch agent. It is a supervised 
 - Owners and admins: configure monthly sheet sources, roles, AI agents, integrations, VPN access, pricing sources, and critical workflow policies.
 - Drivers and suppliers: receive operational trip details and provide route coverage or service execution.
 - Public customers and external AI agents: submit draft transfer requests through the public website or public draft-request API.
+- Fleet suppliers: discover the public partner hub, submit a transport-partner application, and read the registration-free multilingual Vendor Wiki.
 
 ## Sources Of Truth
 
@@ -106,6 +107,7 @@ Public AI agents should use:
 - `/api/public/order-request-schema`
 - `/api/public/openapi.json`
 - `/ai`, `/services`, `/prices`, `/contact`, `/faq`, `/sources`
+- `/partners` and `/vendor-wiki`, plus their `ru`, `es`, `de`, `fr`, `el`, `th`, `ar`, and `ha` localized paths
 
 Public agents may create draft requests only. Draft requests are not confirmed bookings.
 

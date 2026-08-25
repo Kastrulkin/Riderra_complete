@@ -18,6 +18,8 @@ const {
   riderraAbsoluteUrl
 } = require('../services/publicSurfaceService')
 const { renderVendorWikiHtml } = require('../services/vendorWikiService')
+const { renderPartnerHubHtml } = require('../services/partnerHubService')
+const { VENDOR_LANGUAGES } = require('../data/vendorWikiLocales')
 const { RIDERRA_BASE_URL, RIDERRA_CONTACT_EMAIL } = require('../config/constants')
 
 function createPublicSurfaceController() {
@@ -97,10 +99,21 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
 `)
   }
 
-  function vendorWiki(_req, res) {
+  function publicPageLanguage(req) {
+    const firstSegment = String(req.path || '').split('/').filter(Boolean)[0]
+    return VENDOR_LANGUAGES.includes(firstSegment) ? firstSegment : 'en'
+  }
+
+  function vendorWiki(req, res) {
     res.type('text/html')
     res.setHeader('Cache-Control', 'public, max-age=300')
-    res.status(200).send(renderVendorWikiHtml())
+    res.status(200).send(renderVendorWikiHtml(publicPageLanguage(req)))
+  }
+
+  function partnerHub(req, res) {
+    res.type('text/html')
+    res.setHeader('Cache-Control', 'public, max-age=300')
+    res.status(200).send(renderPartnerHubHtml(publicPageLanguage(req)))
   }
 
   function redirectRussianPublicPages(req, res, next) {
@@ -198,6 +211,7 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
     dataDeletion,
     llmsTxt,
     openapiJson,
+    partnerHub,
     orderRequestSchema: orderRequestSchemaHandler,
     pricingHints,
     privacyPolicy,
