@@ -60,6 +60,51 @@ const VENDOR_WIKI_SECTIONS = [
     ]
   },
   {
+    id: 'easytaxi',
+    title: 'EasyTaxi / ETO',
+    summary: 'How fleet operators and drivers receive, assign and complete Riderra jobs in EasyTaxi Office.',
+    articles: [
+      {
+        id: 'easytaxi-overview',
+        title: 'EasyTaxi Office for Riderra vendors',
+        intro: 'EasyTaxi Office (ETO) is Riderra’s current dispatch system for partner fleets. It is used to deliver jobs to the vendor, assign a driver and track the trip through completion.',
+        blocks: [
+          { title: 'How the fleet account works', items: ['Riderra assigns a booking to the vendor’s Fleet Operator account.', 'The vendor reviews the complete booking and selects a suitable driver and vehicle.', 'The selected driver receives the job in the ETO Driver App and accepts or rejects it.', 'The fleet operator monitors the driver and trip statuses until the booking is completed.'] },
+          { title: 'Before the first job', items: ['Riderra creates or confirms the Fleet Operator access with the vendor.', 'The vendor provides the drivers who will perform Riderra jobs.', 'Each driver must have an approved account, working login, notifications and location access.', 'The vendor performs a test assignment and confirms that the driver can see and accept it.'] },
+          { title: 'Official EasyTaxi Office guides', links: [{ label: 'Fleet Operator account', href: 'https://kb.easytaxioffice.com/help/partner-fleet-operator-account' }, { label: 'Assigning a job', href: 'https://kb.easytaxioffice.com/help/assigning-a-job' }] }
+        ]
+      },
+      {
+        id: 'easytaxi-assign-driver',
+        title: 'Assigning a Riderra job to a driver',
+        intro: 'Do not assign a job until the route, pickup time, vehicle class, passenger count, luggage and special instructions have been checked.',
+        blocks: [
+          { title: 'Assignment steps', items: ['Open the booking in the Dispatch Panel or booking list.', 'Select Assign driver + in the driver column.', 'Choose an eligible driver and confirm the assignment.', 'Verify that the driver received the notification and accepted the job.', 'If the driver rejects the job or does not respond, reassign it promptly and keep Riderra informed.'] },
+          { title: 'Changing the assigned driver', body: 'Open the booking and choose the replacement in Payment and Driver, or select the current driver in the booking list. Make sure the replacement driver has the complete booking details and suitable vehicle before confirming the change.' }
+        ]
+      },
+      {
+        id: 'easytaxi-driver-app',
+        title: 'ETO Driver App: first login and trip statuses',
+        intro: 'Drivers use the ETO Driver App to receive Riderra jobs, share their operational location and report each stage of the trip.',
+        blocks: [
+          { title: 'First login', items: ['Install ETO Driver from the App Store or Google Play.', 'Use the company address or host information supplied by Riderra or the fleet operator.', 'Sign in with the driver email and password created for the account.', 'Allow notifications and set location access to Always so dispatch can see the driver during active work.', 'Set the correct language, time zone and availability status.'] },
+          { title: 'Accepting a job', items: ['Open the new-job notification and review all booking details.', 'Tap Accept to take the job, or Reject and enter a clear reason if it cannot be performed.', 'Do not accept a job if the vehicle, capacity, timing or pickup requirements cannot be met; contact the fleet operator instead.'] },
+          { title: 'Trip status sequence', rows: [['En Route', 'Driver has started travelling to the pickup point.', 'Set only after departure towards pickup.'], ['Arrived', 'Driver has reached the correct pickup point.', 'Set on arrival, not while approaching.'], ['On board', 'Passenger is in the vehicle and the trip has started.', 'Set after confirming the passenger and destination.'], ['Completed', 'Passenger has been delivered to the destination.', 'Set only after the service is fully completed.']] },
+          { title: 'Official EasyTaxi Office guide', links: [{ label: 'How to use Driver App', href: 'https://kb.easytaxioffice.com/help/how-to-use-driver-app' }, { label: 'Create a driver account', href: 'https://kb.easytaxioffice.com/help/add-a-new-driver' }] }
+        ]
+      },
+      {
+        id: 'easytaxi-troubleshooting',
+        title: 'Notifications, location and status problems',
+        intro: 'A driver must report app problems before they affect the passenger pickup.',
+        blocks: [
+          { items: ['Check mobile data, notifications and background location permissions.', 'Confirm that the driver is signed into the correct company and account.', 'Restart the app and recheck the assigned and awaiting-approval jobs.', 'If a status cannot be updated, contact the fleet operator immediately and provide the real event time.', 'Do not create false or delayed statuses to make the timeline look complete. Riderra may request supporting screenshots or location evidence.'] }
+        ]
+      }
+    ]
+  },
+  {
     id: 'orders',
     title: 'Orders and driver operations',
     summary: 'Review, assign, execute and close every transfer correctly.',
@@ -71,7 +116,7 @@ const VENDOR_WIKI_SECTIONS = [
         blocks: [
           { title: '1. Review the booking', items: ['Check date, local pickup time, flight or train number, route, passenger count, luggage and vehicle class.', 'Check pickup instructions, extras and included waiting time.', 'Clarify any mismatch with Riderra before accepting or assigning the trip.'] },
           { title: '2. Assign and reconfirm', items: ['Assign a driver and vehicle that meet the booking requirements.', 'Recheck the trip at least 24 hours before pickup and monitor late operational changes.', 'Make sure the driver has the passenger contact and knows the local pickup procedure.'] },
-          { title: '3. Execute and close', items: ['The driver follows the Riderra app or workspace statuses where available.', 'Record arrival, passenger contact, pickup and completion accurately.', 'Report delays, no-shows, route changes or vehicle changes immediately.', 'Keep required evidence until the trip and payment are fully reconciled.'] }
+          { title: '3. Execute and close', items: ['The driver follows the EasyTaxi / ETO Driver App statuses for the trip.', 'Record arrival, passenger contact, pickup and completion accurately.', 'Report delays, no-shows, route changes or vehicle changes immediately.', 'Keep required evidence until the trip and payment are fully reconciled.'] }
         ]
       },
       {

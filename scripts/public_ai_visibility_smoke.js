@@ -51,6 +51,9 @@ async function main() {
     assertOk(text.includes('No Riderra account is required'), 'vendor wiki does not state public access')
     assertOk(text.includes('A US W-9 form is not required'), 'vendor wiki missing current W-9 policy')
     assertOk(text.includes('company in Estonia'), 'vendor wiki missing Estonia payment policy')
+    assertOk(text.includes('EasyTaxi Office (ETO)'), 'vendor wiki missing current EasyTaxi process')
+    assertOk(text.includes('En Route'), 'vendor wiki missing ETO driver status guidance')
+    assertOk(!/ivcardo/i.test(text), 'vendor wiki still mentions iVcardo')
     assertOk(!text.includes('notion.site'), 'vendor wiki still points to Notion')
   })
 

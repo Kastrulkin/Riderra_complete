@@ -8,7 +8,10 @@ function renderBlock(block) {
   const items = Array.isArray(block.items) ? `<ul>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''
   const quote = block.quote ? `<blockquote>${escapeHtml(block.quote)}</blockquote>` : ''
   const links = Array.isArray(block.links) ? `<div class="wiki-links">${block.links.map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)} <span aria-hidden="true">→</span></a>`).join('')}</div>` : ''
-  const rows = Array.isArray(block.rows) ? `<div class="table-wrap"><table><thead><tr><th>Class</th><th>Typical capacity</th><th>Examples</th></tr></thead><tbody>${block.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : ''
+  const rowHeadings = block.title === 'Trip status sequence'
+    ? ['Status', 'Meaning', 'When to use it']
+    : ['Class', 'Typical capacity', 'Examples']
+  const rows = Array.isArray(block.rows) ? `<div class="table-wrap"><table><thead><tr>${rowHeadings.map((heading) => `<th>${escapeHtml(heading)}</th>`).join('')}</tr></thead><tbody>${block.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : ''
   return `<div class="wiki-block">${title}${body}${items}${quote}${links}${rows}</div>`
 }
 
