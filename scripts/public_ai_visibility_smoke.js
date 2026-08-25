@@ -48,7 +48,7 @@ async function main() {
     const { response, text } = await readText('/vendor-wiki')
     assertOk(response.status === 200, `vendor wiki status ${response.status}`)
     assertOk(text.includes('Riderra Vendor Wiki'), 'vendor wiki missing title')
-    assertOk(text.includes('No Riderra account is required'), 'vendor wiki does not state public access')
+    assertOk(!text.includes('No Riderra account is required'), 'vendor wiki still shows the redundant public-access notice')
     assertOk(text.includes('A US W-9 form is not required'), 'vendor wiki missing current W-9 policy')
     assertOk(text.includes('company in Estonia'), 'vendor wiki missing Estonia payment policy')
     assertOk(text.includes('EasyTaxi Office (ETO)'), 'vendor wiki missing current EasyTaxi process')

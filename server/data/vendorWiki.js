@@ -1,5 +1,3 @@
-const VENDOR_WIKI_UPDATED_AT = 'August 25, 2026'
-
 const VENDOR_WIKI_SECTIONS = [
   {
     id: 'getting-started',
@@ -190,4 +188,4 @@ const VENDOR_WIKI_SECTIONS = [
   }
 ]
 
-module.exports = { VENDOR_WIKI_SECTIONS, VENDOR_WIKI_UPDATED_AT }
+module.exports = { VENDOR_WIKI_SECTIONS }
