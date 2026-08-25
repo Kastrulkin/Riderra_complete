@@ -40,6 +40,14 @@ async function main() {
     throw new Error(`Duplicate route keys in input: ${rows.length - uniqueKeys.size}`);
   }
 
+  const tenant = await prisma.tenant.findUnique({
+    where: { code: 'riderra' },
+    select: { id: true },
+  });
+  if (!tenant) {
+    throw new Error('Riderra tenant not found');
+  }
+
   const summary = {
     dryRun: DRY_RUN,
     inputRows: rows.length,
@@ -51,6 +59,7 @@ async function main() {
   for (const row of rows) {
     const activeRows = await prisma.cityPricing.findMany({
       where: {
+        tenantId: tenant.id,
         isActive: true,
         routeFrom: row.routeFrom,
         routeTo: row.routeTo,
@@ -79,6 +88,7 @@ async function main() {
     }
 
     const data = {
+      tenantId: tenant.id,
       country: row.country || 'United Kingdom',
       city: row.city,
       routeFrom: row.routeFrom,
@@ -111,6 +121,7 @@ async function main() {
 
   const activeCurrentCount = await prisma.cityPricing.count({
     where: {
+      tenantId: tenant.id,
       isActive: true,
       notes: { contains: SOURCE_MARKER },
     },
@@ -118,6 +129,7 @@ async function main() {
 
   const examples = await prisma.cityPricing.findMany({
     where: {
+      tenantId: tenant.id,
       isActive: true,
       notes: { contains: SOURCE_MARKER },
       OR: [

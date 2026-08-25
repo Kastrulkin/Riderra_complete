@@ -323,7 +323,6 @@ async function main() {
     const driver = await upsertDriver(tx, tenant.id, company)
     const royal = await syncRoyalRoutes(tx, tenant.id, driver, royalRows, sheetHash)
     const mtt = await syncMttRules(tx, tenant.id)
-    await tx.cityPricing.updateMany({ where: { tenantId: null, isActive: true, notes: { contains: 'manual:riderra-base005-london-royal-taxis-mtt-2026-07' } }, data: { isActive: false } })
     return { company: { id: company.id, name: company.name }, driver: { id: driver.id, name: driver.name }, royal, mtt }
   }, { maxWait: 10000, timeout: 120000 })
   console.log(JSON.stringify({ ok: true, approvedBy: APPROVER_EMAIL, tenant: tenant.code, sheetUrl: SHEET_URL, sheetHash, ...result }, null, 2))
