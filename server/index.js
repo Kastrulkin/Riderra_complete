@@ -82,6 +82,11 @@ const {
   isOrderPriceRequest,
   stripOrderPriceCommand
 } = require('./services/telegramOrderPricingService')
+const {
+  consumeTelegramBindToken,
+  telegramBindErrorMessage,
+  telegramBindSuccessMessage
+} = require('./services/telegramDirectBindService')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -20762,6 +20767,22 @@ app.post('/api/telegram/webhook', resolveActorContext, requireActorContext, asyn
       where: { telegramUserId },
       include: { user: true }
     })
+    const bindToken = text.match(/^\/start\s+bind_([A-Za-z0-9_-]{20,64})$/)?.[1]
+    if (bindToken) {
+      try {
+        const bound = await consumeTelegramBindToken({
+          prisma,
+          tenantId,
+          token: bindToken,
+          telegramUserId,
+          telegramChatId
+        })
+        await telegramSendMessage(telegramChatId, telegramBindSuccessMessage(bound.scope))
+      } catch (error) {
+        await telegramSendMessage(telegramChatId, telegramBindErrorMessage(error))
+      }
+      return res.json({ ok: true })
+    }
     if (!link) {
       await telegramSendMessage(
         telegramChatId,

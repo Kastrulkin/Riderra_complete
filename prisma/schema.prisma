@@ -42,6 +42,7 @@ model Tenant {
   opsTasks                      OpsTask[]
   orderAdjustments              OrderAdjustment[]
   telegramLinks                 TelegramLink[]
+  telegramBindTokens            TelegramBindToken[]
   fleetVehicles                 FleetVehicle[]
   chatTasks                     ChatTask[]
   chatMessages                  ChatMessage[]
@@ -106,6 +107,7 @@ model User {
   driver             Driver?
   roleLinks          UserRole[]
   telegramLinks      TelegramLink[]
+  telegramBindTokens TelegramBindToken[]
   opsTasks           OpsTask[]          @relation("OpsTaskAssignee")
   memberships        TenantMembership[]
   assignedComplaints ComplaintCase[]    @relation("ComplaintAssignee")
@@ -1897,4 +1899,20 @@ model TelegramLink {
   @@unique([userId, telegramUserId])
   @@index([tenantId, userId])
   @@index([userId])
+}
+
+model TelegramBindToken {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  tokenHash String    @unique
+  scope     String    @default("booking_price_changes")
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, usedAt])
+  @@index([expiresAt])
 }
