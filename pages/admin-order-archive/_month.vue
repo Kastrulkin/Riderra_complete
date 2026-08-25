@@ -376,7 +376,7 @@ export default {
 .month-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; padding: 16px; border: 1px solid #d8e0ef; border-radius: 8px; background: #fff; }
 .month-head h2 { margin: 2px 0 6px; color: #17233d; }
 .month-head p { margin: 0; color: #64748b; }
-.month-head__eyebrow { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #702283; }
+.month-head__eyebrow { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--staff-accent); }
 .overview-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .overview-card { padding: 14px 16px; border-radius: 8px; border: 1px solid #d8e0ef; background: #fff; box-shadow: 0 12px 28px rgba(16, 30, 67, 0.06); }
 .overview-card__value { font-size: 22px; font-weight: 800; color: #17233d; }

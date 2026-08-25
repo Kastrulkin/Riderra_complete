@@ -834,13 +834,13 @@ export default {
   padding: 5px;
   width: fit-content;
   border: 1px solid #d8e0ef;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #fff;
 }
 
 .workspace-tab {
   border: 0;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 10px 16px;
   background: transparent;
   color: #52617d;
@@ -848,7 +848,7 @@ export default {
   cursor: pointer;
 }
 
-.workspace-tab--active { background: #f6eaf9; color: #702283; }
+.workspace-tab--active { background: var(--staff-soft); color: var(--staff-accent); }
 .workspace-tab__count { margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: #fff; }
 
 .benchmark-hero {
@@ -857,7 +857,7 @@ export default {
   align-items: flex-start;
   gap: 20px;
   padding: 22px;
-  border-radius: 18px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #fff 0%, #f9effb 100%);
   border: 1px solid #e4d5e8;
 }
@@ -866,13 +866,13 @@ export default {
 .benchmark-hero p { margin: 8px 0 0; max-width: 760px; color: #60708f; line-height: 1.5; }
 .benchmark-hero__actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .benchmark-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
-.benchmark-summary > div { display: grid; gap: 4px; padding: 15px; border: 1px solid #dce3ef; border-radius: 14px; background: #fff; }
+.benchmark-summary > div { display: grid; gap: 4px; padding: 15px; border: 1px solid #dce3ef; border-radius: 8px; background: #fff; }
 .benchmark-summary strong { font-size: 25px; color: #1d2c4a; }
 .benchmark-summary span { color: #68758d; font-size: 13px; }
-.benchmark-note { display: flex; gap: 8px; padding: 12px 15px; margin-bottom: 14px; border-radius: 12px; background: #eef7ff; color: #29456f; line-height: 1.45; }
+.benchmark-note { display: flex; gap: 8px; padding: 12px 15px; margin-bottom: 14px; border-radius: 8px; background: #eef7ff; color: #29456f; line-height: 1.45; }
 .benchmark-toolbar { align-items: stretch; }
 .status-filter { width: auto; min-width: 180px; }
-.benchmark-table { overflow: hidden; border: 1px solid #d8dfe9; border-radius: 16px; background: #fff; }
+.benchmark-table { overflow: hidden; border: 1px solid #d8dfe9; border-radius: 8px; background: #fff; }
 .benchmark-table__head, .benchmark-row { display: grid; grid-template-columns: minmax(180px, .9fr) minmax(260px, 1.4fr) minmax(180px, .8fr) 150px 90px; gap: 12px; align-items: center; padding: 13px 16px; }
 .benchmark-table__head { background: #f8faff; border-bottom: 1px solid #e2e7f0; color: #354563; font-weight: 700; }
 .benchmark-row { border-bottom: 1px solid #eef1f6; color: #31405c; }
@@ -884,8 +884,8 @@ export default {
 .status-badge--needs_review { background: #fff4d6; color: #8a5b00; }
 .status-badge--verified { background: #eafaf0; color: #166534; }
 .status-badge--rejected { background: #fef2f2; color: #991b1b; }
-.link-button { border: 0; background: transparent; color: #702283; font-weight: 700; cursor: pointer; }
-.form-error { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #fef2f2; color: #991b1b; }
+.link-button { border: 0; background: transparent; color: var(--staff-accent); font-weight: 700; cursor: pointer; }
+.form-error { margin: 10px 0; padding: 10px 12px; border-radius: 8px; background: #fef2f2; color: #991b1b; }
 .btn--danger { background: #fef2f2; color: #991b1b; }
 .btn:disabled { cursor: wait; opacity: .65; }
 
@@ -914,9 +914,9 @@ export default {
 
 .overview-card {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid #d8e0ef;
-  background: linear-gradient(180deg, #fff 0%, #fcf7fd 100%);
+  background: linear-gradient(180deg, #fff 0%, #f7f9fc 100%);
   box-shadow: 0 12px 28px rgba(16, 30, 67, 0.06);
 }
 
@@ -957,7 +957,7 @@ export default {
   gap: 4px;
   text-align: left;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid #d6deee;
   background: #fff;
   color: #223356;
@@ -973,7 +973,7 @@ export default {
 }
 
 .view-pill--active {
-  background: linear-gradient(135deg, #ff017a 0%, #702283 100%);
+  background: linear-gradient(135deg, #1a237e 0%, var(--staff-accent) 100%);
   border-color: transparent;
   color: #fff;
   box-shadow: 0 18px 34px rgba(112, 34, 131, 0.24);
@@ -1012,7 +1012,7 @@ export default {
 
 .input {
   border: 1px solid #d8d8e6;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 10px 12px;
   min-width: 220px;
   width: 100%;
@@ -1030,7 +1030,7 @@ export default {
 .matrix-list {
   background: #fff;
   border: 1px solid #d8d8e6;
-  border-radius: 18px;
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 14px 28px rgba(16, 24, 40, 0.06);
 }
@@ -1084,7 +1084,7 @@ export default {
 
 .entity-pill {
   border: 1px solid #d2d9eb;
-  background: #fcf7fd;
+  background: #f7f9fc;
   color: #5f216f;
   border-radius: 999px;
   padding: 5px 10px;
@@ -1148,7 +1148,7 @@ export default {
   max-height: 86vh;
   overflow: auto;
   background: #fff;
-  border-radius: 18px;
+  border-radius: 8px;
   padding: 18px;
 }
 
@@ -1188,12 +1188,12 @@ export default {
 
 .btn {
   border: none;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 12px 18px;
   cursor: pointer;
   font-weight: 700;
-  background: #fbf2ff;
-  color: #702283;
+  background: var(--staff-soft);
+  color: var(--staff-accent);
 }
 
 .btn--primary {

@@ -119,7 +119,7 @@ export default {
 
       .layer-block {
         background: #fff;
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 24px;
         border: 1px solid #e2e8f0;
 

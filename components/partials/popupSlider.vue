@@ -250,7 +250,7 @@
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      background: #702283;
+      background: #1f2e4d;
       position: absolute;
       z-index: 1;
       top: 0;

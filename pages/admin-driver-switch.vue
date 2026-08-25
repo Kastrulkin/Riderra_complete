@@ -405,7 +405,7 @@ export default {
     
     &:focus {
       outline: none;
-      border-color: #007bff;
+      border-color: var(--staff-accent);
     }
     
     &::placeholder {
@@ -428,7 +428,7 @@ export default {
 
 .driver-card {
   background: rgba(255,255,255,0.1);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 20px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.2);
@@ -451,7 +451,7 @@ export default {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #007bff, #0056b3);
+  background: linear-gradient(135deg, var(--staff-accent), #19253e);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -597,7 +597,7 @@ export default {
 
 .modal {
   background: #1a1a1a;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 24px;
   max-width: 500px;
   width: 90%;
@@ -630,7 +630,7 @@ export default {
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #007bff, #0056b3);
+    background: linear-gradient(135deg, var(--staff-accent), #19253e);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -776,7 +776,7 @@ export default {
 
 /* Кнопки */
 .btn {
-  background: #007bff;
+  background: var(--staff-accent);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -787,14 +787,14 @@ export default {
   transition: background 0.2s ease;
   
   &:hover {
-    background: #0056b3;
+    background: #19253e;
   }
   
   &--primary {
-    background: #007bff;
+    background: var(--staff-accent);
     
     &:hover {
-      background: #0056b3;
+      background: #19253e;
     }
   }
   

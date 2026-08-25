@@ -26,7 +26,7 @@
 
   .complite-page {
     height: 640px;
-    background: #702283;
+    background: var(--riderra-gradient);
     position: relative;
     overflow: hidden;
 
@@ -37,13 +37,13 @@
       height: 50%;
       top: 45%;
       transform: translate3d(-10%, -50%, 0);
-      /*background: #E5006D;*/
+
       /*opacity: 0.7;*/
-      box-shadow: 0px 11px 24px rgba(229, 0, 109, 0.6);
+      box-shadow: 0 11px 24px rgba(47, 128, 237, 0.2);
       filter: blur(50px);
       border-radius: 5px;
 
-      background: radial-gradient(ellipse at center, #E5006D, transparent);
+      background: radial-gradient(ellipse at center, rgba(47, 128, 237, .38), transparent);
     }
 
     &__box {
@@ -59,7 +59,7 @@
     &__logo {
       width: 331px;
       height: 331px;
-      background: url(/img/logo_n.svg) center no-repeat / cover;
+      background: url(/img/logo.svg) center no-repeat / contain;
       margin-right: 140px;
       max-width: 100%;
     }
@@ -74,7 +74,7 @@
 
     &__button {
       line-height: 60px;
-      border-radius: 40px;
+      border-radius: var(--riderra-radius-control);
 
       &:hover {
         color: #000;

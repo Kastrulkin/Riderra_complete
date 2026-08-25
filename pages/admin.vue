@@ -495,7 +495,7 @@ export default {
 .hero-card,
 .card {
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 24px;
+  border-radius: 8px;
   box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
 }
 
@@ -514,7 +514,7 @@ export default {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #702283;
+  color: var(--staff-accent);
 }
 
 .hero-copy,
@@ -530,7 +530,7 @@ export default {
 .notice {
   margin: 0 0 18px;
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff7ed;
   color: #9a3412;
   font-weight: 600;
@@ -576,7 +576,7 @@ export default {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
@@ -592,7 +592,7 @@ export default {
 .compact-table {
   overflow: hidden;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 8px;
 }
 
 .compact-row {
@@ -618,7 +618,7 @@ export default {
   display: grid;
   gap: 8px;
   border: 1px solid #e2e8f0;
-  border-radius: 22px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
 }
 
@@ -658,7 +658,7 @@ export default {
   height: 42px;
   padding: 0 12px;
   border: 1px solid #dbe4f2;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff;
   color: #0f172a;
   font-weight: 700;
@@ -680,7 +680,7 @@ export default {
   width: 100%;
   padding: 16px 18px;
   border: 1px solid #dbe4f2;
-  border-radius: 18px;
+  border-radius: 8px;
   background: #fff;
   text-align: left;
   cursor: pointer;
@@ -710,8 +710,8 @@ export default {
   height: 36px;
   padding: 0 12px;
   border-radius: 999px;
-  background: #fbf2ff;
-  color: #702283;
+  background: var(--staff-soft);
+  color: var(--staff-accent);
   font-weight: 800;
 }
 
@@ -720,26 +720,26 @@ export default {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
 .risk-item {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #fff7ed;
 }
 
 .empty-state {
   padding: 18px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #f8fafc;
   color: #64748b;
 }
 
 .btn {
   border: none;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 12px 18px;
   cursor: pointer;
   font-weight: 700;

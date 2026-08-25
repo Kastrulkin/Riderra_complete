@@ -39,9 +39,11 @@ export default {
   --staff-success: #248253;
   --staff-warning: #a15c08;
   --staff-danger: #b42318;
+  --staff-radius: 8px;
   min-height: 100vh;
   background: var(--staff-bg);
   color: var(--staff-ink);
+  font-family: 'Montserrat', sans-serif;
 }
 .admin-shell { min-height: 100vh; padding-top: 68px; }
 .route-progress{position:fixed;z-index:950;top:67px;left:0;width:100%;height:2px;overflow:hidden;pointer-events:none}.route-progress span{display:block;width:38%;height:100%;background:#3e67a3;opacity:0;transform:translateX(-110%)}.route-progress--active span{opacity:1;animation:routeWork 1s ease-in-out infinite}@keyframes routeWork{50%{transform:translateX(110%)}100%{transform:translateX(280%)}}
@@ -51,7 +53,7 @@ export default {
 .admin-shell .panel,
 .admin-shell .card,
 .admin-shell .table-wrap { border-color: var(--staff-line); box-shadow: none; }
-.admin-shell .btn { border-radius: 9px; }
+.admin-shell .btn { border-radius: var(--staff-radius); }
 .admin-shell .btn:disabled { box-shadow: none; transform: none; }
 .admin-shell input,
 .admin-shell select,

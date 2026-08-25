@@ -45,7 +45,7 @@ module.exports = {
   modules: [
     'vue-scrollto/nuxt'
   ],
-  loading: { color: '#3B8070' },
+  loading: { color: '#2F80ED' },
 
   plugins: [
     { src: '~/plugins/chunk-reload.js', mode: 'client' },

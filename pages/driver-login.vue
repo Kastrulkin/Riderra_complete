@@ -169,7 +169,7 @@ export default {
 
 .auth-card {
   background: rgba(255,255,255,0.1);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 40px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.2);
@@ -222,7 +222,7 @@ export default {
   
   &:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: #2F80ED;
     background: rgba(255,255,255,0.15);
   }
   
@@ -242,7 +242,7 @@ export default {
 }
 
 .btn {
-  background: #007bff;
+  background: #2F80ED;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -253,7 +253,7 @@ export default {
   transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   
   &:hover:not(:disabled) {
-    background: #0056b3;
+    background: #236BBF;
     transform: translateY(-1px);
   }
 
@@ -267,10 +267,10 @@ export default {
   }
   
   &--primary {
-    background: #007bff;
+    background: #2F80ED;
     
     &:hover:not(:disabled) {
-      background: #0056b3;
+      background: #236BBF;
     }
   }
   
@@ -325,7 +325,7 @@ export default {
   bottom: 0;
   height: 200vh;
   width: 35vh;
-  background: linear-gradient(180deg, rgba(255, 80, 41, 0.256) 0%, rgba(229, 0, 109, 0.8) 52.49%, rgba(112, 34, 131, 0.8) 64.64%);
+  background: radial-gradient(circle at 15% 20%, rgba(47, 128, 237, .22), transparent 62%);
   filter: blur(100px);
   transform: matrix(0.58, 1, -0.63, 0.64, 0, 0) translate3d(-120%, -40%, 0);
   z-index: 3;

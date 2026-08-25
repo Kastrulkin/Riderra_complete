@@ -1934,7 +1934,7 @@ export default {
 
 .overview-card {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid #d8e0ef;
   background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
   box-shadow: 0 12px 28px rgba(16, 30, 67, 0.06);
@@ -2036,7 +2036,7 @@ export default {
 .panel {
   background: #fff;
   border: 1px solid #d8d8e6;
-  border-radius: 18px;
+  border-radius: 8px;
   padding: 16px;
   box-shadow: 0 14px 28px rgba(16, 24, 40, 0.06);
 }
@@ -2057,7 +2057,7 @@ export default {
 
 .pricing-list {
   border: 1px solid #e6ebf5;
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -2134,7 +2134,7 @@ export default {
   gap: 6px;
   padding: 14px;
   border: 1px solid #e6ebf5;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fbfcff;
 }
 
@@ -2249,7 +2249,7 @@ export default {
 
 .input {
   border: 1px solid #d8d8e6;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 10px 12px;
   min-width: 220px;
   width: 100%;
@@ -2272,7 +2272,7 @@ export default {
   max-height: min(92vh, 720px);
   overflow: auto;
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 22px 24px;
   border: 1px solid #d8d8e6;
 }
@@ -2333,7 +2333,7 @@ export default {
 
 .btn {
   border: none;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 12px 18px;
   cursor: pointer;
   font-weight: 700;
@@ -2386,7 +2386,7 @@ export default {
 .booking-schedule-card {
   padding: 18px;
   border: 1px solid #d7e0ef;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
@@ -2454,7 +2454,7 @@ export default {
 .booking-vehicle-plan {
   overflow: hidden;
   border: 1px solid #d7e0ef;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #fff;
 }
 
@@ -2522,7 +2522,7 @@ export default {
   gap: 14px;
   padding: 16px;
   border: 1px solid #bfdbfe;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #eff6ff;
 }
 
@@ -2556,7 +2556,7 @@ export default {
   gap: 5px;
   padding: 13px;
   border: 1px solid #d7e0ef;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
@@ -2567,7 +2567,7 @@ export default {
 .booking-table-wrap {
   overflow-x: auto;
   border: 1px solid #d7e0ef;
-  border-radius: 16px;
+  border-radius: 8px;
 }
 
 .booking-grid {
@@ -2654,7 +2654,7 @@ export default {
 .review-block {
   padding: 18px;
   border: 1px solid #d7e0ef;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
@@ -2685,7 +2685,7 @@ export default {
   gap: 8px;
   padding: 14px;
   border: 1px solid #d7e0ef;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
   color: #17233d;
   text-align: left;
@@ -2768,7 +2768,7 @@ export default {
 .review-row--error {
   margin: 4px -10px;
   padding: 12px 10px;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .review-row--processing {

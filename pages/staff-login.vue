@@ -167,7 +167,7 @@ export default {
   margin: auto;
   overflow: hidden;
   border: 1px solid #e1e6ee;
-  border-radius: 24px;
+  border-radius: 8px;
   background: #fff;
   box-shadow: 0 24px 70px rgba(28, 41, 66, .09);
 }
@@ -280,7 +280,7 @@ export default {
   background: #17233d;
   color: #fff;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 12px 24px;
   font-size: 16px;
   font-weight: 600;

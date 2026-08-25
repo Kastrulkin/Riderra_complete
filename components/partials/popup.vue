@@ -227,7 +227,7 @@
     z-index: 100;
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
-    background: #702283;
+    background: #1f2e4d;
 
     &__button{
       width: 100%;
@@ -246,7 +246,7 @@
 
     &__header {
       height: 100vh;
-      background: #702283;
+      background: #1f2e4d;
       position: relative;
       min-height: 650px;
       max-height: 800px;

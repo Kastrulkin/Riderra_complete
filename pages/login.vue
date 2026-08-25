@@ -118,7 +118,7 @@ export default {
   max-width: 1040px;
   margin: 0 auto;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 20px 40px rgba(0,0,0,0.25);
   overflow: hidden;
 }

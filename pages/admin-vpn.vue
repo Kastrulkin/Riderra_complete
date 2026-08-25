@@ -1243,7 +1243,7 @@ export default {
   align-items: flex-start;
   padding: 28px;
   margin-bottom: 20px;
-  border-radius: 24px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
 }
@@ -1279,7 +1279,7 @@ export default {
 
 .card {
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 24px;
+  border-radius: 8px;
   padding: 24px;
   box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
 }
@@ -1300,7 +1300,7 @@ export default {
   gap: 14px;
   padding: 18px;
   border: 1px solid #dbe4f2;
-  border-radius: 20px;
+  border-radius: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
@@ -1320,7 +1320,7 @@ export default {
 .self-service-empty {
   padding: 18px;
   border: 1px dashed #c7d2e6;
-  border-radius: 18px;
+  border-radius: 8px;
   background: #f8fbff;
   color: #31456a;
 }
@@ -1417,7 +1417,7 @@ label,
 .select-input {
   width: 100%;
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid #d8e0ee;
   background: #fff;
   font-size: 15px;
@@ -1441,7 +1441,7 @@ label,
   max-width: min(480px, calc(100vw - 48px));
   margin: 0;
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: 8px;
   font-weight: 600;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
 }
@@ -1463,7 +1463,7 @@ label,
 
 .summary-item {
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: 8px;
   background: #f6f8fc;
 }
 
@@ -1506,7 +1506,7 @@ label,
   gap: 10px;
   padding: 14px;
   border: 1px solid #dbe4f2;
-  border-radius: 18px;
+  border-radius: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
@@ -1573,7 +1573,7 @@ label,
   gap: 8px;
   padding: 10px;
   border: 1px solid #dbe4f2;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #f8fbff;
 }
 
@@ -1616,7 +1616,7 @@ label,
 
 .btn {
   border: none;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 12px 18px;
   cursor: pointer;
   font-weight: 700;
@@ -1674,7 +1674,7 @@ label,
   max-height: calc(100vh - 48px);
   overflow: auto;
   background: #fff;
-  border-radius: 24px;
+  border-radius: 8px;
   padding: 24px;
   box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
 }
@@ -1695,7 +1695,7 @@ label,
   min-width: 220px;
   flex: 1 1 220px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
@@ -1707,7 +1707,7 @@ label,
 
 .param-row {
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 

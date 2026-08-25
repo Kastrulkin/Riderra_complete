@@ -60,7 +60,7 @@ export default {
 <style scoped>
 /* Заголовок страницы */
 .site-section--header {
-  background: linear-gradient(135deg, #702283 0%, #E5006D 100%);
+  background: var(--riderra-gradient);
   color: white;
   padding: 120px 0 80px;
   text-align: center;
@@ -83,7 +83,7 @@ export default {
 .widget {
   max-width: 100%;
   background: white;
-  border-radius: 10px;
+  border-radius: var(--riderra-radius-surface);
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   overflow: hidden;
 }
@@ -98,7 +98,7 @@ export default {
 /* Отступы */
 .site-section--pf { 
   padding: 80px 0; 
-  background: #f8f9fa;
+  background: var(--riderra-soft);
 }
 
 /* Адаптивность */
@@ -142,6 +142,5 @@ export default {
   }
 }
 </style>
-
 
 

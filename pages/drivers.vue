@@ -227,7 +227,7 @@ export default {
 
 .auth-card {
   background: rgba(255,255,255,0.1);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 32px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.2);
@@ -267,13 +267,13 @@ export default {
 }
 
 .btn--primary {
-  background: #007bff;
+  background: #2F80ED;
   color: #fff;
   border: none;
 }
 
 .btn--primary:hover {
-  background: #0056b3;
+  background: #236BBF;
   color: #fff;
 }
 .form { max-width: 720px; }
@@ -341,7 +341,7 @@ export default {
 .btn--icon { 
   width: 36px; 
   height: 36px; 
-  border-radius: 18px; 
+  border-radius: 8px;
   padding: 0; 
   line-height: 36px; 
   text-align: center; 
@@ -437,7 +437,7 @@ export default {
   bottom: 0;
   height: 200vh;
   width: 35vh;
-  background: linear-gradient(180deg, rgba(255, 80, 41, 0.256) 0%, rgba(229, 0, 109, 0.8) 52.49%, rgba(112, 34, 131, 0.8) 64.64%);
+  background: radial-gradient(circle at 15% 20%, rgba(47, 128, 237, .22), transparent 62%);
   filter: blur(100px);
   transform: matrix(0.58, 1, -0.63, 0.64, 0, 0) translate3d(-120%, -40%, 0);
   z-index: 3;

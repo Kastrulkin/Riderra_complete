@@ -617,7 +617,7 @@ function renderPublicSourceHtml(pagePath) {
     ${jsonLd.map(jsonLdScript).join('\n    ')}
     ${yandexMetrikaHead()}
     <style>
-      :root { color-scheme: light; --ink: #17223f; --muted: #66738d; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --blue: #3152ff; --pink: #d51b7c; --green: #2f7d62; }
+      :root { color-scheme: light; --ink: #17223f; --muted: #66738d; --line: #dbe3f2; --soft: #f5f7fb; --navy: #1a237e; --blue: #2f80ed; --pink: #2f80ed; --green: #2f7d62; }
       * { box-sizing: border-box; }
       body { margin: 0; font-family: 'Montserrat', sans-serif; color: var(--ink); background: #f7f9fd; }
       ${staticSiteHeaderCss()}
@@ -626,34 +626,34 @@ function renderPublicSourceHtml(pagePath) {
       .eyebrow { color: var(--pink); font-size: 14px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; }
       h1 { margin: 0; max-width: 860px; font-size: clamp(38px, 6vw, 72px); line-height: .98; letter-spacing: 0; }
       .lead { max-width: 760px; margin: 22px 0 0; font-size: 20px; line-height: 1.65; color: var(--muted); }
-      .card { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 36px; box-shadow: 0 22px 70px rgba(29,42,87,.08); }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 36px; box-shadow: 0 22px 70px rgba(29,42,87,.08); }
       .sections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
-      .section-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+      .section-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
       h2 { margin: 0 0 12px; font-size: 22px; line-height: 1.2; }
       p { font-size: 17px; line-height: 1.7; color: var(--muted); margin: 0; }
       code { background: #eef2ff; padding: 2px 6px; border-radius: 6px; }
       .price-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: 24px; align-items: stretch; margin-top: 30px; }
-      .policy-panel { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 30px; box-shadow: 0 18px 60px rgba(29,42,87,.08); }
+      .policy-panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 30px; box-shadow: 0 18px 60px rgba(29,42,87,.08); }
       .factors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
-      .factor { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--soft); font-weight: 800; color: #263352; }
-      .quote-card { background: linear-gradient(135deg, var(--navy), #0b1022); color: #fff; border-radius: 22px; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; min-height: 360px; box-shadow: 0 24px 80px rgba(22,29,77,.22); }
+      .factor { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--soft); font-weight: 800; color: #263352; }
+      .quote-card { background: linear-gradient(135deg, var(--navy), #0b1022); color: #fff; border-radius: 8px; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; min-height: 360px; box-shadow: 0 24px 80px rgba(22,29,77,.22); }
       .quote-card p { color: rgba(255,255,255,.78); }
       .quote-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
-      .button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 12px; text-decoration: none; font-weight: 900; }
+      .button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 6px; text-decoration: none; font-weight: 900; }
       .button-primary { background: #fff; color: var(--navy); }
       .button-secondary { border: 1px solid rgba(255,255,255,.36); color: #fff; }
       .agent-note { margin-top: 24px; border-left: 4px solid var(--green); padding: 14px 0 14px 18px; color: var(--muted); }
       .contact-layout { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 24px; align-items: stretch; margin-top: 30px; }
-      .contact-primary { background: linear-gradient(135deg, var(--navy), #0b1022); color: #fff; border-radius: 22px; padding: 34px; box-shadow: 0 24px 80px rgba(22,29,77,.22); }
+      .contact-primary { background: linear-gradient(135deg, var(--navy), #0b1022); color: #fff; border-radius: 8px; padding: 34px; box-shadow: 0 24px 80px rgba(22,29,77,.22); }
       .contact-primary h2 { font-size: 32px; margin-bottom: 18px; }
       .contact-primary p { color: rgba(255,255,255,.78); }
       .contact-email { display: inline-flex; margin-top: 22px; color: #fff; font-size: 24px; font-weight: 900; text-decoration: none; word-break: break-word; }
       .contact-email:hover, .contact-email:focus-visible { text-decoration: underline; outline: none; }
       .contact-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
       .contact-grid { display: grid; gap: 16px; }
-      .contact-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+      .contact-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
       .contact-card h2 { font-size: 20px; }
-      .plain-article { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 36px; box-shadow: 0 18px 60px rgba(20,35,90,.1); }
+      .plain-article { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 36px; box-shadow: 0 18px 60px rgba(20,35,90,.1); }
       .plain-article section + section { margin-top: 26px; }
       .transfer-catalog { margin-top: 30px; }
       .transfer-catalog__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
@@ -661,7 +661,7 @@ function renderPublicSourceHtml(pagePath) {
       .transfer-catalog__head p { max-width: 760px; }
       .transfer-catalog__all { color: var(--blue); font-weight: 900; text-decoration: none; white-space: nowrap; }
       .transfer-catalog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-      .country-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: 0 18px 60px rgba(20,35,90,.08); }
+      .country-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 24px; box-shadow: 0 18px 60px rgba(20,35,90,.08); }
       .country-card__top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 14px; }
       .country-card h3 { margin: 0; font-size: 24px; line-height: 1.2; }
       .country-card h3 a { color: var(--ink); text-decoration: none; }
@@ -1119,7 +1119,7 @@ function renderSeoTransferPage(pagePath, isRu = false) {
     ${jsonLd.map(jsonLdScript).join('\n    ')}
     ${yandexMetrikaHead()}
     <style>
-      :root { color-scheme: light; --ink: #17223f; --muted: #65728a; --line: #dbe3f2; --soft: #f5f7fb; --navy: #161d4d; --pink: #d51b7c; --green: #2f7d62; }
+      :root { color-scheme: light; --ink: #17223f; --muted: #65728a; --line: #dbe3f2; --soft: #f5f7fb; --navy: #1a237e; --pink: #2f80ed; --green: #2f7d62; }
       * { box-sizing: border-box; }
       body { margin: 0; font-family: 'Montserrat', sans-serif; color: var(--ink); background: #f7f9fd; }
       a { color: #2549d8; }
@@ -1590,6 +1590,9 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${title}</title>
     <meta name="description" content="${description}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&subset=cyrillic-ext">
     <style>
       :root {
         color-scheme: light;
@@ -1597,13 +1600,13 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
         --card: #ffffff;
         --text: #122033;
         --muted: #5c667a;
-        --accent: #2948a3;
+        --accent: #2f80ed;
         --line: rgba(18, 32, 51, 0.12);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: 'Montserrat', sans-serif;
         background: linear-gradient(180deg, #f5f7fb 0%, #ffffff 100%);
         color: var(--text);
       }
@@ -1614,7 +1617,7 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
       }
       .card {
         background: var(--card);
-        border-radius: 24px;
+        border-radius: 8px;
         box-shadow: 0 24px 80px rgba(20, 35, 90, 0.12);
         padding: 40px 48px;
       }
@@ -1702,7 +1705,7 @@ function renderPrivacyPolicyHtml(lang = 'ru') {
       }
       @media (max-width: 767px) {
         .wrap { padding-top: 24px; padding-bottom: 36px; }
-        .card { padding: 28px 20px; border-radius: 18px; }
+        .card { padding: 28px 20px; border-radius: 8px; }
         h1 { font-size: 30px; }
         h2 { font-size: 21px; }
         p { font-size: 16px; }
@@ -1825,6 +1828,9 @@ function renderTermsHtml(lang = 'ru') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${title}</title>
     <meta name="description" content="${description}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&subset=cyrillic-ext">
     <style>
       :root {
         color-scheme: light;
@@ -1832,13 +1838,13 @@ function renderTermsHtml(lang = 'ru') {
         --card: #ffffff;
         --text: #122033;
         --muted: #5c667a;
-        --accent: #2948a3;
+        --accent: #2f80ed;
         --line: rgba(18, 32, 51, 0.12);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: 'Montserrat', sans-serif;
         background: linear-gradient(180deg, #f5f7fb 0%, #ffffff 100%);
         color: var(--text);
       }
@@ -1849,7 +1855,7 @@ function renderTermsHtml(lang = 'ru') {
       }
       .card {
         background: var(--card);
-        border-radius: 24px;
+        border-radius: 8px;
         box-shadow: 0 24px 80px rgba(20, 35, 90, 0.12);
         padding: 40px 48px;
       }
@@ -1927,7 +1933,7 @@ function renderTermsHtml(lang = 'ru') {
       a { color: var(--accent); }
       @media (max-width: 767px) {
         .wrap { padding-top: 24px; padding-bottom: 36px; }
-        .card { padding: 28px 20px; border-radius: 18px; }
+        .card { padding: 28px 20px; border-radius: 8px; }
         .toolbar { align-items: flex-start; flex-direction: column; }
         h1 { font-size: 30px; }
         h2 { font-size: 21px; }
@@ -2014,6 +2020,9 @@ function renderDataDeletionHtml(lang = 'ru') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${title}</title>
     <meta name="description" content="${description}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&subset=cyrillic-ext">
     <style>
       :root {
         color-scheme: light;
@@ -2021,13 +2030,13 @@ function renderDataDeletionHtml(lang = 'ru') {
         --card: #fff;
         --text: #14235a;
         --muted: #5b6884;
-        --accent: #2948a3;
+        --accent: #2f80ed;
         --line: rgba(20, 35, 90, 0.12);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: 'Montserrat', sans-serif;
         background: linear-gradient(180deg, #edf3ff 0%, #f8fbff 100%);
         color: var(--text);
       }
@@ -2064,7 +2073,7 @@ function renderDataDeletionHtml(lang = 'ru') {
         padding: 34px 34px 28px;
         background: var(--card);
         border: 1px solid var(--line);
-        border-radius: 24px;
+        border-radius: 8px;
         box-shadow: 0 20px 60px rgba(20, 35, 90, 0.08);
       }
       .eyebrow {
@@ -2098,7 +2107,7 @@ function renderDataDeletionHtml(lang = 'ru') {
       a { color: var(--accent); }
       @media (max-width: 767px) {
         .wrap { padding-top: 24px; padding-bottom: 36px; }
-        .card { padding: 28px 20px; border-radius: 18px; }
+        .card { padding: 28px 20px; border-radius: 8px; }
         .toolbar { align-items: flex-start; flex-direction: column; }
         h1 { font-size: 30px; }
         h2 { font-size: 21px; }

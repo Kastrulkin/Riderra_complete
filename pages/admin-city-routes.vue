@@ -674,11 +674,11 @@ export default {
   }
   
   &--add {
-    background: rgba(0,123,255,0.2);
-    border-color: rgba(0,123,255,0.5);
+    background: rgba(47,128,237,0.2);
+    border-color: rgba(47,128,237,0.5);
     
     &:hover {
-      background: rgba(0,123,255,0.3);
+      background: rgba(47,128,237,0.3);
     }
   }
 }
@@ -689,7 +689,7 @@ export default {
 
 .routes-section {
   background: rgba(255,255,255,0.1);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 24px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.2);
@@ -777,7 +777,7 @@ export default {
 
 .modal {
   background: #1a1a1a;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 24px;
   max-width: 500px;
   width: 90%;
@@ -818,7 +818,7 @@ export default {
     
     &:focus {
       outline: none;
-      border-color: #007bff;
+      border-color: var(--staff-accent);
     }
   }
   
@@ -835,7 +835,7 @@ export default {
 }
 
 .btn {
-  background: #007bff;
+  background: var(--staff-accent);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -846,14 +846,14 @@ export default {
   transition: background 0.2s ease;
   
   &:hover {
-    background: #0056b3;
+    background: #19253e;
   }
   
   &--primary {
-    background: #007bff;
+    background: var(--staff-accent);
     
     &:hover {
-      background: #0056b3;
+      background: #19253e;
     }
   }
   

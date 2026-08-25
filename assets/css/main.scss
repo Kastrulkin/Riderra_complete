@@ -1,3 +1,19 @@
+:root {
+  --riderra-navy: #1a237e;
+  --riderra-brand-dark: #0d1421;
+  --riderra-black: #000000;
+  --riderra-cta: #1f2e4d;
+  --riderra-cta-hover: #19253e;
+  --riderra-blue: #2f80ed;
+  --riderra-ink: #17233d;
+  --riderra-muted: #5d6981;
+  --riderra-line: #dfe5ef;
+  --riderra-soft: #f5f7fb;
+  --riderra-gradient: linear-gradient(135deg, var(--riderra-navy) 0%, var(--riderra-brand-dark) 50%, var(--riderra-black) 100%);
+  --riderra-radius-control: 6px;
+  --riderra-radius-surface: 8px;
+}
+
 // Calendar Styles
 body {
   font-family: 'Montserrat', sans-serif;

@@ -134,7 +134,7 @@ export default {
 
     .chain-box {
       background: #f7fafc;
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 32px;
       border: 1px solid #e2e8f0;
 

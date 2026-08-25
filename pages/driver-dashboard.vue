@@ -628,7 +628,7 @@ export default {
 
 .stat-card {
   background: rgba(255,255,255,0.1);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 20px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.2);
@@ -688,7 +688,7 @@ export default {
 
 .dashboard-section {
   background: rgba(255,255,255,0.1);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 24px;
   margin-bottom: 30px;
   backdrop-filter: blur(10px);
@@ -787,7 +787,7 @@ export default {
     
     &:focus {
       outline: none;
-      border-color: #007bff;
+      border-color: #2F80ED;
       background: rgba(255,255,255,0.15);
     }
     
@@ -915,8 +915,8 @@ export default {
       }
       
       &.assigned {
-        background: rgba(0,123,255,0.2);
-        color: #007bff;
+        background: rgba(47,128,237,0.2);
+        color: #2F80ED;
       }
       
       &.accepted {
@@ -1011,7 +1011,7 @@ export default {
 
 .modal {
   background: #1a1a1a;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 24px;
   max-width: 500px;
   width: 90%;
@@ -1047,7 +1047,7 @@ export default {
     
     &:focus {
       outline: none;
-      border-color: #007bff;
+      border-color: #2F80ED;
     }
   }
   
@@ -1066,7 +1066,7 @@ export default {
 
 /* Кнопки */
 .btn {
-  background: #007bff;
+  background: #2F80ED;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -1077,14 +1077,14 @@ export default {
   transition: background 0.2s ease;
   
   &:hover {
-    background: #0056b3;
+    background: #236BBF;
   }
   
   &--primary {
-    background: #007bff;
+    background: #2F80ED;
     
     &:hover {
-      background: #0056b3;
+      background: #236BBF;
     }
   }
   
@@ -1192,7 +1192,7 @@ export default {
   bottom: 0;
   height: 200vh;
   width: 35vh;
-  background: linear-gradient(180deg, rgba(255, 80, 41, 0.256) 0%, rgba(229, 0, 109, 0.8) 52.49%, rgba(112, 34, 131, 0.8) 64.64%);
+  background: radial-gradient(circle at 15% 20%, rgba(47, 128, 237, .22), transparent 62%);
   filter: blur(100px);
   transform: matrix(0.58, 1, -0.63, 0.64, 0, 0) translate3d(-120%, -40%, 0);
   z-index: 3;

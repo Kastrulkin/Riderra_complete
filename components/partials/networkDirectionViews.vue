@@ -43,7 +43,7 @@ export default {
   margin: 0 0 18px;
   padding: 5px;
   border: 1px solid #d8e0ef;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #f7f9fc;
 }
 
@@ -51,7 +51,7 @@ export default {
   display: grid;
   gap: 2px;
   padding: 9px 13px;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #52627b;
   text-decoration: none;
 }

@@ -124,7 +124,7 @@ export default {
     text-align: center;
     background: #f7fafc;
     padding: 40px;
-    border-radius: 12px;
+    border-radius: 8px;
     border: 1px solid #e2e8f0;
 
     h3 {

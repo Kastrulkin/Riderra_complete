@@ -153,7 +153,7 @@ export default {
     .faq-item {
       background: #f7fafc;
       padding: 24px;
-      border-radius: 12px;
+      border-radius: 8px;
       border: 1px solid #e2e8f0;
       margin-bottom: 16px;
 

@@ -338,7 +338,7 @@ export default {
   gap: 2px;
   text-align: left;
   padding: 9px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #e1e6ee;
   background: #fff;
   color: #223356;
@@ -423,7 +423,7 @@ export default {
   gap: 2px;
   min-width: 0;
   padding: 8px 11px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #e1e6ee;
   background: #fff;
   color: #334155;
@@ -458,7 +458,7 @@ export default {
   min-width: 21px;
   height: 21px;
   padding: 0 5px;
-  border-radius: 11px;
+  border-radius: 8px;
   background: #d92d20;
   color: #fff;
   font-size: 11px;

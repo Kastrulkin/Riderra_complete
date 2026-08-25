@@ -151,7 +151,7 @@ export default {
   max-width: 900px;
   margin: 0 auto;
   background: #fff;
-  border-radius: 24px;
+  border-radius: 8px;
   box-shadow: 0 24px 80px rgba(20, 35, 90, 0.12);
   padding: 48px 56px;
 }
@@ -213,7 +213,7 @@ export default {
   }
 
   .policy-page__card {
-    border-radius: 18px;
+    border-radius: 8px;
     padding: 28px 20px;
   }
 

@@ -412,7 +412,7 @@ export default {
   min-width: 0;
   padding: 13px 15px;
   border: 1px solid #d8e0ef;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
 }
 
@@ -422,7 +422,7 @@ export default {
 .map-workspace {
   overflow: hidden;
   border: 1px solid #d8e0ef;
-  border-radius: 18px;
+  border-radius: 8px;
   background: #fff;
   box-shadow: 0 14px 30px rgba(16, 30, 67, 0.08);
 }
@@ -444,24 +444,24 @@ export default {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #cfd8e8;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fff;
   color: #17233d;
   font: inherit;
 }
 .postcode-field textarea { resize: vertical; }
 .postcode-results { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.postcode-result { display: grid; gap: 2px; min-width: 150px; padding: 9px 11px; border: 1px solid #d8e0ef; border-radius: 10px; background: #fff; color: #52627b; text-align: left; cursor: pointer; }
+.postcode-result { display: grid; gap: 2px; min-width: 150px; padding: 9px 11px; border: 1px solid #d8e0ef; border-radius: 8px; background: #fff; color: #52627b; text-align: left; cursor: pointer; }
 .postcode-result strong { color: #17233d; }
 .postcode-result small { color: #96701e; }
 .postcode-result--selected { border-color: #315fba; background: #f4f7fd; }
 .postcode-empty { margin-top: 10px; color: #9a3b3b; font-size: 13px; }
-.postcode-selection { display: grid; gap: 14px; margin-top: 16px; padding: 15px; border: 1px solid #d8e0ef; border-radius: 14px; background: #f9fbff; }
+.postcode-selection { display: grid; gap: 14px; margin-top: 16px; padding: 15px; border: 1px solid #d8e0ef; border-radius: 8px; background: #f9fbff; }
 .postcode-current { display: grid; gap: 3px; color: #60708f; font-size: 12px; }
 .postcode-current strong { color: #17233d; font-size: 16px; }
 .postcode-form { display: grid; grid-template-columns: minmax(220px, 0.7fr) minmax(320px, 1.3fr) auto; gap: 12px; align-items: end; }
 .postcode-field--wide { max-width: none; }
-.postcode-alert { display: grid; gap: 3px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid #b8d5c3; border-radius: 10px; background: #f2fbf5; color: #356446; font-size: 13px; }
+.postcode-alert { display: grid; gap: 3px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid #b8d5c3; border-radius: 8px; background: #f2fbf5; color: #356446; font-size: 13px; }
 .postcode-alert--pending { margin: 0; border-color: #ead6a4; background: #fff9e9; color: #735919; }
 .postcode-alert--error { border-color: #efb5b5; background: #fff6f6; color: #9a3030; }
 .approval-queue { margin-top: 20px; }
@@ -477,7 +477,7 @@ export default {
   gap: 10px;
   padding: 28px;
   border: 1px dashed #cbd5e1;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #fff;
   color: #60708f;
 }
