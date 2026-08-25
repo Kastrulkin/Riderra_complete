@@ -16,7 +16,7 @@
           </div>
         </div>
         <div class="widget" id="booking-widget">
-          <iframe :src="bookingWidgetSrc" id="eto-iframe-booking" allow="geolocation" width="100%" height="1240" scrolling="no" frameborder="0" style="width:1px; min-width:100%; min-height:1240px; border:0;"></iframe>
+          <iframe :src="bookingWidgetSrc" id="eto-iframe-booking" allow="geolocation" width="100%" height="360" scrolling="no" frameborder="0" style="width:1px; min-width:100%; border:0;"></iframe>
         </div>
       </div>
     </section>
@@ -73,16 +73,17 @@ export default {
   },
   methods:{
     bookingMinHeight() {
-      if (typeof window === 'undefined') return 1240
-      if (window.matchMedia('(max-width: 767px)').matches) return 1680
-      if (window.matchMedia('(max-width: 1024px)').matches) return 1480
-      return 1240
+      if (typeof window === 'undefined') return 360
+      if (window.matchMedia('(max-width: 767px)').matches) return 500
+      if (window.matchMedia('(max-width: 1024px)').matches) return 360
+      return 360
     },
     enforceBookingIframeHeight(height) {
       const iframe = document.getElementById('eto-iframe-booking')
       if (!iframe) return
       const minHeight = this.bookingMinHeight()
-      const safeHeight = Math.max(Number(height) || 0, minHeight) + 160
+      const measuredHeight = Number(height) || 0
+      const safeHeight = Math.max(measuredHeight + 24, minHeight)
       iframe.style.height = `${safeHeight}px`
       iframe.style.minHeight = `${safeHeight}px`
     },
@@ -120,7 +121,7 @@ export default {
 
     .container{
       padding-top: 60px;
-      padding-bottom: 120px;
+      padding-bottom: 72px;
     }
   }
 
@@ -130,7 +131,7 @@ export default {
     .site-section--pf{
 
       .container{
-        padding-bottom: 120px;
+        padding-bottom: 64px;
       }
     }
   }
@@ -158,7 +159,7 @@ export default {
   #eto-iframe-booking{
     display: block;
     width: 100%;
-    min-height: 1400px;
+    min-height: 360px;
   }
 
   @media (max-width: 1024px){
@@ -166,21 +167,21 @@ export default {
       font-size: 24px;
       margin-bottom: 25px;
     }
-    #eto-iframe-booking{ min-height: 1640px; }
+    #eto-iframe-booking{ min-height: 360px; }
   }
   @media (max-width: 767px){
     .widget-title {
       font-size: 20px;
       margin-bottom: 20px;
     }
-    #eto-iframe-booking{ min-height: 1840px; }
+    #eto-iframe-booking{ min-height: 500px; }
   }
   @media (max-width: 767px){
 
     .site-section--pf{
 
       .container{
-        padding-bottom: 100px;
+        padding-bottom: 56px;
       }
     }
   }
