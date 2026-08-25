@@ -10,6 +10,7 @@
     "start": "nuxt start ",
     "generate": "nuxt generate",
     "prisma:generate": "prisma generate",
+    "prisma:bootstrap": "node scripts/prisma_postgres_bootstrap.js",
     "prisma:migrate": "prisma migrate deploy",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore .",
     "precommit": "npm run lint",
