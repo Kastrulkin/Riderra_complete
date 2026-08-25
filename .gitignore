@@ -10,12 +10,16 @@ pids
 *.pid
 *.seed
 *.pid.lock
+tmp/
+$CODEX_HOME/
 data/geo-zones/
 reports/*.json
 reports/db-backups/
 reports/order-sync/
 reports/order-sheet-downloads/
 reports/order-sheet-rows/
+reports/eto-sync/backups/
+reports/gmail-warm-transfer-leads-*.md
 reports/eto-sync/*.html
 reports/eto-sync/*.json
 
@@ -48,10 +52,14 @@ typings/
 
 # IDE/editor
 .idea/
+.gigacode/
+.gigaide/
 .DS_Store
 ._*
 
 # Misc
 *.tgz
+~$*.xlsx
 .lock-wscript
 .node_repl_history
+outputs/
