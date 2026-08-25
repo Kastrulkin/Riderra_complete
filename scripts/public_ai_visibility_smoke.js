@@ -39,9 +39,19 @@ async function main() {
     const { response, text } = await readText('/sitemap.xml')
     assertOk(response.status === 200, `sitemap.xml status ${response.status}`)
     assertOk(text.includes('<urlset'), 'sitemap.xml missing urlset')
-    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq']) {
+    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/vendor-wiki', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq']) {
       assertOk(text.includes(`${CANONICAL_URL}${path}`), `sitemap.xml missing ${path}`)
     }
+  })
+
+  await check('public vendor wiki', async () => {
+    const { response, text } = await readText('/vendor-wiki')
+    assertOk(response.status === 200, `vendor wiki status ${response.status}`)
+    assertOk(text.includes('Riderra Vendor Wiki'), 'vendor wiki missing title')
+    assertOk(text.includes('No Riderra account is required'), 'vendor wiki does not state public access')
+    assertOk(text.includes('A US W-9 form is not required'), 'vendor wiki missing current W-9 policy')
+    assertOk(text.includes('company in Estonia'), 'vendor wiki missing Estonia payment policy')
+    assertOk(!text.includes('notion.site'), 'vendor wiki still points to Notion')
   })
 
   await check('llms.txt', async () => {

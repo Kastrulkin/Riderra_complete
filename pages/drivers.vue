@@ -13,6 +13,7 @@
             <p class="auth-subtitle">{{ t.authSubtitle }}</p>
             <div class="auth-actions">
               <nuxt-link to="/driver-login" class="btn btn--primary">{{ t.loginButton }}</nuxt-link>
+              <a href="/vendor-wiki" class="btn btn--ghost">{{ t.wikiButton }}</a>
             </div>
           </div>
         </div>
@@ -98,6 +99,7 @@ export default {
           authTitle: 'Авторизация перевозчика',
           authSubtitle: 'Уже зарегистрированы? Войдите в свой кабинет для управления заказами и маршрутами.',
           loginButton: 'Войти в кабинет',
+          wikiButton: 'Открыть Vendor Wiki',
           registerButton: 'Регистрация',
           name: 'Ваше имя / компания', email: 'Email', phone: 'Телефон', city: 'Город / регион работы',
           fixedFrom: 'Откуда (фиксированный маршрут)', fixedTo: 'Куда (фиксированный маршрут)', fixedPrice: 'Цена', fixedCurrency: 'Валюта', routesPerKm: 'Цена за километр', comment: 'Комментарий',
@@ -110,6 +112,7 @@ export default {
           authTitle: 'Driver Authorization',
           authSubtitle: 'Already registered? Log in to your dashboard to manage orders and routes.',
           loginButton: 'Login to Dashboard',
+          wikiButton: 'Open Vendor Wiki',
           registerButton: 'Registration',
           name: 'Your name / company', email: 'Email', phone: 'Phone', city: 'City / operating region',
           fixedFrom: 'From (fixed route)', fixedTo: 'To (fixed route)', fixedPrice: 'Price', fixedCurrency: 'Currency', routesPerKm: 'Price per kilometer', comment: 'Comment',
@@ -437,5 +440,4 @@ export default {
   z-index: 3;
 }
 </style>
-
 

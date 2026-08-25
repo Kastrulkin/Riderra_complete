@@ -2,6 +2,7 @@ function registerPublicRoutes(app, handlers) {
   app.get('/robots.txt', handlers.robotsTxt)
   app.get('/sitemap.xml', handlers.sitemapXml)
   app.get('/llms.txt', handlers.llmsTxt)
+  app.get('/vendor-wiki', handlers.vendorWiki)
   app.get(['/ai', '/about', '/services', '/docs', '/prices', '/contact', '/faq'], handlers.redirectRussianPublicPages)
   app.get(['/ai', '/about', '/services', '/services/airport-transfer', '/services/city-transfer', '/docs', '/prices', '/contact', '/faq', '/sources', '/ru/ai', '/ru/about', '/ru/services', '/ru/docs', '/ru/prices', '/ru/contact', '/ru/faq'], handlers.publicSourceHtml)
   app.get(/^\/(?:ru\/)?transfers(?:\/[a-z0-9-]+){0,3}\/?$/, handlers.seoTransferPage)

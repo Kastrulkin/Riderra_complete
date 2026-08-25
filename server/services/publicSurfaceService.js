@@ -34,6 +34,7 @@ const RIDERRA_PUBLIC_PAGES = [
   { path: '/ru/faq', title: 'Вопросы и ответы', priority: '0.7' },
   { path: '/sources', title: 'Public sources of truth', priority: '0.6' },
   { path: '/drivers', title: 'Drivers', priority: '0.5' },
+  { path: '/vendor-wiki', title: 'Vendor Wiki', priority: '0.7' },
   { path: '/privacy-policy/en', title: 'Privacy Policy', priority: '0.3' },
   { path: '/terms/en', title: 'Terms and Conditions', priority: '0.3' }
 ]

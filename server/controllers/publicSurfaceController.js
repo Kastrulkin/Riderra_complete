@@ -17,6 +17,7 @@ const {
   RIDERRA_SERVICES,
   riderraAbsoluteUrl
 } = require('../services/publicSurfaceService')
+const { renderVendorWikiHtml } = require('../services/vendorWikiService')
 const { RIDERRA_BASE_URL, RIDERRA_CONTACT_EMAIL } = require('../config/constants')
 
 function createPublicSurfaceController() {
@@ -94,6 +95,12 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
 - Countries: ${RIDERRA_SEO_TRANSFERS.countries.map((page) => riderraAbsoluteUrl(page.path)).join(', ')}
 - Airport pages are generated only for priority airport hubs and sizeable route groups. Route pages are limited to selected popular routes to avoid thin-page generation.
 `)
+  }
+
+  function vendorWiki(_req, res) {
+    res.type('text/html')
+    res.setHeader('Cache-Control', 'public, max-age=300')
+    res.status(200).send(renderVendorWikiHtml())
   }
 
   function redirectRussianPublicPages(req, res, next) {
@@ -203,7 +210,8 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
     seoTransferPage,
     sitemapXml,
     sourceTruth,
-    terms
+    terms,
+    vendorWiki
   }
 }
 

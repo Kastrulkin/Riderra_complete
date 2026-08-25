@@ -366,6 +366,7 @@ registerPublicRoutes(app, {
   sitemapXml: publicSurfaceController.sitemapXml,
   sourceTruth: publicSurfaceController.sourceTruth,
   terms: publicSurfaceController.terms,
+  vendorWiki: publicSurfaceController.vendorWiki,
   validateOrderRequest: publicIntakeController.validateOrderRequest
 })
 
