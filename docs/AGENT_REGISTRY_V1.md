@@ -1,7 +1,7 @@
 # Riderra Agent Registry v1
 
 Status: canonical internal model for AI-agent interoperability.
-Last reviewed: 2026-08-11.
+Last reviewed: 2026-08-25.
 
 ## Vocabulary
 
@@ -70,7 +70,7 @@ Required invariants:
 | `riderra.pricing.counterparty_rules.read` | available | no | pricing read permission | `GET /api/admin/pricing/counterparty-rules` |
 | `riderra.pricing.counterparty_rules.write` | available | changes price rules | pricing admin human required | `POST/PUT /api/admin/pricing/counterparty-rules` |
 | `riderra.pricing.comparison.read` | available | no | pricing read permission | `GET /api/admin/pricing/comparison-sources`, `GET /api/admin/pricing/comparison-runs/:id/results` |
-| `riderra.pricing.comparison.run` | beta | creates immutable external quote snapshots and comparison results; does not change the price book | pricing manager human starts the run and approves ambiguous mappings | `POST /api/admin/pricing/comparison-runs`, `POST /api/admin/pricing/comparison-runs/:id/execute`, `PUT /api/admin/pricing/comparison-mappings/*` |
+| `riderra.pricing.comparison.run` | beta | creates immutable external quote snapshots and comparison results through one of 23 supported adapter contracts; does not change the price book | pricing manager human starts the run and approves ambiguous mappings | `POST /api/admin/pricing/comparison-runs`, `POST /api/admin/pricing/comparison-runs/:id/execute`, `PUT /api/admin/pricing/comparison-mappings/*` |
 | `riderra.pricing.external_quotes.read` | beta | no | pricing read permission; public sell quotes are evidence, not guaranteed supplier net rates | `GET /api/admin/pricing/external-quotes`, `GET /api/admin/pricing/external-quotes/coverage` |
 | `riderra.pricing.booking_calculation.read` | available | no | pricing read permission; Riderra 005 is reference-only | `GET /api/admin/pricing/booking-calculation` |
 | `riderra.pricing.booking_monitor.configure` | available | changes Booking monitor schedule, not prices | pricing manage permission | `PUT /api/admin/pricing/comparison-sources/:id/schedule` |

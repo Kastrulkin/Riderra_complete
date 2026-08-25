@@ -1,7 +1,7 @@
 # Riderra Integrations
 
 Status: current integration map for humans and neighboring AI agents.
-Last reviewed: 2026-08-11.
+Last reviewed: 2026-08-25.
 
 ## Source-Of-Truth Rules
 
@@ -23,8 +23,9 @@ Last reviewed: 2026-08-11.
 | Gmail forwarding / email ingest | receiver available; bridge ready to install | email -> Riderra | AI Inbox order/change/cancellation drafts | Creates drafts only. Gmail delivery requires the Apps Script bridge in `docs/integrations/gmail-ai-inbox-bridge.md`. |
 | EasyTaxi webhook | available | EasyTaxi -> Riderra | operational order payloads | Authenticated webhook; no public write access. |
 | OpenClaw runtime | available | Riderra <-> OpenClaw | draft building, classification, extraction, message send runtime | Must use validated envelope and approval policy. |
-| Telegram bot | available | Riderra <-> Telegram | operator/driver notifications and commands | RBAC-restricted. |
+| Telegram bot | available | Riderra <-> Telegram | operator/driver notifications, routed operational alerts and commands | RBAC-restricted; private links are managed by admins. |
 | WhatsApp runtime | beta | Riderra -> runtime/provider | customer messaging | Human approval before outbound send. |
+| Yandex Metrika | available | Riderra -> Metrika | public-page analytics and SPA pageviews | Analytics only; no operational source-of-truth role. |
 | Planfix CSV export | internal | CSV -> Riderra CRM staging | CRM migration | Promote only after approval. |
 | Public AI API | available | external agent -> Riderra | create draft transfer requests | Draft only, not a confirmed booking. |
 | Public SEO/AI pages | available | Riderra -> web/search/agents | public product understanding | Public source; no internal price book exposure. |
@@ -33,9 +34,13 @@ Last reviewed: 2026-08-11.
 
 ## External Pricing Sources
 
-The comparison engine has installed profiles/adapters for SmartRyde, Civitatis, Booking, JamTransfer, Suntransfers, Transferz, Talixo, City Airport Taxis/Airport Taxi Transfers, AirportTaxis.com, MyTravelThru, MyTransfers, DotTransfers and HeyCars.
+The comparison engine supports 23 adapter keys in code:
 
-Installed means the Riderra contract and parser/catalog path exist. Live collection remains beta because third-party markup, identifiers, authentication and anti-bot behavior can change. Failed or ambiguous evidence must remain `failed`, `no_quote` or `needs_review`.
+- SmartRyde, Civitatis, Booking, JamTransfer, Suntransfers, Transferz and Talixo;
+- City Airport Taxis, Airports Taxi Transfers, AirportTaxis.com, Airport Transfer Portal and Global Airport Taxi;
+- MyTravelThru, MyTransfers, DotTransfers, HeyCars, Waug, iWay, Intui, Kiwitaxi, Jayride, WorldTransfer and Transferise.
+
+Supported means the Riderra contract and parser/catalog path exist. It does not mean that an active production profile is configured or that the provider is currently reachable. Live collection remains beta because third-party markup, identifiers, authentication and anti-bot behavior can change. Failed or ambiguous evidence must remain `failed`, `no_quote` or `needs_review`.
 
 ## Public AI Endpoints
 

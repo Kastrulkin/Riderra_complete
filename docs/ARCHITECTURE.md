@@ -1,7 +1,7 @@
 # Riderra Architecture
 
 Status: current architecture canon for implementation and operations.
-Last reviewed: 2026-08-11.
+Last reviewed: 2026-08-25.
 
 ## System Shape
 
@@ -19,7 +19,8 @@ Browser / Telegram / Email / external systems
           |
      controlled adapters and runtimes
  Google Sheets, Maps, SMTP, OpenClaw,
- Telegram, public pricing sites, GigaChat
+ Telegram, public pricing sites, GigaChat,
+ Yandex Metrika
 ```
 
 The architecture deliberately prefers one deployable application while extracting new domain logic from the legacy composition root into testable routes and services.
@@ -90,12 +91,13 @@ external source profile --> adapter/catalog importer
         --> versioned policy --> comparison result/report
 ```
 
-Installed comparison adapter keys:
+Installed comparison adapter keys in the current codebase:
 
-- `smart-ryde`, `civitatis`, `booking`, `jamtransfer`;
-- `suntransfers`, `transferz`, `talixo`;
-- `city-airport-taxis`, `airports-taxi-transfers`, `airporttaxis-com`;
-- `mytravelthru`, `mytransfers`, `dottransfers`, `heycars`.
+- core/aggregators: `smart-ryde`, `civitatis`, `booking`, `jamtransfer`, `suntransfers`, `transferz`, `talixo`;
+- airport-transfer catalogs: `city-airport-taxis`, `airports-taxi-transfers`, `airporttaxis-com`, `airport-transfer-portal`, `global-airport-taxi`;
+- additional public sources: `mytravelthru`, `mytransfers`, `dottransfers`, `heycars`, `waug`, `iway`, `intui`, `kiwitaxi`, `jayride`, `worldtransfer`, `transferise`.
+
+The adapter registry currently contains 23 keys. A supported adapter is not necessarily configured as an active production source profile.
 
 An installed adapter is not a promise that a third-party website will remain scrapeable. Public markup, anti-bot controls and place identifiers are external dependencies; failures must produce `needs_review`, `no_quote` or `failed`, never fabricated prices.
 
@@ -106,7 +108,7 @@ Booking has two related but distinct price domains:
 1. partner rates configured in the authenticated supplier portal;
 2. public selling-price evidence and the Simon benchmark calculation.
 
-The Simon calculation applies sequential deductions (currently BCOM 25%, then PMF 20%) and derives supplier targets at 5/10/20/40/60 km with the workbook-compatible rounding rules. Monitoring writes Booking snapshots and a variance report. Riderra 005 is reference-only for this process and is never a mutation target.
+The Simon calculation applies sequential deductions (currently BCOM 25%, then PMF 20%) and derives supplier targets at 5/10/20/40/60 km with the workbook-compatible rounding rules. Monitoring writes Booking snapshots, movement history and a readable morning variance report for configured priority locations. Riderra 005 is reference-only for this process and is never a mutation target.
 
 ### Matching
 

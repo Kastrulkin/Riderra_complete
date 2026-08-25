@@ -1,7 +1,7 @@
 # Riderra Product Canon
 
 Status: canonical product context for humans and AI agents.
-Last reviewed: 2026-08-11.
+Last reviewed: 2026-08-25.
 
 ## What Riderra Is
 
@@ -37,8 +37,10 @@ Riderra is not a fully autonomous booking or dispatch agent. It is a supervised 
 - Compare trip prices against the internal Riderra price book.
 - Show counterparty and supplier price lists in comparable matrix views.
 - Preserve historical external quote snapshots and explain missing coverage or ambiguous mappings.
+- Expose supported external pricing sources, route-mapping progress, captured public prices, and source-specific operating guides to pricing staff.
 - Calculate and monitor Booking public prices and supplier targets separately from the base price book.
 - Draft customer, driver, and operational messages for human review.
+- Restrict staff screens by work area and route approved operational notifications to the linked Telegram destination.
 - Keep risky operations under explicit approval.
 - Record enough context for audit, support, and incident investigation.
 
@@ -84,12 +86,12 @@ AI may prepare drafts, checks, recommendations, and structured payloads for thes
 - `pages/admin-orders.vue`: current monthly orders from configured sheet source.
 - `pages/admin-order-archive.vue`: closed month archive.
 - `pages/admin-order-analytics.vue`: monthly and operational analytics.
-- `pages/admin-pricing.vue`: base price book, client prices, supplier prices, risks, fines.
+- `pages/admin-pricing.vue`: base price book, client/supplier/public prices, source setup, route mapping, Booking calculations, risks and guides.
 - `pages/admin-directions-matrix.vue`: canonical direction/benchmark coverage and route readiness.
 - `pages/admin-agents.vue`: AI agent configuration and dry-run testing.
 - `pages/admin-ai-requests.vue`: public AI-agent draft transfer requests.
 - `pages/admin-chats.vue`: supervised customer/driver communication workflows.
-- `pages/admin-settings.vue`: monthly sheet sources and operational settings.
+- `pages/admin-settings.vue`: monthly sheet sources, staff work-area access and operational settings.
 - `pages/admin-crm.vue`: CRM migration and company/contact data.
 
 ## Public AI Visibility
@@ -119,3 +121,4 @@ Internal or neighboring agents should begin from:
 - `docs/RIDERRA_CHAT_AGENT_RUNTIME_V1.md`: implemented chat-agent runtime notes.
 - `docs/RIDERRA_OPENCLAW_CHAT_ORCHESTRATION_V1.md`: chat orchestration contract.
 - `docs/contracts/riderra-openclaw/PHASE1.md`: recommended external capability contract.
+- `docs/updates/2026-08-21-three-week-project-update.md`: current three-week implementation and operations handoff.

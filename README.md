@@ -11,9 +11,12 @@ Riderra — production-система управления частными па
 - CRM компаний, клиентов, исполнителей, контактов и менеджеров;
 - основной прайс Riderra 005, клиентские и поставщицкие прайсы, маржа и конфликты;
 - универсальное сравнение публичных цен трансферных компаний с историческими снимками, сопоставлением адресов и классов машин, возобновляемыми запусками и Excel-экспортом;
+- 23 адаптера публичных цен в коде, включая Booking, Civitatis, SmartRyde, Kiwitaxi, Intui, iWay, Jayride, WorldTransfer, Transferise и каталожные источники;
 - отдельный расчёт Booking по модели Simon: точки 5/10/20/40/60 км, BCOM, PMF и расчётная цена исполнителя;
-- мониторинг цен Booking по расписанию; прайс 005 используется только как справочное сравнение и этим процессом не изменяется;
+- мониторинг цен Booking по расписанию с историей движений, приоритетными направлениями и читаемым утренним отчётом; прайс 005 используется только как справочное сравнение и этим процессом не изменяется;
+- рабочее место pricing с прогрессом сопоставления маршрутов, публичными ценами внутри прайс-листа и прямыми ссылками на инструкции источников;
 - AI Inbox, чат-задачи, черновики сообщений, Human Approval и audit log;
+- разграничение доступа сотрудников по рабочим областям, приватная привязка Telegram и маршрутизация операционных уведомлений;
 - публичная поверхность для людей и AI-агентов: сайт, `/llms.txt`, публичные API и черновик заявки без автоматического подтверждения бронирования.
 
 ## Принципы и источники истины
@@ -33,7 +36,7 @@ Riderra — production-система управления частными па
 | Backend | Node.js 18+, Express 4 через Nuxt `serverMiddleware` |
 | Data | PostgreSQL, Prisma 5; векторные представления мест — `halfvec(2560)` |
 | Pricing/exports | ExcelJS, CSV/PapaParse, версионированные политики расчёта |
-| Integrations | Google Sheets, Google Maps, Telegram, SMTP/email, EasyTaxi, OpenClaw, WhatsApp runtime, публичные сайты цен |
+| Integrations | Google Sheets, Google Maps, Telegram, SMTP/email, EasyTaxi, OpenClaw, WhatsApp runtime, Yandex Metrika, публичные сайты цен |
 | Semantic matching | опциональные GigaChat Embeddings (`EmbeddingsGigaR`) |
 | Runtime | Nginx, PM2, cron-процессы; Docker Compose доступен для локальной/альтернативной установки |
 | Security | JWT, tenant RBAC, webhook secrets, idempotency, HumanApproval, AuditLog |
@@ -82,6 +85,8 @@ npm run prisma:migrate
 npm run prisma:generate
 npm run test:price-comparisons
 npm run test:booking-partner-rates
+npm run pricing:booking-morning
+npm run test:geo-zones
 npm run smoke:public-ai-visibility
 npm run security:release-gate
 ```
@@ -111,6 +116,7 @@ npm run security:release-gate
 - [`docs/use-cases.md`](docs/use-cases.md) — реализованные и планируемые сценарии.
 - [`docs/AGENT_REGISTRY_V1.md`](docs/AGENT_REGISTRY_V1.md) — capabilities и safety boundary для AI.
 - [`docs/contracts/riderra-openclaw/PHASE1.md`](docs/contracts/riderra-openclaw/PHASE1.md) — контракт соседнего агента.
+- [`docs/updates/2026-08-21-three-week-project-update.md`](docs/updates/2026-08-21-three-week-project-update.md) — сводка изменений за 31 июля — 21 августа и готовый handoff для Obsidian.
 - [`README_DEPLOY.md`](README_DEPLOY.md) — production-развёртывание.
 - [`README_AUTH.md`](README_AUTH.md) — авторизация, tenant и RBAC.
 - [`README_COMMISSION_SYSTEM.md`](README_COMMISSION_SYSTEM.md) — комиссия и приоритизация водителей.
