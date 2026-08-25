@@ -18,6 +18,10 @@ const {
   buildBookingMorningMessage,
   summarizeBookingPriceMovements
 } = require('../server/services/bookingPriceMovementService')
+const {
+  parseBookingTelegramRecipientEmails,
+  sendBookingTelegramNotifications
+} = require('../server/services/bookingTelegramNotificationService')
 
 const prisma = new PrismaClient()
 
@@ -161,13 +165,20 @@ async function main() {
     contextJson: JSON.stringify({ increased: increased.length, decreased: decreased.length, unchanged: summary.unchanged.length, firstSnapshot: summary.firstSnapshot.length, needsReview: finished.needsReviewCount, failed: finished.failedCount, approvalId: approval.id, monitoring, comparisonBasis: 'previous_booking_snapshot', automaticPriceChanges: false })
   } })
 
-  const ownerLink = await prisma.telegramLink.findFirst({
-    where: { tenantId: tenant.id, telegramChatId: { not: null }, user: { email: 'demyanov@riderra.com' } },
-    select: { telegramChatId: true }
-  })
   const message = buildBookingMorningMessage({ monitorDate, finished, summary, increased, decreased, approvalId: approval.id })
-  await sendTelegram(process.env.TELEGRAM_GROUP_CHAT_ID || ownerLink?.telegramChatId, message)
-  console.log(JSON.stringify({ runId: run.id, approvalId: approval.id, processed: finished.processedCount, increased: increased.length, decreased: decreased.length, unchanged: summary.unchanged.length, firstSnapshot: summary.firstSnapshot.length, needsReview: finished.needsReviewCount, failed: finished.failedCount }))
+  const telegram = process.env.TELEGRAM_GROUP_CHAT_ID
+    ? { delivered: ['configured_group'], missingLink: [] }
+    : await sendBookingTelegramNotifications({
+        prisma,
+        tenantId: tenant.id,
+        message,
+        sendTelegram,
+        recipientEmails: parseBookingTelegramRecipientEmails()
+      })
+  if (process.env.TELEGRAM_GROUP_CHAT_ID) {
+    await sendTelegram(process.env.TELEGRAM_GROUP_CHAT_ID, message)
+  }
+  console.log(JSON.stringify({ runId: run.id, approvalId: approval.id, processed: finished.processedCount, increased: increased.length, decreased: decreased.length, unchanged: summary.unchanged.length, firstSnapshot: summary.firstSnapshot.length, needsReview: finished.needsReviewCount, failed: finished.failedCount, telegram }))
 }
 
 main().catch((error) => {
