@@ -19,10 +19,11 @@ async function ensurePermission(code, name = code) {
   })
 }
 
-async function requestJson(baseUrl, path, { method = 'GET', token = null, tenantCode = null, body = null } = {}) {
+async function requestJson(baseUrl, path, { method = 'GET', token = null, tenantCode = null, idempotencyKey = null, body = null } = {}) {
   const headers = { 'content-type': 'application/json' }
   if (token) headers.authorization = `Bearer ${token}`
   if (tenantCode) headers['x-tenant-code'] = tenantCode
+  if (idempotencyKey) headers['idempotency-key'] = idempotencyKey
 
   const response = await fetch(`${baseUrl}${path}`, {
     method,
@@ -139,7 +140,32 @@ async function main() {
     const orderAfter = await prisma.order.findUnique({ where: { id: order.id } })
     assert(orderAfter && String(orderAfter.status).toLowerCase() === 'assigned', 'order status must remain unchanged without approval')
 
-    console.log(JSON.stringify({ ok: true, checks: 3 }))
+    await prisma.humanApproval.update({
+      where: { id: approval.id },
+      data: {
+        status: 'approved',
+        reviewerId: user.id,
+        reviewedAt: new Date()
+      }
+    })
+
+    const changedPayload = await requestJson(baseUrl, `/api/admin/orders/${order.id}/status`, {
+      method: 'PUT',
+      token,
+      tenantCode: tenant.code,
+      idempotencyKey: `ci-approval-payload-${approval.id}`,
+      body: {
+        toStatus: 'cancelled',
+        reason: 'This reason was not part of the approved payload',
+        approvalId: approval.id
+      }
+    })
+    assert(changedPayload.status === 409, `approval must not authorize a different payload, got ${changedPayload.status}`)
+
+    const orderAfterChangedPayload = await prisma.order.findUnique({ where: { id: order.id } })
+    assert(orderAfterChangedPayload && String(orderAfterChangedPayload.status).toLowerCase() === 'assigned', 'changed payload must not mutate the order')
+
+    console.log(JSON.stringify({ ok: true, checks: 5 }))
   } finally {
     appServer.close()
     await prisma.humanApproval.deleteMany({ where: { tenantId: tenant.id, resourceId: order.id, action: 'order.status.transition' } })

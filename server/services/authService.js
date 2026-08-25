@@ -1,3 +1,5 @@
+const { parseDriverCommissionRate } = require('../utils/driverPricing')
+
 function createAuthService({
   bcrypt,
   jwt,
@@ -18,6 +20,13 @@ function createAuthService({
     const { email, password, role = 'driver', name, phone, country, city, commissionRate } = body
     if (role !== 'driver') {
       return { statusCode: 403, body: { error: 'Public registration is only available for drivers' } }
+    }
+
+    let normalizedCommissionRate
+    try {
+      normalizedCommissionRate = parseDriverCommissionRate(commissionRate)
+    } catch (error) {
+      return { statusCode: error.statusCode || 400, body: { error: error.message } }
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -48,7 +57,7 @@ function createAuthService({
           phone,
           country: country || null,
           city,
-          commissionRate: commissionRate || 15.0,
+          commissionRate: normalizedCommissionRate,
           userId: user.id
         }
       })

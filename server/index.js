@@ -49,6 +49,7 @@ const {
 } = require('./services/bookingPartnerRateService')
 const { buildDriverCanonicalRegistry, resolveCanonicalDriverName } = require('./utils/orderDriverCanonicalization')
 const { createOpsNotificationRouter } = require('./services/opsNotificationRouter')
+const { parseDriverCommissionRate } = require('./utils/driverPricing')
 const { createCorsMiddleware } = require('./middleware/cors')
 const { createAuthController } = require('./controllers/authController')
 const { createPublicIntakeController } = require('./controllers/publicIntakeController')
@@ -1151,6 +1152,21 @@ function ensureIdempotencyKey(req, action, payload = {}) {
   req.body.idempotency_key = `auto:${action}:${fingerprint}`
 }
 
+function idempotencyRequestHash(requestPayload) {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify(requestPayload || {}))
+    .digest('hex')
+}
+
+function assertMatchingIdempotencyPayload(keyRow, requestHash) {
+  if (!keyRow?.requestHash || keyRow.requestHash === requestHash) return
+  const error = new Error('idempotency key was already used with a different payload')
+  error.statusCode = 409
+  error.details = { code: 'idempotency_payload_mismatch' }
+  throw error
+}
+
 async function withIdempotency(req, action, requestPayload, operation) {
   const idempotencyKey = getIdempotencyKey(req)
   if (!idempotencyKey) {
@@ -1164,10 +1180,7 @@ async function withIdempotency(req, action, requestPayload, operation) {
     error.statusCode = 403
     throw error
   }
-  const requestHash = crypto
-    .createHash('sha256')
-    .update(JSON.stringify(requestPayload || {}))
-    .digest('hex')
+  const requestHash = idempotencyRequestHash(requestPayload)
 
   let keyRow = await prisma.idempotencyKey.findUnique({
     where: {
@@ -1179,6 +1192,7 @@ async function withIdempotency(req, action, requestPayload, operation) {
     }
   })
 
+  assertMatchingIdempotencyPayload(keyRow, requestHash)
   if (keyRow?.status === 'completed' && keyRow.responseJson) {
     return { replayed: true, data: JSON.parse(keyRow.responseJson) }
   }
@@ -1210,8 +1224,19 @@ async function withIdempotency(req, action, requestPayload, operation) {
           }
         }
       })
+      assertMatchingIdempotencyPayload(keyRow, requestHash)
       if (keyRow?.status === 'completed' && keyRow.responseJson) {
         return { replayed: true, data: JSON.parse(keyRow.responseJson) }
+      }
+      if (keyRow?.status === 'processing') {
+        const error = new Error('idempotent request in progress')
+        error.statusCode = 409
+        throw error
+      }
+      if (!keyRow) {
+        const error = new Error('failed to establish idempotency lock')
+        error.statusCode = 409
+        throw error
       }
     }
   }
@@ -1242,7 +1267,7 @@ async function withIdempotency(req, action, requestPayload, operation) {
   }
 }
 
-async function getCompletedIdempotencyReplay(req, action) {
+async function getCompletedIdempotencyReplay(req, action, requestPayload = {}) {
   const idempotencyKey = getIdempotencyKey(req)
   const tenantId = req.actorContext?.tenantId
   if (!idempotencyKey || !tenantId) return null
@@ -1255,10 +1280,38 @@ async function getCompletedIdempotencyReplay(req, action) {
       }
     }
   })
+  assertMatchingIdempotencyPayload(keyRow, idempotencyRequestHash(requestPayload))
   if (keyRow?.status === 'completed' && keyRow.responseJson) {
     return { replayed: true, data: JSON.parse(keyRow.responseJson) }
   }
   return null
+}
+
+function canonicalApprovalPayload(value) {
+  if (Array.isArray(value)) return value.map(canonicalApprovalPayload)
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((result, key) => {
+      result[key] = canonicalApprovalPayload(value[key])
+      return result
+    }, {})
+  }
+  return value
+}
+
+function approvalPayloadMatches(storedPayloadJson, requestedPayload) {
+  try {
+    const stored = JSON.parse(storedPayloadJson || '{}')
+    return JSON.stringify(canonicalApprovalPayload(stored)) === JSON.stringify(canonicalApprovalPayload(requestedPayload || {}))
+  } catch (_) {
+    return false
+  }
+}
+
+function approvalConflict(message, code, approvalId = null) {
+  const error = new Error(message)
+  error.statusCode = 409
+  error.details = { code, ...(approvalId ? { approvalId } : {}) }
+  return error
 }
 
 async function ensureHumanApproval(req, {
@@ -1277,26 +1330,51 @@ async function ensureHumanApproval(req, {
   }
   const approvalId = String(req.body?.approvalId || req.headers['x-approval-id'] || '').trim()
   if (approvalId) {
-    const approved = await prisma.humanApproval.findFirst({
+    const approval = await prisma.humanApproval.findFirst({
       where: {
         id: approvalId,
         tenantId,
         action,
         resource,
-        resourceId: resourceId || null,
-        status: 'approved'
+        resourceId: resourceId || null
       }
     })
-    if (approved) return { approved: true, approval: approved }
+    if (!approval) throw approvalConflict('approval is not valid for this action', 'approval_invalid', approvalId)
+    if (approval.expiresAt && approval.expiresAt.getTime() <= Date.now()) {
+      if (approval.status !== 'expired') {
+        await prisma.humanApproval.update({ where: { id: approval.id }, data: { status: 'expired' } })
+      }
+      throw approvalConflict('approval has expired', 'approval_expired', approvalId)
+    }
+    if (approval.status !== 'approved') {
+      throw approvalConflict(`approval is ${approval.status}`, 'approval_not_approved', approvalId)
+    }
+    if (!approvalPayloadMatches(approval.payloadJson, payload)) {
+      throw approvalConflict('approval payload does not match this request', 'approval_payload_mismatch', approvalId)
+    }
+    return { approved: true, approval }
   }
 
+  const now = new Date()
+  await prisma.humanApproval.updateMany({
+    where: {
+      tenantId,
+      action,
+      resource,
+      resourceId: resourceId || null,
+      status: 'pending_human',
+      expiresAt: { lte: now }
+    },
+    data: { status: 'expired' }
+  })
   const existing = await prisma.humanApproval.findFirst({
     where: {
       tenantId,
       action,
       resource,
       resourceId: resourceId || null,
-      status: 'pending_human'
+      status: 'pending_human',
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -3769,7 +3847,7 @@ app.put('/api/drivers/me', authenticateToken, resolveActorContext, requireActorC
     const { commissionRate, kmRate, hourlyRate, childSeatPrice, pricingCurrency } = req.body
 
     const data = {
-      commissionRate: commissionRate ? parseFloat(commissionRate) : undefined,
+      commissionRate: parseDriverCommissionRate(commissionRate, { optional: true }),
       kmRate: kmRate !== undefined ? (kmRate === null || kmRate === '' ? null : parseFloat(kmRate)) : undefined,
       hourlyRate: hourlyRate !== undefined ? (hourlyRate === null || hourlyRate === '' ? null : parseFloat(hourlyRate)) : undefined,
       childSeatPrice: childSeatPrice !== undefined ? (childSeatPrice === null || childSeatPrice === '' ? null : parseFloat(childSeatPrice)) : undefined,
@@ -3800,7 +3878,7 @@ app.put('/api/drivers/me', authenticateToken, resolveActorContext, requireActorC
     res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error updating driver:', error)
-    res.status(500).json({ error: 'Failed to update driver' })
+    res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : 'Failed to update driver' })
   }
 })
 
@@ -10104,7 +10182,8 @@ app.post('/api/internal/chats/delivery-status', resolveActorContext, requireActo
 app.post('/api/admin/chats/tasks/:id/confirm-inbound-comment', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
-    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.confirm_inbound_comment')
+    const idempotencyPayload = { taskId: req.params.id }
+    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.confirm_inbound_comment', idempotencyPayload)
     if (replay) return res.json({ ...replay.data, idempotent: true })
 
     const task = await prisma.chatTask.findFirst({
@@ -10139,10 +10218,9 @@ app.post('/api/admin/chats/tasks/:id/confirm-inbound-comment', authenticateToken
     const receivedAt = new Date(inboundMessage.createdAt || Date.now()).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
     const commentLine = `[Ответ клиента ${receivedAt}, ${channelLabel}]${extracted == null || String(extracted).trim() === '' ? '' : ` ${extraction?.field || 'значение'}: ${String(extracted)}.`} Оригинал: "${String(inboundMessage.bodyText || '').trim()}"`
 
-    const payload = { taskId: task.id, orderId: task.orderId, traceMessageId: traceMessage.id, inboundMessageId: inboundMessage.id }
-    ensureIdempotencyKey(req, 'admin.chat_task.confirm_inbound_comment', payload)
+    ensureIdempotencyKey(req, 'admin.chat_task.confirm_inbound_comment', idempotencyPayload)
 
-    const wrapped = await withIdempotency(req, 'admin.chat_task.confirm_inbound_comment', payload, async () => {
+    const wrapped = await withIdempotency(req, 'admin.chat_task.confirm_inbound_comment', idempotencyPayload, async () => {
       const updatedOrder = await prisma.order.update({
         where: { id: task.orderId },
         data: { comment: appendOrderComment(task.order.comment, commentLine), needsInfo: false, infoReason: null },
@@ -10200,7 +10278,7 @@ app.post('/api/admin/chats/tasks/:id/confirm-inbound-comment', authenticateToken
     res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error confirming inbound comment:', error)
-    res.status(500).json({ error: 'Failed to save inbound comment' })
+    res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : 'Failed to save inbound comment', ...(error.details || {}) })
   }
 })
 
@@ -10211,7 +10289,9 @@ app.post('/api/admin/chats/tasks/:id/apply-inbound-update', authenticateToken, r
 app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, resolveActorContext, requireActorContext, requireAnyPermission(['ops.manage', 'ops.drafts.resolve']), async (req, res) => {
   try {
     const tenantId = req.actorContext.tenantId
-    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.reject_inbound_update')
+    const reason = String(req.body?.reason || '').trim()
+    const idempotencyPayload = { taskId: req.params.id, reason }
+    const replay = await getCompletedIdempotencyReplay(req, 'admin.chat_task.reject_inbound_update', idempotencyPayload)
     if (replay) return res.json({ ...replay.data, idempotent: true })
 
     const task = await prisma.chatTask.findFirst({
@@ -10233,11 +10313,9 @@ app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, 
       const parsed = parseJsonSafe(message.bodyJson, null)
       return parsed && parsed.kind === 'inbound_trace' && parsed.pendingOrderPatch
     })
-    const reason = String(req.body?.reason || '').trim()
-    const payload = { taskId: task.id, traceMessageId: traceMessage?.id || null, reason }
-    ensureIdempotencyKey(req, 'admin.chat_task.reject_inbound_update', payload)
+    ensureIdempotencyKey(req, 'admin.chat_task.reject_inbound_update', idempotencyPayload)
 
-    const wrapped = await withIdempotency(req, 'admin.chat_task.reject_inbound_update', payload, async () => {
+    const wrapped = await withIdempotency(req, 'admin.chat_task.reject_inbound_update', idempotencyPayload, async () => {
       let nextState = String(task.state || '')
       const transition = await transitionChatTaskIfAllowed(task.id, nextState, 'field_rejected')
       if (transition.changed) nextState = transition.state
@@ -10281,7 +10359,7 @@ app.post('/api/admin/chats/tasks/:id/reject-inbound-update', authenticateToken, 
     res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error rejecting inbound chat update:', error)
-    res.status(500).json({ error: 'Failed to reject inbound update' })
+    res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : 'Failed to reject inbound update', ...(error.details || {}) })
   }
 })
 
@@ -10941,6 +11019,13 @@ app.post(
       if (!approval) return res.status(404).json({ error: 'Approval not found' })
       if (approval.status !== 'pending_human') {
         return res.status(409).json({ error: 'Approval already resolved', status: approval.status })
+      }
+      if (approval.expiresAt && approval.expiresAt.getTime() <= Date.now()) {
+        await prisma.humanApproval.update({
+          where: { id: approval.id },
+          data: { status: 'expired', reviewerId: req.actorContext.actorId || null, reviewedAt: new Date() }
+        })
+        return res.status(409).json({ error: 'Approval expired', code: 'approval_expired' })
       }
 
       const resolved = await prisma.humanApproval.update({
@@ -14057,7 +14142,7 @@ app.post('/api/admin/sheet-sources', authenticateToken, resolveActorContext, req
     res.json({ ...wrapped.data, idempotent: wrapped.replayed })
   } catch (error) {
     console.error('Error creating sheet source:', error)
-    res.status(500).json({ error: 'Failed to create sheet source' })
+    res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : 'Failed to create sheet source', ...(error.details || {}) })
   }
 })
 

@@ -98,6 +98,7 @@ async function main() {
   const baseUrl = `http://127.0.0.1:${port}`
 
   const sourceName = `CI Idempotency ${Date.now()}`
+  const conflictingSourceName = `${sourceName} conflicting payload`
   const requestBody = {
     name: sourceName,
     monthLabel: '2026-02',
@@ -132,6 +133,15 @@ async function main() {
     assert(second.data && second.data.id === first.data.id, 'idempotent replay must return same resource id')
     assert(second.data.idempotent === true, 'second write should be idempotent replay')
 
+    const conflicting = await requestJson(baseUrl, '/api/admin/sheet-sources', {
+      method: 'POST',
+      token,
+      tenantCode: tenant.code,
+      idempotencyKey,
+      body: { ...requestBody, name: conflictingSourceName }
+    })
+    assert(conflicting.status === 409, `same idempotency key with a different payload must return 409, got ${conflicting.status}`)
+
     const count = await prisma.sheetSource.count({
       where: {
         tenantId: tenant.id,
@@ -140,10 +150,10 @@ async function main() {
     })
     assert(count === 1, `expected exactly one sheet source row, got ${count}`)
 
-    console.log(JSON.stringify({ ok: true, checks: 3 }))
+    console.log(JSON.stringify({ ok: true, checks: 4 }))
   } finally {
     appServer.close()
-    await prisma.sheetSource.deleteMany({ where: { tenantId: tenant.id, name: sourceName } })
+    await prisma.sheetSource.deleteMany({ where: { tenantId: tenant.id, name: { in: [sourceName, conflictingSourceName] } } })
     await prisma.tenantMembership.deleteMany({ where: { userId: user.id } })
     await prisma.userRole.deleteMany({ where: { userId: user.id } })
     await prisma.user.delete({ where: { id: user.id } })

@@ -1,3 +1,5 @@
+const { parseDriverCommissionRate } = require('../utils/driverPricing')
+
 function createPublicIntakeService({
   prisma,
   normalizeText,
@@ -198,6 +200,8 @@ function createPublicIntakeService({
       routes
     } = body
 
+    const normalizedCommissionRate = parseDriverCommissionRate(commissionRate)
+
     const created = await prisma.driver.create({ data: {
       tenantId,
       name: normalizeText(name, 160),
@@ -213,7 +217,7 @@ function createPublicIntakeService({
       pricingCurrency: pricingCurrency ? String(pricingCurrency) : null,
       comment: normalizeText(comment, 2000),
       lang: normalizeText(lang, 10),
-      commissionRate: commissionRate ? parseFloat(commissionRate) : 15.0
+      commissionRate: normalizedCommissionRate
     }})
 
     let routesData = []
@@ -234,7 +238,7 @@ function createPublicIntakeService({
         phone: normalizeText(phone, 80),
         city: normalizeText(city, 160),
         pricePerKm: normalizeText(pricePerKm, 80),
-        commissionRate: commissionRate ? parseFloat(commissionRate) : 15.0,
+        commissionRate: normalizedCommissionRate,
         routes: routesData,
         comment: normalizeText(comment, 2000),
         lang: normalizeText(lang, 10) || 'ru'

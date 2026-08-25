@@ -60,7 +60,7 @@ function createPublicIntakeController(dependencies) {
     } catch (e) {
       console.error('Error in /api/drivers:', e)
       console.error('Error stack:', e.stack)
-      res.status(500).json({ error: 'failed', message: e.message })
+      res.status(e.statusCode || 500).json({ error: e.statusCode ? 'invalid_driver_application' : 'failed', message: e.message })
     }
   }
 
