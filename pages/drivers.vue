@@ -125,6 +125,8 @@
 </template>
 
 <script>
+import driversCopy from '~/utils/driversCopy'
+
 export default {
   layout: 'default',
   head() {
@@ -139,63 +141,7 @@ export default {
   computed: {
     lang() { return this.$store.state.language },
     t() {
-      const dict = {
-        ru: {
-          eyebrow: 'Транспортным компаниям', title: 'Станьте перевозчиком Riderra',
-          lead: 'Получайте заказы на аэропортовые и городские трансферы от Riderra и наших партнёров. Вы сами указываете географию, автопарк и нетто-тарифы.',
-          startButton: 'Заполнить заявку', loginButton: 'Войти в кабинет', processTitle: 'Как начать работу',
-          steps: [
-            { title: 'Расскажите о компании', text: 'Контакты и регионы работы.' },
-            { title: 'Предложите тарифы', text: 'Фиксированные маршруты или цена за километр.' },
-            { title: 'Согласуем условия', text: 'Проверим данные и свяжемся с вами.' }
-          ],
-          applicationEyebrow: 'Заявка перевозчика', applicationTitle: 'Один шаг до знакомства',
-          applicationText: 'Заполните только то, что уже известно. Тарифы можно уточнить вместе с менеджером после заявки.',
-          wikiButton: 'Правила работы с Riderra', alreadyRegistered: 'Уже зарегистрированы? Войти',
-          successEyebrow: 'Заявка отправлена', successTitle: 'Спасибо за интерес к Riderra',
-          companySection: 'Компания и контакты', requiredNote: 'Поля со звёздочкой обязательны.',
-          name: 'Название компании / ваше имя *', email: 'Рабочий email *', phone: 'Телефон или WhatsApp *',
-          city: 'Города и регионы работы *', cityHelp: 'Например: Los Angeles, Orange County, LAX.',
-          ratesSection: 'Нетто-тарифы', ratesHelp: 'Можно указать фиксированные маршруты, ставку за километр или оба варианта.',
-          fixedRatesTitle: 'Фиксированные маршруты', fixedRatesHelp: 'Цена перевозчика за трансфер в одну сторону.',
-          fixedFrom: 'Откуда', fixedTo: 'Куда', fixedPrice: 'Цена', fixedCurrency: 'Валюта',
-          fromPlaceholder: 'LAX Airport', toPlaceholder: 'Downtown LA', addRoute: 'Добавить маршрут', removeRoute: 'Удалить маршрут',
-          routesPerKm: 'Ставка за километр', perKmPlaceholder: 'Например, 1.20 EUR/km', perKmHelp: 'Если работаете только по фиксированным ценам, оставьте поле пустым.',
-          detailsSection: 'Автопарк и условия', detailsHelp: 'Эти данные помогут быстрее проверить заявку.',
-          comment: 'Комментарий', commentPlaceholder: 'Количество и классы машин, вместимость, лицензии, аэропортовые разрешения, условия ожидания и другие важные детали.',
-          submit: 'Отправить заявку', submitting: 'Отправляем…', consent: 'Отправляя заявку, вы разрешаете Riderra связаться с вами по вопросам сотрудничества.',
-          note: 'Мы получили ваши данные и свяжемся с вами, чтобы проверить географию, автомобили и тарифы.',
-          error: 'Не удалось отправить заявку. Проверьте данные и попробуйте ещё раз.'
-        },
-        en: {
-          eyebrow: 'For transport companies', title: 'Become a Riderra fleet partner',
-          lead: 'Receive airport and city transfer requests from Riderra and our partners. You choose your service area, fleet and net rates.',
-          startButton: 'Complete the application', loginButton: 'Partner login', processTitle: 'How to get started',
-          steps: [
-            { title: 'Tell us about your company', text: 'Contacts and operating regions.' },
-            { title: 'Share your rates', text: 'Fixed routes or a per-kilometre rate.' },
-            { title: 'Agree the terms', text: 'We review the details and contact you.' }
-          ],
-          applicationEyebrow: 'Fleet partner application', applicationTitle: 'Let’s get acquainted',
-          applicationText: 'Share what you already know. Rates can be clarified with a manager after you apply.',
-          wikiButton: 'How working with Riderra works', alreadyRegistered: 'Already registered? Log in',
-          successEyebrow: 'Application sent', successTitle: 'Thank you for your interest in Riderra',
-          companySection: 'Company and contact details', requiredNote: 'Fields marked with an asterisk are required.',
-          name: 'Company name / your name *', email: 'Business email *', phone: 'Phone or WhatsApp *',
-          city: 'Cities and operating regions *', cityHelp: 'For example: Los Angeles, Orange County, LAX.',
-          ratesSection: 'Your net rates', ratesHelp: 'Add fixed routes, a per-kilometre rate, or both.',
-          fixedRatesTitle: 'Fixed routes', fixedRatesHelp: 'Your one-way net transfer price.',
-          fixedFrom: 'From', fixedTo: 'To', fixedPrice: 'Price', fixedCurrency: 'Currency',
-          fromPlaceholder: 'LAX Airport', toPlaceholder: 'Downtown LA', addRoute: 'Add another route', removeRoute: 'Remove route',
-          routesPerKm: 'Rate per kilometre', perKmPlaceholder: 'For example, 1.20 EUR/km', perKmHelp: 'Leave this blank if you only use fixed prices.',
-          detailsSection: 'Fleet and operating terms', detailsHelp: 'This information helps us review your application faster.',
-          comment: 'Additional information', commentPlaceholder: 'Fleet size, vehicle classes and capacity, licences, airport permits, waiting terms and anything else we should know.',
-          submit: 'Send application', submitting: 'Sending…', consent: 'By submitting, you allow Riderra to contact you about a potential partnership.',
-          note: 'We have received your details and will contact you to review your coverage, vehicles and rates.',
-          error: 'We could not send the application. Please check the details and try again.'
-        }
-      }
-      return dict[this.lang] || dict.en
+      return driversCopy[this.lang] || driversCopy.en
     },
     wikiPath() { return this.lang === 'en' ? '/vendor-wiki' : `/${this.lang}/vendor-wiki` }
   },

@@ -29,6 +29,7 @@
     "seo:build-transfers": "node scripts/build_seo_transfer_data.js",
     "smoke:seo-transfers": "node scripts/public_seo_transfers_smoke.js",
     "smoke:public-languages": "node scripts/public_language_smoke.mjs",
+    "smoke:drivers-languages": "node scripts/public_drivers_language_smoke.mjs",
     "smoke:design-system": "node scripts/design_system_smoke.js",
     "smoke:chat-inbound-e2e": "node scripts/chat_inbound_e2e_smoke.js",
     "smoke:chat-internal-inbound": "node scripts/chat_internal_inbound_smoke.js",

@@ -38,6 +38,9 @@
 		watch: {
 			'$route.path': function (nv, ov) {
 				this.state = false;
+			},
+			'$route.query.lang': function (lang) {
+				this.applyLanguage(lang)
 			}
 		},
 		data() {
@@ -105,6 +108,17 @@
 			}
 		},
 		methods: {
+			isSupported(lang) {
+				return this.languages.some((item) => item.shortcut === lang)
+			},
+			applyLanguage(lang) {
+				if (!this.isSupported(lang)) return
+				if (lang !== this.$store.state.language) this.$store.commit('setLang', lang)
+				if (process.browser) {
+					localStorage.setItem('riderra_language', lang)
+					document.cookie = `riderra_lang=${lang}; path=/; max-age=31536000; SameSite=Lax`
+				}
+			},
 			toggleList() {
 				this.state = !this.state;
 			},
@@ -114,11 +128,13 @@
 			chooseLang(lang) {
 				this.current = lang;
 				this.state = false;
-
-				this.$store.commit('setLang', lang.shortcut)
-				if (process.browser) {
-					localStorage.setItem('riderra_language', lang.shortcut)
-					document.cookie = `riderra_lang=${lang.shortcut}; path=/; max-age=31536000; SameSite=Lax`
+				this.applyLanguage(lang.shortcut)
+				if (this.$route.query.lang !== lang.shortcut) {
+					this.$router.replace({
+						path: this.$route.path,
+						query: { ...this.$route.query, lang: lang.shortcut },
+						hash: this.$route.hash
+					})
 				}
 			}
 		},
@@ -128,13 +144,8 @@
 			const saved = localStorage.getItem('riderra_language')
 			const pathLanguage = path.split('/').filter(Boolean)[0]
 			const supported = this.languages.some((item) => item.shortcut === pathLanguage)
-			const nextLang = supported ? pathLanguage : (requested || saved || this.$store.state.language)
-			if (nextLang && nextLang !== this.$store.state.language) {
-				this.$store.commit('setLang', nextLang)
-			}
-			if (nextLang) {
-				document.cookie = `riderra_lang=${nextLang}; path=/; max-age=31536000; SameSite=Lax`
-			}
+			const nextLang = supported ? pathLanguage : (this.isSupported(requested) ? requested : (this.isSupported(saved) ? saved : this.$store.state.language))
+			this.applyLanguage(nextLang)
 		}
 	}
 </script>
