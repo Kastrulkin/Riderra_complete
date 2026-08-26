@@ -38,16 +38,19 @@
       navList() {
         const lang = this.$store.state.language;
         const labels = {
-          ru: ['Партнёрам', 'Стать перевозчиком'], en: ['Partners', 'Become a fleet partner'], es: ['Socios', 'Ser socio de flota'],
-          de: ['Partner', 'Flottenpartner werden'], fr: ['Partenaires', 'Devenir partenaire de flotte'], el: ['Συνεργάτες', 'Γίνετε συνεργάτης στόλου'],
-          th: ['พันธมิตร', 'สมัครเป็นพันธมิตรรถ'], ar: ['الشركاء', 'التسجيل كشريك أسطول'], ha: ['Abokan hulɗa', 'Kasance abokin hulɗar motoci']
+          ru: 'Партнёрам', en: 'Partners', es: 'Socios', de: 'Partner', fr: 'Partenaires',
+          el: 'Συνεργάτες', th: 'พันธมิตร', ar: 'الشركاء', ha: 'Abokan hulɗa'
         };
         const current = labels[lang] || labels.en;
+        const materialsLabels = {
+          ru: 'Материалы', en: 'Resources', es: 'Recursos', de: 'Materialien', fr: 'Ressources',
+          el: 'Υλικό', th: 'แหล่งข้อมูล', ar: 'المواد', ha: 'Albarkatu'
+        };
         const partnersPath = lang === 'en' ? '/partners' : `/${lang}/partners`;
         const wikiPath = lang === 'en' ? '/vendor-wiki' : `/${lang}/vendor-wiki`;
         return [
-          { title: current[0], link: partnersPath },
-          { title: current[1], link: `/drivers?lang=${lang}` },
+          { title: current, link: partnersPath },
+          { title: materialsLabels[lang] || materialsLabels.en, link: `/materials?lang=${lang}` },
           { title: 'Vendor Wiki', link: wikiPath },
           {
             title: this.textData.travelPlanners || 'Tour Agencies',

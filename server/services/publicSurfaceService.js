@@ -26,6 +26,7 @@ const RIDERRA_PUBLIC_PAGES = [
   { path: '/services/city-transfer', title: 'City transfers', priority: '0.8' },
   { path: '/docs', title: 'Riderra documentation', priority: '0.7' },
   { path: '/ru/docs', title: 'Документация Riderra', priority: '0.7' },
+  { path: '/materials', title: 'Riderra resources', priority: '0.7' },
   { path: '/prices', title: 'Prices', priority: '0.8' },
   { path: '/ru/prices', title: 'Цены', priority: '0.7' },
   { path: '/contact', title: 'Contact', priority: '0.8' },

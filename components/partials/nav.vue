@@ -25,6 +25,33 @@
       <nuxt-link to="/ai" class="nav-list__item">{{ publicNavLabels[2] }}</nuxt-link>
       <nuxt-link to="/business-travel" class="nav-list__item">{{ publicNavLabels[3] }}</nuxt-link>
       <nuxt-link to="/how-it-works" class="nav-list__item">{{ publicNavLabels[4] }}</nuxt-link>
+      <div
+        class="materials-menu"
+        @focusout="onMaterialsFocusout"
+        @keydown.esc="materialsOpen = false"
+      >
+        <button
+          type="button"
+          class="nav-list__item materials-menu__trigger"
+          :aria-expanded="materialsOpen ? 'true' : 'false'"
+          aria-haspopup="true"
+          @click="materialsOpen = !materialsOpen"
+        >
+          {{ materialsCopy.title }} <span aria-hidden="true">⌄</span>
+        </button>
+        <div v-show="materialsOpen" class="materials-menu__panel">
+          <a
+            v-for="item in materialsItems"
+            :key="item.href"
+            :href="item.href"
+            class="materials-menu__link"
+            @click="materialsOpen = false"
+          >
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.description }}</span>
+          </a>
+        </div>
+      </div>
     </nav>
     <tabs-nav></tabs-nav>
     <div class="header__right">
@@ -116,6 +143,39 @@
           ar: ['الشركاء', 'وكالات السفر', 'وكلاء AI', 'سفر الأعمال', 'كيف يعمل'], ha: ['Abokan hulɗa', 'Hukumomin tafiye-tafiye', 'Wakilan AI', 'Tafiyar kasuwanci', 'Yadda yake aiki']
         };
         return labels[this.$store.state.language] || labels.en;
+      },
+      materialsCopy(){
+        const copy = {
+          ru: ['Материалы', 'Публикации', 'Статьи, новости и упоминания Riderra', 'Vendor Wiki', 'Правила для перевозчиков и водителей', 'Документы', 'Публичная документация и API'],
+          en: ['Resources', 'Publications', 'Riderra articles, news and mentions', 'Vendor Wiki', 'Guidance for fleets and drivers', 'Documents', 'Public documentation and APIs'],
+          es: ['Recursos', 'Publicaciones', 'Artículos, noticias y menciones de Riderra', 'Vendor Wiki', 'Guía para flotas y conductores', 'Documentos', 'Documentación pública y API'],
+          de: ['Materialien', 'Veröffentlichungen', 'Artikel, Neuigkeiten und Erwähnungen', 'Vendor Wiki', 'Leitfaden für Flotten und Fahrer', 'Dokumente', 'Öffentliche Dokumentation und APIs'],
+          fr: ['Ressources', 'Publications', 'Articles, actualités et mentions de Riderra', 'Vendor Wiki', 'Guide pour flottes et chauffeurs', 'Documents', 'Documentation publique et API'],
+          el: ['Υλικό', 'Δημοσιεύσεις', 'Άρθρα, νέα και αναφορές της Riderra', 'Vendor Wiki', 'Οδηγίες για στόλους και οδηγούς', 'Έγγραφα', 'Δημόσια τεκμηρίωση και API'],
+          th: ['แหล่งข้อมูล', 'สิ่งพิมพ์', 'บทความ ข่าว และการกล่าวถึง Riderra', 'Vendor Wiki', 'คู่มือสำหรับผู้ให้บริการและคนขับ', 'เอกสาร', 'เอกสารสาธารณะและ API'],
+          ar: ['المواد', 'المنشورات', 'مقالات وأخبار وظهور Riderra', 'Vendor Wiki', 'دليل للشركات والسائقين', 'المستندات', 'الوثائق العامة وواجهات API'],
+          ha: ['Albarkatu', 'Wallafe-wallafe', 'Kasidu, labarai da ambaton Riderra', 'Vendor Wiki', 'Jagora ga kamfanoni da direbobi', 'Takardu', 'Takardun jama’a da API']
+        };
+        const values = copy[this.$store.state.language] || copy.en;
+        return {
+          title: values[0],
+          publications: { title: values[1], description: values[2] },
+          wiki: { title: values[3], description: values[4] },
+          documents: { title: values[5], description: values[6] }
+        };
+      },
+      materialsPath(){
+        return `/materials?lang=${this.$store.state.language}`;
+      },
+      materialsItems(){
+        const lang = this.$store.state.language;
+        const wikiPath = lang === 'en' ? '/vendor-wiki' : `/${lang}/vendor-wiki`;
+        const docsPath = lang === 'ru' ? '/ru/docs' : '/docs';
+        return [
+          { ...this.materialsCopy.publications, href: `${this.materialsPath}#publications` },
+          { ...this.materialsCopy.wiki, href: wikiPath },
+          { ...this.materialsCopy.documents, href: docsPath }
+        ];
       }
 
     },
@@ -133,6 +193,7 @@
         // navList: $store.state.siteData["ru"].nav,
         ua: '',
         isScrolled: false,
+        materialsOpen: false,
         langData: {
           class: ''
         }
@@ -181,6 +242,9 @@
       },
       publicPath(path) {
         return path;
+      },
+      onMaterialsFocusout(event) {
+        if (!event.currentTarget.contains(event.relatedTarget)) this.materialsOpen = false;
       }
     },
     beforeMount(){
@@ -530,6 +594,84 @@
 
         }
       }
+    }
+  }
+
+  .materials-menu{
+    position: relative;
+    flex: 0 0 auto;
+
+    &__trigger{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      font-family: inherit;
+      font-weight: inherit;
+      cursor: pointer;
+    }
+
+    &__trigger span{
+      margin-top: -3px;
+      font-size: 14px;
+      transition: transform 180ms ease;
+    }
+
+    &__trigger[aria-expanded='true'] span{ transform: rotate(180deg); }
+
+    &__panel{
+      position: absolute;
+      top: calc(100% + 18px);
+      left: 50%;
+      width: 310px;
+      padding: 8px;
+      color: #17233d;
+      background: #fff;
+      border: 1px solid #dfe5ef;
+      border-radius: 8px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, .16);
+      transform: translateX(-50%);
+    }
+
+    &__panel::before{
+      content: '';
+      position: absolute;
+      top: -19px;
+      right: 0;
+      left: 0;
+      height: 19px;
+    }
+
+    &__link{
+      display: block;
+      padding: 13px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background-color 160ms ease;
+    }
+
+    &__link:hover,
+    &__link:focus-visible{
+      background: #eef5ff;
+      outline: none;
+    }
+
+    &__link strong{
+      display: block;
+      color: #101b3f;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    &__link span{
+      display: block;
+      margin-top: 4px;
+      color: #5d6981;
+      font-size: 12px;
+      line-height: 1.45;
     }
   }
 

@@ -26,7 +26,8 @@
         <li><a :href="publicPath('/ai')" class="footer__link">{{ t.aiAgents }}</a></li>
       </ul>
       <ul class="footer__col col-xs-12 col-sm-2">
-        <li class="footer__group-title"><a :href="publicPath('/docs')" class="footer__group-link">{{ t.resources }}</a></li>
+        <li class="footer__group-title"><a :href="materialsPath" class="footer__group-link">{{ t.resources }}</a></li>
+        <li><a :href="materialsPath" class="footer__link">{{ t.materials }}</a></li>
         <li><a :href="publicPath('/docs')" class="footer__link">{{ t.docs }}</a></li>
         <li><a :href="publicPath('/how-it-works')" class="footer__link">{{ t.howItWorks }}</a></li>
         <li><a :href="publicPath('/services')" class="footer__link">{{ t.services }}</a></li>
@@ -103,6 +104,9 @@
         const lang = this.$store.state.language;
         return lang === 'en' ? '/vendor-wiki' : `/${lang}/vendor-wiki`;
       },
+      materialsPath(){
+        return `/materials?lang=${this.$store.state.language}`;
+      },
       t(){
         const lang = this.$store.state.language;
         const dict = {
@@ -121,6 +125,7 @@
             infoEmail: 'info@riderra.com',
             docs: 'Документация',
             services: 'Услуги',
+            materials: 'Материалы',
             vendorWiki: 'Vendor Wiki'
           },
           en: {
@@ -138,15 +143,16 @@
             infoEmail: 'info@riderra.com',
             docs: 'Docs',
             services: 'Services',
+            materials: 'Resources',
             vendorWiki: 'Vendor Wiki'
           },
-          es: { forCustomers: 'Para clientes', forPartners: 'Para socios', resources: 'Recursos', bookTransfer: 'Reservar traslado', faq: 'FAQ', contact: 'Contacto', fleetPartners: 'Empresas de transporte', travelPlanners: 'Agencias de viajes', aiAgents: 'Agentes de IA', businessTravel: 'Viajes de negocios', howItWorks: 'Cómo funciona', infoEmail: 'info@riderra.com', docs: 'Documentación', services: 'Servicios', vendorWiki: 'Vendor Wiki' },
-          de: { forCustomers: 'Für Kunden', forPartners: 'Für Partner', resources: 'Ressourcen', bookTransfer: 'Transfer buchen', faq: 'FAQ', contact: 'Kontakt', fleetPartners: 'Transportunternehmen', travelPlanners: 'Reiseagenturen', aiAgents: 'KI-Agenten', businessTravel: 'Geschäftsreisen', howItWorks: 'So funktioniert es', infoEmail: 'info@riderra.com', docs: 'Dokumentation', services: 'Leistungen', vendorWiki: 'Vendor Wiki' },
-          fr: { forCustomers: 'Pour les clients', forPartners: 'Pour les partenaires', resources: 'Ressources', bookTransfer: 'Réserver un transfert', faq: 'FAQ', contact: 'Contact', fleetPartners: 'Transporteurs', travelPlanners: 'Agences de voyages', aiAgents: 'Agents IA', businessTravel: 'Voyages d’affaires', howItWorks: 'Comment ça marche', infoEmail: 'info@riderra.com', docs: 'Documentation', services: 'Services', vendorWiki: 'Vendor Wiki' },
-          el: { forCustomers: 'Για πελάτες', forPartners: 'Για συνεργάτες', resources: 'Πόροι', bookTransfer: 'Κράτηση μεταφοράς', faq: 'FAQ', contact: 'Επικοινωνία', fleetPartners: 'Εταιρείες μεταφορών', travelPlanners: 'Ταξιδιωτικά γραφεία', aiAgents: 'AI Agents', businessTravel: 'Επαγγελματικά ταξίδια', howItWorks: 'Πώς λειτουργεί', infoEmail: 'info@riderra.com', docs: 'Τεκμηρίωση', services: 'Υπηρεσίες', vendorWiki: 'Vendor Wiki' },
-          th: { forCustomers: 'สำหรับลูกค้า', forPartners: 'สำหรับพันธมิตร', resources: 'ทรัพยากร', bookTransfer: 'จองรถรับส่ง', faq: 'FAQ', contact: 'ติดต่อ', fleetPartners: 'บริษัทขนส่ง', travelPlanners: 'บริษัทท่องเที่ยว', aiAgents: 'AI Agents', businessTravel: 'การเดินทางธุรกิจ', howItWorks: 'วิธีการทำงาน', infoEmail: 'info@riderra.com', docs: 'เอกสาร', services: 'บริการ', vendorWiki: 'Vendor Wiki' },
-          ar: { forCustomers: 'للعملاء', forPartners: 'للشركاء', resources: 'الموارد', bookTransfer: 'حجز نقل', faq: 'FAQ', contact: 'اتصل بنا', fleetPartners: 'شركات النقل', travelPlanners: 'وكالات السفر', aiAgents: 'وكلاء AI', businessTravel: 'سفر الأعمال', howItWorks: 'كيف يعمل', infoEmail: 'info@riderra.com', docs: 'الوثائق', services: 'الخدمات', vendorWiki: 'Vendor Wiki' },
-          ha: { forCustomers: 'Ga abokan ciniki', forPartners: 'Ga abokan hulɗa', resources: 'Albarkatu', bookTransfer: 'Yi odar mota', faq: 'FAQ', contact: 'Tuntuɓa', fleetPartners: 'Kamfanonin sufuri', travelPlanners: 'Hukumomin tafiye-tafiye', aiAgents: 'Wakilan AI', businessTravel: 'Tafiyar kasuwanci', howItWorks: 'Yadda yake aiki', infoEmail: 'info@riderra.com', docs: 'Takardu', services: 'Ayyuka', vendorWiki: 'Vendor Wiki'
+          es: { forCustomers: 'Para clientes', forPartners: 'Para socios', resources: 'Recursos', bookTransfer: 'Reservar traslado', faq: 'FAQ', contact: 'Contacto', fleetPartners: 'Empresas de transporte', travelPlanners: 'Agencias de viajes', aiAgents: 'Agentes de IA', businessTravel: 'Viajes de negocios', howItWorks: 'Cómo funciona', infoEmail: 'info@riderra.com', docs: 'Documentación', services: 'Servicios', materials: 'Recursos', vendorWiki: 'Vendor Wiki' },
+          de: { forCustomers: 'Für Kunden', forPartners: 'Für Partner', resources: 'Ressourcen', bookTransfer: 'Transfer buchen', faq: 'FAQ', contact: 'Kontakt', fleetPartners: 'Transportunternehmen', travelPlanners: 'Reiseagenturen', aiAgents: 'KI-Agenten', businessTravel: 'Geschäftsreisen', howItWorks: 'So funktioniert es', infoEmail: 'info@riderra.com', docs: 'Dokumentation', services: 'Leistungen', materials: 'Materialien', vendorWiki: 'Vendor Wiki' },
+          fr: { forCustomers: 'Pour les clients', forPartners: 'Pour les partenaires', resources: 'Ressources', bookTransfer: 'Réserver un transfert', faq: 'FAQ', contact: 'Contact', fleetPartners: 'Transporteurs', travelPlanners: 'Agences de voyages', aiAgents: 'Agents IA', businessTravel: 'Voyages d’affaires', howItWorks: 'Comment ça marche', infoEmail: 'info@riderra.com', docs: 'Documentation', services: 'Services', materials: 'Ressources', vendorWiki: 'Vendor Wiki' },
+          el: { forCustomers: 'Για πελάτες', forPartners: 'Για συνεργάτες', resources: 'Πόροι', bookTransfer: 'Κράτηση μεταφοράς', faq: 'FAQ', contact: 'Επικοινωνία', fleetPartners: 'Εταιρείες μεταφορών', travelPlanners: 'Ταξιδιωτικά γραφεία', aiAgents: 'AI Agents', businessTravel: 'Επαγγελματικά ταξίδια', howItWorks: 'Πώς λειτουργεί', infoEmail: 'info@riderra.com', docs: 'Τεκμηρίωση', services: 'Υπηρεσίες', materials: 'Υλικό', vendorWiki: 'Vendor Wiki' },
+          th: { forCustomers: 'สำหรับลูกค้า', forPartners: 'สำหรับพันธมิตร', resources: 'ทรัพยากร', bookTransfer: 'จองรถรับส่ง', faq: 'FAQ', contact: 'ติดต่อ', fleetPartners: 'บริษัทขนส่ง', travelPlanners: 'บริษัทท่องเที่ยว', aiAgents: 'AI Agents', businessTravel: 'การเดินทางธุรกิจ', howItWorks: 'วิธีการทำงาน', infoEmail: 'info@riderra.com', docs: 'เอกสาร', services: 'บริการ', materials: 'แหล่งข้อมูล', vendorWiki: 'Vendor Wiki' },
+          ar: { forCustomers: 'للعملاء', forPartners: 'للشركاء', resources: 'الموارد', bookTransfer: 'حجز نقل', faq: 'FAQ', contact: 'اتصل بنا', fleetPartners: 'شركات النقل', travelPlanners: 'وكالات السفر', aiAgents: 'وكلاء AI', businessTravel: 'سفر الأعمال', howItWorks: 'كيف يعمل', infoEmail: 'info@riderra.com', docs: 'الوثائق', services: 'الخدمات', materials: 'المواد', vendorWiki: 'Vendor Wiki' },
+          ha: { forCustomers: 'Ga abokan ciniki', forPartners: 'Ga abokan hulɗa', resources: 'Albarkatu', bookTransfer: 'Yi odar mota', faq: 'FAQ', contact: 'Tuntuɓa', fleetPartners: 'Kamfanonin sufuri', travelPlanners: 'Hukumomin tafiye-tafiye', aiAgents: 'Wakilan AI', businessTravel: 'Tafiyar kasuwanci', howItWorks: 'Yadda yake aiki', infoEmail: 'info@riderra.com', docs: 'Takardu', services: 'Ayyuka', materials: 'Albarkatu', vendorWiki: 'Vendor Wiki'
           }
         };
         return dict[lang] || dict.en;
