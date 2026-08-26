@@ -286,6 +286,7 @@ export default {
 .form-field--wide { grid-column: 1 / -1; }
 .form-field label { display: block; margin-bottom: 8px; color: var(--drivers-ink); font-size: 13px; font-weight: 700; }
 .form-field input, .form-field textarea { width: 100%; min-height: 46px; padding: 11px 13px; color: var(--drivers-ink); background: #fff; border: 1px solid #cbd4e3; border-radius: 6px; font: inherit; font-size: 14px; transition: border-color .2s ease, box-shadow .2s ease; }
+.form-field input { height: 46px; }
 .form-field textarea { resize: vertical; line-height: 1.55; }
 .form-field input:focus, .form-field textarea:focus { border-color: var(--drivers-blue); box-shadow: 0 0 0 3px rgba(47, 128, 237, .14); outline: none; }
 .form-field input::placeholder, .form-field textarea::placeholder { color: #9ba7ba; }
