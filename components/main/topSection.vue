@@ -291,14 +291,14 @@
 
   @media all and (max-width: 767px) {
     .main-section {
+      min-height: auto;
+      height: auto;
+      padding: 0;
+
       &__title {
         width: 75%;
         margin-bottom: 25px;
       }
-
-      min-height: auto;
-      height: auto;
-      padding: 0;
 
       &__content {
         padding-top: 110px;

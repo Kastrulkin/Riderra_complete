@@ -7,7 +7,7 @@ module.exports = {
     host: process.env.HOST || '0.0.0.0',
   },
   ssr: false,
-  target: 'server',
+  target: 'static',
   router: {
     prefetchLinks: false
   },

@@ -4,10 +4,13 @@
   "description": "riderra new site",
   "author": "serenity",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "nuxt",
     "build": "nuxt build --no-lock",
-    "start": "nuxt start ",
+    "start": "node server/standalone.js",
     "generate": "nuxt generate",
     "prisma:generate": "prisma generate",
     "prisma:bootstrap": "node scripts/prisma_postgres_bootstrap.js",
@@ -19,6 +22,7 @@
     "security:policy": "node scripts/security_policy_smoke.js",
     "security:gate": "node scripts/security_gate_checks.js",
     "security:release-gate": "node scripts/security_release_gate.js",
+    "security:audit-production": "npm audit --omit=dev",
     "security:tenant-mismatch": "node scripts/security_tenant_mismatch_smoke.js",
     "security:api-tenant-mismatch": "node scripts/security_api_tenant_mismatch_smoke.js",
     "security:api-idempotency": "node scripts/security_api_idempotency_smoke.js",
@@ -53,7 +57,6 @@
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",
-    "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.18.1",
     "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.6",
@@ -62,13 +65,22 @@
     "express": "^4.22.2",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^9.0.3",
-    "nuxt": "^2.11.0",
-    "nuxt-google-maps-module": "^1.6.0",
     "papaparse": "^5.5.3",
     "paysera-nodejs": "^1.0.2",
-    "sass": "^1.32.0",
-    "sass-loader": "^7.1.0",
-    "socks-proxy-agent": "8.0.5",
+    "socks-proxy-agent": "8.0.5"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "babel-eslint": "^10.0.1",
+    "eslint": "^7.32.0",
+    "eslint-friendly-formatter": "^4.0.1",
+    "eslint-loader": "^4.0.2",
+    "eslint-plugin-vue": "^7.20.0",
+    "nuxt": "^2.11.0",
+    "nuxt-google-maps-module": "^1.6.0",
+    "prisma": "^5.10.2",
+    "sass": "1.78.0",
+    "sass-loader": "10.5.2",
     "v-scroll-lock": "^1.0.1",
     "vue-click-outside": "^1.0.7",
     "vue-masked-input": "^0.5.2",
@@ -83,16 +95,17 @@
     "vuebar": "0.0.20",
     "vuejs-datepicker": "^1.5.4"
   },
-  "devDependencies": {
-    "babel-eslint": "^10.0.1",
-    "eslint": "^7.32.0",
-    "eslint-friendly-formatter": "^4.0.1",
-    "eslint-loader": "^4.0.2",
-    "eslint-plugin-vue": "^7.20.0",
-    "prisma": "^5.10.2"
-  },
   "overrides": {
+    "@nuxt/telemetry": "2.6.6",
     "axios": "^1.18.1",
-    "tar": "^7.5.21"
+    "cookie": "0.7.2",
+    "defu": "6.1.7",
+    "exceljs": {
+      "uuid": "11.1.1"
+    },
+    "postcss": "8.5.26",
+    "serialize-javascript": "7.0.5",
+    "tar": "^7.5.21",
+    "tmp": "0.2.7"
   }
 }
