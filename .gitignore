@@ -50,6 +50,26 @@ typings/
 # Local environment
 .env
 .env.local
+.env.backup-*
+.env.bak.*
+
+# Server-local operational files
+.nuxt-*-old-*/
+backups/
+current/
+secrets/
+var/
+vendor/
+pages/*.bak-*
+server/*.bak-*
+server/*.backup-*
+scripts/*.server-untracked-before-*
+scripts/correct-dubai-005-with-nadir.cjs
+scripts/london_riderra005_rows.json
+reports/*.csv
+tmp-*.mjs
+tmp_*.mjs
+tmp_sync_placeholder/
 
 # IDE/editor
 .idea/
