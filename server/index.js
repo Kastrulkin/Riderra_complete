@@ -2556,6 +2556,7 @@ async function syncOrderContactsFromDetailsTab ({ source, tenantId }) {
   }
   const contacts = extractOrderDetailsContacts(detailRows, [...referenceToOrder.keys()])
   let updated = 0
+  let recipientTasksUpdated = 0
   for (const [reference, contact] of contacts.entries()) {
     const order = referenceToOrder.get(reference)
     if (!order) continue
@@ -2563,11 +2564,34 @@ async function syncOrderContactsFromDetailsTab ({ source, tenantId }) {
     const data = {}
     if (!manualFields.has('customerName') && contact.customerName && contact.customerName !== order.customerName) data.customerName = contact.customerName
     if (!manualFields.has('customerPhone') && contact.customerPhone && contact.customerPhone !== order.customerPhone) data.customerPhone = contact.customerPhone
-    if (!Object.keys(data).length) continue
-    await prisma.order.update({ where: { id: order.id }, data })
-    updated++
+    if (Object.keys(data).length) {
+      await prisma.order.update({ where: { id: order.id }, data })
+      updated++
+    }
+
+    // A chat task may be created before Booking contact details appear in the
+    // source sheet. Keep untouched manual/test recipients and conversations
+    // that have already sent a customer message, but refresh safe order-based
+    // tasks even when the Order itself already has the same phone number.
+    if (!manualFields.has('customerPhone') && contact.customerPhone) {
+      const taskUpdate = await prisma.chatTask.updateMany({
+        where: {
+          tenantId,
+          orderId: order.id,
+          state: { notIn: ['closed', 'notify_ack'] },
+          OR: [{ recipientSource: null }, { recipientSource: 'order' }],
+          messages: { none: { direction: 'outbound', approvalStatus: 'sent' } }
+        },
+        data: {
+          channel: 'whatsapp',
+          customerActorId: contact.customerPhone,
+          recipientSource: 'order'
+        }
+      })
+      recipientTasksUpdated += taskUpdate.count
+    }
   }
-  return { found: contacts.size, updated }
+  return { found: contacts.size, updated, recipientTasksUpdated }
 }
 
 async function syncSheetSource(sheetSourceId, tenantId) {
