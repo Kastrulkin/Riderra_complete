@@ -78,6 +78,9 @@ async function main() {
       assertOk(wikiPage.response.status === 200 && wikiPage.text.includes(wikiText), `${lang} vendor wiki is missing localized content`)
       assertOk(wikiPage.text.includes(`lang="${lang}"`), `${lang} vendor wiki has the wrong document language`)
       if (lang === 'ru') {
+        assertOk(wikiPage.text.includes('id="order-to-payment-workflow"'), 'ru vendor wiki is missing the order-to-payment workflow')
+        assertOk(wikiPage.text.includes('Процесс работы от заявки до оплаты'), 'ru vendor wiki is missing the restored workflow title')
+        assertOk(wikiPage.text.includes('Новый заказ') && wikiPage.text.includes('Сверка и документы'), 'ru order workflow is missing lifecycle stages')
         assertOk(wikiPage.text.includes('id="easytaxi-fleet-operator"'), 'ru vendor wiki is missing the Fleet Operator guide')
         assertOk(wikiPage.text.includes('id="easytaxi-driver"'), 'ru vendor wiki is missing the ETO Driver guide')
         assertOk(wikiPage.text.includes('/img/vendor-wiki/easytaxi/driver-location.jpg'), 'ru ETO Driver guide is missing official screenshots')
