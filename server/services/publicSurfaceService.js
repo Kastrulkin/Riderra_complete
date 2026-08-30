@@ -40,6 +40,7 @@ const RIDERRA_PUBLIC_PAGES = [
   ...['es', 'de', 'fr', 'el', 'th', 'ar', 'ha'].map((lang) => ({ path: `/${lang}/partners`, title: `Riderra partners (${lang})`, priority: '0.6' })),
   { path: '/vendor-wiki', title: 'Vendor Wiki', priority: '0.7' },
   { path: '/ru/vendor-wiki', title: 'Vendor Wiki Riderra', priority: '0.6' },
+  { path: '/ru/vendor-wiki/easytaxi-driver', title: 'Инструкция ETO Driver для водителя', priority: '0.6' },
   ...['es', 'de', 'fr', 'el', 'th', 'ar', 'ha'].map((lang) => ({ path: `/${lang}/vendor-wiki`, title: `Vendor Wiki (${lang})`, priority: '0.5' })),
   { path: '/privacy-policy/en', title: 'Privacy Policy', priority: '0.3' },
   { path: '/terms/en', title: 'Terms and Conditions', priority: '0.3' }

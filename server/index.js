@@ -353,6 +353,7 @@ registerPublicRoutes(app, {
   createRequest: publicIntakeController.createRequest,
   crawlerHomepage: publicSurfaceController.crawlerHomepage,
   dataDeletion: publicSurfaceController.dataDeletion,
+  driverVendorWiki: publicSurfaceController.driverVendorWiki,
   llmsTxt: publicSurfaceController.llmsTxt,
   openapiJson: publicSurfaceController.openapiJson,
   orderRequestMiddleware: [publicFormLimiter, resolveActorContext, requireActorContext],

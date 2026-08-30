@@ -28,10 +28,41 @@ function renderBlock(block, ui) {
   return `<div class="wiki-block">${title}${body}${items}${quote}${links}${rows}${figure}</div>`
 }
 
-function renderVendorWikiHtml(requestedLanguage = 'en') {
+function renderVendorWikiHtml(requestedLanguage = 'en', options = {}) {
   const language = VENDOR_LANGUAGES.includes(requestedLanguage) ? requestedLanguage : 'en'
-  const ui = VENDOR_WIKI_UI[language] || VENDOR_WIKI_UI.en
-  const wikiSections = language === 'en' ? VENDOR_WIKI_SECTIONS : localizedSections(language)
+  const driverOnly = language === 'ru' && options.guide === 'easytaxi-driver'
+  const baseUi = VENDOR_WIKI_UI[language] || VENDOR_WIKI_UI.en
+  const ui = driverOnly
+    ? {
+        ...baseUi,
+        pageTitle: 'ETO Driver — инструкция водителю | Riderra',
+        description: 'Пошаговая инструкция водителю Riderra по работе в приложении ETO Driver: подготовка телефона, принятие заказа и статусы поездки.',
+        partnerGuide: 'Отдельная инструкция водителю',
+        title: 'ETO Driver: инструкция водителю',
+        hero: 'Только действия водителя: как подготовить телефон, принять заказ, вовремя поставить статусы и сообщить о проблеме.',
+        language: 'Разделы',
+        navigation: 'Навигация по инструкции',
+        search: 'Поиск по инструкции',
+        searchPlaceholder: 'Например, «Arrived»',
+        newTitle: 'Перед первой поездкой',
+        newText: 'Настройте приложение, уведомления и постоянную геолокацию, затем проверьте назначенный заказ.',
+        start: 'Открыть инструкцию',
+        empty: 'Ничего не найдено. Сократите запрос или свяжитесь с диспетчером.',
+        legal: 'Это отдельная инструкция только для водителя. Назначение и переназначение заказов выполняет диспетчер в Fleet Operator; его инструкция находится в общей Vendor Wiki.'
+      }
+    : baseUi
+  const allSections = language === 'en' ? VENDOR_WIKI_SECTIONS : localizedSections(language)
+  const wikiSections = driverOnly
+    ? [{
+        id: 'eto-driver-guide',
+        title: 'Работа водителя в ETO Driver',
+        summary: 'От подготовки телефона до корректного завершения поездки.',
+        articles: allSections
+          .find((section) => section.id === 'easytaxi')
+          .articles
+          .filter((article) => ['easytaxi-driver', 'easytaxi-troubleshooting-ru'].includes(article.id))
+      }]
+    : allSections
   const navigation = wikiSections.map((section) => `<li><a href="#${escapeHtml(section.id)}">${escapeHtml(section.title)}</a><ul>${section.articles.map((article) => `<li><a href="#${escapeHtml(article.id)}">${escapeHtml(article.title)}</a></li>`).join('')}</ul></li>`).join('')
   const sections = wikiSections.map((section, index) => {
     const articles = section.articles.map((article) => {
@@ -40,8 +71,11 @@ function renderVendorWikiHtml(requestedLanguage = 'en') {
     }).join('')
     return `<section id="${escapeHtml(section.id)}" class="wiki-section" data-section><div class="section-heading"><p class="section-number">${String(index + 1).padStart(2, '0')}</p><div><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.summary)}</p></div></div>${articles}</section>`
   }).join('')
-  const canonicalPath = wikiPath(language)
-  const languageLinks = VENDOR_LANGUAGES.map((item) => `<a href="${wikiPath(item)}" lang="${item}"${item === language ? ' aria-current="page"' : ''}>${escapeHtml(VENDOR_LANGUAGE_NAMES[item])}</a>`).join('')
+  const canonicalPath = driverOnly ? '/ru/vendor-wiki/easytaxi-driver' : wikiPath(language)
+  const languageLinks = driverOnly
+    ? '<a href="/ru/vendor-wiki">Общая Vendor Wiki</a><a href="#easytaxi-driver" aria-current="page">Инструкция водителю</a>'
+    : VENDOR_LANGUAGES.map((item) => `<a href="${wikiPath(item)}" lang="${item}"${item === language ? ' aria-current="page"' : ''}>${escapeHtml(VENDOR_LANGUAGE_NAMES[item])}</a>`).join('')
+  const alternateLinks = driverOnly ? '' : VENDOR_LANGUAGES.map((item) => `<link rel="alternate" hreflang="${item}" href="${RIDERRA_BASE_URL}${wikiPath(item)}">`).join('')
   const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@type': 'TechArticle', headline: ui.title, description: ui.description, inLanguage: language, dateModified: '2026-08-30', publisher: { '@type': 'Organization', name: 'Riderra', url: RIDERRA_BASE_URL }, mainEntityOfPage: `${RIDERRA_BASE_URL}${canonicalPath}` })
 
   return `<!doctype html>
@@ -53,14 +87,14 @@ function renderVendorWikiHtml(requestedLanguage = 'en') {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:300,400,500,700,800&subset=cyrillic-ext">
-  <link rel="canonical" href="${RIDERRA_BASE_URL}${canonicalPath}">${VENDOR_LANGUAGES.map((item) => `<link rel="alternate" hreflang="${item}" href="${RIDERRA_BASE_URL}${wikiPath(item)}">`).join('')}<script type="application/ld+json">${jsonLd}</script>
+  <link rel="canonical" href="${RIDERRA_BASE_URL}${canonicalPath}">${alternateLinks}<script type="application/ld+json">${jsonLd}</script>
   <style>
     :root{color-scheme:light;--navy:#1a237e;--blue:#2f80ed;--sky:#eef5ff;--ink:#17233d;--muted:#5d6981;--line:#dfe5ef;--paper:#fff;--soft:#f7f9fc;--brand-dark:#0d1421;--brand-black:#000;--cta:#1f2e4d}*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;color:var(--ink);background:#f4f7fb;font-family:'Montserrat',sans-serif}a{color:inherit}.topbar{background:linear-gradient(135deg,var(--navy) 0%,var(--brand-dark) 50%,var(--brand-black) 100%);color:#fff}.topbar-inner{max-width:1200px;margin:0 auto;min-height:64px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{display:inline-flex;align-items:center;text-decoration:none}.brand-logo{display:block;width:108px;height:23px}.top-actions{display:flex;align-items:center;gap:10px}.top-actions a{color:#fff;text-decoration:none;font-size:14px;font-weight:500;padding:9px 13px;border:1px solid rgba(255,255,255,.3);border-radius:6px}.top-actions a:hover,.top-actions a:focus-visible{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.5);outline:none}.language-links{display:flex;flex-wrap:wrap;gap:6px}.language-links a{color:#e2e7f5;text-decoration:none;font-size:12px;padding:5px 8px;border:1px solid rgba(255,255,255,.2);border-radius:6px}.language-links a[aria-current=page]{color:var(--brand-dark);background:#fff}.hero{background:linear-gradient(135deg,var(--navy) 0%,var(--brand-dark) 50%,var(--brand-black) 100%);color:#fff}.hero-inner{max-width:1200px;margin:0 auto;padding:56px 24px 62px}.eyebrow{margin:0 0 12px;color:#d8def2;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}h1{margin:0;font-size:clamp(38px,6vw,68px);line-height:1;letter-spacing:-.035em}.hero-copy{max-width:700px;margin:20px 0 0;color:rgba(255,255,255,.9);font-size:19px;line-height:1.65}.layout{max-width:1200px;margin:0 auto;padding:32px 24px 72px;display:grid;grid-template-columns:280px minmax(0,1fr);gap:32px;align-items:start}.sidebar{position:sticky;top:24px}.search-label{display:block;margin-bottom:8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.search{width:100%;min-height:44px;padding:0 13px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;font:inherit}.search:focus{outline:3px solid rgba(47,128,237,.16);border-color:var(--blue)}.toc{margin:22px 0 0;padding:0;list-style:none}.toc>li{margin-bottom:17px}.toc>li>a{color:var(--navy);font-size:14px;font-weight:700;text-decoration:none}.toc ul{margin:8px 0 0;padding:0 0 0 13px;border-left:1px solid var(--line);list-style:none}.toc ul li{margin:7px 0}.toc ul a{color:var(--muted);font-size:13px;line-height:1.35;text-decoration:none}.toc a:hover{color:var(--blue);text-decoration:underline}.support{margin-top:22px;padding:16px;background:var(--sky);border-radius:8px;font-size:13px;line-height:1.55;color:var(--muted)}.support strong{display:block;color:var(--navy);margin-bottom:4px}.support a{color:var(--blue)}.content{min-width:0}.start-card{margin-bottom:28px;padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 36px rgba(20,35,90,.06)}.start-card strong{display:block;color:var(--navy);font-size:18px}.start-card p{margin:5px 0 0;color:var(--muted);line-height:1.5}.start-card a{flex:0 0 auto;color:#fff;background:var(--cta);padding:11px 16px;border-radius:6px;font-weight:700;text-decoration:none}.start-card a:hover,.start-card a:focus-visible{background:#19253e;outline:none}.wiki-section{margin-bottom:54px}.section-heading{display:flex;gap:16px;align-items:flex-start;margin:0 0 18px}.section-number{margin:4px 0 0;color:var(--blue);font-size:13px;font-weight:800;letter-spacing:.08em}.section-heading h2{margin:0;color:var(--navy);font-size:29px;letter-spacing:-.02em}.section-heading p:not(.section-number){margin:7px 0 0;color:var(--muted);line-height:1.55}.wiki-article{margin-bottom:18px;padding:28px 30px;background:var(--paper);border:1px solid var(--line);border-radius:8px;box-shadow:0 9px 30px rgba(20,35,90,.045)}.article-heading{display:flex;gap:10px;align-items:flex-start}.anchor{margin-top:4px;color:#9ba9c2;font-size:18px;text-decoration:none}.article-heading h2{margin:0;color:var(--navy);font-size:23px;line-height:1.25}.article-heading p{margin:9px 0 0;color:var(--muted);line-height:1.65}.wiki-block{margin:22px 0 0 28px}.wiki-block h3{margin:0 0 9px;color:var(--ink);font-size:16px}.wiki-block p{margin:0;color:#46526b;line-height:1.65}.wiki-block ul{margin:0;padding-left:20px;color:#46526b}.wiki-block li{margin:8px 0;line-height:1.55}blockquote{margin:0;padding:16px 18px;color:#34415d;background:var(--soft);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;line-height:1.65}.wiki-links{display:flex;flex-wrap:wrap;gap:10px}.wiki-links a{color:var(--blue);background:var(--sky);padding:10px 13px;border-radius:6px;font-size:14px;font-weight:700;text-decoration:none}.wiki-figure{margin:0}.wiki-figure a{display:block}.wiki-figure img{display:block;width:100%;max-height:680px;object-fit:contain;object-position:left center;background:var(--soft);border:1px solid var(--line);border-radius:8px}.wiki-figure figcaption{margin-top:9px;color:var(--muted);font-size:12px;line-height:1.5}.wiki-figure figcaption a{display:inline;color:var(--blue)}.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);font-size:14px;line-height:1.4}th{color:var(--navy);background:var(--soft);font-size:12px;text-transform:uppercase;letter-spacing:.04em}tr:last-child td{border-bottom:0}.empty{display:none;padding:34px;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:8px;text-align:center}.legal{padding:20px 22px;color:var(--muted);background:#e9eef8;border-radius:8px;font-size:13px;line-height:1.6}[hidden]{display:none!important}[dir=rtl] th,[dir=rtl] td{text-align:right}[dir=rtl] .toc ul{border-left:0;border-right:1px solid var(--line);padding:0 13px 0 0}
     @media(max-width:900px){.hero-inner{grid-template-columns:1fr;gap:28px}.layout{grid-template-columns:1fr}.sidebar{position:static}.toc{columns:2;column-gap:30px}.toc>li{break-inside:avoid}}@media(max-width:620px){.topbar-inner{padding:0 16px}.top-actions a:first-child{display:none}.hero-inner{padding:40px 16px 46px}.hero-copy{font-size:17px}.layout{padding:22px 16px 48px}.toc{columns:1}.start-card{align-items:flex-start;flex-direction:column}.wiki-article{padding:22px 18px}.wiki-block{margin-left:0}.article-heading{gap:8px}}
   </style>
 </head>
 <body>
-  <header class="topbar"><div class="topbar-inner"><a class="brand" href="/"><img class="brand-logo" src="/img/logo.svg" alt="Riderra"></a><nav class="top-actions" aria-label="${escapeHtml(ui.partners)}"><a href="${partnersPath(language)}">${escapeHtml(ui.partners)}</a><a href="/drivers?lang=${language}">${escapeHtml(ui.apply)}</a><a href="/driver-login">${escapeHtml(ui.login)}</a></nav></div><div class="topbar-inner" style="min-height:44px"><nav class="language-links" aria-label="${escapeHtml(ui.language)}">${languageLinks}</nav></div></header>
+  <header class="topbar"><div class="topbar-inner"><a class="brand" href="/"><img class="brand-logo" src="/img/logo.svg" alt="Riderra"></a><nav class="top-actions" aria-label="${escapeHtml(driverOnly ? 'Полезные ссылки' : ui.partners)}">${driverOnly ? '<a href="/ru/vendor-wiki">Общая Vendor Wiki</a><a href="#easytaxi-driver">К инструкции</a>' : `<a href="${partnersPath(language)}">${escapeHtml(ui.partners)}</a><a href="/drivers?lang=${language}">${escapeHtml(ui.apply)}</a><a href="/driver-login">${escapeHtml(ui.login)}</a>`}</nav></div><div class="topbar-inner" style="min-height:44px"><nav class="language-links" aria-label="${escapeHtml(ui.language)}">${languageLinks}</nav></div></header>
   <section class="hero"><div class="hero-inner"><p class="eyebrow">${escapeHtml(ui.partnerGuide)}</p><h1>${escapeHtml(ui.title)}</h1><p class="hero-copy">${escapeHtml(ui.hero)}</p></div></section>
   <main class="layout"><aside class="sidebar" aria-label="${escapeHtml(ui.navigation)}"><label class="search-label" for="wiki-search">${escapeHtml(ui.search)}</label><input id="wiki-search" class="search" type="search" placeholder="${escapeHtml(ui.searchPlaceholder)}" autocomplete="off"><nav><ul class="toc">${navigation}</ul></nav><div class="support"><strong>${escapeHtml(ui.helpTitle)}</strong>${escapeHtml(ui.helpText)} <a href="mailto:${escapeHtml(RIDERRA_CONTACT_EMAIL)}">${escapeHtml(RIDERRA_CONTACT_EMAIL)}</a>.</div></aside><div class="content"><div class="start-card"><div><strong>${escapeHtml(ui.newTitle)}</strong><p>${escapeHtml(ui.newText)}</p></div><a href="#${escapeHtml(wikiSections[0].articles[0].id)}">${escapeHtml(ui.start)}</a></div><div id="wiki-content">${sections}</div><p id="wiki-empty" class="empty">${escapeHtml(ui.empty)}</p><p class="legal">${escapeHtml(ui.legal)}</p></div></main>
   <script>(function(){var input=document.getElementById('wiki-search');var articles=Array.prototype.slice.call(document.querySelectorAll('.wiki-article'));var sections=Array.prototype.slice.call(document.querySelectorAll('[data-section]'));var empty=document.getElementById('wiki-empty');input.addEventListener('input',function(){var query=input.value.trim().toLowerCase();var visible=0;articles.forEach(function(article){var match=!query||article.getAttribute('data-search').indexOf(query)!==-1;article.hidden=!match;if(match)visible+=1});sections.forEach(function(section){section.hidden=!section.querySelector('.wiki-article:not([hidden])')});empty.style.display=visible?'none':'block'})}());</script>

@@ -110,6 +110,12 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
     res.status(200).send(renderVendorWikiHtml(publicPageLanguage(req)))
   }
 
+  function driverVendorWiki(_req, res) {
+    res.type('text/html')
+    res.setHeader('Cache-Control', 'public, max-age=300')
+    res.status(200).send(renderVendorWikiHtml('ru', { guide: 'easytaxi-driver' }))
+  }
+
   function partnerHub(req, res) {
     res.type('text/html')
     res.setHeader('Cache-Control', 'public, max-age=300')
@@ -209,6 +215,7 @@ ${RIDERRA_PUBLIC_PAGES.map((page) => `- ${page.title}: ${riderraAbsoluteUrl(page
     agentManifest,
     crawlerHomepage,
     dataDeletion,
+    driverVendorWiki,
     llmsTxt,
     openapiJson,
     partnerHub,

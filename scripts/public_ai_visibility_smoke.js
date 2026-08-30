@@ -39,7 +39,7 @@ async function main() {
     const { response, text } = await readText('/sitemap.xml')
     assertOk(response.status === 200, `sitemap.xml status ${response.status}`)
     assertOk(text.includes('<urlset'), 'sitemap.xml missing urlset')
-    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/partners', '/vendor-wiki', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq', '/ru/partners', '/ru/vendor-wiki', '/de/partners', '/de/vendor-wiki', '/ar/partners', '/ar/vendor-wiki']) {
+    for (const path of ['/ai', '/services', '/prices', '/contact', '/faq', '/sources', '/partners', '/vendor-wiki', '/ru/ai', '/ru/services', '/ru/prices', '/ru/contact', '/ru/faq', '/ru/partners', '/ru/vendor-wiki', '/ru/vendor-wiki/easytaxi-driver', '/de/partners', '/de/vendor-wiki', '/ar/partners', '/ar/vendor-wiki']) {
       assertOk(text.includes(`${CANONICAL_URL}${path}`), `sitemap.xml missing ${path}`)
     }
   })
@@ -84,6 +84,18 @@ async function main() {
         assertOk(wikiPage.text.includes('Статусы поездки: точный момент нажатия'), 'ru ETO Driver guide is missing status timing guidance')
       }
     }
+  })
+
+  await check('standalone ETO Driver guide', async () => {
+    const { response, text } = await readText('/ru/vendor-wiki/easytaxi-driver')
+    assertOk(response.status === 200, `ETO Driver guide status ${response.status}`)
+    assertOk(text.includes('ETO Driver: инструкция водителю'), 'ETO Driver guide is missing its title')
+    assertOk(text.includes('id="easytaxi-driver"'), 'ETO Driver guide is missing the driver workflow')
+    assertOk(text.includes('id="easytaxi-troubleshooting-ru"'), 'ETO Driver guide is missing troubleshooting')
+    assertOk(text.includes('/img/vendor-wiki/easytaxi/driver-location.jpg'), 'ETO Driver guide is missing official screenshots')
+    assertOk(text.includes('Статусы поездки: точный момент нажатия'), 'ETO Driver guide is missing status timing guidance')
+    assertOk(!text.includes('id="easytaxi-fleet-operator"'), 'ETO Driver guide contains the Fleet Operator article')
+    assertOk(!text.includes('Assign driver +'), 'ETO Driver guide contains dispatcher controls')
   })
 
   await check('llms.txt', async () => {

@@ -2,6 +2,7 @@ function registerPublicRoutes(app, handlers) {
   app.get('/robots.txt', handlers.robotsTxt)
   app.get('/sitemap.xml', handlers.sitemapXml)
   app.get('/llms.txt', handlers.llmsTxt)
+  app.get('/ru/vendor-wiki/easytaxi-driver', handlers.driverVendorWiki)
   app.get(['/vendor-wiki', '/ru/vendor-wiki', '/es/vendor-wiki', '/de/vendor-wiki', '/fr/vendor-wiki', '/el/vendor-wiki', '/th/vendor-wiki', '/ar/vendor-wiki', '/ha/vendor-wiki'], handlers.vendorWiki)
   app.get(['/partners', '/ru/partners', '/es/partners', '/de/partners', '/fr/partners', '/el/partners', '/th/partners', '/ar/partners', '/ha/partners'], handlers.partnerHub)
   app.get(['/ai', '/about', '/services', '/docs', '/prices', '/contact', '/faq'], handlers.redirectRussianPublicPages)
