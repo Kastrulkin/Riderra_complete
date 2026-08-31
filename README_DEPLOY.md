@@ -37,6 +37,12 @@ cd /opt/riderra
 bash update.sh
 ```
 
+`update.sh` устанавливает Nuxt/Vue/Webpack только на время генерации статического
+фронтенда. До перезапуска приложения сборочные зависимости удаляются командой
+`npm prune --omit=dev`, после чего обязательный `npm audit --omit=dev` проверяет
+фактически установленный production-runtime. Ошибка runtime-аудита останавливает
+релиз до перезапуска PM2.
+
 ## Docker-вариант
 ```bash
 cp .env.example .env
@@ -78,6 +84,7 @@ pm2 status
 pm2 logs riderra --lines 50 --nostream
 curl -fsS http://127.0.0.1:3000/api/public/source-truth
 npm run smoke:public-ai-visibility
+npm run security:audit-production
 ```
 
 При изменении `cron_restart` запись `booking-price-monitor` должна быть пересоздана из `ecosystem.config.js`; актуальный `update.sh` делает это автоматически.

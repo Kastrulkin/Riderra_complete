@@ -1,26 +1,28 @@
-# Используем официальный Node.js образ
-FROM node:18-alpine
+FROM node:20-alpine AS builder
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем package.json и package-lock.json
 COPY package*.json ./
 
-# Устанавливаем зависимости
-RUN npm ci --only=production
+# Nuxt 2 and the Vue/Webpack toolchain are needed only to generate dist/.
+RUN npm ci --include=dev --no-audit
 
-# Копируем исходный код
 COPY . .
 
-# Генерируем Prisma клиент
 RUN npx prisma generate
+RUN npm run generate
+RUN npm prune --omit=dev --no-audit
+RUN npm audit --omit=dev
 
-# Собираем приложение
-RUN npm run build
+FROM node:20-alpine AS runtime
 
-# Открываем порт
+ENV NODE_ENV=production
+WORKDIR /app
+
+# The builder has already removed Nuxt, Vue, Webpack and all other dev-only
+# packages. The final image contains the API runtime and generated frontend.
+COPY --from=builder /app /app
+
 EXPOSE 3000
 
-# Запускаем приложение
 CMD ["npm", "start"]

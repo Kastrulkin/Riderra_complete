@@ -100,8 +100,9 @@ fi
 # 2. Установка зависимостей
 echo -e "\n${YELLOW}📦 Установка зависимостей...${NC}"
 # Nuxt and the static-generation toolchain are development dependencies. They
-# are still required on the production host to build the release artifact.
-npm install --include=dev || {
+# are required only while producing the static release artifact and are pruned
+# before the application is restarted.
+npm install --include=dev --no-audit || {
   echo -e "${RED}❌ Ошибка при установке зависимостей${NC}"
   exit 1
 }
@@ -139,7 +140,19 @@ else
   echo -e "${YELLOW}⏭️  Пропуск пересборки${NC}"
 fi
 
-# 5. Очистка кеша Nginx
+# 5. Удаление сборочных зависимостей и аудит runtime
+echo -e "\n${YELLOW}🔒 Удаление сборочных зависимостей...${NC}"
+npm prune --omit=dev --no-audit || {
+  echo -e "${RED}❌ Не удалось удалить сборочные зависимости${NC}"
+  exit 1
+}
+npm run security:audit-production || {
+  echo -e "${RED}❌ Runtime-аудит зависимостей не пройден${NC}"
+  exit 1
+}
+echo -e "${GREEN}✓ В production оставлены только runtime-зависимости; аудит пройден${NC}"
+
+# 6. Очистка кеша Nginx
 echo -e "\n${YELLOW}🌐 Очистка кеша Nginx...${NC}"
 if command -v systemctl &> /dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
   rm -rf /var/cache/nginx/* 2>/dev/null || true
@@ -150,7 +163,7 @@ else
   echo -e "${YELLOW}⚠️  Nginx не найден или не запущен${NC}"
 fi
 
-# 6. Перезапуск PM2
+# 7. Перезапуск PM2
 if [ "$SKIP_PM2" = false ]; then
   echo -e "\n${YELLOW}🔄 Перезапуск PM2...${NC}"
   if command -v pm2 &> /dev/null; then
@@ -175,7 +188,7 @@ else
   echo -e "${YELLOW}⏭️  Пропуск перезапуска PM2${NC}"
 fi
 
-# 7. Финальная проверка
+# 8. Финальная проверка
 echo -e "\n${BLUE}🔍 Финальная проверка...${NC}"
 if command -v pm2 &> /dev/null; then
   STATUS=$(pm2 jlist | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => { try { const apps = JSON.parse(input || '[]'); const app = apps.find(item => item.name === 'riderra'); process.stdout.write(app?.pm2_env?.status || 'missing'); } catch (_) { process.stdout.write('unknown'); } })")
