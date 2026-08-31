@@ -70,3 +70,56 @@ test('supplier route table uses net prices and a readable source note', () => {
   assert.match(source, /formatMoney\(route\.driverPrice, route\.currency\)/)
   assert.equal(routeNoteLabel(route), 'Из аэропорта, sedan, SUV')
 })
+
+test('manager contacts lead the company detail flow and span both columns', () => {
+  const sectionsStart = source.indexOf('<div class="detail-sections">')
+  const managerSection = source.indexOf('Менеджеры и контакты', sectionsStart)
+  const priceSection = source.indexOf('Согласованные цены', sectionsStart)
+  const managerMarkup = source.slice(sectionsStart, managerSection)
+
+  assert.ok(sectionsStart >= 0)
+  assert.ok(managerSection > sectionsStart)
+  assert.ok(managerSection < priceSection)
+  assert.match(managerMarkup, /crm-detail-panel--wide/)
+})
+
+test('supplier rate search matches route, class, price and currency together', () => {
+  const filteredSupplierRoutes = extractMethod(
+    '    filteredSupplierRoutes\\(driver\\) \\{',
+    ',\\n    routeNoteLabel',
+    'filteredSupplierRoutes'
+  )
+  const matchingRoute = {
+    id: 'airport-sedan',
+    fromPoint: 'Vancouver International Airport (YVR)',
+    toPoint: 'Vancouver',
+    vehicleType: 'sedan',
+    driverPrice: 60,
+    currency: 'CAD'
+  }
+  const driver = {
+    id: 'driver-1',
+    routes: [
+      matchingRoute,
+      { id: 'port-van', fromPoint: 'Port of Vancouver', toPoint: 'Surrey', vehicleType: 'van', driverPrice: 120, currency: 'CAD' }
+    ]
+  }
+  const context = {
+    supplierRateQueries: { 'driver-1': 'airport sedan 60 cad' },
+    routeNoteLabel: () => 'Внесено вручную'
+  }
+
+  assert.deepEqual(filteredSupplierRoutes.call(context, driver), [matchingRoute])
+  assert.match(source, /Найти маршрут, класс, цену или примечание/)
+})
+
+test('supplier pricebook does not claim prices are missing when driver net rates exist', () => {
+  const emptyStateMarkup = source.match(/<div v-else-if="!companyPricebook\.supplier\.loading[^>]*>[\s\S]*?Закупочный прайс пока не внесён[\s\S]*?<\/div>/)
+
+  assert.ok(emptyStateMarkup, 'supplier pricebook empty state must remain discoverable')
+  assert.match(
+    emptyStateMarkup[0],
+    /!supplierDriverRateCount/,
+    'the empty state must be hidden when linked drivers already have active net rates'
+  )
+})

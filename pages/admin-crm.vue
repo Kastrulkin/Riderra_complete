@@ -180,7 +180,67 @@
         </details>
 
         <div class="detail-sections">
-          <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel" open>
+          <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel crm-detail-panel--wide" open>
+            <summary class="section-summary">Менеджеры и контакты</summary>
+            <h4>Люди, связанные с компанией</h4>
+            <div class="hint">Рабочие контакты компании показаны первыми, чтобы сотрудник сразу видел, кому писать или звонить.</div>
+            <div v-if="!(details.links || []).length" class="manager-empty">
+              Пока менеджеров нет. Заполните форму ниже, чтобы карточка компании была готова к работе.
+            </div>
+            <div class="manager-list">
+              <div class="manager-row" v-for="link in details.links || []" :key="link.id">
+                <div class="manager-row__main">
+                  <strong>{{ link.contact.fullName }}</strong>
+                  <span>{{ link.contact.position || 'Должность не указана' }}</span>
+                </div>
+                <div class="manager-row__channels">
+                  <a v-if="link.contact.email" :href="`mailto:${link.contact.email}`">{{ link.contact.email }}</a>
+                  <span v-else>Email не указан</span>
+                  <a v-if="link.contact.phone" :href="`tel:${link.contact.phone}`">{{ link.contact.phone }}</a>
+                  <span v-else>Телефон не указан</span>
+                </div>
+                <button type="button" class="btn btn--ghost btn--small" :disabled="managerBusy" @click="unlinkManager(link.contact)">Убрать связь</button>
+              </div>
+            </div>
+            <div class="manager-form">
+              <div class="manager-form__title">Добавить менеджера</div>
+              <input v-model="managerForm.fullName" class="input" placeholder="Имя и фамилия *" />
+              <input v-model="managerForm.position" class="input" placeholder="Должность" />
+              <input v-model="managerForm.email" class="input" type="email" placeholder="Email" />
+              <input v-model="managerForm.phone" class="input" placeholder="Телефон" />
+              <input v-model="managerForm.website" class="input manager-form__wide" placeholder="Сайт или профиль" />
+              <div v-if="managerError" class="hint hint--error manager-form__wide">{{ managerError }}</div>
+              <div class="manager-form__actions manager-form__wide">
+                <button type="button" class="btn btn--primary btn--small" :disabled="managerBusy" @click="addManager">
+                  {{ managerBusy ? 'Сохраняем…' : 'Добавить менеджера' }}
+                </button>
+              </div>
+            </div>
+          </details>
+
+          <details v-else class="links-block detail-card crm-detail-panel crm-detail-panel--wide">
+            <summary class="section-summary">Связанные компании</summary>
+            <h4>Компании контакта</h4>
+            <div v-if="!(details.links || []).length" class="hint">Пока нет связанных компаний</div>
+            <div class="linked-row" v-for="link in details.links || []" :key="link.id">
+              <div>{{ link.company.name }}</div>
+              <div>{{ formatSegments(link.company.segments || []) }}</div>
+              <div>{{ link.company.email || link.company.phone || '-' }}</div>
+            </div>
+          </details>
+
+          <details
+            v-if="detailsMode==='company' && (
+              companyHasSegment('client_company') ||
+              companyPricebook.client.total ||
+              companyPricebook.distance.total ||
+              companyPricebook.supplier.total ||
+              companyPricebook.best.total ||
+              (!supplierDriverRateCount && companyHasSegment('supplier_company'))
+            )"
+            class="links-block detail-card crm-detail-panel"
+            open
+          >
             <summary class="section-summary">Согласованные цены</summary>
 
             <div v-if="companyHasSegment('client_company') || companyPricebook.client.total" class="company-pricebook-block">
@@ -231,7 +291,10 @@
               <button v-if="companyPricebook.distance.rows.length < companyPricebook.distance.total" class="btn btn--ghost btn--small" :disabled="companyPricebook.distance.loading" @click="loadMoreCompanyPrices('distance')">Показать ещё</button>
             </div>
 
-            <div v-if="companyHasSegment('supplier_company') || companyPricebook.supplier.total || companyPricebook.best.total" class="company-pricebook-block">
+            <div
+              v-if="companyPricebook.supplier.total || companyPricebook.best.total || (!supplierDriverRateCount && companyHasSegment('supplier_company'))"
+              class="company-pricebook-block"
+            >
               <div class="company-pricebook-head">
                 <div>
                   <h4>Закупочный прайс поставщика</h4>
@@ -251,7 +314,7 @@
                   <div>{{ row.sourceLabel || row.sourceType || 'Источник не указан' }}<span class="price-row-category">{{ priceSourceStatusLabel(row.sourceStatus) }}</span></div>
                 </div>
               </div>
-              <div v-else-if="!companyPricebook.supplier.loading" class="comparison-empty">
+              <div v-else-if="!companyPricebook.supplier.loading && !supplierDriverRateCount" class="comparison-empty">
                 <strong>Закупочный прайс пока не внесён</strong>
                 <span>Карточка готова к хранению маршрутов, классов, цен, валюты, срока действия и источника.</span>
               </div>
@@ -477,81 +540,49 @@
 
               <div class="supplier-driver-panel supplier-driver-panel--wide">
                 <div class="supplier-driver-panel__label">Нетто-тарифы</div>
-                <div v-if="(driver.routes || []).length" class="carrier-rate-table">
-                  <div class="carrier-rate-row carrier-rate-row--head">
-                    <div>Откуда</div>
-                    <div>Куда</div>
-                    <div>Класс</div>
-                    <div>Стоимость</div>
-                    <div>Дата обновления</div>
-                    <div>Примечание</div>
+                <template v-if="(driver.routes || []).length">
+                  <div class="carrier-rate-tools">
+                    <input
+                      :value="supplierRateQueries[driver.id] || ''"
+                      class="input carrier-rate-search"
+                      placeholder="Найти маршрут, класс, цену или примечание"
+                      :aria-label="`Поиск нетто-тарифов: ${driver.name || 'перевозчик'}`"
+                      @input="$set(supplierRateQueries, driver.id, $event.target.value)"
+                    />
+                    <span>Показано {{ filteredSupplierRoutes(driver).length }} из {{ (driver.routes || []).length }}</span>
                   </div>
-                  <div
-                    v-for="route in driver.routes || []"
-                    :key="route.id"
-                    class="carrier-rate-row"
-                  >
-                    <div class="carrier-rate-row__route">{{ route.fromPoint || '—' }}</div>
-                    <div class="carrier-rate-row__route">{{ route.toPoint || '—' }}</div>
-                    <div>{{ vehicleClassLabel(route.vehicleType) }}</div>
-                    <div class="carrier-rate-row__price">{{ formatMoney(route.driverPrice, route.currency) }}</div>
-                    <div>{{ formatDateTime(route.updatedAt || route.sourceQuotedAt) || '—' }}</div>
-                    <div class="carrier-rate-row__note" :title="route.sourceMessage || route.sourceLabel || ''">{{ routeNoteLabel(route) }}</div>
+                  <div v-if="filteredSupplierRoutes(driver).length" class="carrier-rate-table">
+                    <div class="carrier-rate-row carrier-rate-row--head">
+                      <div>Откуда</div>
+                      <div>Куда</div>
+                      <div>Класс</div>
+                      <div>Стоимость</div>
+                      <div>Дата обновления</div>
+                      <div>Примечание</div>
+                    </div>
+                    <div
+                      v-for="route in filteredSupplierRoutes(driver)"
+                      :key="route.id"
+                      class="carrier-rate-row"
+                    >
+                      <div class="carrier-rate-row__route">{{ route.fromPoint || '—' }}</div>
+                      <div class="carrier-rate-row__route">{{ route.toPoint || '—' }}</div>
+                      <div>{{ vehicleClassLabel(route.vehicleType) }}</div>
+                      <div class="carrier-rate-row__price">{{ formatMoney(route.driverPrice, route.currency) }}</div>
+                      <div>{{ formatDateTime(route.updatedAt || route.sourceQuotedAt) || '—' }}</div>
+                      <div class="carrier-rate-row__note" :title="route.sourceMessage || route.sourceLabel || ''">{{ routeNoteLabel(route) }}</div>
+                    </div>
                   </div>
-                </div>
+                  <div v-else class="comparison-empty carrier-rate-empty">
+                    <strong>Тарифы не найдены</strong>
+                    <span>Измените запрос или очистите строку поиска.</span>
+                  </div>
+                </template>
                 <div v-else class="hint">Нетто-тарифы пока не внесены</div>
               </div>
             </div>
           </details>
 
-          <details v-if="detailsMode==='company'" class="links-block detail-card crm-detail-panel" open>
-            <summary class="section-summary">Менеджеры и контакты</summary>
-            <h4>Люди, связанные с компанией</h4>
-            <div class="hint">Добавляйте менеджеров заказчика или исполнителя. Контакт сохраняется отдельной карточкой и остаётся доступен в CRM.</div>
-            <div v-if="!(details.links || []).length" class="manager-empty">
-              Пока менеджеров нет. Заполните форму ниже, чтобы карточка компании была готова к работе.
-            </div>
-            <div class="manager-list">
-              <div class="manager-row" v-for="link in details.links || []" :key="link.id">
-                <div class="manager-row__main">
-                  <strong>{{ link.contact.fullName }}</strong>
-                  <span>{{ link.contact.position || 'Должность не указана' }}</span>
-                </div>
-                <div class="manager-row__channels">
-                  <a v-if="link.contact.email" :href="`mailto:${link.contact.email}`">{{ link.contact.email }}</a>
-                  <span v-else>Email не указан</span>
-                  <a v-if="link.contact.phone" :href="`tel:${link.contact.phone}`">{{ link.contact.phone }}</a>
-                  <span v-else>Телефон не указан</span>
-                </div>
-                <button type="button" class="btn btn--ghost btn--small" :disabled="managerBusy" @click="unlinkManager(link.contact)">Убрать связь</button>
-              </div>
-            </div>
-            <div class="manager-form">
-              <div class="manager-form__title">Добавить менеджера</div>
-              <input v-model="managerForm.fullName" class="input" placeholder="Имя и фамилия *" />
-              <input v-model="managerForm.position" class="input" placeholder="Должность" />
-              <input v-model="managerForm.email" class="input" type="email" placeholder="Email" />
-              <input v-model="managerForm.phone" class="input" placeholder="Телефон" />
-              <input v-model="managerForm.website" class="input manager-form__wide" placeholder="Сайт или профиль" />
-              <div v-if="managerError" class="hint hint--error manager-form__wide">{{ managerError }}</div>
-              <div class="manager-form__actions manager-form__wide">
-                <button type="button" class="btn btn--primary btn--small" :disabled="managerBusy" @click="addManager">
-                  {{ managerBusy ? 'Сохраняем…' : 'Добавить менеджера' }}
-                </button>
-              </div>
-            </div>
-          </details>
-
-          <details v-else class="links-block detail-card crm-detail-panel">
-            <summary class="section-summary">Связанные компании</summary>
-            <h4>Компании контакта</h4>
-            <div v-if="!(details.links || []).length" class="hint">Пока нет связанных компаний</div>
-            <div class="linked-row" v-for="link in details.links || []" :key="link.id">
-              <div>{{ link.company.name }}</div>
-              <div>{{ formatSegments(link.company.segments || []) }}</div>
-              <div>{{ link.company.email || link.company.phone || '-' }}</div>
-            </div>
-          </details>
         </div>
 
         <div class="actions">
@@ -587,6 +618,7 @@ export default {
       managerForm: { fullName: '', position: '', email: '', phone: '', website: '' },
       managerBusy: false,
       managerError: '',
+      supplierRateQueries: {},
       companyPricebook: {
         client: { rows: [], total: 0, loading: false },
         distance: { rows: [], total: 0, loading: false },
@@ -741,6 +773,11 @@ export default {
     },
     companyPriceOpportunityCount() {
       return this.companyOpportunityRows.filter((row) => row.status === 'opportunity').length
+    },
+    supplierDriverRateCount() {
+      return (this.details?.supplierDrivers || []).reduce((total, driver) => {
+        return total + (Array.isArray(driver?.routes) ? driver.routes.length : 0)
+      }, 0)
     },
     comparisonRouteCount() {
       return this.companyComparisonRoutes.length || this.comparisonScopePairs().length
@@ -1083,6 +1120,26 @@ export default {
       }
       return Array.from(classes)
     },
+    filteredSupplierRoutes(driver) {
+      const routes = Array.isArray(driver?.routes) ? driver.routes : []
+      const query = String(this.supplierRateQueries?.[driver?.id] || '').trim().toLocaleLowerCase('ru-RU')
+      if (!query) return routes
+
+      const tokens = query.split(/\s+/).filter(Boolean)
+      return routes.filter((route) => {
+        const searchable = [
+          route?.fromPoint,
+          route?.toPoint,
+          route?.vehicleType,
+          route?.driverPrice,
+          route?.currency,
+          route?.sourceLabel,
+          route?.sourceMessage,
+          this.routeNoteLabel(route)
+        ].filter((value) => value !== null && value !== undefined).join(' ').toLocaleLowerCase('ru-RU')
+        return tokens.every((token) => searchable.includes(token))
+      })
+    },
     routeNoteLabel(route) {
       const sourceMessage = String(route?.sourceMessage || '').trim()
       if (sourceMessage) {
@@ -1278,6 +1335,7 @@ export default {
       }
       this.managerForm = { fullName: '', position: '', email: '', phone: '', website: '' }
       this.managerError = ''
+      this.supplierRateQueries = {}
       await Promise.all([this.loadCompanyComparison(id), this.loadCompanyPricebook(id)])
     },
     async loadCompanyPricebook(id) {
@@ -1638,6 +1696,25 @@ export default {
   color:#64748b;
   line-height:1.45;
 }
+.carrier-rate-tools {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:#64748b;
+  font-size:13px;
+}
+.carrier-rate-search {
+  flex:1;
+  min-width:0;
+  max-width:560px;
+}
+.carrier-rate-tools span {
+  white-space:nowrap;
+}
+.carrier-rate-empty {
+  padding:18px;
+}
 .carrier-rate-table {
   max-height:560px;
   overflow:auto;
@@ -1701,6 +1778,12 @@ export default {
   .crm-table__head, .crm-table__row { min-width:900px; }
 }
 @media (max-width: 640px) {
+  .carrier-rate-tools {
+    display:grid;
+  }
+  .carrier-rate-search {
+    max-width:none;
+  }
   .overview-strip { grid-template-columns:1fr; }
   .mode-switch, .view-strip {
     flex-wrap: nowrap;
