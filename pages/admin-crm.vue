@@ -812,8 +812,13 @@ export default {
     hasGeography(row) {
       return Boolean(String(row?.presenceCountries || row?.countryPresence || row?.presenceCities || row?.cityPresence || '').trim())
     },
+    relationshipCount(row) {
+      const count = Number(row?._count?.links)
+      if (Number.isFinite(count)) return count
+      return Array.isArray(row?.links) ? row.links.length : 0
+    },
     needsAttention(row) {
-      const linked = Number(row?._count?.links || 0)
+      const linked = this.relationshipCount(row)
       const hasChannel = Boolean(String(row?.email || row?.phone || row?.telegramUrl || '').trim())
       return !hasChannel || !linked || !this.hasGeography(row)
     },
@@ -846,14 +851,14 @@ export default {
       return countries || cities
     },
     relationLine(row) {
-      const linked = Number(row?._count?.links || 0)
+      const linked = this.relationshipCount(row)
       if (this.mode === 'companies') return linked ? `Связанных контактов: ${linked}` : 'Нет связанных контактов'
       return linked ? `Связанных компаний: ${linked}` : 'Не привязан к компании'
     },
     nextActionLabel(row) {
       if (!String(row?.email || row?.phone || row?.telegramUrl || '').trim()) return 'Добавить канал связи'
       if (!this.hasGeography(row)) return 'Заполнить географию присутствия'
-      if (!Number(row?._count?.links || 0)) return this.mode === 'companies' ? 'Привязать контакт к компании' : 'Привязать контакт к компании'
+      if (!this.relationshipCount(row)) return this.mode === 'companies' ? 'Привязать контакт к компании' : 'Привязать контакт к компании'
       if (this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])) return 'Проверить и перевести в рабочий сегмент'
       return 'Карточка готова к работе'
     },
@@ -867,12 +872,13 @@ export default {
       return this.hasGeography(row) ? 'Заполнена' : 'Нужно заполнить'
     },
     relationStateLabel(row) {
-      return Number(row?._count?.links || 0) ? `Есть (${row._count.links})` : 'Нет связей'
+      const linked = this.relationshipCount(row)
+      return linked ? `Есть (${linked})` : 'Нет связей'
     },
     detailsFocusHint(row) {
       if (!String(row?.email || row?.phone || row?.telegramUrl || '').trim()) return 'Сначала добавьте канал связи, иначе карточка не готова к работе.'
       if (!this.hasGeography(row)) return 'Следом заполните географию, чтобы запись работала в матрице направлений.'
-      if (!Number(row?._count?.links || 0)) return 'После этого свяжите карточку с компанией или контактом.'
+      if (!this.relationshipCount(row)) return 'После этого свяжите карточку с компанией или контактом.'
       if (this.hasAnySegment(row, ['potential_client_company', 'potential_client_contact', 'potential_client_agent', 'potential_supplier'])) return 'Проверьте запись и переведите её в рабочий сегмент, если контакт уже актуален.'
       return 'Карточка в рабочем состоянии. Можно использовать её в операционной работе.'
     },
