@@ -52,3 +52,21 @@ test('company details use loaded links when the list endpoint count is absent', 
   assert.equal(nextActionLabel.call(context, companyDetails), 'Карточка готова к работе')
   assert.equal(detailsFocusHint.call(context, companyDetails), 'Карточка в рабочем состоянии. Можно использовать её в операционной работе.')
 })
+
+test('supplier route table uses net prices and a readable source note', () => {
+  const routeNoteLabel = extractMethod(
+    '    routeNoteLabel\\(route\\) \\{',
+    ',\\n    formatMoney',
+    'routeNoteLabel'
+  )
+  const route = {
+    driverPrice: 80,
+    currency: 'CAD',
+    sourceType: 'whatsapp',
+    sourceMessage: '[25.05, 23:15] Стас Голяков Ванкувер: Из аэропорта, sedan, SUV'
+  }
+
+  assert.match(source, /Нетто-тарифы/)
+  assert.match(source, /formatMoney\(route\.driverPrice, route\.currency\)/)
+  assert.equal(routeNoteLabel(route), 'Из аэропорта, sedan, SUV')
+})

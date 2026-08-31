@@ -409,7 +409,7 @@
             </div>
           </details>
 
-          <details v-if="detailsMode==='company' && (details.supplierDrivers || []).length" class="links-block detail-card crm-detail-panel" open>
+          <details v-if="detailsMode==='company' && (details.supplierDrivers || []).length" class="links-block detail-card crm-detail-panel crm-detail-panel--wide" open>
             <summary class="section-summary">Перевозчик и покрытие</summary>
             <h4>Водители, машины и закупочные тарифы</h4>
             <div class="hint">
@@ -476,23 +476,30 @@
               </div>
 
               <div class="supplier-driver-panel supplier-driver-panel--wide">
-                <div class="supplier-driver-panel__label">Актуальные закупочные тарифы</div>
-                <div v-if="(driver.routes || []).length" class="carrier-rate-list">
+                <div class="supplier-driver-panel__label">Нетто-тарифы</div>
+                <div v-if="(driver.routes || []).length" class="carrier-rate-table">
+                  <div class="carrier-rate-row carrier-rate-row--head">
+                    <div>Откуда</div>
+                    <div>Куда</div>
+                    <div>Класс</div>
+                    <div>Стоимость</div>
+                    <div>Дата обновления</div>
+                    <div>Примечание</div>
+                  </div>
                   <div
                     v-for="route in driver.routes || []"
                     :key="route.id"
                     class="carrier-rate-row"
                   >
-                    <div class="carrier-rate-row__route">{{ route.fromPoint }} → {{ route.toPoint }}</div>
-                    <div class="carrier-rate-row__meta">
-                      <span>{{ vehicleClassLabel(route.vehicleType) }}</span>
-                      <strong>{{ formatMoney(route.supplierPrice, route.currency) }}</strong>
-                      <span v-if="route.sourceLabel">· {{ route.sourceLabel }}</span>
-                      <span v-if="route.sourceQuotedAt">· {{ formatDateTime(route.sourceQuotedAt) }}</span>
-                    </div>
+                    <div class="carrier-rate-row__route">{{ route.fromPoint || '—' }}</div>
+                    <div class="carrier-rate-row__route">{{ route.toPoint || '—' }}</div>
+                    <div>{{ vehicleClassLabel(route.vehicleType) }}</div>
+                    <div class="carrier-rate-row__price">{{ formatMoney(route.driverPrice, route.currency) }}</div>
+                    <div>{{ formatDateTime(route.updatedAt || route.sourceQuotedAt) || '—' }}</div>
+                    <div class="carrier-rate-row__note" :title="route.sourceMessage || route.sourceLabel || ''">{{ routeNoteLabel(route) }}</div>
                   </div>
                 </div>
-                <div v-else class="hint">Закупочные тарифы пока не внесены</div>
+                <div v-else class="hint">Нетто-тарифы пока не внесены</div>
               </div>
             </div>
           </details>
@@ -1076,6 +1083,22 @@ export default {
       }
       return Array.from(classes)
     },
+    routeNoteLabel(route) {
+      const sourceMessage = String(route?.sourceMessage || '').trim()
+      if (sourceMessage) {
+        const firstLine = sourceMessage.split(/\r?\n/).find((line) => line.trim()) || ''
+        const readableLine = firstLine.replace(/^\[[^\]]+\]\s*[^:]+:\s*/, '').trim()
+        if (readableLine) return readableLine
+      }
+      const sourceTypes = {
+        whatsapp: 'Подтверждено в WhatsApp',
+        email: 'Подтверждено по email',
+        call: 'Подтверждено по телефону',
+        manual: 'Внесено вручную',
+        sheet: 'Из прайс-листа поставщика'
+      }
+      return sourceTypes[String(route?.sourceType || '').toLowerCase()] || '—'
+    },
     formatMoney(amount, currency) {
       if (amount === null || amount === undefined || amount === '') return '-'
       const numeric = Number(amount)
@@ -1511,6 +1534,9 @@ export default {
 .crm-detail-panel {
   overflow:hidden;
 }
+.crm-detail-panel--wide {
+  grid-column:1 / -1;
+}
 .crm-detail-panel summary,
 .section-summary {
   cursor:pointer;
@@ -1596,13 +1622,11 @@ export default {
   text-transform:uppercase;
   color:var(--staff-accent);
 }
-.carrier-vehicle-list,
-.carrier-rate-list {
+.carrier-vehicle-list {
   display:grid;
   gap:8px;
 }
-.carrier-vehicle-row,
-.carrier-rate-row {
+.carrier-vehicle-row {
   display:grid;
   gap:4px;
   padding:10px 12px;
@@ -1610,14 +1634,54 @@ export default {
   border-radius: 8px;
   background:#fff;
 }
-.carrier-vehicle-row span,
-.carrier-rate-row__meta {
+.carrier-vehicle-row span {
   color:#64748b;
   line-height:1.45;
+}
+.carrier-rate-table {
+  max-height:560px;
+  overflow:auto;
+  border:1px solid #e7ebf2;
+  border-radius: 8px;
+  background:#fff;
+}
+.carrier-rate-row {
+  display:grid;
+  grid-template-columns:minmax(180px,1.2fr) minmax(180px,1.2fr) minmax(145px,.9fr) 120px 150px minmax(190px,1fr);
+  gap:12px;
+  align-items:center;
+  min-width:1080px;
+  padding:11px 12px;
+  border-top:1px solid #eef2f8;
+  color:#475569;
+  font-size:13px;
+  line-height:1.4;
+}
+.carrier-rate-row:first-child { border-top:0; }
+.carrier-rate-row--head {
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.03em;
+  text-transform:uppercase;
 }
 .carrier-rate-row__route {
   font-weight:700;
   color:#17233d;
+}
+.carrier-rate-row__price {
+  font-weight:800;
+  color:#17233d;
+  white-space:nowrap;
+}
+.carrier-rate-row__note {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 .actions { display:flex; gap:10px; justify-content:flex-end; }
 @media (max-width: 1100px) {
