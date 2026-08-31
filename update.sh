@@ -99,7 +99,9 @@ fi
 
 # 2. Установка зависимостей
 echo -e "\n${YELLOW}📦 Установка зависимостей...${NC}"
-npm install || {
+# Nuxt and the static-generation toolchain are development dependencies. They
+# are still required on the production host to build the release artifact.
+npm install --include=dev || {
   echo -e "${RED}❌ Ошибка при установке зависимостей${NC}"
   exit 1
 }
