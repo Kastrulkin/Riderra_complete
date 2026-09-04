@@ -10598,8 +10598,8 @@ app.get(
         ? parseJsonSafe(order.addressVerificationJson, null)
         : (draftPayload.addressVerification || null)
       const geoZones = draftPayload.geoZones || await buildGeoZoneMatchesForAddressVerification(req.actorContext.tenantId, addressVerification)
-      const supplierCost = await findBestSupplierCostForDraft({
-        tenantId: req.actorContext.tenantId,
+      const supplierCostCandidates = await loadSupplierCostCandidates(req.actorContext.tenantId)
+      const supplierCost = findBestSupplierCostFromCandidates(supplierCostCandidates, {
         city: orderDraft.city || '',
         fromPoint: order.fromPoint || orderDraft.fromPoint || '',
         toPoint: order.toPoint || orderDraft.toPoint || '',
@@ -10607,7 +10607,6 @@ app.get(
         fromZoneName: geoZones?.fromPoint?.name || '',
         toZoneName: geoZones?.toPoint?.name || ''
       })
-      const supplierCostCandidates = await loadSupplierCostCandidates(req.actorContext.tenantId)
       const supplierOptions = findSupplierCostOptionsFromCandidates(supplierCostCandidates, {
         city: orderDraft.city || '',
         fromPoint: order.fromPoint || orderDraft.fromPoint || '',
@@ -17087,7 +17086,18 @@ async function loadSupplierCostCandidates(tenantId) {
         isActive: true
       }
     },
-    include: {
+    select: {
+      id: true,
+      fromPoint: true,
+      toPoint: true,
+      vehicleType: true,
+      driverPrice: true,
+      currency: true,
+      sourceType: true,
+      sourceLabel: true,
+      sourceQuotedAt: true,
+      sourceMessage: true,
+      sourceStatus: true,
       driver: {
         select: {
           id: true,
@@ -17125,7 +17135,14 @@ async function loadSupplierCostCandidates(tenantId) {
         isActive: true
       }
     },
-    include: {
+    select: {
+      id: true,
+      bestPrice: true,
+      sourceType: true,
+      sourceLabel: true,
+      sourceQuotedAt: true,
+      sourceMessage: true,
+      sourceStatus: true,
       driver: {
         select: {
           id: true,
@@ -17149,7 +17166,16 @@ async function loadSupplierCostCandidates(tenantId) {
           }
         }
       },
-      cityRoute: true
+      cityRoute: {
+        select: {
+          id: true,
+          city: true,
+          fromPoint: true,
+          toPoint: true,
+          vehicleType: true,
+          currency: true
+        }
+      }
     },
     take: 5000
   })
