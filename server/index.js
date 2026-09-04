@@ -83,6 +83,7 @@ const {
   isOrderPriceRequest,
   stripOrderPriceCommand
 } = require('./services/telegramOrderPricingService')
+const { supplierVehicleMatchScore } = require('./services/supplierVehicleMatchingService')
 const {
   consumeTelegramBindToken,
   telegramBindErrorMessage,
@@ -17184,7 +17185,7 @@ function findSupplierCostOptionsFromCandidates(candidates, {
   fromZoneName = '',
   toZoneName = ''
 } = {}) {
-  const vehicleNorm = normalizeVehicleType(vehicleType)
+  const requestedVehicleType = String(vehicleType || '').trim()
   const fromCandidates = [fromPoint, fromZoneName].map((value) => String(value || '').trim()).filter(Boolean)
   const toCandidates = [toPoint, toZoneName].map((value) => String(value || '').trim()).filter(Boolean)
   const routeMatchesAny = (ruleFrom, ruleTo) =>
@@ -17196,13 +17197,14 @@ function findSupplierCostOptionsFromCandidates(candidates, {
   const cityRouteRows = Array.isArray(candidates?.cityRouteRows) ? candidates.cityRouteRows : []
 
   const routeCandidates = driverRoutes
-    .filter((row) => vehicleTypeMatches(row.vehicleType, vehicleNorm))
-    .filter((row) => routeMatchesAny(row.fromPoint, row.toPoint))
-    .filter((row) => row.driverPrice != null)
-    .map((row) => ({
+    .map((row) => ({ row, vehicleMatchScore: supplierVehicleMatchScore(row.vehicleType, requestedVehicleType) }))
+    .filter(({ vehicleMatchScore }) => vehicleMatchScore > 0)
+    .filter(({ row }) => routeMatchesAny(row.fromPoint, row.toPoint))
+    .filter(({ row }) => row.driverPrice != null)
+    .map(({ row, vehicleMatchScore }) => ({
       sourceModel: 'driver_route',
       sourceId: row.id,
-      matchScore: 100,
+      matchScore: 100 + vehicleMatchScore,
       supplierPrice: Number(row.driverPrice),
       currency: row.currency || 'EUR',
       vehicleType: row.vehicleType || null,
@@ -17217,13 +17219,14 @@ function findSupplierCostOptionsFromCandidates(candidates, {
   const cityNorm = String(city || '').trim()
   const cityRouteCandidates = cityRouteRows
     .filter((row) => !cityNorm || String(row?.cityRoute?.city || '').trim().toLowerCase() === cityNorm.toLowerCase())
-    .filter((row) => vehicleTypeMatches(row?.cityRoute?.vehicleType, vehicleNorm))
-    .filter((row) => row.bestPrice != null)
-    .filter((row) => routeMatchesAny(row.cityRoute.fromPoint, row.cityRoute.toPoint))
-    .map((row) => ({
+    .map((row) => ({ row, vehicleMatchScore: supplierVehicleMatchScore(row?.cityRoute?.vehicleType, requestedVehicleType) }))
+    .filter(({ vehicleMatchScore }) => vehicleMatchScore > 0)
+    .filter(({ row }) => row.bestPrice != null)
+    .filter(({ row }) => routeMatchesAny(row.cityRoute.fromPoint, row.cityRoute.toPoint))
+    .map(({ row, vehicleMatchScore }) => ({
       sourceModel: 'driver_city_route',
       sourceId: row.id,
-      matchScore: 90,
+      matchScore: 90 + vehicleMatchScore,
       supplierPrice: Number(row.bestPrice),
       currency: row.cityRoute.currency || 'EUR',
       vehicleType: row.cityRoute.vehicleType || null,
