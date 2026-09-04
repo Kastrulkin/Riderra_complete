@@ -96,6 +96,7 @@
     "vuejs-datepicker": "^1.5.4"
   },
   "overrides": {
+    "qs": "6.16.0",
     "@nuxt/telemetry": "2.6.6",
     "axios": "^1.18.1",
     "cookie": "0.7.2",
